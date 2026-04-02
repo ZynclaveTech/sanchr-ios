@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 
 /// View model for the chat conversation detail screen.
 /// Manages messages, input, sending, optimistic updates, and pagination.
@@ -43,6 +44,35 @@ final class ChatDetailViewModel {
 
     /// Whether there are more messages to load.
     var hasMoreMessages: Bool = true
+
+    // MARK: - Conversation Lifecycle
+
+    /// Called when the user enters a conversation.
+    /// Clears any pending notifications for this conversation and sets the active conversation
+    /// so that foreground notifications for it are suppressed.
+    @MainActor
+    func onConversationAppear(conversationId: String) {
+        PushManager.activeConversationId = conversationId
+
+        // Clear delivered notifications for this conversation
+        SanchrNotificationService.clearNotifications(for: conversationId)
+
+        // Decrement badge (best-effort; the server is the source of truth for badge count)
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let delivered = await center.deliveredNotifications()
+            let remainingCount = delivered.filter { $0.request.content.threadIdentifier != conversationId }.count
+            await SanchrNotificationService.updateBadgeCount(remainingCount)
+        }
+
+        SanchrLogger.chat.info("Entered conversation \(conversationId.prefix(8))..., notifications cleared")
+    }
+
+    /// Called when the user leaves a conversation.
+    @MainActor
+    func onConversationDisappear() {
+        PushManager.activeConversationId = nil
+    }
 
     // MARK: - Load Messages
 
