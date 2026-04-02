@@ -1,7 +1,8 @@
 import Foundation
 
 /// Data source for chat-related gRPC service calls.
-/// Wraps the MessagingService client with domain model mapping.
+/// Wraps the MessagingService client with domain model mapping
+/// and provides encrypted message send/receive orchestration.
 final class ChatDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
     private let messagingClient: Vync_Messaging_MessagingServiceClient
@@ -38,8 +39,60 @@ final class ChatDataSource: @unchecked Sendable {
         request.contentType = contentType
         request.expiresAfterSecs = expiresAfterSecs
 
-        SanchrLogger.chat.info("ChatDataSource: sendMessage to conversation \(conversationID.prefix(8))...")
+        SanchrLogger.chat.info("ChatDataSource: sendMessage to conversation \(conversationID.prefix(8))... (\(deviceMessages.count) device(s))")
         return try await messagingClient.sendMessage(request)
+    }
+
+    // MARK: - Encrypted Message Orchestration
+
+    /// Encrypts plaintext for all recipient devices and sends via gRPC.
+    /// This is the high-level entry point for sending an E2EE message.
+    func sendEncryptedMessage(
+        conversationId: String,
+        plaintext: Data,
+        recipientIds: [String],
+        signalSessionManager: SignalProtocolManagerProtocol
+    ) async throws -> Vync_Messaging_SendMessageResponse {
+        var allDeviceMessages: [Vync_Messaging_DeviceMessage] = []
+
+        for recipientId in recipientIds {
+            if let sessionManager = signalSessionManager as? SignalSessionManager {
+                let deviceMessages = try await sessionManager.encryptForAllDevices(
+                    plaintext: plaintext,
+                    recipientId: recipientId
+                )
+                allDeviceMessages.append(contentsOf: deviceMessages)
+            } else {
+                // Legacy path: single device
+                if !signalSessionManager.hasSession(with: recipientId) {
+                    try await signalSessionManager.establishSession(with: recipientId, deviceId: 1)
+                }
+                let ciphertext = try await signalSessionManager.encrypt(
+                    plaintext: plaintext,
+                    for: recipientId,
+                    deviceId: 1
+                )
+                var dm = Vync_Messaging_DeviceMessage()
+                dm.recipientID = recipientId
+                dm.deviceID = 1
+                dm.ciphertext = ciphertext
+                allDeviceMessages.append(dm)
+            }
+        }
+
+        return try await sendMessage(
+            conversationID: conversationId,
+            deviceMessages: allDeviceMessages,
+            contentType: "text"
+        )
+    }
+
+    /// Decrypts an incoming EncryptedEnvelope to plaintext using the Signal Protocol.
+    func decryptIncomingMessage(
+        envelope: Vync_Messaging_EncryptedEnvelope,
+        signalSessionManager: SignalProtocolManagerProtocol
+    ) async throws -> Data {
+        return try await signalSessionManager.decryptEnvelope(envelope)
     }
 
     // MARK: - Get Conversations

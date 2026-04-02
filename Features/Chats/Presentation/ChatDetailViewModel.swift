@@ -2,6 +2,8 @@ import Foundation
 
 /// View model for the chat conversation detail screen.
 /// Manages messages, input, sending, optimistic updates, and pagination.
+/// All outgoing messages are encrypted via Signal Protocol before sending.
+/// Incoming messages are decrypted before display.
 @Observable
 final class ChatDetailViewModel {
 
@@ -68,13 +70,15 @@ final class ChatDetailViewModel {
         }
     }
 
-    // MARK: - Send Message
+    // MARK: - Send Message (E2EE)
 
+    /// Encrypts the current input text via Signal Protocol and sends to the conversation.
     func sendMessage(
         conversationId: String,
         recipientId: String,
         messageRepository: MessageRepositoryProtocol,
-        signalProtocol: SignalProtocolManagerProtocol
+        signalProtocol: SignalProtocolManagerProtocol,
+        chatDataSource: ChatDataSource
     ) async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -82,11 +86,6 @@ final class ChatDetailViewModel {
         // Clear input immediately for responsive UI
         inputText = ""
         isSending = true
-
-        let useCase = SendMessageUseCase(
-            messageRepository: messageRepository,
-            signalProtocol: signalProtocol
-        )
 
         // Optimistic UI: add message immediately with .sending status
         let optimisticMessage = Message.textMessage(
@@ -98,6 +97,11 @@ final class ChatDetailViewModel {
         messages.append(optimisticMessage)
 
         do {
+            let useCase = ChatUseCases.SendMessageUseCase(
+                messageRepository: messageRepository,
+                signalSessionManager: signalProtocol,
+                chatDataSource: chatDataSource
+            )
             let sentMessage = try await useCase.execute(
                 text: text,
                 conversationId: conversationId,
@@ -118,6 +122,47 @@ final class ChatDetailViewModel {
         }
 
         isSending = false
+    }
+
+    // MARK: - Receive & Decrypt Incoming Message
+
+    /// Decrypts an incoming encrypted envelope and appends the plaintext message to the list.
+    func handleIncomingEnvelope(
+        _ envelope: Vync_Messaging_EncryptedEnvelope,
+        signalProtocol: SignalProtocolManagerProtocol
+    ) async {
+        do {
+            let plaintext = try await signalProtocol.decryptEnvelope(envelope)
+            guard let text = String(data: plaintext, encoding: .utf8) else {
+                SanchrLogger.chat.error("Failed to decode decrypted plaintext as UTF-8")
+                return
+            }
+
+            let incomingMessage = Message(
+                id: envelope.messageID,
+                conversationId: envelope.conversationID,
+                senderId: envelope.senderID,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
+                content: .text(text),
+                status: .delivered,
+                isOutgoing: false
+            )
+            messages.append(incomingMessage)
+            SanchrLogger.chat.info("Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
+        } catch {
+            SanchrLogger.chat.error("Failed to decrypt incoming message: \(error.localizedDescription)")
+            // Insert a system message indicating decryption failure
+            let errorMsg = Message(
+                id: envelope.messageID,
+                conversationId: envelope.conversationID,
+                senderId: envelope.senderID,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
+                content: .system(.identityKeyChanged),
+                status: .delivered,
+                isOutgoing: false
+            )
+            messages.append(errorMsg)
+        }
     }
 
     // MARK: - Load More (Pagination)
@@ -151,7 +196,8 @@ final class ChatDetailViewModel {
         _ message: Message,
         recipientId: String,
         messageRepository: MessageRepositoryProtocol,
-        signalProtocol: SignalProtocolManagerProtocol
+        signalProtocol: SignalProtocolManagerProtocol,
+        chatDataSource: ChatDataSource
     ) async {
         guard message.status == .failed, case .text(let text) = message.content else { return }
 
@@ -164,7 +210,8 @@ final class ChatDetailViewModel {
             conversationId: message.conversationId,
             recipientId: recipientId,
             messageRepository: messageRepository,
-            signalProtocol: signalProtocol
+            signalProtocol: signalProtocol,
+            chatDataSource: chatDataSource
         )
     }
 

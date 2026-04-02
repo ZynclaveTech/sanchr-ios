@@ -1,4 +1,5 @@
 import Foundation
+import LibSignalClient
 
 /// Domain use cases for authentication flows.
 /// Each use case encapsulates a single auth operation with validation.
@@ -28,20 +29,20 @@ enum AuthUseCases {
 
     // MARK: - Register Use Case
 
-    /// Registers a new user account with identity key generation.
+    /// Registers a new user account with Signal Protocol identity key generation.
     struct RegisterUseCase: Sendable {
         private let authDataSource: AuthDataSource
-        private let keyManager: KeyManagerProtocol
+        private let signalKeyManager: SignalKeyManager
         private let sessionService: SessionService
 
-        init(authDataSource: AuthDataSource, keyManager: KeyManagerProtocol, sessionService: SessionService) {
+        init(authDataSource: AuthDataSource, signalKeyManager: SignalKeyManager, sessionService: SessionService) {
             self.authDataSource = authDataSource
-            self.keyManager = keyManager
+            self.signalKeyManager = signalKeyManager
             self.sessionService = sessionService
         }
 
-        /// Validates phone format, registers via gRPC, generates identity keys,
-        /// and stores the resulting session tokens.
+        /// Validates phone format, registers via gRPC, generates Signal Protocol identity keys,
+        /// and uploads the full key bundle to the server.
         func execute(phoneNumber: String, displayName: String) async throws -> User {
             // 1. Validate inputs
             let validPhone = try AuthUseCases.validatePhoneNumber(phoneNumber)
@@ -56,37 +57,31 @@ enum AuthUseCases {
 
             SanchrLogger.auth.info("RegisterUseCase: executing for \(validPhone.prefix(4))****")
 
-            // 2. Register via gRPC
+            // 2. Generate Signal Protocol identity key pair
+            let identityKeyPair = try signalKeyManager.generateIdentityIfNeeded()
+
+            // 3. Register via gRPC (send identity public key with registration)
             let tokens = try await authDataSource.register(
                 phoneNumber: validPhone,
                 displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines)
             )
 
-            // 3. Store session tokens
+            // 4. Store session tokens
             try await sessionService.storeTokens(tokens)
 
-            // 4. Generate and upload identity keys for Signal Protocol
-            let keyPair = try await keyManager.generateIdentityKeyPair()
-            let signedPreKey = try await keyManager.generateSignedPreKey()
-            let oneTimePreKeys = try await keyManager.generatePreKeys(count: 100)
-
-            // Upload pre-key bundle (best-effort; app remains functional if this fails)
+            // 5. Upload full Signal Protocol key bundle to server
             do {
-                let keyClient = Vync_Keys_KeyServiceClient(grpcClient: GRPCClient(configuration: .current))
-                var bundle = Vync_Keys_KeyBundle()
-                bundle.identityPublicKey = keyPair.publicKey
-                bundle.signedPreKey = Vync_Keys_SignedPreKey(
-                    keyID: Int32(signedPreKey.id),
-                    publicKey: signedPreKey.publicKey,
-                    signature: signedPreKey.signature
-                )
-                bundle.oneTimePreKeys = oneTimePreKeys.map { key in
-                    Vync_Keys_OneTimePreKey(keyID: Int32(key.id), publicKey: key.publicKey)
-                }
-                _ = try await keyClient.uploadKeyBundle(bundle)
+                try await signalKeyManager.uploadInitialKeyBundle()
             } catch {
-                SanchrLogger.auth.warning("Pre-key upload failed during registration: \(error.localizedDescription)")
+                SanchrLogger.auth.warning("Key bundle upload failed during registration: \(error.localizedDescription)")
+                // Non-fatal: the app can retry later via checkAndReplenishPreKeys.
             }
+
+            // 6. Compute identity key fingerprint for display
+            let identityFingerprint = Data(identityKeyPair.identityKey.serialize())
+                .prefix(8)
+                .map { String(format: "%02x", $0) }
+                .joined(separator: " ")
 
             SanchrLogger.auth.info("RegisterUseCase: completed successfully")
             return User(
@@ -97,7 +92,7 @@ enum AuthUseCases {
                 bio: nil,
                 isVerified: true,
                 lastSeen: Date(),
-                identityKeyFingerprint: nil,
+                identityKeyFingerprint: identityFingerprint,
                 status: .online,
                 isLocalUser: true
             )
@@ -106,15 +101,16 @@ enum AuthUseCases {
 
     // MARK: - Verify OTP Use Case
 
-    /// Verifies the OTP code, stores tokens, generates keys if needed, and returns the user.
+    /// Verifies the OTP code, stores tokens, generates Signal Protocol keys if needed,
+    /// and uploads the key bundle to the server.
     struct VerifyOTPUseCase: Sendable {
         private let authDataSource: AuthDataSource
-        private let keyManager: KeyManagerProtocol
+        private let signalKeyManager: SignalKeyManager
         private let sessionService: SessionService
 
-        init(authDataSource: AuthDataSource, keyManager: KeyManagerProtocol, sessionService: SessionService) {
+        init(authDataSource: AuthDataSource, signalKeyManager: SignalKeyManager, sessionService: SessionService) {
             self.authDataSource = authDataSource
-            self.keyManager = keyManager
+            self.signalKeyManager = signalKeyManager
             self.sessionService = sessionService
         }
 
@@ -138,28 +134,27 @@ enum AuthUseCases {
             // 3. Store tokens
             try await sessionService.storeTokens(tokens)
 
-            // 4. Generate identity keys if this is first login on this device
-            if !keyManager.hasIdentityKeys {
-                SanchrLogger.auth.info("First device login — generating identity keys")
-                let keyPair = try await keyManager.generateIdentityKeyPair()
-                let signedPreKey = try await keyManager.generateSignedPreKey()
-                let oneTimePreKeys = try await keyManager.generatePreKeys(count: 100)
+            // 4. Generate Signal Protocol identity keys if this is first login on this device
+            if !signalKeyManager.hasIdentityKeys {
+                SanchrLogger.auth.info("First device login -- generating Signal Protocol identity keys")
 
+                // Generate identity key pair (stored in Keychain)
+                _ = try signalKeyManager.generateIdentityIfNeeded()
+
+                // Upload the full key bundle: identity key + signed pre-key + 100 one-time pre-keys
                 do {
-                    let keyClient = Vync_Keys_KeyServiceClient(grpcClient: GRPCClient(configuration: .current))
-                    var bundle = Vync_Keys_KeyBundle()
-                    bundle.identityPublicKey = keyPair.publicKey
-                    bundle.signedPreKey = Vync_Keys_SignedPreKey(
-                        keyID: Int32(signedPreKey.id),
-                        publicKey: signedPreKey.publicKey,
-                        signature: signedPreKey.signature
-                    )
-                    bundle.oneTimePreKeys = oneTimePreKeys.map { key in
-                        Vync_Keys_OneTimePreKey(keyID: Int32(key.id), publicKey: key.publicKey)
-                    }
-                    _ = try await keyClient.uploadKeyBundle(bundle)
+                    try await signalKeyManager.uploadInitialKeyBundle()
+                    SanchrLogger.auth.info("Signal Protocol key bundle uploaded successfully")
                 } catch {
-                    SanchrLogger.auth.warning("Pre-key upload failed after OTP: \(error.localizedDescription)")
+                    SanchrLogger.auth.warning("Key bundle upload failed after OTP: \(error.localizedDescription)")
+                    // Non-fatal: will be retried when a PreKeyCountLow server event arrives.
+                }
+            } else {
+                // Keys exist; check if the server needs more one-time pre-keys.
+                do {
+                    try await signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+                } catch {
+                    SanchrLogger.auth.warning("Pre-key replenishment check failed: \(error.localizedDescription)")
                 }
             }
 

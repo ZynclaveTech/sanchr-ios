@@ -1,92 +1,221 @@
 import Foundation
+import LibSignalClient
 
-/// Protocol for Signal Protocol session management.
-/// Handles encrypted messaging session lifecycle.
+/// Protocol for Signal Protocol session management and message encryption/decryption.
 protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
-    /// Establishes a new encrypted session with a remote user.
-    func establishSession(with userId: String, preKeyBundle: Data) async throws
+    /// Establishes a new session with a recipient using X3DH key agreement.
+    func establishSession(with userId: String, deviceId: Int32) async throws
 
-    /// Encrypts a plaintext message for the given recipient.
-    func encrypt(message: Data, for userId: String) async throws -> Data
+    /// Checks if an active session exists with a recipient device.
+    func hasSession(with userId: String, deviceId: Int32) throws -> Bool
 
-    /// Decrypts a ciphertext message from the given sender.
-    func decrypt(message: Data, from userId: String) async throws -> Data
+    /// Encrypts plaintext for a specific recipient device.
+    func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data
 
-    /// Checks whether a session exists for the given user.
+    /// Encrypts a message for all devices of a recipient.
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Vync_Messaging_DeviceMessage]
+
+    /// Decrypts an incoming ciphertext from a sender device.
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
+
+    /// Decrypts an EncryptedEnvelope, auto-detecting message type.
+    func decryptEnvelope(_ envelope: Vync_Messaging_EncryptedEnvelope) async throws -> Data
+
+    /// Resets (deletes) the session with a specific user/device for session recovery.
+    func resetSession(with userId: String, deviceId: Int32) throws
+
+    /// Generates a displayable safety number for identity verification.
+    func safetyNumber(for userId: String, deviceId: Int32) throws -> String
+
+    /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
-
-    /// Verifies the identity key fingerprint for a given user.
-    func verifyIdentity(userId: String, fingerprint: Data) -> Bool
-
-    /// Removes the session for a given user (e.g., after identity change).
-    func deleteSession(for userId: String) async throws
-
-    /// Generates a safety number for identity verification.
-    func safetyNumber(for userId: String) async throws -> String
 }
 
-/// Signal Protocol wrapper managing end-to-end encrypted sessions.
-final class SignalProtocolManager: SignalProtocolManagerProtocol, @unchecked Sendable {
-    private let keyManager: KeyManagerProtocol
-    private let secureStorage: SecureStorageProtocol
+/// Signal Protocol session management and message encryption/decryption engine.
+///
+/// Uses libsignal-swift to implement X3DH key agreement and Double Ratchet messaging.
+/// All cryptographic state is held in `SanchrSignalStore` which persists to Keychain and disk.
+final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Sendable {
 
-    // TODO: Store active sessions in a thread-safe dictionary
-    // private var sessions: [String: SessionCipher] = [:]
+    // MARK: - Properties
 
-    init(keyManager: KeyManagerProtocol, secureStorage: SecureStorageProtocol) {
+    private let store: SanchrSignalStore
+    private let keyManager: SignalKeyManager
+
+    // MARK: - Init
+
+    init(store: SanchrSignalStore, keyManager: SignalKeyManager) {
+        self.store = store
         self.keyManager = keyManager
-        self.secureStorage = secureStorage
-        SanchrLogger.crypto.info("SignalProtocolManager initialized")
+        SanchrLogger.crypto.info("SignalSessionManager initialized")
     }
 
-    func establishSession(with userId: String, preKeyBundle: Data) async throws {
-        SanchrLogger.crypto.info("Establishing session with user \(userId)")
-        // TODO: Implement X3DH key agreement
-        // 1. Parse pre-key bundle from server
-        // 2. Run X3DH to derive shared secret
-        // 3. Initialize Double Ratchet session
-        // 4. Store session in secure storage
+    // MARK: - Session Management
+
+    func establishSession(with userId: String, deviceId: Int32) async throws {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+
+        SanchrLogger.crypto.info("Establishing session with \(userId.prefix(8))... device \(deviceId)")
+
+        // 1. Fetch the recipient's pre-key bundle from the server.
+        let preKeyBundle = try await keyManager.fetchPreKeyBundle(userId: userId, deviceId: deviceId)
+
+        // 2. Process the bundle to perform X3DH key agreement and initialize the Double Ratchet.
+        try processPreKeyBundle(
+            preKeyBundle,
+            for: address,
+            sessionStore: store,
+            identityStore: store,
+            context: NullContext()
+        )
+
+        SanchrLogger.crypto.info("Session established with \(userId.prefix(8))... device \(deviceId)")
     }
 
-    func encrypt(message: Data, for userId: String) async throws -> Data {
-        guard hasSession(with: userId) else {
+    func hasSession(with userId: String, deviceId: Int32) throws -> Bool {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        return store.sessionStore.hasSession(for: address)
+    }
+
+    /// Legacy compatibility: checks device 1 only.
+    func hasSession(with userId: String) -> Bool {
+        guard let address = try? ProtocolAddress(name: userId, deviceId: 1) else { return false }
+        return store.sessionStore.hasSession(for: address)
+    }
+
+    // MARK: - Message Encryption
+
+    func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+
+        // Ensure a session exists; establish one if needed.
+        if !store.sessionStore.hasSession(for: address) {
+            try await establishSession(with: userId, deviceId: deviceId)
+        }
+
+        let ciphertext = try signalEncrypt(
+            message: plaintext,
+            for: address,
+            sessionStore: store,
+            identityStore: store,
+            context: NullContext()
+        )
+
+        // Prepend a single byte indicating the message type so the receiver can dispatch correctly.
+        // 0x01 = PreKeySignalMessage (new session), 0x02 = SignalMessage (existing session)
+        var envelope = Data()
+        switch ciphertext.messageType {
+        case .preKey:
+            envelope.append(0x01)
+        case .whisper:
+            envelope.append(0x02)
+        default:
+            envelope.append(0x00)
+        }
+        envelope.append(Data(ciphertext.serialize()))
+
+        return envelope
+    }
+
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Vync_Messaging_DeviceMessage] {
+        // Fetch all device IDs for this recipient from the server.
+        let deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+
+        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        deviceMessages.reserveCapacity(deviceIds.count)
+
+        for deviceId in deviceIds {
+            let ciphertext = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
+
+            var dm = Vync_Messaging_DeviceMessage()
+            dm.recipientID = recipientId
+            dm.deviceID = deviceId
+            dm.ciphertext = ciphertext
+            deviceMessages.append(dm)
+        }
+
+        return deviceMessages
+    }
+
+    // MARK: - Message Decryption
+
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
+        guard !ciphertext.isEmpty else {
+            throw AppError.decryptionFailed(reason: "Empty ciphertext")
+        }
+
+        let address = try ProtocolAddress(name: senderId, deviceId: UInt32(senderDevice))
+
+        // Read the type byte we prepended during encryption.
+        let typeByte = ciphertext[ciphertext.startIndex]
+        let messageData = ciphertext.dropFirst()
+
+        let plaintext: Data
+        switch typeByte {
+        case 0x01:
+            // PreKeySignalMessage: first message in a new session.
+            let preKeyMessage = try PreKeySignalMessage(bytes: [UInt8](messageData))
+            let decryptedBytes = try signalDecryptPreKey(
+                message: preKeyMessage,
+                from: address,
+                sessionStore: store,
+                identityStore: store,
+                preKeyStore: store,
+                signedPreKeyStore: store,
+                context: NullContext()
+            )
+            plaintext = Data(decryptedBytes)
+        case 0x02:
+            // SignalMessage: message within an established session.
+            let signalMessage = try SignalMessage(bytes: [UInt8](messageData))
+            let decryptedBytes = try signalDecrypt(
+                message: signalMessage,
+                from: address,
+                sessionStore: store,
+                identityStore: store,
+                context: NullContext()
+            )
+            plaintext = Data(decryptedBytes)
+        default:
+            throw AppError.decryptionFailed(reason: "Unknown ciphertext type byte: \(typeByte)")
+        }
+
+        return plaintext
+    }
+
+    func decryptEnvelope(_ envelope: Vync_Messaging_EncryptedEnvelope) async throws -> Data {
+        return try await decrypt(
+            ciphertext: envelope.ciphertext,
+            from: envelope.senderID,
+            senderDevice: envelope.senderDevice
+        )
+    }
+
+    // MARK: - Session Maintenance
+
+    func resetSession(with userId: String, deviceId: Int32) throws {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        try store.sessionStore.deleteSession(for: address)
+        SanchrLogger.crypto.info("Reset session with \(userId.prefix(8))... device \(deviceId)")
+    }
+
+    // MARK: - Identity Verification
+
+    func safetyNumber(for userId: String, deviceId: Int32) throws -> String {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        let localIdentity = try store.identityStore.identityKeyPair(context: NullContext()).identityKey
+        guard let remoteIdentity = try store.identityStore.identity(for: address, context: NullContext()) else {
             throw AppError.sessionNotEstablished
         }
-        // TODO: Implement Double Ratchet encryption
-        // 1. Get current session state
-        // 2. Ratchet forward
-        // 3. Encrypt with message key
-        // 4. Return SignalMessage proto
-        return Data()
-    }
 
-    func decrypt(message: Data, from userId: String) async throws -> Data {
-        // TODO: Implement Double Ratchet decryption
-        // 1. Parse SignalMessage/PreKeySignalMessage
-        // 2. Derive message key
-        // 3. Decrypt ciphertext
-        // 4. Advance ratchet state
-        return Data()
-    }
+        let fingerprint = try NumericFingerprintGenerator(iterations: 5200).create(
+            version: 2,
+            localIdentifier: Data(store.userId.utf8),
+            localKey: localIdentity,
+            remoteIdentifier: Data(userId.utf8),
+            remoteKey: remoteIdentity
+        )
 
-    func hasSession(with userId: String) -> Bool {
-        // TODO: Check session store
-        return false
-    }
-
-    func verifyIdentity(userId: String, fingerprint: Data) -> Bool {
-        // TODO: Compare stored identity key with provided fingerprint
-        return false
-    }
-
-    func deleteSession(for userId: String) async throws {
-        SanchrLogger.crypto.info("Deleting session for user \(userId)")
-        // TODO: Remove session from store and secure storage
-    }
-
-    func safetyNumber(for userId: String) async throws -> String {
-        // TODO: Generate displayable safety number from identity keys
-        // Format: groups of 5 digits, 12 groups
-        return "00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000"
+        return fingerprint.displayable.formatted
     }
 }

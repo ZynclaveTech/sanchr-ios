@@ -38,23 +38,24 @@ enum ChatUseCases {
     // MARK: - Send Message Use Case
 
     /// Sends an encrypted text message to a conversation.
-    /// Handles encryption, optimistic UI, and server confirmation.
+    /// Handles Signal Protocol session establishment, per-device encryption,
+    /// optimistic UI, and server confirmation.
     struct SendMessageUseCase: Sendable {
         private let messageRepository: MessageRepositoryProtocol
-        private let signalProtocol: SignalProtocolManagerProtocol
+        private let signalSessionManager: SignalProtocolManagerProtocol
         private let chatDataSource: ChatDataSource
 
         init(
             messageRepository: MessageRepositoryProtocol,
-            signalProtocol: SignalProtocolManagerProtocol,
+            signalSessionManager: SignalProtocolManagerProtocol,
             chatDataSource: ChatDataSource
         ) {
             self.messageRepository = messageRepository
-            self.signalProtocol = signalProtocol
+            self.signalSessionManager = signalSessionManager
             self.chatDataSource = chatDataSource
         }
 
-        /// Sends a text message. Establishes an encrypted session if needed.
+        /// Sends a text message. Establishes encrypted sessions with all recipient devices if needed.
         func execute(text: String, conversationId: String, recipientId: String) async throws -> Message {
             let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedText.isEmpty else {
@@ -63,37 +64,47 @@ enum ChatUseCases {
 
             SanchrLogger.chat.info("SendMessageUseCase: sending to \(conversationId.prefix(8))...")
 
-            // 1. Ensure encrypted session exists
-            if !signalProtocol.hasSession(with: recipientId) {
-                SanchrLogger.chat.info("No session with \(recipientId.prefix(8)), establishing...")
-                let preKeyBundle = try await messageRepository.fetchPreKeyBundle(userId: recipientId)
-                try await signalProtocol.establishSession(with: recipientId, preKeyBundle: preKeyBundle)
-            }
-
-            // 2. Encrypt the message
+            // 1. Encode plaintext
             guard let plaintext = trimmedText.data(using: .utf8) else {
                 throw AppError.encryptionFailed(reason: "Failed to encode message text.")
             }
-            let ciphertext = try await signalProtocol.encrypt(message: plaintext, for: recipientId)
 
-            // 3. Build device message
-            var deviceMessage = Vync_Messaging_DeviceMessage()
-            deviceMessage.recipientID = recipientId
-            deviceMessage.deviceID = 1 // TODO: Resolve from KeyService.GetUserDevices
-            deviceMessage.ciphertext = ciphertext
+            // 2. Encrypt for all recipient devices (establishes sessions as needed via X3DH)
+            let deviceMessages: [Vync_Messaging_DeviceMessage]
+            if let sessionManager = signalSessionManager as? SignalSessionManager {
+                deviceMessages = try await sessionManager.encryptForAllDevices(
+                    plaintext: plaintext,
+                    recipientId: recipientId
+                )
+            } else {
+                // Legacy fallback: encrypt for device 1 only
+                if !signalSessionManager.hasSession(with: recipientId) {
+                    try await signalSessionManager.establishSession(with: recipientId, deviceId: 1)
+                }
+                let ciphertext = try await signalSessionManager.encrypt(
+                    plaintext: plaintext,
+                    for: recipientId,
+                    deviceId: 1
+                )
+                var dm = Vync_Messaging_DeviceMessage()
+                dm.recipientID = recipientId
+                dm.deviceID = 1
+                dm.ciphertext = ciphertext
+                deviceMessages = [dm]
+            }
 
-            // 4. Send via gRPC
+            // 3. Send via gRPC
             let response = try await chatDataSource.sendMessage(
                 conversationID: conversationId,
-                deviceMessages: [deviceMessage],
+                deviceMessages: deviceMessages,
                 contentType: "text"
             )
 
-            // 5. Return confirmed message with server timestamp
+            // 4. Return confirmed message with server timestamp
             let confirmedMessage = Message(
                 id: response.messageID,
                 conversationId: conversationId,
-                senderId: "local", // TODO: Get from session service
+                senderId: "local", // TODO: Get from SessionService.currentUserId
                 timestamp: Date(timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000),
                 content: .text(trimmedText),
                 status: .sent,

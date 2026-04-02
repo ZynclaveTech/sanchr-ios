@@ -21,18 +21,42 @@ final class DependencyContainer {
 
     lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase()
 
-    // MARK: - Crypto
+    // MARK: - Signal Protocol (E2EE)
 
-    lazy var keyManager: KeyManagerProtocol = KeyManager(
-        secureStorage: secureStorage
+    /// The unified Signal Protocol store backed by Keychain and local file persistence.
+    /// Initialized with a placeholder user ID; updated after authentication via `configureSignalStore(userId:)`.
+    lazy var signalStore: SanchrSignalStore = SanchrSignalStore(
+        userId: sessionService.currentUserId ?? "pending",
+        keychainService: keychainService
     )
 
-    lazy var signalProtocol: SignalProtocolManagerProtocol = SignalProtocolManager(
-        keyManager: keyManager,
-        secureStorage: secureStorage
+    /// Key lifecycle manager: generates identity keys, signed pre-keys, one-time pre-keys,
+    /// and synchronizes with the server's KeyService.
+    lazy var signalKeyManager: SignalKeyManager = SignalKeyManager(
+        store: signalStore,
+        keyService: keyServiceClient
     )
 
-    lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryption()
+    /// Session manager: X3DH session establishment, Double Ratchet encrypt/decrypt.
+    lazy var signalSessionManager: SignalSessionManager = SignalSessionManager(
+        store: signalStore,
+        keyManager: signalKeyManager
+    )
+
+    /// gRPC client for the KeyService (pre-key uploads, bundle fetches, device queries).
+    lazy var keyServiceClient: Vync_Keys_KeyServiceClientProtocol = Vync_Keys_KeyServiceClient(
+        grpcClient: grpcClient
+    )
+
+    // MARK: - Crypto (Legacy Protocols Bridged to Signal)
+
+    /// Exposes the `SignalKeyManager` as the `KeyManagerProtocol` for existing call sites.
+    var keyManager: KeyManagerProtocol { signalKeyManager }
+
+    /// Exposes the `SignalSessionManager` as the `SignalProtocolManagerProtocol` for existing call sites.
+    var signalProtocol: SignalProtocolManagerProtocol { signalSessionManager }
+
+    lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
 
     // MARK: - Repositories
 
@@ -44,7 +68,7 @@ final class DependencyContainer {
     lazy var messageRepository: MessageRepositoryProtocol = MessageRepositoryImpl(
         grpcClient: grpcClient,
         localDatabase: localDatabase,
-        signalProtocol: signalProtocol
+        signalProtocol: signalSessionManager
     )
 
     lazy var contactRepository: ContactRepositoryProtocol = ContactRepositoryImpl(
@@ -99,6 +123,18 @@ final class DependencyContainer {
     // MARK: - Init
 
     init() {
-        // TODO: Perform any eager initialization here (e.g., start network monitor)
+        // Eagerly start network monitoring if needed.
+    }
+
+    // MARK: - Post-Auth Signal Store Configuration
+
+    /// Re-initializes the Signal Protocol store with the authenticated user's ID.
+    /// Call this after successful login/registration when `SessionService.currentUserId` is set.
+    func configureSignalStore(userId: String) {
+        let store = SanchrSignalStore(userId: userId, keychainService: keychainService)
+        self.signalStore = store
+        self.signalKeyManager = SignalKeyManager(store: store, keyService: keyServiceClient)
+        self.signalSessionManager = SignalSessionManager(store: store, keyManager: signalKeyManager)
+        SanchrLogger.crypto.info("Signal Protocol store configured for user \(userId.prefix(8))...")
     }
 }
