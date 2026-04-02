@@ -1,0 +1,70 @@
+syntax = "proto3";
+package vync.auth;
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc VerifyOTP(VerifyOTPRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+}
+
+message DeviceInfo {
+  string device_name = 1;
+  string platform = 2;
+}
+
+message RegisterRequest {
+  string phone_number = 1;
+  string display_name = 2;
+  string password = 3;
+  string email = 4;
+  DeviceInfo device = 5;
+}
+
+message VerifyOTPRequest {
+  string phone_number = 1;
+  string otp_code = 2;
+  DeviceInfo device = 3;
+}
+
+message LoginRequest {
+  string phone_number = 1;
+  string password = 2;
+  DeviceInfo device = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message AuthResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  User user = 3;
+  int32 device_id = 4;
+}
+
+message LogoutResponse {}
+
+message ChangePasswordRequest {
+  string current_password = 1;
+  string new_password = 2;
+}
+
+message ChangePasswordResponse {}
+
+message User {
+  string id = 1;
+  string phone_number = 2;
+  string display_name = 3;
+  string email = 4;
+  string avatar_url = 5;
+  string status_text = 6;
+  string created_at = 7;
+}

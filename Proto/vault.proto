@@ -1,0 +1,60 @@
+syntax = "proto3";
+package vync.vault;
+
+service VaultService {
+  rpc GetVaultItems(GetVaultItemsRequest) returns (GetVaultItemsResponse);
+  rpc CreateVaultItem(CreateVaultItemRequest) returns (VaultItem);
+  rpc DeleteVaultItem(DeleteVaultItemRequest) returns (DeleteVaultItemResponse);
+  rpc ShareVaultItem(ShareVaultItemRequest) returns (ShareVaultItemResponse);
+}
+
+message GetVaultItemsRequest {
+  string filter = 1;  // "all", "photo", "video", "file"
+  int32 limit = 2;
+  string before_item_id = 3;  // pagination cursor
+}
+
+message GetVaultItemsResponse {
+  repeated VaultItem items = 1;
+  int32 total_photos = 2;
+  int32 total_videos = 3;
+  int32 total_files = 4;
+}
+
+message CreateVaultItemRequest {
+  string media_type = 1;       // "photo", "video", "file"
+  string encrypted_url = 2;    // S3 URL to encrypted blob
+  bytes encrypted_key = 3;     // AES key, E2EE encrypted for this user
+  string thumbnail_url = 4;
+  string file_name = 5;
+  int64 file_size = 6;
+  string sender_id = 7;
+  int64 ttl_seconds = 8;       // expiry duration
+}
+
+message VaultItem {
+  string item_id = 1;
+  string media_type = 2;
+  string encrypted_url = 3;
+  bytes encrypted_key = 4;
+  string thumbnail_url = 5;
+  string file_name = 6;
+  int64 file_size = 7;
+  string sender_id = 8;
+  int64 expires_at = 9;
+  int64 created_at = 10;
+}
+
+message DeleteVaultItemRequest {
+  string item_id = 1;
+}
+
+message DeleteVaultItemResponse {}
+
+message ShareVaultItemRequest {
+  string item_id = 1;
+  string recipient_id = 2;
+  string re_encrypted_key = 3;  // item key re-encrypted for recipient's public key (client-provided, required)
+}
+
+message ShareVaultItemResponse {}

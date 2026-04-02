@@ -1,0 +1,33 @@
+syntax = "proto3";
+package vync.media;
+
+service MediaService {
+  rpc GetUploadUrl(GetUploadUrlRequest) returns (PresignedUrlResponse);
+  rpc GetDownloadUrl(GetDownloadUrlRequest) returns (PresignedUrlResponse);
+  rpc ConfirmUpload(ConfirmUploadRequest) returns (ConfirmUploadResponse);
+}
+
+message GetUploadUrlRequest {
+  int64 file_size = 1;
+  string content_type = 2;    // MIME type: "image/jpeg", "video/mp4", etc.
+  string sha256_hash = 3;     // hash of encrypted blob for dedup
+}
+
+message GetDownloadUrlRequest {
+  string media_id = 1;
+}
+
+message PresignedUrlResponse {
+  string url = 1;
+  string media_id = 2;
+  int64 expires_in = 3;       // seconds until URL expires
+}
+
+message ConfirmUploadRequest {
+  string media_id = 1;
+  int64 file_size = 2;
+}
+
+message ConfirmUploadResponse {
+  string media_id = 1;
+}

@@ -1,0 +1,121 @@
+syntax = "proto3";
+package vync.messaging;
+
+service MessagingService {
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc StartDirectConversation(StartDirectConversationRequest) returns (Conversation);
+  rpc MessageStream(stream ClientEvent) returns (stream ServerEvent);
+  rpc SyncMessages(SyncRequest) returns (stream EncryptedEnvelope);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
+  rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
+}
+
+message StartDirectConversationRequest {
+  string recipient_id = 1;
+}
+
+message DeviceMessage {
+  string recipient_id = 1;
+  int32 device_id = 2;
+  bytes ciphertext = 3;
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  repeated DeviceMessage device_messages = 2;
+  string content_type = 3;
+  int64 expires_after_secs = 4;
+}
+
+message SendMessageResponse {
+  string message_id = 1;
+  int64 server_timestamp = 2;
+}
+
+message ClientEvent {
+  oneof event {
+    TypingIndicator typing = 1;
+    ReceiptRequest receipt = 2;
+    PresenceHeartbeat heartbeat = 3;
+  }
+}
+
+message ServerEvent {
+  oneof event {
+    EncryptedEnvelope message = 1;
+    TypingIndicator typing = 2;
+    ReceiptUpdate receipt = 3;
+    PresenceUpdate presence = 4;
+    PreKeyCountLow pre_key_count_low = 5;
+  }
+}
+
+message EncryptedEnvelope {
+  string conversation_id = 1;
+  string message_id = 2;
+  string sender_id = 3;
+  int32 sender_device = 4;
+  bytes ciphertext = 5;
+  string content_type = 6;
+  int64 server_timestamp = 7;
+}
+
+message TypingIndicator {
+  string conversation_id = 1;
+  string user_id = 2;
+  bool is_typing = 3;
+}
+
+message ReceiptRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+  string status = 3;
+}
+
+message ReceiptResponse {}
+
+message ReceiptUpdate {
+  string conversation_id = 1;
+  string message_id = 2;
+  string recipient_id = 3;
+  string status = 4;
+  int64 timestamp = 5;
+}
+
+message PresenceHeartbeat {}
+
+message PresenceUpdate {
+  string user_id = 1;
+  string status = 2;
+  int64 last_seen = 3;
+}
+
+message PreKeyCountLow {
+  int32 device_id = 1;
+  int32 remaining_count = 2;
+}
+
+message SyncRequest {
+  int64 since_timestamp = 1;
+}
+
+message DeleteMessageRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+}
+
+message DeleteMessageResponse {}
+
+message GetConversationsRequest {}
+
+message GetConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message Conversation {
+  string id = 1;
+  string type = 2;
+  repeated string participant_ids = 3;
+  int32 unread_count = 4;
+}

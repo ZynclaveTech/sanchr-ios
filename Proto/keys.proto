@@ -1,0 +1,59 @@
+syntax = "proto3";
+package vync.keys;
+
+service KeyService {
+  rpc UploadKeyBundle(KeyBundle) returns (UploadKeyBundleResponse);
+  rpc GetPreKeyBundle(GetPreKeyBundleRequest) returns (PreKeyBundleResponse);
+  rpc UploadOneTimePreKeys(UploadOneTimePreKeysRequest) returns (PreKeyCountResponse);
+  rpc GetPreKeyCount(GetPreKeyCountRequest) returns (PreKeyCountResponse);
+  rpc GetUserDevices(GetUserDevicesRequest) returns (GetUserDevicesResponse);
+}
+
+message SignedPreKey {
+  int32 key_id = 1;
+  bytes public_key = 2;
+  bytes signature = 3;
+}
+
+message OneTimePreKey {
+  int32 key_id = 1;
+  bytes public_key = 2;
+}
+
+message KeyBundle {
+  bytes identity_public_key = 1;
+  SignedPreKey signed_pre_key = 2;
+  repeated OneTimePreKey one_time_pre_keys = 3;
+}
+
+message UploadKeyBundleResponse {}
+
+message GetPreKeyBundleRequest {
+  string user_id = 1;
+  int32 device_id = 2;
+}
+
+message PreKeyBundleResponse {
+  bytes identity_public_key = 1;
+  SignedPreKey signed_pre_key = 2;
+  OneTimePreKey one_time_pre_key = 3;
+  int32 device_id = 4;
+}
+
+message UploadOneTimePreKeysRequest {
+  repeated OneTimePreKey keys = 1;
+}
+
+message PreKeyCountResponse {
+  int32 count = 1;
+}
+
+message GetPreKeyCountRequest {}
+
+message GetUserDevicesRequest {
+  string user_id = 1;
+}
+
+message GetUserDevicesResponse {
+  repeated int32 device_ids = 1;
+}

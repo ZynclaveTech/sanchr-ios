@@ -1,0 +1,25 @@
+syntax = "proto3";
+package vync.notifications;
+
+service NotificationService {
+  rpc RegisterPushToken(RegisterPushTokenRequest) returns (RegisterPushTokenResponse);
+  rpc UpdateNotificationPrefs(UpdateNotificationPrefsRequest) returns (UpdateNotificationPrefsResponse);
+}
+
+message RegisterPushTokenRequest {
+  string token = 1;
+  string platform = 2;        // "ios" or "android"
+}
+
+message RegisterPushTokenResponse {}
+
+message UpdateNotificationPrefsRequest {
+  bool message_notifications = 1;
+  bool group_notifications = 2;
+  bool call_notifications = 3;
+  string notification_sound = 4;
+  bool vibrate = 5;
+  bool show_preview = 6;
+}
+
+message UpdateNotificationPrefsResponse {}
