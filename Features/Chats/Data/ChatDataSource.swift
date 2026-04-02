@@ -1,30 +1,135 @@
 import Foundation
 
 /// Data source for chat-related gRPC service calls.
+/// Wraps the MessagingService client with domain model mapping.
 final class ChatDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
+    private let messagingClient: Vync_Messaging_MessagingServiceClient
 
     init(grpcClient: GRPCClientProtocol) {
         self.grpcClient = grpcClient
+        self.messagingClient = Vync_Messaging_MessagingServiceClient(grpcClient: grpcClient)
     }
 
-    // TODO: Implement when proto-generated stubs are available
-    //
-    // func sendMessage(encryptedPayload: Data, conversationId: String) async throws -> MessageResponse {
-    //     let request = Messaging_SendMessageRequest.with {
-    //         $0.conversationID = conversationId
-    //         $0.encryptedPayload = encryptedPayload
-    //     }
-    //     return try await grpcClient.messagingService.sendMessage(request)
-    // }
-    //
-    // func fetchConversations() async throws -> [ConversationResponse] {
-    //     let request = Messaging_FetchConversationsRequest()
-    //     let response = try await grpcClient.messagingService.fetchConversations(request)
-    //     return response.conversations
-    // }
-    //
-    // func openMessageStream() -> AsyncStream<Messaging_IncomingMessage> {
-    //     // Bidirectional gRPC stream
-    // }
+    // MARK: - Start Direct Conversation
+
+    /// Creates or retrieves a 1:1 conversation with the given recipient.
+    func startDirectConversation(recipientID: String) async throws -> Vync_Messaging_Conversation {
+        var request = Vync_Messaging_StartDirectConversationRequest()
+        request.recipientID = recipientID
+
+        SanchrLogger.chat.info("ChatDataSource: startDirectConversation with \(recipientID.prefix(8))...")
+        return try await messagingClient.startDirectConversation(request)
+    }
+
+    // MARK: - Send Message
+
+    /// Sends an encrypted message to a conversation.
+    /// The caller is responsible for encrypting the ciphertext per-device.
+    func sendMessage(
+        conversationID: String,
+        deviceMessages: [Vync_Messaging_DeviceMessage],
+        contentType: String = "text",
+        expiresAfterSecs: Int64 = 0
+    ) async throws -> Vync_Messaging_SendMessageResponse {
+        var request = Vync_Messaging_SendMessageRequest()
+        request.conversationID = conversationID
+        request.deviceMessages = deviceMessages
+        request.contentType = contentType
+        request.expiresAfterSecs = expiresAfterSecs
+
+        SanchrLogger.chat.info("ChatDataSource: sendMessage to conversation \(conversationID.prefix(8))...")
+        return try await messagingClient.sendMessage(request)
+    }
+
+    // MARK: - Get Conversations
+
+    /// Fetches all conversations for the authenticated user.
+    func getConversations() async throws -> [Vync_Messaging_Conversation] {
+        let request = Vync_Messaging_GetConversationsRequest()
+
+        SanchrLogger.chat.info("ChatDataSource: getConversations")
+        let response = try await messagingClient.getConversations(request)
+        return response.conversations
+    }
+
+    // MARK: - Delete Message
+
+    /// Deletes a message from a conversation on the server.
+    func deleteMessage(conversationID: String, messageID: String) async throws {
+        var request = Vync_Messaging_DeleteMessageRequest()
+        request.conversationID = conversationID
+        request.messageID = messageID
+
+        SanchrLogger.chat.info("ChatDataSource: deleteMessage \(messageID.prefix(8))...")
+        _ = try await messagingClient.deleteMessage(request)
+    }
+
+    // MARK: - Send Receipt
+
+    /// Sends a delivery/read receipt for a message.
+    func sendReceipt(conversationID: String, messageID: String, status: String) async throws {
+        var request = Vync_Messaging_ReceiptRequest()
+        request.conversationID = conversationID
+        request.messageID = messageID
+        request.status = status
+
+        SanchrLogger.chat.info("ChatDataSource: sendReceipt \(status) for \(messageID.prefix(8))...")
+        _ = try await messagingClient.sendReceipt(request)
+    }
+
+    // MARK: - Sync Messages
+
+    /// Syncs messages from the server since a given timestamp.
+    /// Returns an AsyncStream of encrypted envelopes.
+    func syncMessages(sinceTimestamp: Int64) async throws -> AsyncStream<Vync_Messaging_EncryptedEnvelope> {
+        var request = Vync_Messaging_SyncRequest()
+        request.sinceTimestamp = sinceTimestamp
+
+        SanchrLogger.chat.info("ChatDataSource: syncMessages since \(sinceTimestamp)")
+        return try await messagingClient.syncMessages(request)
+    }
+
+    // MARK: - Message Stream (Bidi)
+
+    /// Opens a bidirectional stream for real-time events (messages, typing, presence).
+    func openMessageStream(
+        clientEvents: AsyncStream<Vync_Messaging_ClientEvent>
+    ) async throws -> AsyncStream<Vync_Messaging_ServerEvent> {
+        SanchrLogger.chat.info("ChatDataSource: opening message stream")
+        return try await messagingClient.messageStream(send: clientEvents)
+    }
+
+    // MARK: - Domain Model Mapping
+
+    /// Maps a proto Conversation to the domain Conversation model.
+    static func mapToDomainConversation(_ proto: Vync_Messaging_Conversation) -> Conversation {
+        let conversationType: Conversation.ConversationType = proto.type == "group" ? .group : .oneToOne
+
+        return Conversation(
+            id: proto.id,
+            participants: proto.participantIDs.map { participantID in
+                User(
+                    id: participantID,
+                    phoneNumber: "",
+                    displayName: participantID,
+                    avatarURL: nil,
+                    bio: nil,
+                    isVerified: false,
+                    lastSeen: nil,
+                    identityKeyFingerprint: nil,
+                    status: .offline
+                )
+            },
+            lastMessage: nil,
+            unreadCount: Int(proto.unreadCount),
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: conversationType,
+            disappearingMessagesDuration: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
 }
