@@ -27,6 +27,29 @@ enum AuthUseCases {
         return cleaned
     }
 
+    // MARK: - Post-Auth Push Registration
+
+    /// Requests push notification permission and uploads the APNs token to the backend.
+    /// Called after successful login, registration, or OTP verification.
+    /// Failures are non-fatal and logged -- they do not block the auth flow.
+    static func registerPushNotifications(pushManager: PushManager) async {
+        let granted = await pushManager.requestAuthorization()
+        if granted {
+            SanchrLogger.auth.info("Push permission granted post-auth, token upload triggered by APNs callback")
+            // Token upload happens automatically in didRegisterForRemoteNotifications.
+            // If a token was already cached (re-login), force an upload now.
+            if pushManager.deviceToken != nil {
+                do {
+                    try await pushManager.uploadTokenToServer()
+                } catch {
+                    SanchrLogger.auth.warning("Post-auth push token upload failed: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            SanchrLogger.auth.info("Push permission not granted post-auth")
+        }
+    }
+
     // MARK: - Register Use Case
 
     /// Registers a new user account with Signal Protocol identity key generation.
@@ -34,15 +57,22 @@ enum AuthUseCases {
         private let authDataSource: AuthDataSource
         private let signalKeyManager: SignalKeyManager
         private let sessionService: SessionService
+        private let pushManager: PushManager
 
-        init(authDataSource: AuthDataSource, signalKeyManager: SignalKeyManager, sessionService: SessionService) {
+        init(
+            authDataSource: AuthDataSource,
+            signalKeyManager: SignalKeyManager,
+            sessionService: SessionService,
+            pushManager: PushManager
+        ) {
             self.authDataSource = authDataSource
             self.signalKeyManager = signalKeyManager
             self.sessionService = sessionService
+            self.pushManager = pushManager
         }
 
         /// Validates phone format, registers via gRPC, generates Signal Protocol identity keys,
-        /// and uploads the full key bundle to the server.
+        /// uploads the full key bundle to the server, and registers for push notifications.
         func execute(phoneNumber: String, displayName: String) async throws -> User {
             // 1. Validate inputs
             let validPhone = try AuthUseCases.validatePhoneNumber(phoneNumber)
@@ -77,7 +107,10 @@ enum AuthUseCases {
                 // Non-fatal: the app can retry later via checkAndReplenishPreKeys.
             }
 
-            // 6. Compute identity key fingerprint for display
+            // 6. Register for push notifications (non-blocking)
+            await AuthUseCases.registerPushNotifications(pushManager: pushManager)
+
+            // 7. Compute identity key fingerprint for display
             let identityFingerprint = Data(identityKeyPair.identityKey.serialize())
                 .prefix(8)
                 .map { String(format: "%02x", $0) }
@@ -102,16 +135,23 @@ enum AuthUseCases {
     // MARK: - Verify OTP Use Case
 
     /// Verifies the OTP code, stores tokens, generates Signal Protocol keys if needed,
-    /// and uploads the key bundle to the server.
+    /// uploads the key bundle to the server, and registers for push notifications.
     struct VerifyOTPUseCase: Sendable {
         private let authDataSource: AuthDataSource
         private let signalKeyManager: SignalKeyManager
         private let sessionService: SessionService
+        private let pushManager: PushManager
 
-        init(authDataSource: AuthDataSource, signalKeyManager: SignalKeyManager, sessionService: SessionService) {
+        init(
+            authDataSource: AuthDataSource,
+            signalKeyManager: SignalKeyManager,
+            sessionService: SessionService,
+            pushManager: PushManager
+        ) {
             self.authDataSource = authDataSource
             self.signalKeyManager = signalKeyManager
             self.sessionService = sessionService
+            self.pushManager = pushManager
         }
 
         func execute(phoneNumber: String, otpCode: String) async throws -> AuthTokens {
@@ -158,6 +198,9 @@ enum AuthUseCases {
                 }
             }
 
+            // 5. Register for push notifications (non-blocking)
+            await AuthUseCases.registerPushNotifications(pushManager: pushManager)
+
             SanchrLogger.auth.info("VerifyOTPUseCase: completed successfully")
             return tokens
         }
@@ -165,14 +208,21 @@ enum AuthUseCases {
 
     // MARK: - Login Use Case
 
-    /// Validates inputs, calls the login gRPC endpoint, and stores the session.
+    /// Validates inputs, calls the login gRPC endpoint, stores the session,
+    /// and re-registers the push token with the backend.
     struct LoginUseCase: Sendable {
         private let authDataSource: AuthDataSource
         private let sessionService: SessionService
+        private let pushManager: PushManager
 
-        init(authDataSource: AuthDataSource, sessionService: SessionService) {
+        init(
+            authDataSource: AuthDataSource,
+            sessionService: SessionService,
+            pushManager: PushManager
+        ) {
             self.authDataSource = authDataSource
             self.sessionService = sessionService
+            self.pushManager = pushManager
         }
 
         /// Initiates login. The server will send an OTP to the phone number.
@@ -188,6 +238,9 @@ enum AuthUseCases {
             )
 
             try await sessionService.storeTokens(tokens)
+
+            // Register for push notifications after successful login (non-blocking)
+            await AuthUseCases.registerPushNotifications(pushManager: pushManager)
 
             SanchrLogger.auth.info("LoginUseCase: session stored successfully")
             return tokens
