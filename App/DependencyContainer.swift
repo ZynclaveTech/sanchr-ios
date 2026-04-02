@@ -100,9 +100,19 @@ final class DependencyContainer {
         networkMonitor: networkMonitor
     )
 
-    lazy var pushManager: PushManagerProtocol = PushManager(
+    // MARK: - Notifications
+
+    /// gRPC client for the NotificationService (token registration, preference updates).
+    lazy var notificationServiceClient: Vync_Notifications_NotificationServiceClientProtocol = Vync_Notifications_NotificationServiceClient(
         grpcClient: grpcClient
     )
+
+    /// Manages APNs registration, token upload, foreground presentation, and notification actions.
+    lazy var pushManager: PushManager = PushManager(
+        notificationService: notificationServiceClient
+    )
+
+    // MARK: - Media
 
     lazy var mediaManager: MediaManagerProtocol = MediaManager(
         mediaEncryption: mediaEncryption
