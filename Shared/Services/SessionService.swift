@@ -26,6 +26,20 @@ final class SessionService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Token Validity
+
+    /// Whether the current access token is valid and not expired.
+    var isTokenValid: Bool {
+        guard isAuthenticated else { return false }
+        guard let _ = try? secureStorage.readAccessToken() else { return false }
+
+        // If we have no expiry info, assume valid (will be checked on next API call).
+        guard let expiresAt = tokenExpiresAt else { return true }
+
+        // Token is valid if it has more than 0 seconds remaining.
+        return expiresAt.timeIntervalSinceNow > 0
+    }
+
     /// Stores authentication tokens and updates session state.
     func storeTokens(_ tokens: AuthTokens) async throws {
         try secureStorage.saveAccessToken(tokens.accessToken)
@@ -46,6 +60,29 @@ final class SessionService: @unchecked Sendable {
         // Check if token is expired or about to expire (within 5 minutes)
         if let expiresAt = tokenExpiresAt,
            expiresAt.timeIntervalSinceNow < 300 {
+            return try await refreshToken()
+        }
+
+        return token
+    }
+
+    /// Refreshes the access token if it will expire within 5 minutes.
+    /// Does nothing if the token is still valid with more than 5 minutes remaining.
+    /// - Throws: `AppError.sessionExpired` if the refresh fails.
+    @discardableResult
+    func refreshTokenIfExpiringSoon() async throws -> String {
+        guard isAuthenticated else {
+            throw AppError.sessionExpired
+        }
+
+        guard let token = try secureStorage.readAccessToken() else {
+            throw AppError.sessionExpired
+        }
+
+        // If no expiry is tracked or token has more than 5 minutes left, return as-is.
+        if let expiresAt = tokenExpiresAt,
+           expiresAt.timeIntervalSinceNow < 300 {
+            SanchrLogger.auth.info("Token expiring soon, refreshing proactively")
             return try await refreshToken()
         }
 

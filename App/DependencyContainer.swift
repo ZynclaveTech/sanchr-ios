@@ -94,10 +94,21 @@ final class DependencyContainer {
         sessionService: sessionService
     )
 
-    lazy var syncOrchestrator: SyncOrchestratorProtocol = SyncOrchestrator(
+    // MARK: - Sync
+
+    /// Tracks sync state across the app (last sync time, syncing indicator, errors).
+    lazy var syncState: SyncState = SyncState.load()
+
+    /// Background sync coordinator using BGTaskScheduler.
+    lazy var syncOrchestrator: SyncOrchestrator = SyncOrchestrator(
         messageRepository: messageRepository,
         contactRepository: contactRepository,
-        networkMonitor: networkMonitor
+        vaultRepository: vaultRepository,
+        signalKeyManager: signalKeyManager,
+        sessionService: sessionService,
+        networkMonitor: networkMonitor,
+        localDatabase: localDatabase,
+        syncState: syncState
     )
 
     // MARK: - Notifications

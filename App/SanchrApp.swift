@@ -2,22 +2,29 @@ import SwiftUI
 import UserNotifications
 
 /// Main entry point for the Sanchr encrypted messaging application.
-/// Configures the app environment, dependency injection, APNs delegate, and root scene.
+/// Configures the app environment, dependency injection, APNs delegate,
+/// background sync registration, and root scene.
 @main
 struct SanchrApp: App {
     @UIApplicationDelegateAdaptor(SanchrAppDelegate.self) private var appDelegate
     @State private var container = DependencyContainer()
     @State private var appRouter = AppRouter()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(container)
                 .environment(appRouter)
+                .environment(container.syncState)
                 .onAppear {
                     configureFonts()
                     configureAppearance()
                     configurePushManager()
+                    configureBackgroundSync()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    handleScenePhaseChange(from: oldPhase, to: newPhase)
                 }
         }
     }
@@ -45,11 +52,48 @@ struct SanchrApp: App {
 
         SanchrLogger.push.info("PushManager wired as UNUserNotificationCenter delegate")
     }
+
+    /// Wire up the background sync orchestrator with live handlers.
+    private func configureBackgroundSync() {
+        container.syncOrchestrator.registerHandlers()
+        SanchrLogger.sync.info("Background sync orchestrator configured with live handlers")
+    }
+
+    // MARK: - Scene Phase Handling
+
+    /// Responds to scene phase transitions to schedule/trigger syncs.
+    private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
+        switch newPhase {
+        case .background:
+            // Schedule background tasks when the app goes to background.
+            let orchestrator = container.syncOrchestrator
+            orchestrator.scheduleBackgroundSync()
+            orchestrator.scheduleAppRefresh()
+            SanchrLogger.sync.info("App entered background, scheduled background tasks")
+
+        case .active:
+            // Trigger a foreground sync if needed (>5 min since last sync).
+            let syncState = container.syncState
+            if syncState.needsSync && container.sessionService.isAuthenticated {
+                SanchrLogger.sync.info("App became active, triggering foreground sync")
+                Task {
+                    await container.syncOrchestrator.startSync()
+                }
+            }
+
+        case .inactive:
+            break
+
+        @unknown default:
+            break
+        }
+    }
 }
 
 // MARK: - AppDelegate
 
-/// UIKit app delegate required for APNs token callbacks and silent push handling.
+/// UIKit app delegate required for APNs token callbacks, silent push handling,
+/// and BGTaskScheduler registration.
 /// SwiftUI's `@UIApplicationDelegateAdaptor` bridges these callbacks into the SwiftUI lifecycle.
 final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 
@@ -61,6 +105,9 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         SanchrLogger.app.info("Application didFinishLaunching")
+
+        // Register background task identifiers early (before app finishes launching).
+        SyncOrchestrator.registerBackgroundTasks()
 
         // Check if launched from a notification
         if let remoteNotification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
