@@ -135,7 +135,10 @@ final class AuthDataSource: @unchecked Sendable {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
             expiresAt: Date().addingTimeInterval(3600),  // Default 1h expiry
-            userId: response.hasUser ? response.user.id : ""
+            userId: response.hasUser ? response.user.id : "",
+            displayName: response.hasUser ? response.user.displayName : "",
+            phoneNumber: response.hasUser ? response.user.phoneNumber : "",
+            avatarURL: response.hasUser ? response.user.avatarURL : ""
         )
     }
 

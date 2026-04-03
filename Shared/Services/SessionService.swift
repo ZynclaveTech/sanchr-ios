@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 
 /// Manages the current user session: token storage, refresh, and auth state.
 @Observable
@@ -12,8 +13,20 @@ final class SessionService: @unchecked Sendable {
     /// The current user's ID (nil if not authenticated).
     private(set) var currentUserId: String?
 
+    /// The current user's display name (nil if not authenticated).
+    private(set) var currentDisplayName: String?
+
+    /// The current user's phone number (nil if not authenticated).
+    private(set) var currentPhoneNumber: String?
+
+    /// The current user's avatar URL (nil if not set).
+    private(set) var currentAvatarURL: String?
+
     /// Token expiration date.
     private var tokenExpiresAt: Date?
+
+    /// Guards against concurrent refresh requests.
+    private var activeRefreshTask: Task<String, Error>?
 
     init(secureStorage: SecureStorageProtocol, authRepository: AuthRepositoryProtocol) {
         self.secureStorage = secureStorage
@@ -46,6 +59,9 @@ final class SessionService: @unchecked Sendable {
         try secureStorage.saveRefreshToken(tokens.refreshToken)
         tokenExpiresAt = tokens.expiresAt
         currentUserId = tokens.userId
+        currentDisplayName = tokens.displayName.isEmpty ? currentDisplayName : tokens.displayName
+        currentPhoneNumber = tokens.phoneNumber.isEmpty ? currentPhoneNumber : tokens.phoneNumber
+        currentAvatarURL = tokens.avatarURL.isEmpty ? currentAvatarURL : tokens.avatarURL
         isAuthenticated = true
 
         SanchrLogger.auth.info("Session tokens stored, expires at \(tokens.expiresAt)")
@@ -91,23 +107,77 @@ final class SessionService: @unchecked Sendable {
         return token
     }
 
-    /// Refreshes the access token using the stored refresh token.
-    private func refreshToken() async throws -> String {
-        guard let refreshToken = try secureStorage.readRefreshToken() else {
-            await clearSessionState()
+    /// Forces a token refresh regardless of expiry state.
+    /// Called by the auth interceptor when the server returns UNAUTHENTICATED.
+    /// Coalesces concurrent calls — if a refresh is already in progress, joins it.
+    @discardableResult
+    func forceRefreshToken() async throws -> String {
+        guard isAuthenticated else {
             throw AppError.sessionExpired
         }
 
-        SanchrLogger.auth.info("Refreshing access token")
+        // If a refresh is already running, join it instead of starting another
+        if let existing = activeRefreshTask {
+            SanchrLogger.auth.info("Joining existing token refresh task")
+            return try await existing.value
+        }
 
+        SanchrLogger.auth.info("Force-refreshing access token (server returned UNAUTHENTICATED)")
+        return try await refreshToken()
+    }
+
+    /// Refreshes the access token using the stored refresh token.
+    /// Coalesces concurrent refresh attempts into a single network call.
+    private func refreshToken() async throws -> String {
+        // If a refresh is already running, join it
+        if let existing = activeRefreshTask {
+            return try await existing.value
+        }
+
+        let task = Task<String, Error> {
+            defer { activeRefreshTask = nil }
+
+            guard let refreshToken = try secureStorage.readRefreshToken() else {
+                await clearSessionState()
+                throw AppError.sessionExpired
+            }
+
+            SanchrLogger.auth.info("Refreshing access token")
+
+            do {
+                let tokens = try await authRepository.refreshToken(refreshToken: refreshToken)
+                try await storeTokens(tokens)
+                return tokens.accessToken
+            } catch {
+                SanchrLogger.auth.error("Token refresh failed: \(error.localizedDescription)")
+                await clearSessionState()
+                throw AppError.sessionExpired
+            }
+        }
+
+        activeRefreshTask = task
+        return try await task.value
+    }
+
+    /// Executes a gRPC call with automatic retry on UNAUTHENTICATED.
+    /// On first failure, refreshes the token and retries once.
+    func withAuthRetry<T>(_ operation: @Sendable () async throws -> T) async throws -> T {
         do {
-            let tokens = try await authRepository.refreshToken(refreshToken: refreshToken)
-            try await storeTokens(tokens)
-            return tokens.accessToken
-        } catch {
-            SanchrLogger.auth.error("Token refresh failed: \(error.localizedDescription)")
-            await clearSessionState()
-            throw AppError.sessionExpired
+            return try await operation()
+        } catch let status as GRPCStatus where status.code == .unauthenticated {
+            SanchrLogger.auth.info("Got UNAUTHENTICATED, refreshing token and retrying")
+            _ = try await forceRefreshToken()
+            return try await operation()
+        }
+    }
+
+    /// Updates the locally cached profile fields (after a profile save).
+    func updateProfile(displayName: String?, avatarURL: String?) {
+        if let displayName, !displayName.isEmpty {
+            currentDisplayName = displayName
+        }
+        if let avatarURL {
+            currentAvatarURL = avatarURL
         }
     }
 
@@ -124,6 +194,9 @@ final class SessionService: @unchecked Sendable {
     private func clearSessionState() {
         isAuthenticated = false
         currentUserId = nil
+        currentDisplayName = nil
+        currentPhoneNumber = nil
+        currentAvatarURL = nil
         tokenExpiresAt = nil
     }
 }

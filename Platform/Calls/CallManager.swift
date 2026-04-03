@@ -240,7 +240,9 @@ final class CallManager: NSObject, @unchecked Sendable {
         // 7. Send accepted control
         var controlSignal = Vync_Calling_CallSignal()
         controlSignal.callID = callId
-        controlSignal.control = Vync_Calling_CallControl(action: "accepted")
+        var acceptedControl = Vync_Calling_CallControl()
+        acceptedControl.action = "accepted"
+        controlSignal.control = acceptedControl
         outboundContinuation?.yield(controlSignal)
 
         let startTime = Date()
@@ -259,7 +261,9 @@ final class CallManager: NSObject, @unchecked Sendable {
         // Send decline via signaling
         var signal = Vync_Calling_CallSignal()
         signal.callID = callId
-        signal.control = Vync_Calling_CallControl(action: "declined")
+        var declinedControl = Vync_Calling_CallControl()
+        declinedControl.action = "declined"
+        signal.control = declinedControl
         outboundContinuation?.yield(signal)
 
         endCallInternal(callId: callId, reason: .declined)
@@ -273,7 +277,9 @@ final class CallManager: NSObject, @unchecked Sendable {
         // Send ended control via signaling
         var signal = Vync_Calling_CallSignal()
         signal.callID = callId
-        signal.control = Vync_Calling_CallControl(action: "ended")
+        var endedControl = Vync_Calling_CallControl()
+        endedControl.action = "ended"
+        signal.control = endedControl
         outboundContinuation?.yield(signal)
 
         // Also notify the server via the unary endCall RPC
@@ -360,46 +366,50 @@ final class CallManager: NSObject, @unchecked Sendable {
     private func handleSignalingStream(
         _ stream: GRPCAsyncResponseStream<Vync_Calling_CallSignal>, callId: String
     ) async {
-        for await signal in stream {
-            guard !Task.isCancelled else { break }
+        do {
+            for try await signal in stream {
+                guard !Task.isCancelled else { break }
 
-            switch signal.signal {
-            case .sdpAnswer(let sdpData):
-                guard let sdpString = String(data: sdpData, encoding: .utf8)
-                else { continue }
-                SanchrLogger.calls.info("Received SDP answer for call \(callId)")
-                let remoteDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
-                do {
-                    try await webRTCClient.setRemoteDescription(remoteDesc)
-                } catch {
-                    SanchrLogger.calls.error(
-                        "Failed to set remote answer: \(error.localizedDescription)")
+                switch signal.signal {
+                case .sdpAnswer(let sdpData):
+                    guard let sdpString = String(data: sdpData, encoding: .utf8)
+                    else { continue }
+                    SanchrLogger.calls.info("Received SDP answer for call \(callId)")
+                    let remoteDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
+                    do {
+                        try await webRTCClient.setRemoteDescription(remoteDesc)
+                    } catch {
+                        SanchrLogger.calls.error(
+                            "Failed to set remote answer: \(error.localizedDescription)")
+                    }
+
+                case .iceCandidate(let candidateData):
+                    guard let candidateDict = try? JSONSerialization.jsonObject(with: candidateData)
+                            as? [String: Any],
+                        let sdp = candidateDict["candidate"] as? String,
+                        let sdpMLineIndex = candidateDict["sdpMLineIndex"] as? Int32
+                    else {
+                        continue
+                    }
+                    let sdpMid = candidateDict["sdpMid"] as? String
+                    let candidate = RTCIceCandidate(
+                        sdp: sdp, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
+                    do {
+                        try await webRTCClient.addIceCandidate(candidate)
+                    } catch {
+                        SanchrLogger.calls.error(
+                            "Failed to add remote ICE candidate: \(error.localizedDescription)")
+                    }
+
+                case .control(let control):
+                    await handleControlMessage(control, callId: callId)
+
+                case nil:
+                    SanchrLogger.calls.warning("Received signal with no active field")
                 }
-
-            case .iceCandidate(let candidateData):
-                guard let candidateDict = try? JSONSerialization.jsonObject(with: candidateData)
-                        as? [String: Any],
-                    let sdp = candidateDict["candidate"] as? String,
-                    let sdpMLineIndex = candidateDict["sdpMLineIndex"] as? Int32
-                else {
-                    continue
-                }
-                let sdpMid = candidateDict["sdpMid"] as? String
-                let candidate = RTCIceCandidate(
-                    sdp: sdp, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
-                do {
-                    try await webRTCClient.addIceCandidate(candidate)
-                } catch {
-                    SanchrLogger.calls.error(
-                        "Failed to add remote ICE candidate: \(error.localizedDescription)")
-                }
-
-            case .control(let control):
-                await handleControlMessage(control, callId: callId)
-
-            case nil:
-                SanchrLogger.calls.warning("Received signal with no active field")
             }
+        } catch {
+            SanchrLogger.calls.error("Signaling stream error for call \(callId): \(error.localizedDescription)")
         }
     }
 

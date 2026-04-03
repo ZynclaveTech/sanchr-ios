@@ -130,7 +130,11 @@ struct SettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            viewModel.loadProfile(from: container.sessionService)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                appLockManager: container.appLockManager
+            )
         }
     }
 

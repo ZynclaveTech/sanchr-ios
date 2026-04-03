@@ -10,21 +10,38 @@ enum ChatUseCases {
     struct GetConversationsUseCase: Sendable {
         private let messageRepository: MessageRepositoryProtocol
         private let chatDataSource: ChatDataSource
+        private let localDatabase: LocalDatabaseProtocol
+        private let localUserId: String?
 
-        init(messageRepository: MessageRepositoryProtocol, chatDataSource: ChatDataSource) {
+        init(
+            messageRepository: MessageRepositoryProtocol,
+            chatDataSource: ChatDataSource,
+            localDatabase: LocalDatabaseProtocol,
+            localUserId: String?
+        ) {
             self.messageRepository = messageRepository
             self.chatDataSource = chatDataSource
+            self.localDatabase = localDatabase
+            self.localUserId = localUserId
         }
 
         /// Fetches conversations from server, falls back to local cache on failure.
         func execute() async throws -> [Conversation] {
             SanchrLogger.chat.info("GetConversationsUseCase: fetching conversations")
 
+            // Build contacts lookup for resolving participant names
+            let contacts = (try? await localDatabase.fetchContacts()) ?? []
+            let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+
             // Try server first
             do {
                 let protoConversations = try await chatDataSource.getConversations()
                 let conversations = protoConversations.map {
-                    ChatDataSource.mapToDomainConversation($0)
+                    ChatDataSource.mapToDomainConversation(
+                        $0,
+                        contactsLookup: contactsLookup,
+                        localUserId: localUserId
+                    )
                 }
 
                 SanchrLogger.chat.info("Fetched \(conversations.count) conversations from server")

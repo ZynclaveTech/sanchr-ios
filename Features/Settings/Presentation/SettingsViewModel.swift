@@ -73,15 +73,37 @@ final class SettingsViewModel {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
 
+    // MARK: - Load Profile from Session
+
+    /// Populates profile fields from the current session state.
+    func loadProfile(from sessionService: SessionService) {
+        if let name = sessionService.currentDisplayName, !name.isEmpty {
+            displayName = name
+        }
+        if let phone = sessionService.currentPhoneNumber, !phone.isEmpty {
+            phoneNumber = phone
+        }
+        if let avatar = sessionService.currentAvatarURL, !avatar.isEmpty {
+            avatarURL = avatar
+        }
+    }
+
     // MARK: - Load Settings
 
-    func loadSettings(settingsDataSource: SettingsDataSource) async {
+    func loadSettings(settingsDataSource: SettingsDataSource, appLockManager: AppLockManager? = nil) async {
         isLoading = true
         defer { isLoading = false }
 
         do {
             let settings = try await settingsDataSource.getSettings()
             applySettings(settings)
+            // Sync security prefs to local enforcement
+            appLockManager?.syncFromSettings(
+                screenLock: settings.screenLockEnabled,
+                biometric: settings.biometricLock,
+                timeout: settings.screenLockTimeout,
+                screenshotProtection: settings.screenshotProtection
+            )
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

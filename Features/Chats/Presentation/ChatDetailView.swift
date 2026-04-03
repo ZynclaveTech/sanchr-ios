@@ -39,6 +39,7 @@ struct ChatDetailView: View {
             bottomToolbar
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             // Navigation bar: avatar, name, status
             ToolbarItem(placement: .principal) {
@@ -118,13 +119,15 @@ struct ChatDetailView: View {
                     .foregroundColor(Color.sanchrTextPrimary(colorScheme))
                     .lineLimit(1)
 
-                Text(recipient?.status == .online ? "Online" : "Offline")
-                    .font(SanchrTypography.micro)
-                    .foregroundColor(
-                        recipient?.status == .online
-                            ? SanchrColors.success
-                            : Color.sanchrTextTertiary(colorScheme)
-                    )
+                if let phone = recipient?.phoneNumber, !phone.isEmpty {
+                    Text(phone)
+                        .font(SanchrTypography.micro)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                } else {
+                    Text("Encrypted chat")
+                        .font(SanchrTypography.micro)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                }
             }
         }
     }
@@ -342,7 +345,8 @@ struct ChatDetailView: View {
                         recipientId: recipient?.id ?? "",
                         messageRepository: container.messageRepository,
                         signalProtocol: container.signalProtocol,
-                        chatDataSource: container.chatDataSource
+                        chatDataSource: container.chatDataSource,
+                        sessionService: container.sessionService
                     )
                 }
             } label: {

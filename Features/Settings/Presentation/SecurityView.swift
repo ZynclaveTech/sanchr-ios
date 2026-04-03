@@ -29,7 +29,8 @@ struct SecurityView: View {
             Section("Screen Lock") {
                 Toggle("Screen lock", isOn: $viewModel.screenLockEnabled)
                     .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.screenLockEnabled) { _, _ in
+                    .onChange(of: viewModel.screenLockEnabled) { _, newValue in
+                        container.appLockManager.screenLockEnabled = newValue
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     }
 
@@ -40,7 +41,8 @@ struct SecurityView: View {
                             Text(name).tag(value)
                         }
                     }
-                    .onChange(of: viewModel.screenLockTimeout) { _, _ in
+                    .onChange(of: viewModel.screenLockTimeout) { _, newValue in
+                        container.appLockManager.screenLockTimeout = newValue
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     }
                 }
@@ -52,6 +54,7 @@ struct SecurityView: View {
                 Toggle("Face ID / Touch ID", isOn: $viewModel.biometricLock)
                     .tint(.sanchrPrimary)
                     .onChange(of: viewModel.biometricLock) { _, newValue in
+                        container.appLockManager.biometricLockEnabled = newValue
                         if newValue {
                             authenticateBiometric()
                         } else {
@@ -69,7 +72,8 @@ struct SecurityView: View {
             Section {
                 Toggle("Screenshot protection", isOn: $viewModel.screenshotProtection)
                     .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.screenshotProtection) { _, _ in
+                    .onChange(of: viewModel.screenshotProtection) { _, newValue in
+                        container.appLockManager.screenshotProtectionEnabled = newValue
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     }
 
@@ -169,7 +173,10 @@ struct SecurityView: View {
             ChangePasswordSheet()
         }
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                appLockManager: container.appLockManager
+            )
         }
     }
 

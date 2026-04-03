@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 
 /// Protocol defining authentication operations against the backend.
 protocol AuthRepositoryProtocol: AnyObject, Sendable {
@@ -40,6 +41,9 @@ struct AuthTokens: Sendable {
     let refreshToken: String
     let expiresAt: Date
     let userId: String
+    let displayName: String
+    let phoneNumber: String
+    let avatarURL: String
 }
 
 // MARK: - Implementation
@@ -60,22 +64,28 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
     func requestOTP(phoneNumber: String) async throws -> OTPRequestResult {
         SanchrLogger.auth.info("Requesting OTP for \(phoneNumber.prefix(4))****")
 
-        // The backend's Register endpoint triggers OTP delivery for new accounts.
-        // For existing users, Login triggers OTP. We use Register here as the
-        // requestOTP entry point; the backend returns an auth response with an
-        // empty token, signalling that OTP verification is needed.
-        var request = Vync_Auth_RegisterRequest()
-        request.phoneNumber = phoneNumber
         var device = Vync_Auth_DeviceInfo()
         device.deviceName = "iPhone"
         device.platform = "ios"
-        request.device = device
 
-        let response = try await authService.register(request)
+        // Call Register which handles both new and existing users.
+        // New users get created; existing users get an OTP generated for login.
+        // Both paths return OK — the server handles user-enumeration prevention.
+        do {
+            var registerReq = Vync_Auth_RegisterRequest()
+            registerReq.phoneNumber = phoneNumber
+            registerReq.displayName = "Sanchr User"
+            registerReq.password = "temp_otp_flow"
+            registerReq.device = device
+            _ = try await authService.register(registerReq)
+            SanchrLogger.auth.info("Register/OTP request succeeded")
+        } catch {
+            SanchrLogger.auth.error("requestOTP failed: \(Self.detailedError(error))")
+            throw error
+        }
 
-        // The backend may return a device_id that we use as the OTP request ID.
         return OTPRequestResult(
-            requestId: String(response.deviceID),
+            requestId: phoneNumber,
             expiresInSeconds: 300,
             phoneNumber: phoneNumber
         )
@@ -92,8 +102,16 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         device.platform = "ios"
         request.device = device
 
-        let response = try await authService.verifyOTP(request)
+        let response: Vync_Auth_AuthResponse
+        do {
+            response = try await authService.verifyOTP(request)
+        } catch {
+            SanchrLogger.auth.error("verifyOTP failed: \(Self.detailedError(error))")
+            throw error
+        }
+
         let tokens = Self.mapTokens(response)
+        SanchrLogger.auth.info("OTP verified, userId=\(tokens.userId.prefix(8))..., hasToken=\(!tokens.accessToken.isEmpty)")
 
         // Persist tokens
         try secureStorage.saveAccessToken(tokens.accessToken)
@@ -136,9 +154,15 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         var request = Vync_Auth_RefreshTokenRequest()
         request.refreshToken = refreshToken
 
-        let response = try await authService.refreshToken(request)
-        let tokens = Self.mapTokens(response)
+        let response: Vync_Auth_AuthResponse
+        do {
+            response = try await authService.refreshToken(request)
+        } catch {
+            SanchrLogger.auth.error("refreshToken failed: \(Self.detailedError(error))")
+            throw error
+        }
 
+        let tokens = Self.mapTokens(response)
         try secureStorage.saveAccessToken(tokens.accessToken)
         try secureStorage.saveRefreshToken(tokens.refreshToken)
 
@@ -185,12 +209,24 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
 
     // MARK: - Mapping
 
+    // MARK: - Diagnostics
+
+    static func detailedError(_ error: Error) -> String {
+        if let status = error as? GRPCStatus {
+            return "gRPC \(status.code) (\(status.code.rawValue)): \(status.message ?? "no message")"
+        }
+        return "\(type(of: error)): \(error.localizedDescription)"
+    }
+
     private static func mapTokens(_ response: Vync_Auth_AuthResponse) -> AuthTokens {
         AuthTokens(
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
             expiresAt: Date().addingTimeInterval(3600),
-            userId: response.hasUser ? response.user.id : ""
+            userId: response.hasUser ? response.user.id : "",
+            displayName: response.hasUser ? response.user.displayName : "",
+            phoneNumber: response.hasUser ? response.user.phoneNumber : "",
+            avatarURL: response.hasUser ? response.user.avatarURL : ""
         )
     }
 }

@@ -15,16 +15,19 @@ final class DependencyContainer {
 
     @ObservationIgnored lazy var networkMonitor: NetworkMonitorProtocol = NetworkMonitor()
 
-    @ObservationIgnored lazy var authInterceptorFactory: AuthInterceptorFactory = AuthInterceptorFactory(
-        secureStorage: secureStorage,
-        onUnauthenticated: { [weak self] in
-            Task { [weak self] in
-                try? await self?.sessionService.refreshTokenIfExpiringSoon()
+    @ObservationIgnored lazy var authInterceptorFactory: AuthInterceptorFactory = {
+        nonisolated(unsafe) weak var weakSelf = self
+        return AuthInterceptorFactory(
+            secureStorage: secureStorage,
+            onUnauthenticated: {
+                Task {
+                    try? await weakSelf?.sessionService.forceRefreshToken()
+                }
             }
-        }
-    )
+        )
+    }()
 
-    @ObservationIgnored lazy var grpcClient: GRPCClientProtocol = GRPCClient(
+    @ObservationIgnored lazy var grpcClient: GRPCClientProtocol = SanchrGRPCClient(
         configuration: appConfiguration,
         authInterceptors: authInterceptorFactory
     )
@@ -101,6 +104,10 @@ final class DependencyContainer {
         sessionService: sessionService
     )
 
+    // MARK: - Security
+
+    @ObservationIgnored lazy var appLockManager: AppLockManager = AppLockManager()
+
     // MARK: - Sync
 
     /// Tracks sync state across the app (last sync time, syncing indicator, errors).
@@ -124,6 +131,11 @@ final class DependencyContainer {
     @ObservationIgnored lazy var pushManager: PushManager = PushManager(
         notificationService: grpcClient.notificationService
     )
+
+    /// Convenience accessor for the notification gRPC client (used by NotificationsView).
+    var notificationServiceClient: Vync_Notifications_NotificationServiceAsyncClientProtocol {
+        grpcClient.notificationService
+    }
 
     // MARK: - Media
 
@@ -198,11 +210,51 @@ final class DependencyContainer {
 
     /// Re-initializes the Signal Protocol store with the authenticated user's ID.
     /// Call this after successful login/registration when `SessionService.currentUserId` is set.
+    /// Migrates any keys stored under the "pending" placeholder to the real userId.
     func configureSignalStore(userId: String) {
+        // Migrate keys from "pending" placeholder to real userId if needed
+        migrateSignalKeysIfNeeded(from: "pending", to: userId)
+
         let store = SanchrSignalStore(userId: userId, keychainService: keychainService)
         self.signalStore = store
         self.signalKeyManager = SignalKeyManager(store: store, keyService: grpcClient.keyService)
         self.signalSessionManager = SignalSessionManager(store: store, keyManager: signalKeyManager)
         SanchrLogger.crypto.info("Signal Protocol store configured for user \(userId.prefix(8))...")
+    }
+
+    /// Migrates Signal Protocol Keychain entries and file-based stores from one userId to another.
+    private func migrateSignalKeysIfNeeded(from oldUserId: String, to newUserId: String) {
+        guard oldUserId != newUserId else { return }
+
+        // Migrate Keychain entries (identity key pair and registration ID)
+        let keychainMigrations = [
+            ("io.sanchr.signal.identity_key_pair.\(oldUserId)", "io.sanchr.signal.identity_key_pair.\(newUserId)"),
+            ("io.sanchr.signal.registration_id.\(oldUserId)", "io.sanchr.signal.registration_id.\(newUserId)"),
+        ]
+
+        for (oldKey, newKey) in keychainMigrations {
+            // Only migrate if old key exists and new key doesn't
+            if let data = try? keychainService.read(forKey: oldKey),
+               (try? keychainService.read(forKey: newKey)) == nil {
+                try? keychainService.save(data, forKey: newKey)
+                try? keychainService.delete(forKey: oldKey)
+                SanchrLogger.crypto.info("Migrated Keychain key from \(oldUserId.prefix(8)) to \(newUserId.prefix(8))")
+            }
+        }
+
+        // Migrate file-based stores (sessions, pre-keys, trusted identities, sender keys)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let oldDir = base.appendingPathComponent("SignalStore/\(oldUserId)", isDirectory: true)
+        let newDir = base.appendingPathComponent("SignalStore/\(newUserId)", isDirectory: true)
+
+        if FileManager.default.fileExists(atPath: oldDir.path),
+           !FileManager.default.fileExists(atPath: newDir.path) {
+            do {
+                try FileManager.default.moveItem(at: oldDir, to: newDir)
+                SanchrLogger.crypto.info("Migrated Signal file store from \(oldUserId.prefix(8)) to \(newUserId.prefix(8))")
+            } catch {
+                SanchrLogger.crypto.error("Signal file store migration failed: \(error.localizedDescription)")
+            }
+        }
     }
 }

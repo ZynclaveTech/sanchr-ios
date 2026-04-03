@@ -181,7 +181,10 @@ struct ProfileView: View {
                     // Save button
                     Button {
                         Task {
-                            await viewModel.saveProfile(profileDataSource: profileDataSource)
+                            await viewModel.saveProfile(
+                                profileDataSource: profileDataSource,
+                                sessionService: container.sessionService
+                            )
                         }
                     } label: {
                         HStack {

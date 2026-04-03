@@ -6,6 +6,8 @@ struct ContactsView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = ContactsViewModel()
+    @State private var navigateToConversation: Conversation?
+    @State private var isStartingChat = false
 
     var body: some View {
         Group {
@@ -38,6 +40,51 @@ struct ContactsView: View {
                 localDatabase: container.localDatabase
             )
             await viewModel.loadBlockedList(contactDataSource: contactDataSource)
+        }
+        .navigationDestination(item: $navigateToConversation) { conversation in
+            ChatDetailView(conversation: conversation)
+        }
+    }
+
+    // MARK: - Start Chat
+
+    private func startChat(with contact: User) {
+        guard !isStartingChat else { return }
+        isStartingChat = true
+
+        Task {
+            defer { isStartingChat = false }
+            do {
+                let protoConversation = try await container.chatDataSource.startDirectConversation(
+                    recipientID: contact.id
+                )
+                // Build a lookup so the conversation shows real names, not UUIDs
+                let localUserId = container.sessionService.currentUserId
+                var contactsLookup: [String: User] = [contact.id: contact]
+                if let localUserId {
+                    contactsLookup[localUserId] = User(
+                        id: localUserId,
+                        phoneNumber: container.sessionService.currentPhoneNumber ?? "",
+                        displayName: container.sessionService.currentDisplayName ?? "You",
+                        avatarURL: nil,
+                        bio: nil,
+                        isVerified: true,
+                        lastSeen: nil,
+                        identityKeyFingerprint: nil,
+                        status: .online,
+                        isLocalUser: true
+                    )
+                }
+                let conversation = ChatDataSource.mapToDomainConversation(
+                    protoConversation,
+                    contactsLookup: contactsLookup,
+                    localUserId: localUserId
+                )
+                navigateToConversation = conversation
+            } catch {
+                viewModel.errorMessage = "Failed to start chat: \(error.localizedDescription)"
+                SanchrLogger.chat.error("startDirectConversation failed: \(error)")
+            }
         }
     }
 
@@ -91,7 +138,12 @@ struct ContactsView: View {
             ForEach(viewModel.groupedContacts, id: \.letter) { group in
                 Section {
                     ForEach(group.contacts) { contact in
-                        ContactRow(contact: contact, colorScheme: colorScheme)
+                        Button {
+                            startChat(with: contact)
+                        } label: {
+                            ContactRow(contact: contact, colorScheme: colorScheme)
+                        }
+                        .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     Task {
@@ -105,7 +157,7 @@ struct ContactsView: View {
                                 }
 
                                 Button {
-                                    // Navigate to chat
+                                    startChat(with: contact)
                                 } label: {
                                     Label("Message", systemImage: "bubble.left.fill")
                                 }
@@ -127,7 +179,7 @@ struct ContactsView: View {
                                 }
 
                                 Button {
-                                    // Navigate to chat
+                                    startChat(with: contact)
                                 } label: {
                                     Label("Message", systemImage: "bubble.left.fill")
                                 }
@@ -262,14 +314,14 @@ struct ContactRow: View {
                         .font(SanchrTypography.captionSmall)
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                         .lineLimit(1)
-                } else {
-                    Text(contact.status == .online ? "Online" : "Offline")
+                } else if !contact.phoneNumber.isEmpty {
+                    Text(contact.phoneNumber)
                         .font(SanchrTypography.captionSmall)
-                        .foregroundColor(
-                            contact.status == .online
-                                ? Color.sanchrSuccess
-                                : Color.sanchrTextTertiary(colorScheme)
-                        )
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                } else {
+                    Text("Sanchr user")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
                 }
             }
 

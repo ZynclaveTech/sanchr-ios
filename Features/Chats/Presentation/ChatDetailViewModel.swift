@@ -114,7 +114,8 @@ final class ChatDetailViewModel {
         recipientId: String,
         messageRepository: MessageRepositoryProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
-        chatDataSource: ChatDataSource
+        chatDataSource: ChatDataSource,
+        sessionService: SessionService
     ) async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -138,11 +139,14 @@ final class ChatDetailViewModel {
                 signalSessionManager: signalProtocol,
                 chatDataSource: chatDataSource
             )
-            let sentMessage = try await useCase.execute(
-                text: text,
-                conversationId: conversationId,
-                recipientId: recipientId
-            )
+            // Wrap in auth retry so UNAUTHENTICATED errors refresh the token and retry
+            let sentMessage = try await sessionService.withAuthRetry {
+                try await useCase.execute(
+                    text: text,
+                    conversationId: conversationId,
+                    recipientId: recipientId
+                )
+            }
             // Replace optimistic message with server-confirmed message
             if let index = messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
                 messages[index] = sentMessage
@@ -237,7 +241,8 @@ final class ChatDetailViewModel {
         recipientId: String,
         messageRepository: MessageRepositoryProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
-        chatDataSource: ChatDataSource
+        chatDataSource: ChatDataSource,
+        sessionService: SessionService
     ) async {
         guard message.status == .failed, case .text(let text) = message.content else { return }
 
@@ -251,7 +256,8 @@ final class ChatDetailViewModel {
             recipientId: recipientId,
             messageRepository: messageRepository,
             signalProtocol: signalProtocol,
-            chatDataSource: chatDataSource
+            chatDataSource: chatDataSource,
+            sessionService: sessionService
         )
     }
 

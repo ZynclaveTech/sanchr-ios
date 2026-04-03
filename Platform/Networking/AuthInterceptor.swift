@@ -8,7 +8,7 @@ import SwiftProtobuf
 /// Interceptor that injects the JWT bearer token and device ID into every outgoing
 /// gRPC call. Skips injection for unauthenticated paths. Detects UNAUTHENTICATED
 /// status on responses and triggers token refresh via SessionService.
-final class AuthInterceptor<Request: Message, Response: Message>: ClientInterceptor<Request, Response>, @unchecked Sendable {
+final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProtobuf.Message>: ClientInterceptor<Request, Response>, @unchecked Sendable {
 
     private let secureStorage: SecureStorageProtocol
     private let onUnauthenticated: @Sendable () -> Void
@@ -92,7 +92,7 @@ final class AuthInterceptorFactory: @unchecked Sendable {
     }
 
     /// Creates a single-element array containing the auth interceptor for a given request/response pair.
-    private func makeInterceptors<Req: Message, Resp: Message>() -> [ClientInterceptor<Req, Resp>] {
+    private func makeInterceptors<Req: SwiftProtobuf.Message, Resp: SwiftProtobuf.Message>() -> [ClientInterceptor<Req, Resp>] {
         [AuthInterceptor<Req, Resp>(secureStorage: secureStorage, onUnauthenticated: onUnauthenticated)]
     }
 }

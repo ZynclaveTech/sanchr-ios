@@ -34,7 +34,15 @@ final class ProfileViewModel {
 
     func loadProfile(sessionService: SessionService) async {
         userId = sessionService.currentUserId ?? ""
-        // Profile data would typically come from cached session state
+        if let name = sessionService.currentDisplayName, !name.isEmpty {
+            displayName = name
+        }
+        if let phone = sessionService.currentPhoneNumber, !phone.isEmpty {
+            phoneNumber = phone
+        }
+        if let avatar = sessionService.currentAvatarURL, !avatar.isEmpty {
+            avatarURL = avatar
+        }
         originalDisplayName = displayName
         originalStatusText = statusText
         originalAvatarURL = avatarURL
@@ -42,7 +50,7 @@ final class ProfileViewModel {
 
     // MARK: - Save Profile
 
-    func saveProfile(profileDataSource: ProfileDataSource) async {
+    func saveProfile(profileDataSource: ProfileDataSource, sessionService: SessionService) async {
         isSaving = true
         defer { isSaving = false }
 
@@ -64,6 +72,9 @@ final class ProfileViewModel {
             originalDisplayName = displayName
             originalStatusText = statusText
             originalAvatarURL = avatarURL
+
+            // Sync back to session so Settings and other screens reflect changes
+            sessionService.updateProfile(displayName: displayName, avatarURL: avatarURL)
 
             isEditing = false
             errorMessage = nil

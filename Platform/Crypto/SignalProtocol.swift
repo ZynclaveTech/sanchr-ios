@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 import LibSignalClient
 
 /// Protocol for Signal Protocol session management and message encryption/decryption.
@@ -60,17 +61,30 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
             "Establishing session with \(userId.prefix(8))... device \(deviceId)")
 
         // 1. Fetch the recipient's pre-key bundle from the server.
-        let preKeyBundle = try await keyManager.fetchPreKeyBundle(
-            userId: userId, deviceId: deviceId)
+        let preKeyBundle: PreKeyBundle
+        do {
+            preKeyBundle = try await keyManager.fetchPreKeyBundle(
+                userId: userId, deviceId: deviceId)
+        } catch {
+            SanchrLogger.crypto.error(
+                "fetchPreKeyBundle FAILED for \(userId.prefix(8))... device \(deviceId): \(Self.detailedError(error))")
+            throw error
+        }
 
         // 2. Process the bundle to perform X3DH key agreement and initialize the Double Ratchet.
-        try processPreKeyBundle(
-            preKeyBundle,
-            for: address,
-            sessionStore: store,
-            identityStore: store,
-            context: NullContext()
-        )
+        do {
+            try processPreKeyBundle(
+                preKeyBundle,
+                for: address,
+                sessionStore: store,
+                identityStore: store,
+                context: NullContext()
+            )
+        } catch {
+            SanchrLogger.crypto.error(
+                "processPreKeyBundle FAILED for \(userId.prefix(8))... device \(deviceId): \(Self.detailedError(error))")
+            throw error
+        }
 
         SanchrLogger.crypto.info(
             "Session established with \(userId.prefix(8))... device \(deviceId)")
@@ -125,7 +139,14 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         -> [Vync_Messaging_DeviceMessage]
     {
         // Fetch all device IDs for this recipient from the server.
-        let deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+        let deviceIds: [Int32]
+        do {
+            deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+            SanchrLogger.crypto.info("Got \(deviceIds.count) device(s) for \(recipientId.prefix(8))...: \(deviceIds)")
+        } catch {
+            SanchrLogger.crypto.error("fetchUserDevices FAILED for \(recipientId.prefix(8))...: \(Self.detailedError(error))")
+            throw error
+        }
 
         var deviceMessages: [Vync_Messaging_DeviceMessage] = []
         deviceMessages.reserveCapacity(deviceIds.count)
@@ -230,5 +251,22 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         )
 
         return fingerprint.displayable.formatted
+    }
+
+    // MARK: - Diagnostics
+
+    /// Extracts the real gRPC status code and message from an error.
+    /// `GRPCStatus` doesn't conform to `CustomNSError`, so `localizedDescription`
+    /// always shows "error 1" — hiding the actual status code entirely.
+    static func detailedError(_ error: Error) -> String {
+        if let status = error as? GRPCStatus {
+            return "gRPC \(status.code) (\(status.code.rawValue)): \(status.message ?? "no message")"
+        }
+        let nsError = error as NSError
+        if nsError.domain == "io.grpc",
+           let statusCode = GRPCStatus.Code(rawValue: nsError.code) {
+            return "gRPC \(statusCode) (\(nsError.code)): \(nsError.localizedDescription)"
+        }
+        return "\(type(of: error)): \(error.localizedDescription)"
     }
 }

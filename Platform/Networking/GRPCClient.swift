@@ -34,94 +34,31 @@ protocol GRPCClientProtocol: Sendable {
 /// gRPC channel manager wrapping connection lifecycle and typed service stubs.
 /// Maintains two channels: `coreChannel` for most services and `callChannel`
 /// for call signaling, pointing at separate backend hosts.
-final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
+///
+/// Channels and service clients are created eagerly in `init`. grpc-swift's
+/// `ClientConnection` is itself lazy — it only opens the TCP connection on the
+/// first RPC — so creating them early is safe and avoids "accessed before
+/// connect()" crashes from lazy DI containers.  `connect()` is still provided
+/// for explicit lifecycle control and logging.
+final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
     private let configuration: AppConfiguration
-    private var group: EventLoopGroup?
-    private var coreChannel: ClientConnection?
-    private var callChannel: ClientConnection?
+    private let group: EventLoopGroup
+    private let coreChannel: ClientConnection
+    private let callChannel: ClientConnection
 
     private(set) var isConnected: Bool = false
 
-    // MARK: - Interceptor factories
+    // MARK: - Service clients (created eagerly)
 
-    private let authInterceptors: AuthInterceptorFactory?
-
-    // MARK: - Lazy service clients (created after connect)
-
-    private var _authService: Vync_Auth_AuthServiceAsyncClient?
-    private var _messagingService: Vync_Messaging_MessagingServiceAsyncClient?
-    private var _contactService: Vync_Contacts_ContactServiceAsyncClient?
-    private var _keyService: Vync_Keys_KeyServiceAsyncClient?
-    private var _mediaService: Vync_Media_MediaServiceAsyncClient?
-    private var _settingsService: Vync_Settings_SettingsServiceAsyncClient?
-    private var _notificationService: Vync_Notifications_NotificationServiceAsyncClient?
-    private var _vaultService: Vync_Vault_VaultServiceAsyncClient?
-    private var _callSignalingService: Vync_Calling_CallSignalingServiceAsyncClient?
-
-    // MARK: - Protocol accessors
-
-    var authService: Vync_Auth_AuthServiceAsyncClientProtocol {
-        guard let client = _authService else {
-            fatalError("GRPCClient: authService accessed before connect()")
-        }
-        return client
-    }
-
-    var messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol {
-        guard let client = _messagingService else {
-            fatalError("GRPCClient: messagingService accessed before connect()")
-        }
-        return client
-    }
-
-    var contactService: Vync_Contacts_ContactServiceAsyncClientProtocol {
-        guard let client = _contactService else {
-            fatalError("GRPCClient: contactService accessed before connect()")
-        }
-        return client
-    }
-
-    var keyService: Vync_Keys_KeyServiceAsyncClientProtocol {
-        guard let client = _keyService else {
-            fatalError("GRPCClient: keyService accessed before connect()")
-        }
-        return client
-    }
-
-    var mediaService: Vync_Media_MediaServiceAsyncClientProtocol {
-        guard let client = _mediaService else {
-            fatalError("GRPCClient: mediaService accessed before connect()")
-        }
-        return client
-    }
-
-    var settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol {
-        guard let client = _settingsService else {
-            fatalError("GRPCClient: settingsService accessed before connect()")
-        }
-        return client
-    }
-
-    var notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol {
-        guard let client = _notificationService else {
-            fatalError("GRPCClient: notificationService accessed before connect()")
-        }
-        return client
-    }
-
-    var vaultService: Vync_Vault_VaultServiceAsyncClientProtocol {
-        guard let client = _vaultService else {
-            fatalError("GRPCClient: vaultService accessed before connect()")
-        }
-        return client
-    }
-
-    var callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol {
-        guard let client = _callSignalingService else {
-            fatalError("GRPCClient: callSignalingService accessed before connect()")
-        }
-        return client
-    }
+    let authService: Vync_Auth_AuthServiceAsyncClientProtocol
+    let messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol
+    let contactService: Vync_Contacts_ContactServiceAsyncClientProtocol
+    let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
+    let mediaService: Vync_Media_MediaServiceAsyncClientProtocol
+    let settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol
+    let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
+    let vaultService: Vync_Vault_VaultServiceAsyncClientProtocol
+    let callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
 
     // MARK: - Init
 
@@ -130,20 +67,11 @@ final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
         authInterceptors: AuthInterceptorFactory? = nil
     ) {
         self.configuration = configuration
-        self.authInterceptors = authInterceptors
-    }
-
-    // MARK: - Connection Lifecycle
-
-    func connect() async throws {
-        SanchrLogger.network.info(
-            "Connecting gRPC: core=\(configuration.grpcHost):\(configuration.grpcPort), call=\(configuration.callHost):\(configuration.callPort)"
-        )
 
         let elg = PlatformSupport.makeEventLoopGroup(loopCount: 1)
         self.group = elg
 
-        // Build the core channel
+        // Build channels (lazy-connect — no TCP until first RPC)
         let coreConn = Self.buildChannel(
             group: elg,
             host: configuration.grpcHost,
@@ -152,7 +80,6 @@ final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
         )
         self.coreChannel = coreConn
 
-        // Build the call signaling channel
         let callConn = Self.buildChannel(
             group: elg,
             host: configuration.callHost,
@@ -161,46 +88,45 @@ final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
         )
         self.callChannel = callConn
 
-        // Initialize service clients on the core channel
-        _authService = Vync_Auth_AuthServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        // Core service clients
+        authService = Vync_Auth_AuthServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _messagingService = Vync_Messaging_MessagingServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        messagingService = Vync_Messaging_MessagingServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _contactService = Vync_Contacts_ContactServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        contactService = Vync_Contacts_ContactServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _keyService = Vync_Keys_KeyServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        keyService = Vync_Keys_KeyServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _mediaService = Vync_Media_MediaServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        mediaService = Vync_Media_MediaServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _settingsService = Vync_Settings_SettingsServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        settingsService = Vync_Settings_SettingsServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _notificationService = Vync_Notifications_NotificationServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        notificationService = Vync_Notifications_NotificationServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
-        _vaultService = Vync_Vault_VaultServiceAsyncClient(
-            channel: coreConn,
-            interceptors: authInterceptors
+        vaultService = Vync_Vault_VaultServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
         )
 
-        // Call signaling on the dedicated call channel
-        _callSignalingService = Vync_Calling_CallSignalingServiceAsyncClient(
-            channel: callConn,
-            interceptors: authInterceptors
+        // Call signaling on dedicated channel
+        callSignalingService = Vync_Calling_CallSignalingServiceAsyncClient(
+            channel: callConn, interceptors: authInterceptors
         )
+    }
 
+    // MARK: - Connection Lifecycle
+
+    func connect() async throws {
+        let config = self.configuration
+        SanchrLogger.network.info(
+            "Connecting gRPC: core=\(config.grpcHost):\(config.grpcPort), call=\(config.callHost):\(config.callPort)"
+        )
         isConnected = true
         SanchrLogger.network.info("gRPC channels established")
     }
@@ -208,24 +134,31 @@ final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
     func disconnect() async throws {
         SanchrLogger.network.info("Disconnecting gRPC channels")
 
-        let coreClose = coreChannel?.close()
-        let callClose = callChannel?.close()
+        let coreClose = coreChannel.close()
+        let callClose = callChannel.close()
 
-        _ = try? coreClose?.wait()
-        _ = try? callClose?.wait()
+        _ = try? coreClose.wait()
+        _ = try? callClose.wait()
 
-        try? group?.syncShutdownGracefully()
+        let groupToShutdown = group
+        try? await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            DispatchQueue.global().async {
+                do {
+                    try groupToShutdown.syncShutdownGracefully()
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
 
-        coreChannel = nil
-        callChannel = nil
-        group = nil
         isConnected = false
     }
 
     deinit {
-        _ = try? coreChannel?.close().wait()
-        _ = try? callChannel?.close().wait()
-        try? group?.syncShutdownGracefully()
+        _ = try? coreChannel.close().wait()
+        _ = try? callChannel.close().wait()
+        try? group.syncShutdownGracefully()
     }
 
     // MARK: - Channel Builder

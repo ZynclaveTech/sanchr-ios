@@ -166,23 +166,34 @@ final class ChatDataSource: @unchecked Sendable {
     // MARK: - Domain Model Mapping
 
     /// Maps a proto Conversation to the domain Conversation model.
-    static func mapToDomainConversation(_ proto: Vync_Messaging_Conversation) -> Conversation {
+    /// When a `contactsLookup` dictionary is provided, resolves participant display names
+    /// and phone numbers from cached contacts instead of showing raw UUIDs.
+    static func mapToDomainConversation(
+        _ proto: Vync_Messaging_Conversation,
+        contactsLookup: [String: User] = [:],
+        localUserId: String? = nil
+    ) -> Conversation {
         let conversationType: Conversation.ConversationType =
             proto.type == "group" ? .group : .oneToOne
 
         return Conversation(
             id: proto.id,
             participants: proto.participantIds.map { participantID in
-                User(
+                if let cached = contactsLookup[participantID] {
+                    return cached
+                }
+                let isLocal = participantID == localUserId
+                return User(
                     id: participantID,
                     phoneNumber: "",
-                    displayName: participantID,
+                    displayName: isLocal ? "You" : participantID,
                     avatarURL: nil,
                     bio: nil,
                     isVerified: false,
                     lastSeen: nil,
                     identityKeyFingerprint: nil,
-                    status: .offline
+                    status: .offline,
+                    isLocalUser: isLocal
                 )
             },
             lastMessage: nil,

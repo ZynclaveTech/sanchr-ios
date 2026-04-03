@@ -20,8 +20,20 @@ struct SanchrApp: App {
                 .onAppear {
                     configureFonts()
                     configureAppearance()
-                    configurePushManager()
                     configureBackgroundSync()
+                }
+                .task {
+                    // Capture container locally to avoid Sendable diagnostic on @State property.
+                    nonisolated(unsafe) let grpcContainer = container
+                    do {
+                        try await grpcContainer.connectGRPC()
+                    } catch {
+                        SanchrLogger.network.error("Failed to connect gRPC channels: \(error.localizedDescription)")
+                    }
+                    // Wire PushManager after gRPC is connected (it needs notificationService)
+                    await MainActor.run {
+                        configurePushManager()
+                    }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     handleScenePhaseChange(from: oldPhase, to: newPhase)
@@ -63,15 +75,21 @@ struct SanchrApp: App {
 
     /// Responds to scene phase transitions to schedule/trigger syncs.
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
+        let lockManager = container.appLockManager
+
         switch newPhase {
         case .background:
             // Schedule background tasks when the app goes to background.
             let orchestrator = container.syncOrchestrator
             orchestrator.scheduleBackgroundSync()
             orchestrator.scheduleAppRefresh()
+            lockManager.appDidEnterBackground()
             SanchrLogger.sync.info("App entered background, scheduled background tasks")
 
         case .active:
+            // Check app lock
+            lockManager.appDidBecomeActive()
+
             // Trigger a foreground sync if needed (>5 min since last sync).
             let syncState = container.syncState
             if syncState.needsSync && container.sessionService.isAuthenticated {
@@ -162,27 +180,86 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 struct RootView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
+    @State private var sessionReady = false
+
+    /// Whether the user still needs to complete onboarding (no display name set).
+    private var needsOnboarding: Bool {
+        let name = container.sessionService.currentDisplayName ?? ""
+        return name.isEmpty || name == "Sanchr User"
+    }
 
     var body: some View {
-        Group {
-            if container.sessionService.isAuthenticated {
-                MainTabView()
-                    .task {
-                        await requestPushPermissionIfNeeded()
+        ZStack {
+            Group {
+                if container.sessionService.isAuthenticated && sessionReady {
+                    if needsOnboarding {
+                        OnboardingView()
+                    } else {
+                        MainTabView()
                     }
-            } else {
-                LoginView()
+                } else if container.sessionService.isAuthenticated && !sessionReady {
+                    // Authenticated but waiting for token refresh
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .task {
+                            await refreshSessionToken()
+                        }
+                } else {
+                    LoginView()
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: container.sessionService.isAuthenticated)
+            .animation(.easeInOut(duration: 0.2), value: sessionReady)
+            .onChange(of: container.sessionService.isAuthenticated) { _, isAuth in
+                if !isAuth {
+                    sessionReady = false
+                }
+            }
+
+            // Lock screen overlay
+            if container.appLockManager.isLocked {
+                LockScreenView {
+                    container.appLockManager.authenticate()
+                }
+                .transition(.opacity)
+                .zIndex(100)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: container.sessionService.isAuthenticated)
+        .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
     }
 
-    /// Request push notification permission on first launch after authentication.
-    /// This ensures the user sees the permission dialog only after they are logged in.
-    private func requestPushPermissionIfNeeded() async {
-        let pushManager = container.pushManager
-        if !pushManager.isPermissionGranted {
-            await pushManager.requestAuthorization()
+    /// Refreshes the session token before showing the main UI.
+    /// Ensures all subsequent API calls have a valid token.
+    /// Also configures the Signal Protocol store with the authenticated user's ID.
+    private func refreshSessionToken() async {
+        do {
+            try await container.sessionService.forceRefreshToken()
+            SanchrLogger.auth.info("Session token refreshed, showing main UI")
+        } catch {
+            SanchrLogger.auth.error("Session token refresh failed: \(error.localizedDescription)")
+            // Token is invalid and can't be refreshed — session is expired
         }
+
+        // Configure Signal store with the real user ID (replaces "pending" placeholder)
+        if let userId = container.sessionService.currentUserId {
+            container.configureSignalStore(userId: userId)
+        }
+
+        // Ensure Signal Protocol identity keys exist and key bundle is uploaded
+        do {
+            if !container.signalKeyManager.hasIdentityKeys {
+                SanchrLogger.crypto.info("No identity keys found, generating and uploading key bundle")
+                _ = try container.signalKeyManager.generateIdentityIfNeeded()
+                try await container.signalKeyManager.uploadInitialKeyBundle()
+            } else {
+                // Keys exist; just make sure server has enough pre-keys
+                try await container.signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+            }
+        } catch {
+            SanchrLogger.crypto.warning("Signal key setup failed on startup: \(error.localizedDescription)")
+        }
+
+        sessionReady = true
     }
+
 }
