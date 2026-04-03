@@ -71,67 +71,55 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
 
     // MARK: - BGTaskScheduler Registration
 
+    /// Shared reference set by `registerHandlers()` so the static registration closures
+    /// can forward to a live orchestrator instance.
+    nonisolated(unsafe) private static weak var shared: SyncOrchestrator?
+
     /// Register background task identifiers with the system.
     /// Must be called in `application(_:didFinishLaunchingWithOptions:)` before the app finishes launching.
-    /// This performs the initial registration with placeholder handlers. Call `registerHandlers()`
-    /// after the dependency container is ready to wire up the real sync logic.
+    /// The handlers use the static `shared` reference, which is set later by `registerHandlers()`.
     static func registerBackgroundTasks() {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: syncTaskId,
             using: nil
         ) { task in
-            // Placeholder handler; replaced by `registerHandlers()` once the container is live.
-            SanchrLogger.sync.warning(
-                "BGProcessingTask fired before handler registration for \(syncTaskId)")
-            task.setTaskCompleted(success: false)
+            guard let orchestrator = SyncOrchestrator.shared,
+                  let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            nonisolated(unsafe) let orch = orchestrator
+            nonisolated(unsafe) let bgTask = processingTask
+            Task { @Sendable in
+                await orch.performSync(task: bgTask)
+            }
         }
 
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: refreshTaskId,
             using: nil
         ) { task in
-            SanchrLogger.sync.warning(
-                "BGAppRefreshTask fired before handler registration for \(refreshTaskId)")
-            task.setTaskCompleted(success: false)
+            guard let orchestrator = SyncOrchestrator.shared,
+                  let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            nonisolated(unsafe) let orch = orchestrator
+            nonisolated(unsafe) let bgTask = refreshTask
+            Task { @Sendable in
+                await orch.performAppRefresh(task: bgTask)
+            }
         }
 
         SanchrLogger.sync.info(
             "Background task identifiers registered: \(syncTaskId), \(refreshTaskId)")
     }
 
-    /// Re-register task handlers with a live orchestrator instance.
-    /// Call this after the dependency container is fully initialized so the handler
-    /// closures capture a real `SyncOrchestrator` reference.
+    /// Wire up a live orchestrator instance so background task handlers can use it.
+    /// Call this after the dependency container is fully initialized.
     func registerHandlers() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.syncTaskId,
-            using: nil
-        ) { [weak self] task in
-            guard let self, let processingTask = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            nonisolated(unsafe) let orchestrator = self
-            Task { @Sendable in
-                await orchestrator.performSync(task: processingTask)
-            }
-        }
-
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.refreshTaskId,
-            using: nil
-        ) { [weak self] task in
-            guard let self, let refreshTask = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            nonisolated(unsafe) let orchestrator = self
-            Task { @Sendable in
-                await orchestrator.performAppRefresh(task: refreshTask)
-            }
-        }
-
-        SanchrLogger.sync.info("Background task handlers re-registered with live orchestrator")
+        Self.shared = self
+        SanchrLogger.sync.info("Background sync orchestrator configured with live instance")
     }
 
     // MARK: - Scheduling
