@@ -49,6 +49,7 @@ final class ProfileDataSource: @unchecked Sendable {
         uploadRequest.fileSize = Int64(imageData.count)
         uploadRequest.contentType = "image/jpeg"
         uploadRequest.sha256Hash = hashHex
+        uploadRequest.purpose = .avatar
 
         SanchrLogger.network.info(
             "ProfileDataSource: getUploadUrl for avatar (\(imageData.count) bytes)")
@@ -62,7 +63,7 @@ final class ProfileDataSource: @unchecked Sendable {
 
         // 3. Upload to S3
         do {
-            try await uploadToS3(data: imageData, url: uploadResponse.url, contentType: "image/jpeg")
+            try await uploadToS3(data: imageData, url: uploadResponse.url, contentType: "image/jpeg", isPublic: true)
         } catch {
             SanchrLogger.network.error("ProfileDataSource: S3 upload failed: \(error)")
             throw error
@@ -82,7 +83,18 @@ final class ProfileDataSource: @unchecked Sendable {
         SanchrLogger.network.info(
             "ProfileDataSource: avatar uploaded, mediaID=\(uploadResponse.mediaID)")
 
-        // Return the URL (the server may transform this; use the presigned URL as fallback)
+        // Prefer the CDN display URL; fall back to stripping query params from presigned URL
+        if !uploadResponse.displayURL.isEmpty {
+            SanchrLogger.network.info("Avatar URL (CDN): \(uploadResponse.displayURL.prefix(60))...")
+            return uploadResponse.displayURL
+        }
+        if let components = URLComponents(string: uploadResponse.url) {
+            var clean = components
+            clean.queryItems = nil
+            if let permanentURL = clean.url?.absoluteString {
+                return permanentURL
+            }
+        }
         return uploadResponse.url
     }
 
@@ -101,7 +113,7 @@ final class ProfileDataSource: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func uploadToS3(data: Data, url: String, contentType: String) async throws {
+    private func uploadToS3(data: Data, url: String, contentType: String, isPublic: Bool = false) async throws {
         guard let uploadURL = URL(string: url) else {
             throw AppError.mediaUploadFailed
         }
@@ -110,6 +122,9 @@ final class ProfileDataSource: @unchecked Sendable {
         request.httpMethod = "PUT"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("\(data.count)", forHTTPHeaderField: "Content-Length")
+        if isPublic {
+            request.setValue("public-read", forHTTPHeaderField: "x-amz-acl")
+        }
         request.httpBody = data
 
         let (responseData, response) = try await URLSession.shared.data(for: request)
