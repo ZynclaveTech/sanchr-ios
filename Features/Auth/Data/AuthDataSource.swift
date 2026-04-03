@@ -5,19 +5,22 @@ import Foundation
 final class AuthDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
     private let keychainService: KeychainServiceProtocol
-    private let authClient: Vync_Auth_AuthServiceClient
 
     /// Device info populated once on init to avoid repeated lookups.
     private let deviceInfo: Vync_Auth_DeviceInfo
 
+    /// Convenience accessor for the auth async client from the gRPC manager.
+    private var authClient: Vync_Auth_AuthServiceAsyncClientProtocol {
+        grpcClient.authService
+    }
+
     init(grpcClient: GRPCClientProtocol, keychainService: KeychainServiceProtocol) {
         self.grpcClient = grpcClient
         self.keychainService = keychainService
-        self.authClient = Vync_Auth_AuthServiceClient(grpcClient: grpcClient)
-        self.deviceInfo = Vync_Auth_DeviceInfo(
-            deviceName: "iPhone",
-            platform: "ios"
-        )
+        var device = Vync_Auth_DeviceInfo()
+        device.deviceName = "iPhone"
+        device.platform = "ios"
+        self.deviceInfo = device
     }
 
     // MARK: - Registration
@@ -132,7 +135,7 @@ final class AuthDataSource: @unchecked Sendable {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
             expiresAt: Date().addingTimeInterval(3600),  // Default 1h expiry
-            userId: response.user?.id ?? ""
+            userId: response.hasUser ? response.user.id : ""
         )
     }
 

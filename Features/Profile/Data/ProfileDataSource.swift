@@ -4,12 +4,18 @@ import Foundation
 /// Data source for profile-related gRPC service calls.
 /// Wires to SettingsService.UpdateProfile and MediaService for avatar upload.
 final class ProfileDataSource: @unchecked Sendable {
-    private let settingsClient: Vync_Settings_SettingsServiceClientProtocol
-    private let mediaClient: Vync_Media_MediaServiceClientProtocol
+    private let grpcClient: GRPCClientProtocol
+
+    private var settingsClient: Vync_Settings_SettingsServiceAsyncClientProtocol {
+        grpcClient.settingsService
+    }
+
+    private var mediaClient: Vync_Media_MediaServiceAsyncClientProtocol {
+        grpcClient.mediaService
+    }
 
     init(grpcClient: GRPCClientProtocol) {
-        self.settingsClient = Vync_Settings_SettingsServiceClient(grpcClient: grpcClient)
-        self.mediaClient = Vync_Media_MediaServiceClient(grpcClient: grpcClient)
+        self.grpcClient = grpcClient
     }
 
     // MARK: - Update Profile

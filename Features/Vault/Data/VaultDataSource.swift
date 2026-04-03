@@ -4,16 +4,22 @@ import Foundation
 /// Data source for vault-related gRPC service calls.
 /// Orchestrates VaultService and MediaService RPCs for encrypted vault operations.
 final class VaultDataSource: @unchecked Sendable {
-    private let vaultClient: Vync_Vault_VaultServiceClientProtocol
-    private let mediaClient: Vync_Media_MediaServiceClientProtocol
+    private let grpcClient: GRPCClientProtocol
     private let mediaEncryption: MediaEncryptionProtocol
+
+    private var vaultClient: Vync_Vault_VaultServiceAsyncClientProtocol {
+        grpcClient.vaultService
+    }
+
+    private var mediaClient: Vync_Media_MediaServiceAsyncClientProtocol {
+        grpcClient.mediaService
+    }
 
     init(
         grpcClient: GRPCClientProtocol,
         mediaEncryption: MediaEncryptionProtocol
     ) {
-        self.vaultClient = Vync_Vault_VaultServiceClient(grpcClient: grpcClient)
-        self.mediaClient = Vync_Media_MediaServiceClient(grpcClient: grpcClient)
+        self.grpcClient = grpcClient
         self.mediaEncryption = mediaEncryption
     }
 

@@ -1,12 +1,13 @@
 import Foundation
+import GRPC
 
 /// Data source wrapping the CallSignalingService gRPC client.
 /// Provides typed domain-level access to call signaling, history, and TURN credentials.
 final class CallDataSource: @unchecked Sendable {
 
-    private let callService: Vync_Calling_CallSignalingServiceClientProtocol
+    private let callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
 
-    init(callService: Vync_Calling_CallSignalingServiceClientProtocol) {
+    init(callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol) {
         self.callService = callService
     }
 
@@ -24,10 +25,10 @@ final class CallDataSource: @unchecked Sendable {
     }
 
     /// Opens a bidirectional signaling stream for exchanging SDP, ICE candidates, and control messages.
-    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) async throws -> AsyncStream<
+    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) -> GRPCAsyncResponseStream<
         Vync_Calling_CallSignal
     > {
-        return try await callService.callStream(send: outbound)
+        return callService.callStream(outbound)
     }
 
     /// Sends an end-call request to the server.

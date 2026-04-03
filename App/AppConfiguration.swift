@@ -5,6 +5,7 @@ import Foundation
 struct AppConfiguration: Sendable {
     enum Environment: String, Sendable {
         case development
+        case dev
         case staging
         case production
     }
@@ -12,6 +13,8 @@ struct AppConfiguration: Sendable {
     let environment: Environment
     let grpcHost: String
     let grpcPort: Int
+    let callHost: String
+    let callPort: Int
     let useTLS: Bool
     let mediaBaseURL: URL
     let stunServers: [String]
@@ -28,7 +31,7 @@ struct AppConfiguration: Sendable {
 
     static var current: AppConfiguration {
         #if DEBUG
-            return .development
+            return .dev
         #else
             return .production
         #endif
@@ -38,8 +41,26 @@ struct AppConfiguration: Sendable {
         environment: .development,
         grpcHost: "localhost",
         grpcPort: 50051,
+        callHost: "localhost",
+        callPort: 50052,
         useTLS: false,
         mediaBaseURL: URL(string: "http://localhost:8080/media")!,
+        stunServers: ["stun:stun.l.google.com:19302"],
+        turnServers: [],
+        isVaultEnabled: true,
+        isVideoCallEnabled: true,
+        isDisappearingMessagesEnabled: true,
+        maxMediaUploadSizeMB: 100
+    )
+
+    static let dev = AppConfiguration(
+        environment: .dev,
+        grpcHost: "api-dev.sanchr.com",
+        grpcPort: 443,
+        callHost: "call-dev.sanchr.com",
+        callPort: 443,
+        useTLS: true,
+        mediaBaseURL: URL(string: "https://media-dev.sanchr.com")!,
         stunServers: ["stun:stun.l.google.com:19302"],
         turnServers: [],
         isVaultEnabled: true,
@@ -52,6 +73,8 @@ struct AppConfiguration: Sendable {
         environment: .staging,
         grpcHost: "api-staging.sanchr.io",
         grpcPort: 443,
+        callHost: "call-staging.sanchr.io",
+        callPort: 443,
         useTLS: true,
         mediaBaseURL: URL(string: "https://media-staging.sanchr.io")!,
         stunServers: ["stun:stun.l.google.com:19302"],
@@ -66,6 +89,8 @@ struct AppConfiguration: Sendable {
         environment: .production,
         grpcHost: "api.sanchr.io",
         grpcPort: 443,
+        callHost: "call.sanchr.io",
+        callPort: 443,
         useTLS: true,
         mediaBaseURL: URL(string: "https://media.sanchr.io")!,
         stunServers: [

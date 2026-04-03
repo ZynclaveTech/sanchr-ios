@@ -4,11 +4,15 @@ import Foundation
 /// Data source for contact-related gRPC service calls.
 /// Translates between domain models and Vync_Contacts protobuf messages.
 final class ContactDataSource: @unchecked Sendable {
-    private let contactClient: Vync_Contacts_ContactServiceClientProtocol
+    private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
 
+    private var contactClient: Vync_Contacts_ContactServiceAsyncClientProtocol {
+        grpcClient.contactService
+    }
+
     init(grpcClient: GRPCClientProtocol, localDatabase: LocalDatabaseProtocol) {
-        self.contactClient = Vync_Contacts_ContactServiceClient(grpcClient: grpcClient)
+        self.grpcClient = grpcClient
         self.localDatabase = localDatabase
     }
 
@@ -81,7 +85,7 @@ final class ContactDataSource: @unchecked Sendable {
         SanchrLogger.network.info("ContactDataSource: getBlockedList")
         let response = try await contactClient.getBlockedList(request)
 
-        return response.blockedUserIDs
+        return response.blockedUserIds
     }
 
     // MARK: - Hashing

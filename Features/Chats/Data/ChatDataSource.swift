@@ -1,15 +1,19 @@
 import Foundation
+import GRPC
 
 /// Data source for chat-related gRPC service calls.
 /// Wraps the MessagingService client with domain model mapping
 /// and provides encrypted message send/receive orchestration.
 final class ChatDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
-    private let messagingClient: Vync_Messaging_MessagingServiceClient
+
+    /// Convenience accessor for the messaging async client from the gRPC manager.
+    private var messagingClient: Vync_Messaging_MessagingServiceAsyncClientProtocol {
+        grpcClient.messagingService
+    }
 
     init(grpcClient: GRPCClientProtocol) {
         self.grpcClient = grpcClient
-        self.messagingClient = Vync_Messaging_MessagingServiceClient(grpcClient: grpcClient)
     }
 
     // MARK: - Start Direct Conversation
@@ -138,15 +142,15 @@ final class ChatDataSource: @unchecked Sendable {
     // MARK: - Sync Messages
 
     /// Syncs messages from the server since a given timestamp.
-    /// Returns an AsyncStream of encrypted envelopes.
-    func syncMessages(sinceTimestamp: Int64) async throws -> AsyncStream<
+    /// Returns a GRPCAsyncResponseStream of encrypted envelopes.
+    func syncMessages(sinceTimestamp: Int64) -> GRPCAsyncResponseStream<
         Vync_Messaging_EncryptedEnvelope
     > {
         var request = Vync_Messaging_SyncRequest()
         request.sinceTimestamp = sinceTimestamp
 
         SanchrLogger.chat.info("ChatDataSource: syncMessages since \(sinceTimestamp)")
-        return try await messagingClient.syncMessages(request)
+        return messagingClient.syncMessages(request)
     }
 
     // MARK: - Message Stream (Bidi)
@@ -154,9 +158,9 @@ final class ChatDataSource: @unchecked Sendable {
     /// Opens a bidirectional stream for real-time events (messages, typing, presence).
     func openMessageStream(
         clientEvents: AsyncStream<Vync_Messaging_ClientEvent>
-    ) async throws -> AsyncStream<Vync_Messaging_ServerEvent> {
+    ) -> GRPCAsyncResponseStream<Vync_Messaging_ServerEvent> {
         SanchrLogger.chat.info("ChatDataSource: opening message stream")
-        return try await messagingClient.messageStream(send: clientEvents)
+        return messagingClient.messageStream(clientEvents)
     }
 
     // MARK: - Domain Model Mapping
@@ -168,7 +172,7 @@ final class ChatDataSource: @unchecked Sendable {
 
         return Conversation(
             id: proto.id,
-            participants: proto.participantIDs.map { participantID in
+            participants: proto.participantIds.map { participantID in
                 User(
                     id: participantID,
                     phoneNumber: "",

@@ -41,7 +41,7 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Properties
 
     private let store: SanchrSignalStore
-    private let keyService: Vync_Keys_KeyServiceClientProtocol
+    private let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
 
     /// Default number of one-time pre-keys to generate per batch.
     private static let defaultPreKeyBatchSize = 100
@@ -51,7 +51,7 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
-    init(store: SanchrSignalStore, keyService: Vync_Keys_KeyServiceClientProtocol) {
+    init(store: SanchrSignalStore, keyService: Vync_Keys_KeyServiceAsyncClientProtocol) {
         self.store = store
         self.keyService = keyService
         SanchrLogger.crypto.info("SignalKeyManager initialized")
@@ -183,9 +183,10 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         // Parse the server response into a libsignal PreKeyBundle
         let identityKey = try IdentityKey(bytes: [UInt8](response.identityPublicKey))
 
-        guard let signedPreKeyProto = response.signedPreKey else {
+        guard response.hasSignedPreKey else {
             throw AppError.encryptionFailed(reason: "Server response missing signed pre-key.")
         }
+        let signedPreKeyProto = response.signedPreKey
 
         let signedPreKeyPublic = try PublicKey(signedPreKeyProto.publicKey)
 
@@ -202,7 +203,8 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
         // One-time pre-key is optional (may be exhausted on server)
         let bundle: PreKeyBundle
-        if let otpk = response.oneTimePreKey, !otpk.publicKey.isEmpty {
+        if response.hasOneTimePreKey, !response.oneTimePreKey.publicKey.isEmpty {
+            let otpk = response.oneTimePreKey
             let preKeyPublic = try PublicKey(otpk.publicKey)
             bundle = try PreKeyBundle(
                 registrationId: registrationId,
@@ -244,10 +246,10 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let response = try await keyService.getUserDevices(request)
 
         // If the server returns no devices, default to device 1 (primary).
-        if response.deviceIDs.isEmpty {
+        if response.deviceIds.isEmpty {
             return [1]
         }
-        return response.deviceIDs
+        return response.deviceIds
     }
 }
 

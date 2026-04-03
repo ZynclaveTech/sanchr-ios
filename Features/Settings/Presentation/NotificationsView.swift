@@ -232,7 +232,7 @@ final class NotificationsViewModel {
     /// Debounced sync of all notification preferences to the backend.
     /// Waits 500ms after the last toggle change before making the gRPC call,
     /// so rapid toggles do not create a storm of network requests.
-    func syncPreferences(using service: Vync_Notifications_NotificationServiceClientProtocol) {
+    func syncPreferences(using service: Vync_Notifications_NotificationServiceAsyncClientProtocol) {
         syncWorkItem?.cancel()
 
         let workItem = DispatchWorkItem { [weak self] in
@@ -247,7 +247,7 @@ final class NotificationsViewModel {
     }
 
     /// Performs the actual gRPC call to update notification preferences.
-    private func performSync(using service: Vync_Notifications_NotificationServiceClientProtocol)
+    private func performSync(using service: Vync_Notifications_NotificationServiceAsyncClientProtocol)
         async
     {
         errorMessage = nil

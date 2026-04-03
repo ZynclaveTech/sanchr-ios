@@ -3,10 +3,14 @@ import Foundation
 /// Data source for settings-related gRPC service calls.
 /// Translates between domain state and Vync_Settings protobuf messages.
 final class SettingsDataSource: @unchecked Sendable {
-    private let settingsClient: Vync_Settings_SettingsServiceClientProtocol
+    private let grpcClient: GRPCClientProtocol
+
+    private var settingsClient: Vync_Settings_SettingsServiceAsyncClientProtocol {
+        grpcClient.settingsService
+    }
 
     init(grpcClient: GRPCClientProtocol) {
-        self.settingsClient = Vync_Settings_SettingsServiceClient(grpcClient: grpcClient)
+        self.grpcClient = grpcClient
     }
 
     // MARK: - Get Settings

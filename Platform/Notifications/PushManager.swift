@@ -58,7 +58,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     // MARK: - Dependencies
 
-    private let notificationService: Vync_Notifications_NotificationServiceClientProtocol
+    private let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
 
     // MARK: - Constants
 
@@ -67,7 +67,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
-    init(notificationService: Vync_Notifications_NotificationServiceClientProtocol) {
+    init(notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol) {
         self.notificationService = notificationService
         super.init()
     }

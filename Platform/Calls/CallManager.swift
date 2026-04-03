@@ -1,6 +1,7 @@
 import AVFoundation
 import CallKit
 import Foundation
+import GRPC
 import WebRTC
 
 // MARK: - Call State
@@ -53,7 +54,7 @@ final class CallManager: NSObject, @unchecked Sendable {
     // MARK: - Dependencies
 
     private let webRTCClient: WebRTCClient
-    private let callService: Vync_Calling_CallSignalingServiceClientProtocol
+    private let callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
     private let provider: CXProvider
     private let callController: CXCallController
 
@@ -69,7 +70,7 @@ final class CallManager: NSObject, @unchecked Sendable {
 
     // MARK: - Init
 
-    init(webRTCClient: WebRTCClient, callService: Vync_Calling_CallSignalingServiceClientProtocol) {
+    init(webRTCClient: WebRTCClient, callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol) {
         self.webRTCClient = webRTCClient
         self.callService = callService
 
@@ -342,7 +343,7 @@ final class CallManager: NSObject, @unchecked Sendable {
         signalingTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let inboundStream = try await self.callService.callStream(send: outboundStream)
+                let inboundStream = self.callService.callStream(outboundStream)
                 await self.handleSignalingStream(inboundStream, callId: callId)
             } catch {
                 SanchrLogger.calls.error("Signaling stream error: \(error.localizedDescription)")
@@ -357,15 +358,14 @@ final class CallManager: NSObject, @unchecked Sendable {
 
     /// Processes incoming signaling messages from the bidirectional stream.
     private func handleSignalingStream(
-        _ stream: AsyncStream<Vync_Calling_CallSignal>, callId: String
+        _ stream: GRPCAsyncResponseStream<Vync_Calling_CallSignal>, callId: String
     ) async {
         for await signal in stream {
             guard !Task.isCancelled else { break }
 
-            switch signal.activeSignal {
-            case .sdpAnswer:
-                guard let sdpData = signal.sdpAnswer,
-                    let sdpString = String(data: sdpData, encoding: .utf8)
+            switch signal.signal {
+            case .sdpAnswer(let sdpData):
+                guard let sdpString = String(data: sdpData, encoding: .utf8)
                 else { continue }
                 SanchrLogger.calls.info("Received SDP answer for call \(callId)")
                 let remoteDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
@@ -376,9 +376,8 @@ final class CallManager: NSObject, @unchecked Sendable {
                         "Failed to set remote answer: \(error.localizedDescription)")
                 }
 
-            case .iceCandidate:
-                guard let candidateData = signal.iceCandidate,
-                    let candidateDict = try? JSONSerialization.jsonObject(with: candidateData)
+            case .iceCandidate(let candidateData):
+                guard let candidateDict = try? JSONSerialization.jsonObject(with: candidateData)
                         as? [String: Any],
                     let sdp = candidateDict["candidate"] as? String,
                     let sdpMLineIndex = candidateDict["sdpMLineIndex"] as? Int32
@@ -395,8 +394,7 @@ final class CallManager: NSObject, @unchecked Sendable {
                         "Failed to add remote ICE candidate: \(error.localizedDescription)")
                 }
 
-            case .control:
-                guard let control = signal.control else { continue }
+            case .control(let control):
                 await handleControlMessage(control, callId: callId)
 
             case nil:

@@ -10,6 +10,8 @@ protocol SecureStorageProtocol: AnyObject, Sendable {
     func readIdentityKey() throws -> Data?
     func savePreKeys(_ keys: [Data]) throws
     func readPreKeys() throws -> [Data]
+    func saveDeviceId(_ deviceId: String) throws
+    func readDeviceId() throws -> String?
     func deleteAllTokens() throws
     func deleteAllKeys() throws
 }
@@ -21,6 +23,7 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
     private enum Keys {
         static let accessToken = "io.sanchr.access_token"
         static let refreshToken = "io.sanchr.refresh_token"
+        static let deviceId = "io.sanchr.device_id"
         static let identityKey = "io.sanchr.identity_key"
         static let preKeys = "io.sanchr.pre_keys"
     }
@@ -65,6 +68,16 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
     func readPreKeys() throws -> [Data] {
         guard let data = try keychain.read(forKey: Keys.preKeys) else { return [] }
         return try JSONDecoder().decode([Data].self, from: data)
+    }
+
+    func saveDeviceId(_ deviceId: String) throws {
+        guard let data = deviceId.data(using: .utf8) else { return }
+        try keychain.save(data, forKey: Keys.deviceId)
+    }
+
+    func readDeviceId() throws -> String? {
+        guard let data = try keychain.read(forKey: Keys.deviceId) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     func deleteAllTokens() throws {

@@ -15,8 +15,18 @@ final class DependencyContainer {
 
     @ObservationIgnored lazy var networkMonitor: NetworkMonitorProtocol = NetworkMonitor()
 
+    @ObservationIgnored lazy var authInterceptorFactory: AuthInterceptorFactory = AuthInterceptorFactory(
+        secureStorage: secureStorage,
+        onUnauthenticated: { [weak self] in
+            Task { [weak self] in
+                try? await self?.sessionService.refreshTokenIfExpiringSoon()
+            }
+        }
+    )
+
     @ObservationIgnored lazy var grpcClient: GRPCClientProtocol = GRPCClient(
-        configuration: appConfiguration
+        configuration: appConfiguration,
+        authInterceptors: authInterceptorFactory
     )
 
     @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase()
@@ -34,7 +44,7 @@ final class DependencyContainer {
     /// and synchronizes with the server's KeyService.
     @ObservationIgnored lazy var signalKeyManager: SignalKeyManager = SignalKeyManager(
         store: signalStore,
-        keyService: keyServiceClient
+        keyService: grpcClient.keyService
     )
 
     /// Session manager: X3DH session establishment, Double Ratchet encrypt/decrypt.
@@ -42,12 +52,6 @@ final class DependencyContainer {
         store: signalStore,
         keyManager: signalKeyManager
     )
-
-    /// gRPC client for the KeyService (pre-key uploads, bundle fetches, device queries).
-    @ObservationIgnored lazy var keyServiceClient: Vync_Keys_KeyServiceClientProtocol =
-        Vync_Keys_KeyServiceClient(
-            grpcClient: grpcClient
-        )
 
     // MARK: - Crypto (Legacy Protocols Bridged to Signal)
 
@@ -116,16 +120,9 @@ final class DependencyContainer {
 
     // MARK: - Notifications
 
-    /// gRPC client for the NotificationService (token registration, preference updates).
-    @ObservationIgnored lazy var notificationServiceClient:
-        Vync_Notifications_NotificationServiceClientProtocol =
-            Vync_Notifications_NotificationServiceClient(
-                grpcClient: grpcClient
-            )
-
     /// Manages APNs registration, token upload, foreground presentation, and notification actions.
     @ObservationIgnored lazy var pushManager: PushManager = PushManager(
-        notificationService: notificationServiceClient
+        notificationService: grpcClient.notificationService
     )
 
     // MARK: - Media
@@ -142,24 +139,18 @@ final class DependencyContainer {
 
     // MARK: - Calls
 
-    /// gRPC client for the CallSignalingService.
-    @ObservationIgnored lazy var callSignalingService:
-        Vync_Calling_CallSignalingServiceClientProtocol = Vync_Calling_CallSignalingServiceClient(
-            grpcClient: grpcClient
-        )
-
     /// WebRTC peer connection manager.
     @ObservationIgnored lazy var webRTCClient: WebRTCClient = WebRTCClient()
 
     /// CallKit + signaling orchestrator for voice/video calls.
     @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
-        callService: callSignalingService
+        callService: grpcClient.callSignalingService
     )
 
     /// Data source for call signaling gRPC operations.
     @ObservationIgnored lazy var callDataSource: CallDataSource = CallDataSource(
-        callService: callSignalingService
+        callService: grpcClient.callSignalingService
     )
 
     /// Use case: fetch and format call history.
@@ -190,6 +181,19 @@ final class DependencyContainer {
         // Eagerly start network monitoring if needed.
     }
 
+    // MARK: - gRPC Connection
+
+    /// Establishes gRPC channels. Call this at app startup before making any service calls.
+    func connectGRPC() async throws {
+        try await grpcClient.connect()
+        SanchrLogger.network.info("gRPC channels connected")
+    }
+
+    /// Gracefully shuts down all gRPC channels.
+    func disconnectGRPC() async throws {
+        try await grpcClient.disconnect()
+    }
+
     // MARK: - Post-Auth Signal Store Configuration
 
     /// Re-initializes the Signal Protocol store with the authenticated user's ID.
@@ -197,7 +201,7 @@ final class DependencyContainer {
     func configureSignalStore(userId: String) {
         let store = SanchrSignalStore(userId: userId, keychainService: keychainService)
         self.signalStore = store
-        self.signalKeyManager = SignalKeyManager(store: store, keyService: keyServiceClient)
+        self.signalKeyManager = SignalKeyManager(store: store, keyService: grpcClient.keyService)
         self.signalSessionManager = SignalSessionManager(store: store, keyManager: signalKeyManager)
         SanchrLogger.crypto.info("Signal Protocol store configured for user \(userId.prefix(8))...")
     }
