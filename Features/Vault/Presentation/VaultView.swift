@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 /// Encrypted vault screen for secure file storage.
 /// Matches Figma: vault-screen.
@@ -10,6 +11,7 @@ struct VaultView: View {
     @State private var viewModel = VaultViewModel()
     @State private var showAddSheet = false
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showFileImporter = false
 
     private var vaultDataSource: VaultDataSource {
         VaultDataSource(
@@ -94,7 +96,29 @@ struct VaultView: View {
             .sheet(isPresented: $showAddSheet) {
                 addToVaultSheet
             }
-            .task {
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.pdf, .plainText, .spreadsheet, .presentation,
+                                      .data, .archive, .item],
+                allowsMultipleSelection: false
+            ) { result in
+                guard case .success(let urls) = result, let url = urls.first else { return }
+                Task {
+                    guard url.startAccessingSecurityScopedResource() else { return }
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    if let data = try? Data(contentsOf: url) {
+                        await viewModel.uploadItem(
+                            data: data,
+                            fileName: url.lastPathComponent,
+                            mediaType: "file",
+                            senderID: container.sessionService.currentUserId ?? "",
+                            vaultDataSource: vaultDataSource,
+                            mediaManager: container.mediaManager
+                        )
+                    }
+                }
+            }
+            .task(id: viewModel.activeFilter) {
                 await viewModel.loadItems(vaultDataSource: vaultDataSource)
             }
         }
@@ -347,7 +371,8 @@ struct VaultView: View {
                 }
 
                 Button {
-                    // File picker
+                    showAddSheet = false
+                    showFileImporter = true
                 } label: {
                     HStack(spacing: SanchrSpacing.sm) {
                         Image(systemName: "doc.fill")
@@ -386,12 +411,17 @@ struct VaultView: View {
         .onChange(of: selectedPhotoItem) { _, newValue in
             guard let newValue else { return }
             Task {
+                // Detect media type from the picker item's supported types
+                let isVideo = newValue.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
+                let ext = isVideo ? "mp4" : "jpg"
+                let mediaType = isVideo ? "video" : "photo"
+
                 if let data = try? await newValue.loadTransferable(type: Data.self) {
                     showAddSheet = false
                     await viewModel.uploadItem(
                         data: data,
-                        fileName: "vault_\(UUID().uuidString.prefix(8)).jpg",
-                        mediaType: "photo",
+                        fileName: "vault_\(UUID().uuidString.prefix(8)).\(ext)",
+                        mediaType: mediaType,
                         senderID: container.sessionService.currentUserId ?? "",
                         vaultDataSource: vaultDataSource,
                         mediaManager: container.mediaManager
@@ -410,17 +440,25 @@ struct VaultItemCard: View {
     var onDelete: () -> Void = {}
     var onShare: () -> Void = {}
 
+    @State private var thumbnail: UIImage?
+
     /// Remaining time until expiration (if applicable).
     private var expiryText: String? {
         let now = Date()
         guard item.createdAt > Date.distantPast else { return nil }
-        // Vault items have a TTL; approximate from createdAt
-        let hoursSinceCreation = now.timeIntervalSince(item.createdAt) / 3600
-        if hoursSinceCreation < 72 {
-            let remaining = 72 - Int(hoursSinceCreation)
-            return "Expires in \(remaining)h"
+        let secondsSinceCreation = now.timeIntervalSince(item.createdAt)
+        // Default TTL: 30 days (2_592_000 seconds)
+        let ttl: TimeInterval = 30 * 24 * 3600
+        let remaining = ttl - secondsSinceCreation
+        guard remaining > 0 else { return "Expired" }
+
+        let days = Int(remaining / 86400)
+        let hours = Int(remaining.truncatingRemainder(dividingBy: 86400) / 3600)
+
+        if days > 0 {
+            return "Expires in \(days)d"
         }
-        return nil
+        return "Expires in \(hours)h"
     }
 
     var body: some View {
@@ -431,17 +469,11 @@ struct VaultItemCard: View {
                     .fill(Color.sanchrSurface(colorScheme))
                     .frame(height: 140)
                     .overlay {
-                        if let url = item.remoteURL {
-                            AsyncImage(url: url) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Image(systemName: item.type.systemImage)
-                                    .font(.largeTitle)
-                                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
+                        if let thumbnail {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFill()
+                                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
                         } else {
                             Image(systemName: item.type.systemImage)
                                 .font(.largeTitle)
@@ -544,6 +576,9 @@ struct VaultItemCard: View {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }
+        }
+        .task {
+            thumbnail = await ThumbnailCache.shared.thumbnail(for: item)
         }
     }
 }

@@ -7,6 +7,9 @@ protocol MediaEncryptionProtocol: Sendable {
     /// Encrypts media data, returning the ciphertext and a randomly generated key.
     func encrypt(data: Data) throws -> (ciphertext: Data, key: Data, iv: Data)
 
+    /// Encrypts data with an existing key (for thumbnails sharing the main file's key).
+    func encrypt(data: Data, withKey key: Data) throws -> Data
+
     /// Decrypts media data using the provided key and IV.
     func decrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data
 
@@ -48,6 +51,17 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
         let nonceData = Data(nonce)
 
         return (ciphertext: combined, key: keyData, iv: nonceData)
+    }
+
+    /// Encrypts data with an existing key (e.g. for thumbnails sharing the same key as the main file).
+    func encrypt(data: Data, withKey keyData: Data) throws -> Data {
+        let key = SymmetricKey(data: keyData)
+        let nonce = AES.GCM.Nonce()
+        let sealedBox = try AES.GCM.seal(data, using: key, nonce: nonce)
+        guard let combined = sealedBox.combined else {
+            throw AppError.encryptionFailed(reason: "Failed to produce combined ciphertext")
+        }
+        return combined
     }
 
     func decrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {

@@ -9,6 +9,8 @@ struct VaultItem: Identifiable, Codable, Hashable, Sendable {
     var encryptionKey: Data
     var encryptionIV: Data
     var thumbnailData: Data?
+    /// URL to the encrypted thumbnail blob in S3 (decrypted with encryptionKey).
+    var encryptedThumbnailURL: URL?
     var createdAt: Date
     var updatedAt: Date
 

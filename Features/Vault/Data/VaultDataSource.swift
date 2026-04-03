@@ -43,14 +43,17 @@ final class VaultDataSource: @unchecked Sendable {
     // MARK: - Create Vault Item (Upload Flow)
 
     /// Full upload pipeline: encrypt -> get presigned URL -> upload to S3 -> create vault record.
+    /// If `thumbnailData` is provided, encrypts it with the same key and uploads as a separate blob.
     func createVaultItem(
         data: Data,
         fileName: String,
         mediaType: String,
         senderID: String,
-        ttlSeconds: Int64 = 0
+        ttlSeconds: Int64 = 0,
+        thumbnailData: Data? = nil,
+        onProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> Vync_Vault_VaultItem {
-        // 1. Encrypt with AES-GCM
+        // 1. Encrypt main file with AES-GCM
         let encrypted = try mediaEncryption.encrypt(data: data)
         let ciphertext = encrypted.ciphertext
         let encryptionKey = encrypted.key
@@ -75,20 +78,64 @@ final class VaultDataSource: @unchecked Sendable {
 
         SanchrLogger.media.info("VaultDataSource: got presigned URL, mediaID=\(mediaID)")
 
-        // 4. Upload ciphertext to S3 via presigned URL
-        try await uploadToS3(data: ciphertext, url: presignedURL, contentType: contentType)
+        onProgress?(0.05)
 
-        // 5. Confirm the upload
+        // 4. Upload encrypted thumbnail (if provided) — same AES key, separate blob
+        var thumbnailURL = ""
+        if let thumbData = thumbnailData {
+            let encryptedThumb = try mediaEncryption.encrypt(data: thumbData, withKey: encryptionKey)
+            let thumbDigest = SHA256.hash(data: encryptedThumb)
+            let thumbHash = thumbDigest.map { String(format: "%02x", $0) }.joined()
+
+            var thumbUploadReq = Vync_Media_GetUploadUrlRequest()
+            thumbUploadReq.fileSize = Int64(encryptedThumb.count)
+            thumbUploadReq.contentType = "application/octet-stream"
+            thumbUploadReq.sha256Hash = thumbHash
+
+            let thumbUrlResponse = try await mediaClient.getUploadUrl(thumbUploadReq)
+            try await uploadToS3(
+                data: encryptedThumb,
+                url: thumbUrlResponse.url,
+                contentType: "application/octet-stream"
+            )
+
+            var thumbConfirm = Vync_Media_ConfirmUploadRequest()
+            thumbConfirm.mediaID = thumbUrlResponse.mediaID
+            thumbConfirm.fileSize = Int64(encryptedThumb.count)
+            _ = try await mediaClient.confirmUpload(thumbConfirm)
+
+            // Strip query params to get the permanent S3 path
+            if let components = URLComponents(string: thumbUrlResponse.url) {
+                var clean = components
+                clean.queryItems = nil
+                thumbnailURL = clean.url?.absoluteString ?? thumbUrlResponse.url
+            } else {
+                thumbnailURL = thumbUrlResponse.url
+            }
+            SanchrLogger.media.info("VaultDataSource: encrypted thumbnail uploaded (\(encryptedThumb.count) bytes)")
+        }
+
+        onProgress?(0.1)
+
+        // 5. Upload main ciphertext to S3 via presigned URL
+        try await uploadToS3(data: ciphertext, url: presignedURL, contentType: contentType) { fraction in
+            onProgress?(0.1 + fraction * 0.8)
+        }
+
+        // 6. Confirm the upload
         var confirmRequest = Vync_Media_ConfirmUploadRequest()
         confirmRequest.mediaID = mediaID
         confirmRequest.fileSize = Int64(ciphertext.count)
         _ = try await mediaClient.confirmUpload(confirmRequest)
 
-        // 6. Create vault item record on the server
+        onProgress?(0.95)
+
+        // 7. Create vault item record on the server
         var createRequest = Vync_Vault_CreateVaultItemRequest()
         createRequest.mediaType = mediaType
         createRequest.encryptedURL = presignedURL
         createRequest.encryptedKey = encryptionKey
+        createRequest.thumbnailURL = thumbnailURL
         createRequest.fileName = fileName
         createRequest.fileSize = Int64(data.count)
         createRequest.senderID = senderID
@@ -155,8 +202,13 @@ final class VaultDataSource: @unchecked Sendable {
 
     // MARK: - Private Helpers
 
-    /// Uploads raw data to an S3 presigned URL via HTTP PUT.
-    private func uploadToS3(data: Data, url: String, contentType: String) async throws {
+    /// Uploads raw data to an S3 presigned URL via HTTP PUT with progress tracking.
+    private func uploadToS3(
+        data: Data,
+        url: String,
+        contentType: String,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) async throws {
         guard let uploadURL = URL(string: url) else {
             throw AppError.mediaUploadFailed
         }
@@ -165,9 +217,12 @@ final class VaultDataSource: @unchecked Sendable {
         request.httpMethod = "PUT"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("\(data.count)", forHTTPHeaderField: "Content-Length")
-        request.httpBody = data
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let delegate = UploadProgressDelegate(onProgress: onProgress)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        let (_, response) = try await session.upload(for: request, from: data)
 
         guard let httpResponse = response as? HTTPURLResponse,
             (200...299).contains(httpResponse.statusCode)
@@ -187,5 +242,27 @@ final class VaultDataSource: @unchecked Sendable {
         case "file": return "application/octet-stream"
         default: return "application/octet-stream"
         }
+    }
+}
+
+// MARK: - Upload Progress Delegate
+
+private final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, Sendable {
+    let onProgress: (@Sendable (Double) -> Void)?
+
+    init(onProgress: (@Sendable (Double) -> Void)?) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didSendBodyData bytesSent: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        let fraction = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+        onProgress?(fraction)
     }
 }

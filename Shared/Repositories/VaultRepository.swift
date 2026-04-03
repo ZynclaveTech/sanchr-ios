@@ -54,6 +54,7 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
                 encryptionKey: protoItem.encryptedKey,
                 encryptionIV: Data(), // IV stored alongside encrypted key
                 thumbnailData: nil,
+                encryptedThumbnailURL: protoItem.thumbnailURL.isEmpty ? nil : URL(string: protoItem.thumbnailURL),
                 createdAt: Date(timeIntervalSince1970: TimeInterval(protoItem.createdAt) / 1000.0),
                 updatedAt: Date(timeIntervalSince1970: TimeInterval(protoItem.createdAt) / 1000.0),
                 isCachedLocally: false,
@@ -133,6 +134,7 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
             encryptionKey: key,
             encryptionIV: iv,
             thumbnailData: nil,
+            encryptedThumbnailURL: vaultItem.thumbnailURL.isEmpty ? nil : URL(string: vaultItem.thumbnailURL),
             createdAt: Date(timeIntervalSince1970: TimeInterval(vaultItem.createdAt) / 1000.0),
             updatedAt: Date(),
             isCachedLocally: false,

@@ -110,9 +110,9 @@ final class VaultViewModel {
 
     // MARK: - Change Filter
 
-    func changeFilter(_ filter: Filter, vaultDataSource: VaultDataSource) async {
+    func changeFilter(_ filter: Filter) {
         activeFilter = filter
-        await loadItems(vaultDataSource: vaultDataSource)
+        // .task(id: activeFilter) in the view auto-triggers loadItems
     }
 
     // MARK: - Delete
@@ -130,6 +130,13 @@ final class VaultViewModel {
         do {
             try await useCase.execute(itemId: item.id)
             items.removeAll { $0.id == item.id }
+            await ThumbnailCache.shared.remove(for: item.id)
+
+            switch item.type {
+            case .photo: totalPhotos = max(0, totalPhotos - 1)
+            case .video: totalVideos = max(0, totalVideos - 1)
+            case .document, .audio, .note: totalFiles = max(0, totalFiles - 1)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -179,15 +186,25 @@ final class VaultViewModel {
         )
 
         do {
-            uploadProgress = 0.3
             let newItem = try await useCase.execute(
                 data: data,
                 fileName: fileName,
                 mediaType: mediaType,
                 senderID: senderID
-            )
+            ) { [weak self] fraction in
+                Task { @MainActor in
+                    self?.uploadProgress = fraction
+                }
+            }
             uploadProgress = 1.0
             items.insert(newItem, at: 0)
+
+            // Update counts
+            switch newItem.type {
+            case .photo: totalPhotos += 1
+            case .video: totalVideos += 1
+            case .document, .audio, .note: totalFiles += 1
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
