@@ -52,16 +52,32 @@ final class ProfileDataSource: @unchecked Sendable {
 
         SanchrLogger.network.info(
             "ProfileDataSource: getUploadUrl for avatar (\(imageData.count) bytes)")
-        let uploadResponse = try await mediaClient.getUploadUrl(uploadRequest)
+        let uploadResponse: Vync_Media_PresignedUrlResponse
+        do {
+            uploadResponse = try await mediaClient.getUploadUrl(uploadRequest)
+        } catch {
+            SanchrLogger.network.error("ProfileDataSource: getUploadUrl failed: \(error)")
+            throw error
+        }
 
         // 3. Upload to S3
-        try await uploadToS3(data: imageData, url: uploadResponse.url, contentType: "image/jpeg")
+        do {
+            try await uploadToS3(data: imageData, url: uploadResponse.url, contentType: "image/jpeg")
+        } catch {
+            SanchrLogger.network.error("ProfileDataSource: S3 upload failed: \(error)")
+            throw error
+        }
 
         // 4. Confirm upload
         var confirmRequest = Vync_Media_ConfirmUploadRequest()
         confirmRequest.mediaID = uploadResponse.mediaID
         confirmRequest.fileSize = Int64(imageData.count)
-        _ = try await mediaClient.confirmUpload(confirmRequest)
+        do {
+            _ = try await mediaClient.confirmUpload(confirmRequest)
+        } catch {
+            SanchrLogger.network.error("ProfileDataSource: confirmUpload failed: \(error)")
+            throw error
+        }
 
         SanchrLogger.network.info(
             "ProfileDataSource: avatar uploaded, mediaID=\(uploadResponse.mediaID)")
@@ -96,11 +112,14 @@ final class ProfileDataSource: @unchecked Sendable {
         request.setValue("\(data.count)", forHTTPHeaderField: "Content-Length")
         request.httpBody = data
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (responseData, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
             (200...299).contains(httpResponse.statusCode)
         else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let body = String(data: responseData, encoding: .utf8) ?? "no body"
+            SanchrLogger.network.error("S3 PUT failed: HTTP \(statusCode) — \(body)")
             throw AppError.mediaUploadFailed
         }
 

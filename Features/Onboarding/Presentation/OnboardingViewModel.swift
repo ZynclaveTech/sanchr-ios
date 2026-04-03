@@ -65,38 +65,43 @@ final class OnboardingViewModel {
         errorMessage = nil
         defer { isSaving = false }
 
-        do {
-            // Upload avatar if selected
-            var finalAvatarURL = ""
-            if let image = selectedImage {
+        // Upload avatar if selected (non-blocking — save name even if this fails)
+        var finalAvatarURL = ""
+        if let image = selectedImage {
+            do {
                 let uploadUseCase = ProfileUseCases.UploadAvatar(
                     profileDataSource: profileDataSource,
                     mediaManager: mediaManager
                 )
                 finalAvatarURL = try await uploadUseCase.execute(image: image)
+            } catch {
+                SanchrLogger.auth.warning("Avatar upload failed, continuing without avatar: \(error)")
+                // Don't block onboarding — user can update avatar later in Settings
             }
+        }
 
-            // Save profile to server
+        // Save profile to server (this must succeed)
+        do {
             let updateUseCase = ProfileUseCases.UpdateProfile(
                 profileDataSource: profileDataSource
             )
             _ = try await updateUseCase.execute(
-                name: trimmedName,
+                name: self.trimmedName,
                 avatarURL: finalAvatarURL,
                 status: ""
             )
 
             // Update session so RootView's needsOnboarding becomes false
             sessionService.updateProfile(
-                displayName: trimmedName,
+                displayName: self.trimmedName,
                 avatarURL: finalAvatarURL.isEmpty ? nil : finalAvatarURL
             )
 
-            SanchrLogger.auth.info("Onboarding profile saved for \(trimmedName)")
+            SanchrLogger.auth.info("Onboarding profile saved for \(self.trimmedName)")
             return true
         } catch {
-            errorMessage = "Failed to save profile. Please try again."
-            SanchrLogger.auth.error("Onboarding save failed: \(error.localizedDescription)")
+            errorMessage = "Failed to save profile: \(error.localizedDescription)"
+            SanchrLogger.auth.error("Onboarding save failed: \(error)")
             return false
         }
     }
