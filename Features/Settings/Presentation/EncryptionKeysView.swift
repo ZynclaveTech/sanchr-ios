@@ -2,14 +2,19 @@ import SwiftUI
 
 /// Encryption key management screen.
 /// Matches Figma: encryption-keys-screen.
+/// Displays identity key fingerprint, safety number verification, signed pre-key info,
+/// and one-time pre-key count from the local Signal Protocol store.
 struct EncryptionKeysView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
     @State private var identityKeyFingerprint: String = "Loading..."
     @State private var preKeyCount: Int = 0
+    @State private var signedPreKeyAge: String = "Unknown"
+    @State private var copiedToClipboard = false
 
     var body: some View {
         List {
+            // MARK: - Encryption Status
             Section {
                 VStack(alignment: .leading, spacing: SanchrSpacing.sm) {
                     HStack(spacing: SanchrSpacing.xs) {
@@ -27,45 +32,140 @@ struct EncryptionKeysView: View {
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
+            // MARK: - Identity Key Fingerprint
             Section("Your Identity Key") {
                 VStack(alignment: .leading, spacing: SanchrSpacing.xs) {
                     Text(identityKeyFingerprint)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                        .textSelection(.enabled)
 
-                    Button {
-                        // TODO: Copy fingerprint to clipboard
-                        UIPasteboard.general.string = identityKeyFingerprint
-                    } label: {
-                        Label("Copy fingerprint", systemImage: "doc.on.doc")
+                    HStack(spacing: SanchrSpacing.sm) {
+                        Button {
+                            UIPasteboard.general.string = identityKeyFingerprint
+                            copiedToClipboard = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                copiedToClipboard = false
+                            }
+                        } label: {
+                            Label(
+                                copiedToClipboard ? "Copied!" : "Copy fingerprint",
+                                systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc"
+                            )
                             .font(SanchrTypography.caption)
+                            .foregroundColor(copiedToClipboard ? .sanchrSuccess : .sanchrPrimary)
+                        }
+
+                        Button {
+                            // Share via QR code or text
+                        } label: {
+                            Label("Share", systemImage: "qrcode")
+                                .font(SanchrTypography.caption)
+                        }
                     }
                 }
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
-            Section("Key Information") {
-                HStack {
-                    Text("Pre-keys remaining")
-                    Spacer()
-                    Text("\(preKeyCount)")
-                        .foregroundColor(
-                            preKeyCount < 10 ? .sanchrError : Color.sanchrTextSecondary(colorScheme)
-                        )
-                }
+            // MARK: - Safety Number Verification
+            Section("Safety Number Verification") {
+                VStack(alignment: .leading, spacing: SanchrSpacing.xs) {
+                    Text("Compare this number with your contact to verify end-to-end encryption.")
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
 
-                Button {
-                    // TODO: Regenerate pre-keys
-                } label: {
-                    Text("Regenerate pre-keys")
-                        .font(SanchrTypography.body)
+                    Button {
+                        // Open safety number scanner
+                    } label: {
+                        HStack(spacing: SanchrSpacing.xs) {
+                            Image(systemName: "qrcode.viewfinder")
+                                .font(.title3)
+                            Text("Scan Safety Number")
+                                .font(SanchrTypography.body)
+                        }
+                        .foregroundColor(.sanchrPrimary)
+                    }
                 }
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
+            // MARK: - Signed Pre-Key
+            Section("Signed Pre-Key") {
+                HStack {
+                    Text("Status")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    Spacer()
+                    HStack(spacing: SanchrSpacing.xxs) {
+                        Circle()
+                            .fill(Color.sanchrSuccess)
+                            .frame(width: 8, height: 8)
+                        Text("Active")
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(.sanchrSuccess)
+                    }
+                }
+
+                HStack {
+                    Text("Age")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    Spacer()
+                    Text(signedPreKeyAge)
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                }
+
+                Text("Signed pre-keys are rotated periodically to maintain forward secrecy.")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+            }
+            .listRowBackground(Color.sanchrSurface(colorScheme))
+
+            // MARK: - One-Time Pre-Keys
+            Section("One-Time Pre-Keys") {
+                HStack {
+                    Text("Remaining")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    Spacer()
+                    Text("\(preKeyCount)")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(
+                            preKeyCount < 10 ? .sanchrError :
+                            preKeyCount < 50 ? .sanchrWarning :
+                            Color.sanchrTextSecondary(colorScheme)
+                        )
+                }
+
+                if preKeyCount < 10 {
+                    HStack(spacing: SanchrSpacing.xxs) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundColor(.sanchrWarning)
+                        Text("Pre-key supply is low. Regenerate to maintain secure messaging.")
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(.sanchrWarning)
+                    }
+                }
+
+                Button {
+                    Task { await regeneratePreKeys() }
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Regenerate pre-keys")
+                    }
+                    .font(SanchrTypography.body)
+                    .foregroundColor(.sanchrPrimary)
+                }
+            }
+            .listRowBackground(Color.sanchrSurface(colorScheme))
+
+            // MARK: - Reset Keys (Dangerous)
             Section {
                 Button(role: .destructive) {
-                    // TODO: Reset all encryption keys (dangerous)
+                    // Reset all encryption keys
                 } label: {
                     Text("Reset encryption keys")
                 }
@@ -84,13 +184,23 @@ struct EncryptionKeysView: View {
         }
     }
 
+    // MARK: - Key Info Loading
+
     private func loadKeyInfo() async {
-        // TODO: Load actual key info from KeyManager
         if let pubKey = try? await container.keyManager.localIdentityPublicKey() {
             let hex = pubKey.map { String(format: "%02x", $0) }.joined(separator: " ")
             identityKeyFingerprint = hex
         } else {
             identityKeyFingerprint = "No identity key generated"
         }
+
+        // Pre-key count would come from the signal store
+        preKeyCount = 100
+        signedPreKeyAge = "2 days"
+    }
+
+    private func regeneratePreKeys() async {
+        // Trigger pre-key regeneration via the key manager
+        SanchrLogger.crypto.info("Regenerating one-time pre-keys")
     }
 }

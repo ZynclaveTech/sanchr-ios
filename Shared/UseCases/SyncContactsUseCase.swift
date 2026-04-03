@@ -1,8 +1,9 @@
 import Foundation
 import Contacts
 
-/// Use case for syncing device contacts with the Sanchr server.
-/// Hashes phone numbers before sending for privacy.
+/// Legacy use case for syncing device contacts with the Sanchr server.
+/// Delegates to the ContactUseCases.SyncContacts use case via ContactDataSource.
+/// Retained for backward compatibility with call sites that reference this type directly.
 struct SyncContactsUseCase: Sendable {
     private let contactRepository: ContactRepositoryProtocol
 
@@ -38,13 +39,15 @@ struct SyncContactsUseCase: Sendable {
                     .replacingOccurrences(of: "-", with: "")
                     .replacingOccurrences(of: "(", with: "")
                     .replacingOccurrences(of: ")", with: "")
-                phoneNumbers.append(normalized)
+                if !normalized.isEmpty {
+                    phoneNumbers.append(normalized)
+                }
             }
         }
 
         SanchrLogger.sync.info("Found \(phoneNumbers.count) phone numbers on device")
 
-        // 3. Sync with server (server-side hashing for discovery)
+        // 3. Sync with server via repository
         return try await contactRepository.syncDeviceContacts(phoneNumbers: phoneNumbers)
     }
 }

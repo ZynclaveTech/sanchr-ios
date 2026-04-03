@@ -7,6 +7,10 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = SettingsViewModel()
 
+    private var settingsDataSource: SettingsDataSource {
+        SettingsDataSource(grpcClient: container.grpcClient)
+    }
+
     var body: some View {
         List {
             // MARK: - Profile Section
@@ -15,14 +19,18 @@ struct SettingsView: View {
                     ProfileView()
                 } label: {
                     HStack(spacing: SanchrSpacing.sm) {
-                        Circle()
-                            .fill(Color.sanchrPrimary.opacity(0.2))
-                            .frame(width: 56, height: 56)
-                            .overlay {
-                                Image(systemName: "person.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.sanchrPrimary)
+                        // Avatar
+                        if let url = URL(string: viewModel.avatarURL), !viewModel.avatarURL.isEmpty {
+                            AsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                profileAvatarPlaceholder
                             }
+                            .frame(width: 56, height: 56)
+                            .clipShape(Circle())
+                        } else {
+                            profileAvatarPlaceholder
+                        }
 
                         VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
                             Text(viewModel.displayName)
@@ -31,6 +39,12 @@ struct SettingsView: View {
                             Text(viewModel.phoneNumber)
                                 .font(SanchrTypography.captionSmall)
                                 .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                            if !viewModel.statusText.isEmpty {
+                                Text(viewModel.statusText)
+                                    .font(SanchrTypography.captionSmall)
+                                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                                    .lineLimit(1)
+                            }
                         }
                     }
                 }
@@ -105,6 +119,22 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
+        .task {
+            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var profileAvatarPlaceholder: some View {
+        Circle()
+            .fill(Color.sanchrPrimary.opacity(0.2))
+            .frame(width: 56, height: 56)
+            .overlay {
+                Image(systemName: "person.fill")
+                    .font(.title2)
+                    .foregroundColor(.sanchrPrimary)
+            }
     }
 
     private func settingsRow<Destination: View>(

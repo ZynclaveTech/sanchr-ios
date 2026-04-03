@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Domain use cases for vault operations.
 enum VaultUseCases {
