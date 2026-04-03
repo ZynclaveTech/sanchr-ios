@@ -5,6 +5,7 @@ import UserNotifications
 /// Manages messages, input, sending, optimistic updates, and pagination.
 /// All outgoing messages are encrypted via Signal Protocol before sending.
 /// Incoming messages are decrypted before display.
+@MainActor
 @Observable
 final class ChatDetailViewModel {
 

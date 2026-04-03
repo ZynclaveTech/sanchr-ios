@@ -2,6 +2,7 @@ import Foundation
 
 /// View model for the contacts list screen.
 /// Manages contacts grouped alphabetically with search, filter, block/unblock, and pull-to-refresh.
+@MainActor
 @Observable
 final class ContactsViewModel {
 

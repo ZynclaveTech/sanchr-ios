@@ -2,6 +2,7 @@ import Foundation
 
 /// View model for the settings screen.
 /// Manages all settings state with debounced sync to the backend.
+@MainActor
 @Observable
 final class SettingsViewModel {
 

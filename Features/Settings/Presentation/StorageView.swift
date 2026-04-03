@@ -217,7 +217,7 @@ struct StorageView: View {
                 "This will delete all local messages, media, and cached data. This cannot be undone."
             )
         }
-        .task { @MainActor in
+        .task {
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
         }

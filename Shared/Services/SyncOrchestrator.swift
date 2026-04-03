@@ -112,7 +112,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 return
             }
             nonisolated(unsafe) let orchestrator = self
-            Task {
+            Task { @Sendable in
                 await orchestrator.performSync(task: processingTask)
             }
         }
@@ -126,7 +126,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 return
             }
             nonisolated(unsafe) let orchestrator = self
-            Task {
+            Task { @Sendable in
                 await orchestrator.performAppRefresh(task: refreshTask)
             }
         }
@@ -224,7 +224,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         scheduleBackgroundSync()
 
         nonisolated(unsafe) let orchestrator = self
-        let workTask = Task {
+        nonisolated(unsafe) let bgTask = task
+        let workTask = Task { @Sendable in
             orchestrator.syncState.markSyncStarted()
 
             do {
@@ -248,11 +249,11 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
 
                 orchestrator.syncState.markSyncCompleted(messageCount: messageCount)
                 SanchrLogger.sync.info("BGProcessingTask completed: \(messageCount) new message(s)")
-                task.setTaskCompleted(success: true)
+                bgTask.setTaskCompleted(success: true)
             } catch {
                 orchestrator.syncState.markSyncFailed(error: error)
                 SanchrLogger.sync.error("BGProcessingTask failed: \(error.localizedDescription)")
-                task.setTaskCompleted(success: false)
+                bgTask.setTaskCompleted(success: false)
             }
         }
 
@@ -274,7 +275,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         scheduleAppRefresh()
 
         nonisolated(unsafe) let orchestrator = self
-        let workTask = Task {
+        nonisolated(unsafe) let bgTask = task
+        let workTask = Task { @Sendable in
             orchestrator.syncState.markSyncStarted()
 
             do {
@@ -286,11 +288,11 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
 
                 orchestrator.syncState.markSyncCompleted(messageCount: messageCount)
                 SanchrLogger.sync.info("BGAppRefreshTask completed: \(messageCount) new message(s)")
-                task.setTaskCompleted(success: true)
+                bgTask.setTaskCompleted(success: true)
             } catch {
                 orchestrator.syncState.markSyncFailed(error: error)
                 SanchrLogger.sync.error("BGAppRefreshTask failed: \(error.localizedDescription)")
-                task.setTaskCompleted(success: false)
+                bgTask.setTaskCompleted(success: false)
             }
         }
 

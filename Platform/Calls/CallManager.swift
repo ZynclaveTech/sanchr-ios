@@ -554,13 +554,15 @@ extension CallManager: CXProviderDelegate {
     func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         SanchrLogger.calls.info("CallKit: perform CXAnswerCallAction")
 
-        Task {
+        nonisolated(unsafe) let mgr = self
+        nonisolated(unsafe) let callAction = action
+        Task { @Sendable in
             do {
-                try await answerCall()
-                action.fulfill()
+                try await mgr.answerCall()
+                callAction.fulfill()
             } catch {
                 SanchrLogger.calls.error("Failed to answer call: \(error.localizedDescription)")
-                action.fail()
+                callAction.fail()
             }
         }
     }

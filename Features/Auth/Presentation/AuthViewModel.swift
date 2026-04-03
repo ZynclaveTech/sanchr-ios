@@ -3,6 +3,7 @@ import Foundation
 
 /// State machine for the authentication flow.
 /// Drives LoginView, OTPView, and RegisterView through a linear progression.
+@MainActor
 @Observable
 final class AuthViewModel {
 
@@ -217,6 +218,6 @@ final class AuthViewModel {
     }
 
     deinit {
-        resendTimer?.invalidate()
+        // Timer cleanup handled by SwiftUI view lifecycle
     }
 }

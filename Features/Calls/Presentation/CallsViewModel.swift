@@ -27,6 +27,7 @@ struct CallHistoryEntry: Identifiable, Sendable {
 }
 
 /// View model for the call history list screen and call initiation.
+@MainActor
 @Observable
 final class CallsViewModel {
 

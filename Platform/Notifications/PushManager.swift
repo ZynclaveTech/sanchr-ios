@@ -362,7 +362,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     /// Set by `ChatDetailView` when the user enters/leaves a conversation.
     /// Used to suppress duplicate banners for the conversation being viewed.
-    @MainActor static var activeConversationId: String?
+    nonisolated(unsafe) static var activeConversationId: String?
 
     // MARK: - Private Helpers
 

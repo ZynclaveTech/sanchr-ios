@@ -111,8 +111,9 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 
         // Check if launched from a notification
         if let remoteNotification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-            Task {
-                await pushManager?.handleNotification(userInfo: remoteNotification)
+            nonisolated(unsafe) let notification = remoteNotification
+            Task { @Sendable in
+                await self.pushManager?.handleNotification(userInfo: notification)
             }
         }
 
@@ -146,8 +147,9 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
             return
         }
 
-        Task {
-            let result = await pushManager.handleSilentPush(userInfo: userInfo)
+        nonisolated(unsafe) let info = userInfo
+        Task { @Sendable in
+            let result = await pushManager.handleSilentPush(userInfo: info)
             completionHandler(result)
         }
     }

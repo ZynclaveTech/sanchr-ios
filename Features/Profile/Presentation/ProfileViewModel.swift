@@ -3,6 +3,7 @@ import UIKit
 
 /// View model for the profile screen.
 /// @Observable with user profile state, edit mode, avatar picker, and gRPC sync.
+@MainActor
 @Observable
 final class ProfileViewModel {
 

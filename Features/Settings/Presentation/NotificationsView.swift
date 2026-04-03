@@ -185,6 +185,7 @@ struct NotificationSoundPicker: View {
 // MARK: - NotificationsViewModel
 
 /// View model managing notification preference state and backend synchronization.
+@MainActor
 @Observable
 final class NotificationsViewModel {
 

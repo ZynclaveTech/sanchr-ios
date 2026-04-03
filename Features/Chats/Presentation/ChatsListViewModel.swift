@@ -3,6 +3,7 @@ import Foundation
 /// View model for the conversations list screen.
 /// Manages loading, filtering, sorting, and mutation of the conversation list.
 /// Observes `SyncState` to auto-refresh when a background sync completes.
+@MainActor
 @Observable
 final class ChatsListViewModel {
 
