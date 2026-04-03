@@ -1,5 +1,5 @@
-import Foundation
 import CryptoKit
+import Foundation
 
 /// Data source for vault-related gRPC service calls.
 /// Orchestrates VaultService and MediaService RPCs for encrypted vault operations.
@@ -49,7 +49,8 @@ final class VaultDataSource: @unchecked Sendable {
         let ciphertext = encrypted.ciphertext
         let encryptionKey = encrypted.key
 
-        SanchrLogger.media.info("VaultDataSource: encrypted \(data.count) -> \(ciphertext.count) bytes")
+        SanchrLogger.media.info(
+            "VaultDataSource: encrypted \(data.count) -> \(ciphertext.count) bytes")
 
         // 2. Compute SHA-256 hash of ciphertext for dedup
         let digest = SHA256.hash(data: ciphertext)
@@ -115,7 +116,8 @@ final class VaultDataSource: @unchecked Sendable {
         request.recipientID = recipientId
         request.reEncryptedKey = reEncryptedKey
 
-        SanchrLogger.network.info("VaultDataSource: shareVaultItem \(itemId.prefix(8))... -> \(recipientId.prefix(8))...")
+        SanchrLogger.network.info(
+            "VaultDataSource: shareVaultItem \(itemId.prefix(8))... -> \(recipientId.prefix(8))...")
         _ = try await vaultClient.shareVaultItem(request)
     }
 
@@ -162,7 +164,8 @@ final class VaultDataSource: @unchecked Sendable {
         let (_, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
+            (200...299).contains(httpResponse.statusCode)
+        else {
             SanchrLogger.media.error("S3 upload failed with response: \(response)")
             throw AppError.mediaUploadFailed
         }

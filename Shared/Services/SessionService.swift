@@ -20,7 +20,7 @@ final class SessionService: @unchecked Sendable {
         self.authRepository = authRepository
 
         // Check for existing session on init
-        if let _ = try? secureStorage.readAccessToken() {
+        if (try? secureStorage.readAccessToken()) != nil {
             isAuthenticated = true
             // TODO: Read userId from stored session data
         }
@@ -31,7 +31,7 @@ final class SessionService: @unchecked Sendable {
     /// Whether the current access token is valid and not expired.
     var isTokenValid: Bool {
         guard isAuthenticated else { return false }
-        guard let _ = try? secureStorage.readAccessToken() else { return false }
+        guard (try? secureStorage.readAccessToken()) != nil else { return false }
 
         // If we have no expiry info, assume valid (will be checked on next API call).
         guard let expiresAt = tokenExpiresAt else { return true }
@@ -59,7 +59,8 @@ final class SessionService: @unchecked Sendable {
 
         // Check if token is expired or about to expire (within 5 minutes)
         if let expiresAt = tokenExpiresAt,
-           expiresAt.timeIntervalSinceNow < 300 {
+            expiresAt.timeIntervalSinceNow < 300
+        {
             return try await refreshToken()
         }
 
@@ -81,7 +82,8 @@ final class SessionService: @unchecked Sendable {
 
         // If no expiry is tracked or token has more than 5 minutes left, return as-is.
         if let expiresAt = tokenExpiresAt,
-           expiresAt.timeIntervalSinceNow < 300 {
+            expiresAt.timeIntervalSinceNow < 300
+        {
             SanchrLogger.auth.info("Token expiring soon, refreshing proactively")
             return try await refreshToken()
         }

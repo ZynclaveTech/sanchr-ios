@@ -11,7 +11,8 @@ final class SanchrPreKeyStore: PreKeyStore {
 
     private let userId: String
     private var preKeys: [UInt32: PreKeyRecord] = [:]
-    private let queue = DispatchQueue(label: "io.sanchr.signal.prekey-store", attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: "io.sanchr.signal.prekey-store", attributes: .concurrent)
     private let storageDirectory: URL
 
     /// Tracks the next pre-key ID to avoid collisions when generating new batches.
@@ -22,9 +23,12 @@ final class SanchrPreKeyStore: PreKeyStore {
     init(userId: String) {
         self.userId = userId
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        self.storageDirectory = base.appendingPathComponent("SignalStore/\(userId)/prekeys", isDirectory: true)
-        try? FileManager.default.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first!
+        self.storageDirectory = base.appendingPathComponent(
+            "SignalStore/\(userId)/prekeys", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: storageDirectory, withIntermediateDirectories: true)
 
         loadAllFromDisk()
     }
@@ -84,25 +88,33 @@ final class SanchrPreKeyStore: PreKeyStore {
     // MARK: - Disk Persistence
 
     private func loadAllFromDisk() {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: storageDirectory,
-            includingPropertiesForKeys: nil
-        ) else { return }
+        guard
+            let files = try? FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            )
+        else { return }
 
         var maxId: UInt32 = 0
         for fileURL in files where fileURL.pathExtension == "prekey" {
-            guard let idString = fileURL.deletingPathExtension().lastPathComponent.split(separator: "/").last,
-                  let id = UInt32(idString) else { continue }
+            guard
+                let idString = fileURL.deletingPathExtension().lastPathComponent.split(
+                    separator: "/"
+                ).last,
+                let id = UInt32(idString)
+            else { continue }
             do {
                 let data = try Data(contentsOf: fileURL)
                 let record = try PreKeyRecord(bytes: [UInt8](data))
                 preKeys[id] = record
                 if id > maxId { maxId = id }
             } catch {
-                SanchrLogger.crypto.warning("Failed to load pre-key \(id): \(error.localizedDescription)")
+                SanchrLogger.crypto.warning(
+                    "Failed to load pre-key \(id): \(error.localizedDescription)")
             }
         }
-        nextPreKeyId = maxId + 1
-        SanchrLogger.crypto.info("Loaded \(preKeys.count) pre-keys from disk, next ID: \(nextPreKeyId)")
+        self.nextPreKeyId = maxId + 1
+        SanchrLogger.crypto.info(
+            "Loaded \(self.preKeys.count) pre-keys from disk, next ID: \(self.nextPreKeyId)")
     }
 }

@@ -28,9 +28,9 @@ struct AppConfiguration: Sendable {
 
     static var current: AppConfiguration {
         #if DEBUG
-        return .development
+            return .development
         #else
-        return .production
+            return .production
         #endif
     }
 
@@ -76,7 +76,7 @@ struct AppConfiguration: Sendable {
             // TODO: Configure production TURN servers
         ],
         isVaultEnabled: true,
-        isVideoCallEnabled: false, // TODO: Enable after beta testing
+        isVideoCallEnabled: false,  // TODO: Enable after beta testing
         isDisappearingMessagesEnabled: true,
         maxMediaUploadSizeMB: 25
     )

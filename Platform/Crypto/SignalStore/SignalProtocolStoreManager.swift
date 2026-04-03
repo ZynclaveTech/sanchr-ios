@@ -11,7 +11,9 @@ import LibSignalClient
 /// - `SignedPreKeyStore` (Keychain-backed)
 /// - `SessionStore` (file-backed)
 /// - `SenderKeyStore` (file-backed, for group messaging)
-final class SanchrSignalStore: SignalProtocolStore {
+final class SanchrSignalStore: IdentityKeyStore, PreKeyStore, SignedPreKeyStore, KyberPreKeyStore,
+    SessionStore, SenderKeyStore
+{
 
     let identityStore: SanchrIdentityKeyStore
     let preKeyStore: SanchrPreKeyStore
@@ -47,7 +49,7 @@ final class SanchrSignalStore: SignalProtocolStore {
         _ identity: IdentityKey,
         for address: ProtocolAddress,
         context: StoreContext
-    ) throws -> Bool {
+    ) throws -> IdentityChange {
         try identityStore.saveIdentity(identity, for: address, context: context)
     }
 
@@ -57,7 +59,8 @@ final class SanchrSignalStore: SignalProtocolStore {
         direction: Direction,
         context: StoreContext
     ) throws -> Bool {
-        try identityStore.isTrustedIdentity(identity, for: address, direction: direction, context: context)
+        try identityStore.isTrustedIdentity(
+            identity, for: address, direction: direction, context: context)
     }
 
     func identity(
@@ -91,6 +94,22 @@ final class SanchrSignalStore: SignalProtocolStore {
         try signedPreKeyStore.storeSignedPreKey(record, id: id, context: context)
     }
 
+    // MARK: - KyberPreKeyStore Forwarding (stub – post-quantum keys not yet used)
+
+    func loadKyberPreKey(id: UInt32, context: StoreContext) throws -> KyberPreKeyRecord {
+        throw SignalError.invalidKeyIdentifier("Kyber pre-keys are not supported in this build")
+    }
+
+    func storeKyberPreKey(_ record: KyberPreKeyRecord, id: UInt32, context: StoreContext) throws {
+        throw SignalError.invalidKeyIdentifier("Kyber pre-keys are not supported in this build")
+    }
+
+    func markKyberPreKeyUsed(
+        id: UInt32, signedPreKeyId: UInt32, baseKey: PublicKey, context: StoreContext
+    ) throws {
+        // No-op: Kyber pre-keys are not used in this build.
+    }
+
     // MARK: - SessionStore Forwarding
 
     func loadSession(
@@ -98,6 +117,13 @@ final class SanchrSignalStore: SignalProtocolStore {
         context: StoreContext
     ) throws -> SessionRecord? {
         try sessionStore.loadSession(for: address, context: context)
+    }
+
+    func loadExistingSessions(
+        for addresses: [ProtocolAddress],
+        context: StoreContext
+    ) throws -> [SessionRecord] {
+        try sessionStore.loadExistingSessions(for: addresses, context: context)
     }
 
     func storeSession(
@@ -116,7 +142,8 @@ final class SanchrSignalStore: SignalProtocolStore {
         record: SenderKeyRecord,
         context: StoreContext
     ) throws {
-        try senderKeyStore.storeSenderKey(from: sender, distributionId: distributionId, record: record, context: context)
+        try senderKeyStore.storeSenderKey(
+            from: sender, distributionId: distributionId, record: record, context: context)
     }
 
     func loadSenderKey(
@@ -124,6 +151,7 @@ final class SanchrSignalStore: SignalProtocolStore {
         distributionId: UUID,
         context: StoreContext
     ) throws -> SenderKeyRecord? {
-        try senderKeyStore.loadSenderKey(from: sender, distributionId: distributionId, context: context)
+        try senderKeyStore.loadSenderKey(
+            from: sender, distributionId: distributionId, context: context)
     }
 }

@@ -37,7 +37,8 @@ final class ChatDetailViewModel {
         }
         return grouped.sorted { lhs, rhs in
             guard let lhsDate = lhs.value.first?.timestamp,
-                  let rhsDate = rhs.value.first?.timestamp else { return false }
+                let rhsDate = rhs.value.first?.timestamp
+            else { return false }
             return lhsDate < rhsDate
         }
     }
@@ -61,11 +62,14 @@ final class ChatDetailViewModel {
         Task {
             let center = UNUserNotificationCenter.current()
             let delivered = await center.deliveredNotifications()
-            let remainingCount = delivered.filter { $0.request.content.threadIdentifier != conversationId }.count
+            let remainingCount = delivered.filter {
+                $0.request.content.threadIdentifier != conversationId
+            }.count
             await SanchrNotificationService.updateBadgeCount(remainingCount)
         }
 
-        SanchrLogger.chat.info("Entered conversation \(conversationId.prefix(8))..., notifications cleared")
+        SanchrLogger.chat.info(
+            "Entered conversation \(conversationId.prefix(8))..., notifications cleared")
     }
 
     /// Called when the user leaves a conversation.
@@ -93,7 +97,8 @@ final class ChatDetailViewModel {
                 limit: 50
             )
             hasMoreMessages = messages.count >= 50
-            SanchrLogger.chat.info("Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
+            SanchrLogger.chat.info(
+                "Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
         } catch {
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Failed to load messages: \(error.localizedDescription)")
@@ -172,21 +177,25 @@ final class ChatDetailViewModel {
                 id: envelope.messageID,
                 conversationId: envelope.conversationID,
                 senderId: envelope.senderID,
-                timestamp: Date(timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
+                timestamp: Date(
+                    timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
                 content: .text(text),
                 status: .delivered,
                 isOutgoing: false
             )
             messages.append(incomingMessage)
-            SanchrLogger.chat.info("Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
+            SanchrLogger.chat.info(
+                "Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
         } catch {
-            SanchrLogger.chat.error("Failed to decrypt incoming message: \(error.localizedDescription)")
+            SanchrLogger.chat.error(
+                "Failed to decrypt incoming message: \(error.localizedDescription)")
             // Insert a system message indicating decryption failure
             let errorMsg = Message(
                 id: envelope.messageID,
                 conversationId: envelope.conversationID,
                 senderId: envelope.senderID,
-                timestamp: Date(timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
+                timestamp: Date(
+                    timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
                 content: .system(.identityKeyChanged),
                 status: .delivered,
                 isOutgoing: false

@@ -100,7 +100,8 @@ final class SettingsViewModel {
             totalBytes = usage.totalBytes
             limitBytes = usage.limitBytes
         } catch {
-            SanchrLogger.network.error("Failed to load storage usage: \(error.localizedDescription)")
+            SanchrLogger.network.error(
+                "Failed to load storage usage: \(error.localizedDescription)")
         }
     }
 

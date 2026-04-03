@@ -28,7 +28,8 @@ final class SanchrIdentityKeyStore: IdentityKeyStore {
     private var trustedIdentities: [ProtocolAddress: IdentityKey] = [:]
 
     /// Serialisation queue to make trust store mutations thread-safe.
-    private let queue = DispatchQueue(label: "io.sanchr.signal.identity-store", attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: "io.sanchr.signal.identity-store", attributes: .concurrent)
 
     /// File URL where the trusted identities dictionary is persisted.
     private let persistenceURL: URL
@@ -39,7 +40,8 @@ final class SanchrIdentityKeyStore: IdentityKeyStore {
         self.userId = userId
         self.keychain = keychain
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first!
         let dir = base.appendingPathComponent("SignalStore/\(userId)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         self.persistenceURL = dir.appendingPathComponent("trusted_identities.bin")
@@ -69,16 +71,16 @@ final class SanchrIdentityKeyStore: IdentityKeyStore {
         _ identity: IdentityKey,
         for address: ProtocolAddress,
         context: StoreContext
-    ) throws -> Bool {
-        var identityChanged = false
+    ) throws -> IdentityChange {
+        var change: IdentityChange = .newOrUnchanged
         queue.sync(flags: .barrier) {
-            if let existing = trustedIdentities[address] {
-                identityChanged = existing != identity
+            if let existing = trustedIdentities[address], existing != identity {
+                change = .replacedExisting
             }
             trustedIdentities[address] = identity
         }
         saveTrustedIdentitiesToDisk()
-        return identityChanged
+        return change
     }
 
     func isTrustedIdentity(
@@ -149,7 +151,8 @@ final class SanchrIdentityKeyStore: IdentityKeyStore {
                 let archived = try JSONEncoder().encode(entries)
                 try archived.write(to: self.persistenceURL, options: .atomic)
             } catch {
-                SanchrLogger.crypto.error("Failed to persist trusted identities: \(error.localizedDescription)")
+                SanchrLogger.crypto.error(
+                    "Failed to persist trusted identities: \(error.localizedDescription)")
             }
         }
     }
@@ -161,21 +164,25 @@ final class SanchrIdentityKeyStore: IdentityKeyStore {
             let entries = try JSONDecoder().decode([[String: Data]].self, from: data)
             for entry in entries {
                 guard let addressData = entry["address"],
-                      let keyData = entry["key"],
-                      let addressString = String(data: addressData, encoding: .utf8) else {
+                    let keyData = entry["key"],
+                    let addressString = String(data: addressData, encoding: .utf8)
+                else {
                     continue
                 }
                 let components = addressString.split(separator: ".")
                 guard components.count >= 2,
-                      let deviceId = UInt32(components.last!) else { continue }
+                    let deviceId = UInt32(components.last!)
+                else { continue }
                 let name = components.dropLast().joined(separator: ".")
                 let address = try ProtocolAddress(name: name, deviceId: deviceId)
                 let identityKey = try IdentityKey(bytes: [UInt8](keyData))
-                trustedIdentities[address] = identityKey
+                self.trustedIdentities[address] = identityKey
             }
-            SanchrLogger.crypto.info("Loaded \(trustedIdentities.count) trusted identities from disk")
+            SanchrLogger.crypto.info(
+                "Loaded \(self.trustedIdentities.count) trusted identities from disk")
         } catch {
-            SanchrLogger.crypto.error("Failed to load trusted identities: \(error.localizedDescription)")
+            SanchrLogger.crypto.error(
+                "Failed to load trusted identities: \(error.localizedDescription)")
         }
     }
 }

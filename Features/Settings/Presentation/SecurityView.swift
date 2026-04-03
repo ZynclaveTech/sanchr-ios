@@ -1,5 +1,5 @@
-import SwiftUI
 import LocalAuthentication
+import SwiftUI
 
 /// Security settings screen.
 /// Matches Figma: security-screen.
@@ -98,9 +98,11 @@ struct SecurityView: View {
                                 .clipShape(Capsule())
                         }
 
-                        Text("Maximum privacy: no read receipts, no typing, no online status, no screenshots")
-                            .font(SanchrTypography.captionSmall)
-                            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                        Text(
+                            "Maximum privacy: no read receipts, no typing, no online status, no screenshots"
+                        )
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                     }
 
                     Spacer()
@@ -110,7 +112,8 @@ struct SecurityView: View {
                         .labelsHidden()
                         .onChange(of: viewModel.vyncModeEnabled) { _, _ in
                             Task {
-                                await viewModel.toggleVyncMode(settingsDataSource: settingsDataSource)
+                                await viewModel.toggleVyncMode(
+                                    settingsDataSource: settingsDataSource)
                             }
                         }
                 }
@@ -176,7 +179,8 @@ struct SecurityView: View {
         let context = LAContext()
         var error: NSError?
 
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        else {
             viewModel.biometricLock = false
             viewModel.errorMessage = "Biometric authentication is not available on this device."
             return

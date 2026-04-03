@@ -10,7 +10,8 @@ enum AuthUseCases {
     /// Validates an E.164 phone number format.
     /// Returns the cleaned number or throws on invalid input.
     static func validatePhoneNumber(_ phone: String) throws -> String {
-        let cleaned = phone.replacingOccurrences(of: "[^+0-9]", with: "", options: .regularExpression)
+        let cleaned = phone.replacingOccurrences(
+            of: "[^+0-9]", with: "", options: .regularExpression)
 
         // Must start with + and contain at least 10 digits (including country code)
         guard cleaned.hasPrefix("+"), cleaned.count >= 11, cleaned.count <= 16 else {
@@ -35,14 +36,16 @@ enum AuthUseCases {
     static func registerPushNotifications(pushManager: PushManager) async {
         let granted = await pushManager.requestAuthorization()
         if granted {
-            SanchrLogger.auth.info("Push permission granted post-auth, token upload triggered by APNs callback")
+            SanchrLogger.auth.info(
+                "Push permission granted post-auth, token upload triggered by APNs callback")
             // Token upload happens automatically in didRegisterForRemoteNotifications.
             // If a token was already cached (re-login), force an upload now.
             if pushManager.deviceToken != nil {
                 do {
                     try await pushManager.uploadTokenToServer()
                 } catch {
-                    SanchrLogger.auth.warning("Post-auth push token upload failed: \(error.localizedDescription)")
+                    SanchrLogger.auth.warning(
+                        "Post-auth push token upload failed: \(error.localizedDescription)")
                 }
             }
         } else {
@@ -103,7 +106,8 @@ enum AuthUseCases {
             do {
                 try await signalKeyManager.uploadInitialKeyBundle()
             } catch {
-                SanchrLogger.auth.warning("Key bundle upload failed during registration: \(error.localizedDescription)")
+                SanchrLogger.auth.warning(
+                    "Key bundle upload failed during registration: \(error.localizedDescription)")
                 // Non-fatal: the app can retry later via checkAndReplenishPreKeys.
             }
 
@@ -176,7 +180,8 @@ enum AuthUseCases {
 
             // 4. Generate Signal Protocol identity keys if this is first login on this device
             if !signalKeyManager.hasIdentityKeys {
-                SanchrLogger.auth.info("First device login -- generating Signal Protocol identity keys")
+                SanchrLogger.auth.info(
+                    "First device login -- generating Signal Protocol identity keys")
 
                 // Generate identity key pair (stored in Keychain)
                 _ = try signalKeyManager.generateIdentityIfNeeded()
@@ -186,7 +191,8 @@ enum AuthUseCases {
                     try await signalKeyManager.uploadInitialKeyBundle()
                     SanchrLogger.auth.info("Signal Protocol key bundle uploaded successfully")
                 } catch {
-                    SanchrLogger.auth.warning("Key bundle upload failed after OTP: \(error.localizedDescription)")
+                    SanchrLogger.auth.warning(
+                        "Key bundle upload failed after OTP: \(error.localizedDescription)")
                     // Non-fatal: will be retried when a PreKeyCountLow server event arrives.
                 }
             } else {
@@ -194,7 +200,8 @@ enum AuthUseCases {
                 do {
                     try await signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
                 } catch {
-                    SanchrLogger.auth.warning("Pre-key replenishment check failed: \(error.localizedDescription)")
+                    SanchrLogger.auth.warning(
+                        "Pre-key replenishment check failed: \(error.localizedDescription)")
                 }
             }
 

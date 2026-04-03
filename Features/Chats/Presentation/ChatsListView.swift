@@ -66,12 +66,13 @@ struct ChatsListView: View {
                 encryptionBanner
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(
-                        top: SanchrSpacing.xs,
-                        leading: SanchrSpacing.md,
-                        bottom: SanchrSpacing.xs,
-                        trailing: SanchrSpacing.md
-                    ))
+                    .listRowInsets(
+                        EdgeInsets(
+                            top: SanchrSpacing.xs,
+                            leading: SanchrSpacing.md,
+                            bottom: SanchrSpacing.xs,
+                            trailing: SanchrSpacing.md
+                        ))
             }
 
             // Loading indicator at top

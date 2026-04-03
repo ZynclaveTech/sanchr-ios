@@ -11,7 +11,8 @@ final class SanchrSessionStore: SessionStore {
 
     private let userId: String
     private var sessions: [ProtocolAddress: SessionRecord] = [:]
-    private let queue = DispatchQueue(label: "io.sanchr.signal.session-store", attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: "io.sanchr.signal.session-store", attributes: .concurrent)
     private let storageDirectory: URL
 
     // MARK: - Init
@@ -19,9 +20,12 @@ final class SanchrSessionStore: SessionStore {
     init(userId: String) {
         self.userId = userId
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        self.storageDirectory = base.appendingPathComponent("SignalStore/\(userId)/sessions", isDirectory: true)
-        try? FileManager.default.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first!
+        self.storageDirectory = base.appendingPathComponent(
+            "SignalStore/\(userId)/sessions", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: storageDirectory, withIntermediateDirectories: true)
 
         loadAllFromDisk()
     }
@@ -50,6 +54,18 @@ final class SanchrSessionStore: SessionStore {
         let data = Data(record.serialize())
         let fileURL = fileURL(for: address)
         try data.write(to: fileURL, options: .atomic)
+    }
+
+    func loadExistingSessions(
+        for addresses: [ProtocolAddress],
+        context: StoreContext
+    ) throws -> [SessionRecord] {
+        return try addresses.map { address in
+            guard let record = try loadSession(for: address, context: context) else {
+                throw SignalError.sessionNotFound("\(address)")
+            }
+            return record
+        }
     }
 
     // MARK: - Session Queries
@@ -90,17 +106,20 @@ final class SanchrSessionStore: SessionStore {
     }
 
     private func loadAllFromDisk() {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: storageDirectory,
-            includingPropertiesForKeys: nil
-        ) else { return }
+        guard
+            let files = try? FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            )
+        else { return }
 
         var loadedCount = 0
         for fileURL in files where fileURL.pathExtension == "session" {
             let filename = fileURL.deletingPathExtension().lastPathComponent
             let components = filename.split(separator: ".")
             guard components.count >= 2,
-                  let deviceId = UInt32(components.last!) else { continue }
+                let deviceId = UInt32(components.last!)
+            else { continue }
             let name = components.dropLast().joined(separator: ".")
             do {
                 let data = try Data(contentsOf: fileURL)
@@ -109,7 +128,8 @@ final class SanchrSessionStore: SessionStore {
                 sessions[address] = record
                 loadedCount += 1
             } catch {
-                SanchrLogger.crypto.warning("Failed to load session \(filename): \(error.localizedDescription)")
+                SanchrLogger.crypto.warning(
+                    "Failed to load session \(filename): \(error.localizedDescription)")
             }
         }
         SanchrLogger.crypto.info("Loaded \(loadedCount) sessions from disk")

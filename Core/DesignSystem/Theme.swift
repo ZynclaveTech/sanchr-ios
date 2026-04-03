@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Unified theme object combining all design tokens with light/dark support.
 @Observable
-final class SanchrTheme {
+final class SanchrTheme: @unchecked Sendable {
     enum Mode: String, CaseIterable, Identifiable {
         case system
         case light

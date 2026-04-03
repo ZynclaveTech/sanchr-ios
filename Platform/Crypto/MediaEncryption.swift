@@ -1,5 +1,5 @@
-import Foundation
 import CryptoKit
+import Foundation
 
 /// Protocol for media file encryption/decryption using AES-GCM.
 /// Media keys are generated per-file and shared via Signal Protocol messages.
@@ -14,7 +14,8 @@ protocol MediaEncryptionProtocol: Sendable {
     func encryptFile(at inputURL: URL, to outputURL: URL) async throws -> MediaEncryptionMetadata
 
     /// Decrypts a file at the given URL and writes plaintext to the output URL.
-    func decryptFile(at inputURL: URL, to outputURL: URL, metadata: MediaEncryptionMetadata) async throws
+    func decryptFile(at inputURL: URL, to outputURL: URL, metadata: MediaEncryptionMetadata)
+        async throws
 }
 
 /// AES-256-GCM encryption for media files (photos, videos, voice notes).
@@ -68,7 +69,8 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
         let sealedBox = try AES.GCM.seal(inputData, using: key, nonce: nonce)
 
         guard let combined = sealedBox.combined else {
-            throw AppError.encryptionFailed(reason: "Failed to produce combined ciphertext for file")
+            throw AppError.encryptionFailed(
+                reason: "Failed to produce combined ciphertext for file")
         }
         try combined.write(to: outputURL, options: .atomic)
 
@@ -103,7 +105,8 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
         if !metadata.digest.isEmpty {
             let computedDigest = Data(SHA256.hash(data: plaintext))
             guard computedDigest == metadata.digest else {
-                throw AppError.decryptionFailed(reason: "Media digest mismatch -- file may be corrupted.")
+                throw AppError.decryptionFailed(
+                    reason: "Media digest mismatch -- file may be corrupted.")
             }
         }
 

@@ -9,7 +9,8 @@ protocol AuthRepositoryProtocol: AnyObject, Sendable {
     func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens
 
     /// Registers a new user account.
-    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws -> AuthTokens
+    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws
+        -> AuthTokens
 
     /// Refreshes an expired access token using the refresh token.
     func refreshToken(refreshToken: String) async throws -> AuthTokens
@@ -58,12 +59,15 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         throw AppError.serverUnreachable
     }
 
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens {
+    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens
+    {
         // TODO: Call gRPC auth.VerifyOTP
         throw AppError.serverUnreachable
     }
 
-    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws -> AuthTokens {
+    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws
+        -> AuthTokens
+    {
         // TODO: Call gRPC auth.Register
         throw AppError.serverUnreachable
     }

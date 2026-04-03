@@ -22,7 +22,9 @@ final class SettingsDataSource: @unchecked Sendable {
     // MARK: - Update Settings
 
     /// Pushes updated settings to the server.
-    func updateSettings(settings: Vync_Settings_UserSettings) async throws -> Vync_Settings_UserSettings {
+    func updateSettings(settings: Vync_Settings_UserSettings) async throws
+        -> Vync_Settings_UserSettings
+    {
         var request = Vync_Settings_UpdateSettingsRequest()
         request.settings = settings
 

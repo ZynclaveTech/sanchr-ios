@@ -1,6 +1,6 @@
-import Foundation
-import CallKit
 import AVFoundation
+import CallKit
+import Foundation
 import WebRTC
 
 // MARK: - Call State
@@ -108,7 +108,8 @@ final class CallManager: NSObject, @unchecked Sendable {
         self.isVideoEnabled = isVideo
 
         // 1. Fetch TURN credentials
-        let turnCredentials = try await callService.getTurnCredentials(Vync_Calling_GetTurnCredentialsRequest())
+        let turnCredentials = try await callService.getTurnCredentials(
+            Vync_Calling_GetTurnCredentialsRequest())
         let iceServers = buildIceServers(from: turnCredentials)
 
         // 2. Configure WebRTC
@@ -162,8 +163,11 @@ final class CallManager: NSObject, @unchecked Sendable {
     // MARK: - Incoming Call
 
     /// Called when a push notification or signaling message delivers an incoming call.
-    func handleIncomingCall(callId: String, callerId: String, callerName: String, sdpOffer: Data, isVideo: Bool) {
-        SanchrLogger.calls.info("Incoming \(isVideo ? "video" : "voice") call from \(callerName) [\(callId)]")
+    func handleIncomingCall(
+        callId: String, callerId: String, callerName: String, sdpOffer: Data, isVideo: Bool
+    ) {
+        SanchrLogger.calls.info(
+            "Incoming \(isVideo ? "video" : "voice") call from \(callerName) [\(callId)]")
 
         self.callType = isVideo ? "video" : "voice"
         self.isVideoEnabled = isVideo
@@ -184,7 +188,8 @@ final class CallManager: NSObject, @unchecked Sendable {
 
         provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
             if let error {
-                SanchrLogger.calls.error("Failed to report incoming call: \(error.localizedDescription)")
+                SanchrLogger.calls.error(
+                    "Failed to report incoming call: \(error.localizedDescription)")
                 self?.callState = .ended(callId: callId, reason: .failed)
             }
         }
@@ -193,7 +198,8 @@ final class CallManager: NSObject, @unchecked Sendable {
     /// Answers an incoming call. Called from CallKit delegate or directly.
     func answerCall() async throws {
         guard case .incoming(let callId, let callerId, _) = callState,
-              let sdpData = pendingSdpOffer else {
+            let sdpData = pendingSdpOffer
+        else {
             SanchrLogger.calls.error("answerCall called in invalid state")
             return
         }
@@ -201,7 +207,8 @@ final class CallManager: NSObject, @unchecked Sendable {
         SanchrLogger.calls.info("Answering call \(callId)")
 
         // 1. Fetch TURN credentials
-        let turnCredentials = try await callService.getTurnCredentials(Vync_Calling_GetTurnCredentialsRequest())
+        let turnCredentials = try await callService.getTurnCredentials(
+            Vync_Calling_GetTurnCredentialsRequest())
         let iceServers = buildIceServers(from: turnCredentials)
 
         // 2. Configure WebRTC
@@ -240,7 +247,7 @@ final class CallManager: NSObject, @unchecked Sendable {
         startDurationTimer(from: startTime)
 
         pendingSdpOffer = nil
-        _ = callerId // suppress unused warning
+        _ = callerId  // suppress unused warning
     }
 
     /// Declines an incoming call.
@@ -288,7 +295,8 @@ final class CallManager: NSObject, @unchecked Sendable {
             let transaction = CXTransaction(action: action)
             callController.request(transaction) { error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to sync mute with CallKit: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to sync mute with CallKit: \(error.localizedDescription)")
                 }
             }
         }
@@ -348,35 +356,43 @@ final class CallManager: NSObject, @unchecked Sendable {
     }
 
     /// Processes incoming signaling messages from the bidirectional stream.
-    private func handleSignalingStream(_ stream: AsyncStream<Vync_Calling_CallSignal>, callId: String) async {
+    private func handleSignalingStream(
+        _ stream: AsyncStream<Vync_Calling_CallSignal>, callId: String
+    ) async {
         for await signal in stream {
             guard !Task.isCancelled else { break }
 
             switch signal.activeSignal {
             case .sdpAnswer:
                 guard let sdpData = signal.sdpAnswer,
-                      let sdpString = String(data: sdpData, encoding: .utf8) else { continue }
+                    let sdpString = String(data: sdpData, encoding: .utf8)
+                else { continue }
                 SanchrLogger.calls.info("Received SDP answer for call \(callId)")
                 let remoteDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
                 do {
                     try await webRTCClient.setRemoteDescription(remoteDesc)
                 } catch {
-                    SanchrLogger.calls.error("Failed to set remote answer: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to set remote answer: \(error.localizedDescription)")
                 }
 
             case .iceCandidate:
                 guard let candidateData = signal.iceCandidate,
-                      let candidateDict = try? JSONSerialization.jsonObject(with: candidateData) as? [String: Any],
-                      let sdp = candidateDict["candidate"] as? String,
-                      let sdpMLineIndex = candidateDict["sdpMLineIndex"] as? Int32 else {
+                    let candidateDict = try? JSONSerialization.jsonObject(with: candidateData)
+                        as? [String: Any],
+                    let sdp = candidateDict["candidate"] as? String,
+                    let sdpMLineIndex = candidateDict["sdpMLineIndex"] as? Int32
+                else {
                     continue
                 }
                 let sdpMid = candidateDict["sdpMid"] as? String
-                let candidate = RTCIceCandidate(sdp: sdp, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
+                let candidate = RTCIceCandidate(
+                    sdp: sdp, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
                 do {
                     try await webRTCClient.addIceCandidate(candidate)
                 } catch {
-                    SanchrLogger.calls.error("Failed to add remote ICE candidate: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to add remote ICE candidate: \(error.localizedDescription)")
                 }
 
             case .control:
@@ -431,7 +447,8 @@ final class CallManager: NSObject, @unchecked Sendable {
     private func startDurationTimer(from startTime: Date) {
         durationTimer?.invalidate()
         callDuration = 0
-        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {
+            [weak self] _ in
             guard let self else { return }
             self.callDuration = Date().timeIntervalSince(startTime)
         }
@@ -596,7 +613,8 @@ extension CallManager: CXProviderDelegate {
 
 extension CallManager: WebRTCClientDelegate {
 
-    func webRTCClient(_ client: WebRTCClient, didChangeConnectionState state: RTCIceConnectionState) {
+    func webRTCClient(_ client: WebRTCClient, didChangeConnectionState state: RTCIceConnectionState)
+    {
         SanchrLogger.calls.info("WebRTC ICE state: \(state.rawValue)")
 
         Task { @MainActor in
@@ -622,7 +640,7 @@ extension CallManager: WebRTCClientDelegate {
                 self.endCallInternal(callId: callId, reason: .failed)
 
             case .closed:
-                break // Handled by endCallInternal
+                break  // Handled by endCallInternal
 
             default:
                 break
@@ -637,7 +655,7 @@ extension CallManager: WebRTCClientDelegate {
         let candidateDict: [String: Any] = [
             "candidate": candidate.sdp,
             "sdpMLineIndex": candidate.sdpMLineIndex,
-            "sdpMid": candidate.sdpMid ?? ""
+            "sdpMid": candidate.sdpMid ?? "",
         ]
 
         guard let candidateData = try? JSONSerialization.data(withJSONObject: candidateDict) else {

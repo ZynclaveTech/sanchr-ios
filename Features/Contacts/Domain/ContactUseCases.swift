@@ -1,6 +1,6 @@
-import Foundation
 import Contacts
 import CryptoKit
+import Foundation
 
 /// Domain use cases for contact operations.
 enum ContactUseCases {
@@ -75,7 +75,9 @@ enum ContactUseCases {
                 let serverContacts = try await contactDataSource.getContacts()
                 return serverContacts
             } catch {
-                SanchrLogger.sync.warning("Server fetch failed, falling back to local cache: \(error.localizedDescription)")
+                SanchrLogger.sync.warning(
+                    "Server fetch failed, falling back to local cache: \(error.localizedDescription)"
+                )
                 return try await localDatabase.fetchContacts()
             }
         }

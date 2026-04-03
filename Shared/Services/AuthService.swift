@@ -42,7 +42,7 @@ final class AuthServiceImpl: AuthServiceProtocol, @unchecked Sendable {
         let tokens = try await repository.register(
             phoneNumber: phoneNumber,
             displayName: displayName,
-            identityPublicKey: Data() // TODO: Use real key
+            identityPublicKey: Data()  // TODO: Use real key
         )
         try await sessionService.storeTokens(tokens)
 

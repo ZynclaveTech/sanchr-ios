@@ -25,9 +25,8 @@ final class ProfileViewModel {
     private var originalAvatarURL: String = ""
 
     var hasChanges: Bool {
-        displayName != originalDisplayName ||
-        statusText != originalStatusText ||
-        avatarURL != originalAvatarURL
+        displayName != originalDisplayName || statusText != originalStatusText
+            || avatarURL != originalAvatarURL
     }
 
     // MARK: - Load Profile

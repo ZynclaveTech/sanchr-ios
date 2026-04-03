@@ -25,12 +25,15 @@ final class ContactsViewModel {
 
     /// Contacts grouped by first letter for alphabetical section headers.
     var groupedContacts: [(letter: String, contacts: [User])] {
-        let sorted = filteredContacts.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        let sorted = filteredContacts.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
         let grouped = Dictionary(grouping: sorted) { user -> String in
             let first = user.displayName.prefix(1).uppercased()
             return first.rangeOfCharacter(from: .letters) != nil ? first : "#"
         }
-        return grouped
+        return
+            grouped
             .sorted { $0.key < $1.key }
             .map { (letter: $0.key, contacts: $0.value) }
     }
@@ -42,7 +45,9 @@ final class ContactsViewModel {
 
     // MARK: - Load Contacts
 
-    func loadContacts(contactDataSource: ContactDataSource, localDatabase: LocalDatabaseProtocol) async {
+    func loadContacts(contactDataSource: ContactDataSource, localDatabase: LocalDatabaseProtocol)
+        async
+    {
         isLoading = true
         defer { isLoading = false }
 
@@ -62,7 +67,9 @@ final class ContactsViewModel {
 
     // MARK: - Refresh
 
-    func refreshContacts(contactDataSource: ContactDataSource, localDatabase: LocalDatabaseProtocol) async {
+    func refreshContacts(contactDataSource: ContactDataSource, localDatabase: LocalDatabaseProtocol)
+        async
+    {
         let getContacts = ContactUseCases.GetContacts(
             contactDataSource: contactDataSource,
             localDatabase: localDatabase

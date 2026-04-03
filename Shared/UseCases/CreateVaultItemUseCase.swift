@@ -12,7 +12,8 @@ struct CreateVaultItemUseCase: Sendable {
     }
 
     /// Compresses (if needed), encrypts, and uploads a vault item.
-    func execute(data: Data, name: String, type: VaultItem.VaultItemType) async throws -> VaultItem {
+    func execute(data: Data, name: String, type: VaultItem.VaultItemType) async throws -> VaultItem
+    {
         SanchrLogger.media.info("Creating vault item: \(name) (\(type.rawValue))")
 
         var processedData = data

@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 /// State machine for the authentication flow.
 /// Drives LoginView, OTPView, and RegisterView through a linear progression.
@@ -202,7 +202,8 @@ final class AuthViewModel {
         resendCountdown = min(max(seconds, 30), 60)
         resendTimer?.invalidate()
 
-        resendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+        resendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {
+            [weak self] timer in
             guard let self else {
                 timer.invalidate()
                 return

@@ -78,7 +78,7 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
 
         // Use a timestamp-based ID for signed pre-keys to ensure uniqueness across rotations.
-        let signedPreKeyId = UInt32(Date().timeIntervalSince1970) & 0x00FFFFFF
+        let signedPreKeyId = UInt32(Date().timeIntervalSince1970) & 0x00FF_FFFF
         let signedPreKeyPair = IdentityKeyPair.generate()
 
         let signedPreKey = try SignedPreKeyRecord(
@@ -90,7 +90,8 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
             )
         )
 
-        try store.signedPreKeyStore.storeSignedPreKey(signedPreKey, id: signedPreKeyId, context: NullContext())
+        try store.signedPreKeyStore.storeSignedPreKey(
+            signedPreKey, id: signedPreKeyId, context: NullContext())
         SanchrLogger.crypto.info("Generated signed pre-key with ID \(signedPreKeyId)")
         return signedPreKey
     }
@@ -107,7 +108,9 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
             preKeys.append(preKey)
         }
 
-        SanchrLogger.crypto.info("Generated \(count) one-time pre-keys (IDs \(startId)...\(startId + UInt32(count) - 1))")
+        SanchrLogger.crypto.info(
+            "Generated \(count) one-time pre-keys (IDs \(startId)...\(startId + UInt32(count) - 1))"
+        )
         return preKeys
     }
 
@@ -124,14 +127,14 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
         var signedPreKeyProto = Vync_Keys_SignedPreKey()
         signedPreKeyProto.keyID = Int32(signedPreKey.id)
-        signedPreKeyProto.publicKey = Data(signedPreKey.publicKey.serialize())
+        signedPreKeyProto.publicKey = Data(try signedPreKey.publicKey().serialize())
         signedPreKeyProto.signature = Data(signedPreKey.signature)
         bundle.signedPreKey = signedPreKeyProto
 
         bundle.oneTimePreKeys = try oneTimePreKeys.map { preKey in
             var otpk = Vync_Keys_OneTimePreKey()
             otpk.keyID = Int32(preKey.id)
-            otpk.publicKey = Data(preKey.publicKey.serialize())
+            otpk.publicKey = Data(try preKey.publicKey().serialize())
             return otpk
         }
 
@@ -146,7 +149,7 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         request.keys = try newPreKeys.map { preKey in
             var otpk = Vync_Keys_OneTimePreKey()
             otpk.keyID = Int32(preKey.id)
-            otpk.publicKey = Data(preKey.publicKey.serialize())
+            otpk.publicKey = Data(try preKey.publicKey().serialize())
             return otpk
         }
 
@@ -159,7 +162,9 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let response = try await keyService.getPreKeyCount(request)
 
         if response.count < Int32(threshold) {
-            SanchrLogger.crypto.info("Server pre-key count (\(response.count)) below threshold (\(threshold)), replenishing")
+            SanchrLogger.crypto.info(
+                "Server pre-key count (\(response.count)) below threshold (\(threshold)), replenishing"
+            )
             try await replenishPreKeys()
         } else {
             SanchrLogger.crypto.info("Server pre-key count (\(response.count)) is sufficient")
@@ -184,30 +189,50 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
         let signedPreKeyPublic = try PublicKey(signedPreKeyProto.publicKey)
 
-        // One-time pre-key is optional (may be exhausted on server)
-        var preKeyId: UInt32?
-        var preKeyPublic: PublicKey?
-        if let otpk = response.oneTimePreKey, !otpk.publicKey.isEmpty {
-            preKeyId = UInt32(otpk.keyID)
-            preKeyPublic = try PublicKey(otpk.publicKey)
-        }
-
         // Registration ID is not returned by our server; use 0 as placeholder.
-        // The real registration ID is only needed for multi-device scenarios.
         let registrationId: UInt32 = 0
 
-        let bundle = try PreKeyBundle(
-            registrationId: registrationId,
-            deviceId: UInt32(deviceId),
-            prekeyId: preKeyId,
-            prekey: preKeyPublic,
-            signedPrekeyId: UInt32(signedPreKeyProto.keyID),
-            signedPrekey: signedPreKeyPublic,
-            signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
-            identity: identityKey
+        // Generate an ephemeral Kyber key pair for PQXDH (required by libsignal v0.88.1+)
+        let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
+        let kyberKeyPair = KEMKeyPair.generate()
+        let kyberPrekeyId: UInt32 = UInt32(Date().timeIntervalSince1970) & 0x00FF_FFFF
+        let kyberPrekeySignature = identityKeyPair.privateKey.generateSignature(
+            message: kyberKeyPair.publicKey.serialize()
         )
 
-        SanchrLogger.crypto.info("Fetched pre-key bundle for \(userId.prefix(8))... device \(deviceId)")
+        // One-time pre-key is optional (may be exhausted on server)
+        let bundle: PreKeyBundle
+        if let otpk = response.oneTimePreKey, !otpk.publicKey.isEmpty {
+            let preKeyPublic = try PublicKey(otpk.publicKey)
+            bundle = try PreKeyBundle(
+                registrationId: registrationId,
+                deviceId: UInt32(deviceId),
+                prekeyId: UInt32(otpk.keyID),
+                prekey: preKeyPublic,
+                signedPrekeyId: UInt32(signedPreKeyProto.keyID),
+                signedPrekey: signedPreKeyPublic,
+                signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
+                identity: identityKey,
+                kyberPrekeyId: kyberPrekeyId,
+                kyberPrekey: kyberKeyPair.publicKey,
+                kyberPrekeySignature: kyberPrekeySignature
+            )
+        } else {
+            bundle = try PreKeyBundle(
+                registrationId: registrationId,
+                deviceId: UInt32(deviceId),
+                signedPrekeyId: UInt32(signedPreKeyProto.keyID),
+                signedPrekey: signedPreKeyPublic,
+                signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
+                identity: identityKey,
+                kyberPrekeyId: kyberPrekeyId,
+                kyberPrekey: kyberKeyPair.publicKey,
+                kyberPrekeySignature: kyberPrekeySignature
+            )
+        }
+
+        SanchrLogger.crypto.info(
+            "Fetched pre-key bundle for \(userId.prefix(8))... device \(deviceId)")
         return bundle
     }
 

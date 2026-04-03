@@ -81,7 +81,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             using: nil
         ) { task in
             // Placeholder handler; replaced by `registerHandlers()` once the container is live.
-            SanchrLogger.sync.warning("BGProcessingTask fired before handler registration for \(syncTaskId)")
+            SanchrLogger.sync.warning(
+                "BGProcessingTask fired before handler registration for \(syncTaskId)")
             task.setTaskCompleted(success: false)
         }
 
@@ -89,11 +90,13 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             forTaskWithIdentifier: refreshTaskId,
             using: nil
         ) { task in
-            SanchrLogger.sync.warning("BGAppRefreshTask fired before handler registration for \(refreshTaskId)")
+            SanchrLogger.sync.warning(
+                "BGAppRefreshTask fired before handler registration for \(refreshTaskId)")
             task.setTaskCompleted(success: false)
         }
 
-        SanchrLogger.sync.info("Background task identifiers registered: \(syncTaskId), \(refreshTaskId)")
+        SanchrLogger.sync.info(
+            "Background task identifiers registered: \(syncTaskId), \(refreshTaskId)")
     }
 
     /// Re-register task handlers with a live orchestrator instance.
@@ -108,8 +111,9 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 task.setTaskCompleted(success: false)
                 return
             }
+            nonisolated(unsafe) let orchestrator = self
             Task {
-                await self.performSync(task: processingTask)
+                await orchestrator.performSync(task: processingTask)
             }
         }
 
@@ -121,8 +125,9 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 task.setTaskCompleted(success: false)
                 return
             }
+            nonisolated(unsafe) let orchestrator = self
             Task {
-                await self.performAppRefresh(task: refreshTask)
+                await orchestrator.performAppRefresh(task: refreshTask)
             }
         }
 
@@ -144,7 +149,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             try BGTaskScheduler.shared.submit(request)
             SanchrLogger.sync.info("Scheduled background processing sync")
         } catch {
-            SanchrLogger.sync.error("Failed to schedule background sync: \(error.localizedDescription)")
+            SanchrLogger.sync.error(
+                "Failed to schedule background sync: \(error.localizedDescription)")
         }
     }
 
@@ -217,33 +223,34 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         // Schedule the next occurrence before we begin work.
         scheduleBackgroundSync()
 
+        nonisolated(unsafe) let orchestrator = self
         let workTask = Task {
-            syncState.markSyncStarted()
+            orchestrator.syncState.markSyncStarted()
 
             do {
                 // Phase 1: Refresh auth token if expiring soon
-                try await refreshTokenIfNeeded()
+                try await orchestrator.refreshTokenIfNeeded()
 
                 // Phase 2: Sync pending messages
-                let messageCount = try await syncPendingMessages()
+                let messageCount = try await orchestrator.syncPendingMessages()
 
                 // Phase 3: Refresh conversations list
-                try await refreshConversations()
+                try await orchestrator.refreshConversations()
 
                 // Phase 4: Check and replenish pre-keys
-                try await replenishPreKeysIfNeeded()
+                try await orchestrator.replenishPreKeysIfNeeded()
 
                 // Phase 5: Clean expired vault items locally
-                try await cleanExpiredVaultItems()
+                try await orchestrator.cleanExpiredVaultItems()
 
                 // Phase 6: Update badge count
-                await updateBadgeCount()
+                await orchestrator.updateBadgeCount()
 
-                syncState.markSyncCompleted(messageCount: messageCount)
+                orchestrator.syncState.markSyncCompleted(messageCount: messageCount)
                 SanchrLogger.sync.info("BGProcessingTask completed: \(messageCount) new message(s)")
                 task.setTaskCompleted(success: true)
             } catch {
-                syncState.markSyncFailed(error: error)
+                orchestrator.syncState.markSyncFailed(error: error)
                 SanchrLogger.sync.error("BGProcessingTask failed: \(error.localizedDescription)")
                 task.setTaskCompleted(success: false)
             }
@@ -266,21 +273,22 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         // Schedule the next refresh before we begin.
         scheduleAppRefresh()
 
+        nonisolated(unsafe) let orchestrator = self
         let workTask = Task {
-            syncState.markSyncStarted()
+            orchestrator.syncState.markSyncStarted()
 
             do {
                 // Phase 1: Sync pending messages only
-                let messageCount = try await syncPendingMessages()
+                let messageCount = try await orchestrator.syncPendingMessages()
 
                 // Phase 2: Update badge count
-                await updateBadgeCount()
+                await orchestrator.updateBadgeCount()
 
-                syncState.markSyncCompleted(messageCount: messageCount)
+                orchestrator.syncState.markSyncCompleted(messageCount: messageCount)
                 SanchrLogger.sync.info("BGAppRefreshTask completed: \(messageCount) new message(s)")
                 task.setTaskCompleted(success: true)
             } catch {
-                syncState.markSyncFailed(error: error)
+                orchestrator.syncState.markSyncFailed(error: error)
                 SanchrLogger.sync.error("BGAppRefreshTask failed: \(error.localizedDescription)")
                 task.setTaskCompleted(success: false)
             }
@@ -340,8 +348,9 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             // Remove items older than 30 days that are only cached locally
             // and no longer referenced on the server.
             if item.isCachedLocally,
-               item.remoteURL == nil,
-               item.updatedAt.timeIntervalSinceNow < -(30 * 24 * 60 * 60) {
+                item.remoteURL == nil,
+                item.updatedAt.timeIntervalSinceNow < -(30 * 24 * 60 * 60)
+            {
                 try await localDatabase.deleteVaultItem(id: item.id)
                 removedCount += 1
             }

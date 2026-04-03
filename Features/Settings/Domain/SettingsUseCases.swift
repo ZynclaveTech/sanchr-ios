@@ -24,7 +24,9 @@ enum SettingsUseCases {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute(settings: Vync_Settings_UserSettings) async throws -> Vync_Settings_UserSettings {
+        func execute(settings: Vync_Settings_UserSettings) async throws
+            -> Vync_Settings_UserSettings
+        {
             try await settingsDataSource.updateSettings(settings: settings)
         }
     }
@@ -37,8 +39,11 @@ enum SettingsUseCases {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute(name: String, avatarURL: String, status: String) async throws -> Vync_Settings_ProfileResponse {
-            try await settingsDataSource.updateProfile(name: name, avatarURL: avatarURL, status: status)
+        func execute(name: String, avatarURL: String, status: String) async throws
+            -> Vync_Settings_ProfileResponse
+        {
+            try await settingsDataSource.updateProfile(
+                name: name, avatarURL: avatarURL, status: status)
         }
     }
 

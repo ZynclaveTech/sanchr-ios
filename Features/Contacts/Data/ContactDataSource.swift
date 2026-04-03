@@ -1,5 +1,5 @@
-import Foundation
 import CryptoKit
+import Foundation
 
 /// Data source for contact-related gRPC service calls.
 /// Translates between domain models and Vync_Contacts protobuf messages.
@@ -19,7 +19,8 @@ final class ContactDataSource: @unchecked Sendable {
         var request = Vync_Contacts_SyncContactsRequest()
         request.phoneHashes = phoneHashes
 
-        SanchrLogger.network.info("ContactDataSource: syncContacts with \(phoneHashes.count) hashes")
+        SanchrLogger.network.info(
+            "ContactDataSource: syncContacts with \(phoneHashes.count) hashes")
         let response = try await contactClient.syncContacts(request)
 
         let users = response.matches.map(Self.mapMatchedContactToUser)
@@ -87,7 +88,8 @@ final class ContactDataSource: @unchecked Sendable {
 
     /// Hashes a phone number using SHA-256 for privacy-preserving contact discovery.
     static func hashPhoneNumber(_ phoneNumber: String) -> Data {
-        let normalized = phoneNumber
+        let normalized =
+            phoneNumber
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "(", with: "")

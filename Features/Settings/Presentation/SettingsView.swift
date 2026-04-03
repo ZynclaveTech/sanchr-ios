@@ -20,7 +20,8 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: SanchrSpacing.sm) {
                         // Avatar
-                        if let url = URL(string: viewModel.avatarURL), !viewModel.avatarURL.isEmpty {
+                        if let url = URL(string: viewModel.avatarURL), !viewModel.avatarURL.isEmpty
+                        {
                             AsyncImage(url: url) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
@@ -53,24 +54,33 @@ struct SettingsView: View {
 
             // MARK: - General Section
             Section {
-                settingsRow(icon: "paintbrush.fill", title: "Appearance", destination: AppearanceView())
-                settingsRow(icon: "bell.fill", title: "Notifications", destination: NotificationsView())
-                settingsRow(icon: "bubble.left.fill", title: "Chat Settings", destination: ChatSettingsView())
-                settingsRow(icon: "externaldrive.fill", title: "Storage & Data", destination: StorageView())
+                settingsRow(
+                    icon: "paintbrush.fill", title: "Appearance", destination: AppearanceView())
+                settingsRow(
+                    icon: "bell.fill", title: "Notifications", destination: NotificationsView())
+                settingsRow(
+                    icon: "bubble.left.fill", title: "Chat Settings",
+                    destination: ChatSettingsView())
+                settingsRow(
+                    icon: "externaldrive.fill", title: "Storage & Data", destination: StorageView())
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
             // MARK: - Privacy & Security
             Section {
                 settingsRow(icon: "hand.raised.fill", title: "Privacy", destination: PrivacyView())
-                settingsRow(icon: "lock.shield.fill", title: "Security", destination: SecurityView())
-                settingsRow(icon: "key.fill", title: "Encryption Keys", destination: EncryptionKeysView())
+                settingsRow(
+                    icon: "lock.shield.fill", title: "Security", destination: SecurityView())
+                settingsRow(
+                    icon: "key.fill", title: "Encryption Keys", destination: EncryptionKeysView())
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
             // MARK: - Support
             Section {
-                settingsRow(icon: "questionmark.circle.fill", title: "Help Center", destination: HelpCenterView())
+                settingsRow(
+                    icon: "questionmark.circle.fill", title: "Help Center",
+                    destination: HelpCenterView())
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 

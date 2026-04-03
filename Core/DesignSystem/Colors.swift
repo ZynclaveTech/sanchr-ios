@@ -5,9 +5,9 @@ import SwiftUI
 enum SanchrColors {
     // MARK: - Brand
 
-    static let primary = Color(hex: 0x6366F1)       // Indigo
-    static let primaryDark = Color(hex: 0x4C1D95)   // Dark Indigo
-    static let accent = Color(hex: 0x06B6D4)         // Cyan
+    static let primary = Color(hex: 0x6366F1)  // Indigo
+    static let primaryDark = Color(hex: 0x4C1D95)  // Dark Indigo
+    static let accent = Color(hex: 0x06B6D4)  // Cyan
 
     // MARK: - Semantic
 

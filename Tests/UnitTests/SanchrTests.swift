@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import Sanchr
 
 final class SanchrTests: XCTestCase {

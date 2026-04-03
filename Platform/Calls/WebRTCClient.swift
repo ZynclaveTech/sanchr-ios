@@ -1,5 +1,5 @@
-import Foundation
 import AVFoundation
+import Foundation
 import WebRTC
 
 // MARK: - WebRTC Client Delegate
@@ -19,13 +19,14 @@ final class WebRTCClient: NSObject {
 
     weak var delegate: WebRTCClientDelegate?
 
-    private static let factory: RTCPeerConnectionFactory = {
+    nonisolated(unsafe) private static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         let encoderFactory = RTCDefaultVideoEncoderFactory()
         let decoderFactory = RTCDefaultVideoDecoderFactory()
         // Prefer H264 for hardware acceleration on iOS
         if let h264 = RTCDefaultVideoEncoderFactory.supportedCodecs()
-            .first(where: { $0.name == kRTCH264CodecName }) {
+            .first(where: { $0.name == kRTCH264CodecName })
+        {
             encoderFactory.preferredCodec = h264
         }
         return RTCPeerConnectionFactory(
@@ -59,7 +60,8 @@ final class WebRTCClient: NSObject {
 
     /// Configures the peer connection with the provided ICE (STUN/TURN) servers.
     func configure(iceServers: [RTCIceServer]) {
-        SanchrLogger.calls.info("Configuring peer connection with \(iceServers.count) ICE server(s)")
+        SanchrLogger.calls.info(
+            "Configuring peer connection with \(iceServers.count) ICE server(s)")
 
         let config = RTCConfiguration()
         config.iceServers = iceServers
@@ -76,11 +78,13 @@ final class WebRTCClient: NSObject {
             optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue]
         )
 
-        guard let pc = Self.factory.peerConnection(
-            with: config,
-            constraints: constraints,
-            delegate: self
-        ) else {
+        guard
+            let pc = Self.factory.peerConnection(
+                with: config,
+                constraints: constraints,
+                delegate: self
+            )
+        else {
             SanchrLogger.calls.error("Failed to create RTCPeerConnection")
             return
         }
@@ -116,12 +120,12 @@ final class WebRTCClient: NSObject {
             self.localVideoSource = videoSource
 
             #if targetEnvironment(simulator)
-            // Simulator does not support camera capture
-            SanchrLogger.calls.warning("Simulator detected: video capture unavailable")
+                // Simulator does not support camera capture
+                SanchrLogger.calls.warning("Simulator detected: video capture unavailable")
             #else
-            let capturer = RTCCameraVideoCapturer(delegate: videoSource)
-            self.videoCapturer = capturer
-            startCameraCapture(capturer: capturer)
+                let capturer = RTCCameraVideoCapturer(delegate: videoSource)
+                self.videoCapturer = capturer
+                startCameraCapture(capturer: capturer)
             #endif
 
             let videoTrack = Self.factory.videoTrack(with: videoSource, trackId: "sanchr-video-0")
@@ -205,18 +209,20 @@ final class WebRTCClient: NSObject {
         let constraints = RTCMediaConstraints(
             mandatoryConstraints: [
                 kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueTrue,
-                kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueTrue
+                kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueTrue,
             ],
             optionalConstraints: nil
         )
         return try await withCheckedThrowingContinuation { continuation in
             pc.offer(for: constraints) { sdp, error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to create offer: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to create offer: \(error.localizedDescription)")
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 } else if let sdp {
                     SanchrLogger.calls.info("SDP offer created")
-                    continuation.resume(returning: sdp)
+                    nonisolated(unsafe) let sendableSdp = sdp
+                    continuation.resume(returning: sendableSdp)
                 } else {
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 }
@@ -232,18 +238,20 @@ final class WebRTCClient: NSObject {
         let constraints = RTCMediaConstraints(
             mandatoryConstraints: [
                 kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueTrue,
-                kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueTrue
+                kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueTrue,
             ],
             optionalConstraints: nil
         )
         return try await withCheckedThrowingContinuation { continuation in
             pc.answer(for: constraints) { sdp, error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to create answer: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to create answer: \(error.localizedDescription)")
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 } else if let sdp {
                     SanchrLogger.calls.info("SDP answer created")
-                    continuation.resume(returning: sdp)
+                    nonisolated(unsafe) let sendableSdp = sdp
+                    continuation.resume(returning: sendableSdp)
                 } else {
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 }
@@ -256,10 +264,12 @@ final class WebRTCClient: NSObject {
         guard let pc = peerConnection else {
             throw AppError.callConnectionFailed
         }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Void, Error>) in
             pc.setLocalDescription(sdp) { error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to set local description: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to set local description: \(error.localizedDescription)")
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 } else {
                     SanchrLogger.calls.info("Local description set: \(sdp.type.rawValue)")
@@ -274,10 +284,12 @@ final class WebRTCClient: NSObject {
         guard let pc = peerConnection else {
             throw AppError.callConnectionFailed
         }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Void, Error>) in
             pc.setRemoteDescription(sdp) { error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to set remote description: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to set remote description: \(error.localizedDescription)")
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 } else {
                     SanchrLogger.calls.info("Remote description set: \(sdp.type.rawValue)")
@@ -292,10 +304,12 @@ final class WebRTCClient: NSObject {
         guard let pc = peerConnection else {
             throw AppError.callConnectionFailed
         }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Void, Error>) in
             pc.add(candidate) { error in
                 if let error {
-                    SanchrLogger.calls.error("Failed to add ICE candidate: \(error.localizedDescription)")
+                    SanchrLogger.calls.error(
+                        "Failed to add ICE candidate: \(error.localizedDescription)")
                     continuation.resume(throwing: AppError.callConnectionFailed)
                 } else {
                     continuation.resume()
@@ -349,9 +363,12 @@ final class WebRTCClient: NSObject {
 
     private func startCameraCapture(capturer: RTCCameraVideoCapturer) {
         let position: AVCaptureDevice.Position = isUsingFrontCamera ? .front : .back
-        guard let device = RTCCameraVideoCapturer.captureDevices()
-            .first(where: { $0.position == position }) else {
-            SanchrLogger.calls.error("No camera device found for position: \(String(describing: position))")
+        guard
+            let device = RTCCameraVideoCapturer.captureDevices()
+                .first(where: { $0.position == position })
+        else {
+            SanchrLogger.calls.error(
+                "No camera device found for position: \(String(describing: position))")
             return
         }
 
@@ -361,7 +378,8 @@ final class WebRTCClient: NSObject {
         let targetFps: Int32 = 30
 
         let formats = RTCCameraVideoCapturer.supportedFormats(for: device)
-        let selectedFormat = formats
+        let selectedFormat =
+            formats
             .sorted { a, b in
                 let dimA = CMVideoFormatDescriptionGetDimensions(a.formatDescription)
                 let dimB = CMVideoFormatDescriptionGetDimensions(b.formatDescription)
@@ -377,23 +395,29 @@ final class WebRTCClient: NSObject {
         }
 
         let fpsRanges = format.videoSupportedFrameRateRanges
-        let selectedFps = fpsRanges
-            .sorted { abs(Int32($0.maxFrameRate) - targetFps) < abs(Int32($1.maxFrameRate) - targetFps) }
+        let selectedFps =
+            fpsRanges
+            .sorted {
+                abs(Int32($0.maxFrameRate) - targetFps) < abs(Int32($1.maxFrameRate) - targetFps)
+            }
             .first
             .map { min(Int(targetFps), Int($0.maxFrameRate)) } ?? Int(targetFps)
 
         capturer.startCapture(with: device, format: format, fps: selectedFps)
-        SanchrLogger.calls.info("Camera capture started: \(device.localizedName) @ \(selectedFps)fps")
+        SanchrLogger.calls.info(
+            "Camera capture started: \(device.localizedName) @ \(selectedFps)fps")
     }
 
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .defaultToSpeaker])
+            try session.setCategory(
+                .playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .defaultToSpeaker])
             try session.setActive(true)
             SanchrLogger.calls.info("Audio session configured for voice chat")
         } catch {
-            SanchrLogger.calls.error("Failed to configure audio session: \(error.localizedDescription)")
+            SanchrLogger.calls.error(
+                "Failed to configure audio session: \(error.localizedDescription)")
         }
     }
 }
@@ -402,13 +426,16 @@ final class WebRTCClient: NSObject {
 
 extension WebRTCClient: RTCPeerConnectionDelegate {
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
+    func peerConnection(
+        _ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState
+    ) {
         SanchrLogger.calls.info("Signaling state changed: \(stateChanged.rawValue)")
         delegate?.webRTCClient(self, didChangeSignalingState: stateChanged)
     }
 
     func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
-        SanchrLogger.calls.info("Remote stream added with \(stream.videoTracks.count) video track(s)")
+        SanchrLogger.calls.info(
+            "Remote stream added with \(stream.videoTracks.count) video track(s)")
         if let videoTrack = stream.videoTracks.first {
             self.remoteVideoTrack = videoTrack
             delegate?.webRTCClient(self, didReceiveRemoteVideoTrack: videoTrack)
@@ -423,21 +450,28 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
         SanchrLogger.calls.info("Peer connection should negotiate")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+    func peerConnection(
+        _ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState
+    ) {
         SanchrLogger.calls.info("ICE connection state changed: \(newState.rawValue)")
         delegate?.webRTCClient(self, didChangeConnectionState: newState)
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+    func peerConnection(
+        _ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState
+    ) {
         SanchrLogger.calls.info("ICE gathering state changed: \(newState.rawValue)")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate)
+    {
         SanchrLogger.calls.info("ICE candidate generated: \(candidate.sdpMid ?? "nil")")
         delegate?.webRTCClient(self, didReceiveLocalCandidate: candidate)
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
+    func peerConnection(
+        _ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]
+    ) {
         SanchrLogger.calls.info("ICE candidates removed: \(candidates.count)")
     }
 

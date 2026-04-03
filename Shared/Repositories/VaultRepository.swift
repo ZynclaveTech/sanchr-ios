@@ -6,7 +6,8 @@ protocol VaultRepositoryProtocol: AnyObject, Sendable {
     func fetchItems() async throws -> [VaultItem]
 
     /// Uploads an encrypted item to the vault.
-    func uploadItem(data: Data, name: String, type: VaultItem.VaultItemType) async throws -> VaultItem
+    func uploadItem(data: Data, name: String, type: VaultItem.VaultItemType) async throws
+        -> VaultItem
 
     /// Downloads and decrypts a vault item.
     func downloadItem(id: String) async throws -> Data
@@ -40,7 +41,9 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
         return try await localDatabase.fetchVaultItems()
     }
 
-    func uploadItem(data: Data, name: String, type: VaultItem.VaultItemType) async throws -> VaultItem {
+    func uploadItem(data: Data, name: String, type: VaultItem.VaultItemType) async throws
+        -> VaultItem
+    {
         SanchrLogger.media.info("Uploading vault item: \(name)")
 
         // TODO: 1. Encrypt data with AES-GCM
@@ -49,7 +52,7 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
         // TODO: 4. Return VaultItem
 
         let encrypted = try mediaEncryption.encrypt(data: data)
-        _ = encrypted // Suppress unused warning
+        _ = encrypted  // Suppress unused warning
 
         throw AppError.serverUnreachable
     }

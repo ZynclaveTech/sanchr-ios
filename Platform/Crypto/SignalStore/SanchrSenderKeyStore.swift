@@ -11,7 +11,8 @@ final class SanchrSenderKeyStore: SenderKeyStore {
 
     private let userId: String
     private var senderKeys: [SenderKeyStoreKey: SenderKeyRecord] = [:]
-    private let queue = DispatchQueue(label: "io.sanchr.signal.sender-key-store", attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: "io.sanchr.signal.sender-key-store", attributes: .concurrent)
     private let storageDirectory: URL
 
     // MARK: - Init
@@ -19,9 +20,12 @@ final class SanchrSenderKeyStore: SenderKeyStore {
     init(userId: String) {
         self.userId = userId
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        self.storageDirectory = base.appendingPathComponent("SignalStore/\(userId)/senderkeys", isDirectory: true)
-        try? FileManager.default.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first!
+        self.storageDirectory = base.appendingPathComponent(
+            "SignalStore/\(userId)/senderkeys", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: storageDirectory, withIntermediateDirectories: true)
 
         loadAllFromDisk()
     }
@@ -83,10 +87,12 @@ final class SanchrSenderKeyStore: SenderKeyStore {
     }
 
     private func loadAllFromDisk() {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: storageDirectory,
-            includingPropertiesForKeys: nil
-        ) else { return }
+        guard
+            let files = try? FileManager.default.contentsOfDirectory(
+                at: storageDirectory,
+                includingPropertiesForKeys: nil
+            )
+        else { return }
 
         var loadedCount = 0
         for fileURL in files where fileURL.pathExtension == "senderkey" {
@@ -101,7 +107,8 @@ final class SanchrSenderKeyStore: SenderKeyStore {
             let deviceIdString = String(components[components.count - 2])
 
             guard let distributionId = UUID(uuidString: uuidString),
-                  let deviceId = UInt32(deviceIdString) else { continue }
+                let deviceId = UInt32(deviceIdString)
+            else { continue }
 
             let senderName = components.dropLast(2).joined(separator: ".")
 
@@ -113,7 +120,8 @@ final class SanchrSenderKeyStore: SenderKeyStore {
                 senderKeys[storeKey] = record
                 loadedCount += 1
             } catch {
-                SanchrLogger.crypto.warning("Failed to load sender key \(filename): \(error.localizedDescription)")
+                SanchrLogger.crypto.warning(
+                    "Failed to load sender key \(filename): \(error.localizedDescription)")
             }
         }
         if loadedCount > 0 {

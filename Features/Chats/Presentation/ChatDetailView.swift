@@ -341,7 +341,8 @@ struct ChatDetailView: View {
                         conversationId: conversation.id,
                         recipientId: recipient?.id ?? "",
                         messageRepository: container.messageRepository,
-                        signalProtocol: container.signalProtocol
+                        signalProtocol: container.signalProtocol,
+                        chatDataSource: container.chatDataSource
                     )
                 }
             } label: {
@@ -419,7 +420,9 @@ struct MessageBubble: View {
         HStack(alignment: .bottom) {
             if message.isOutgoing { Spacer(minLength: 60) }
 
-            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: SanchrSpacing.xxxs) {
+            VStack(
+                alignment: message.isOutgoing ? .trailing : .leading, spacing: SanchrSpacing.xxxs
+            ) {
                 // Content
                 messageContent
 
@@ -531,7 +534,7 @@ struct MessageBubble: View {
                 endPoint: .bottomTrailing
             )
         } else {
-            Color(colorScheme == .dark ? 0x1F1F2E : 0xF3F4F6)
+            Color(hex: colorScheme == .dark ? 0x1F1F2E : 0xF3F4F6)
         }
     }
 

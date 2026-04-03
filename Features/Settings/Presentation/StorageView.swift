@@ -32,13 +32,16 @@ struct StorageView: View {
                             .font(SanchrTypography.bodyBold)
                             .foregroundColor(Color.sanchrTextPrimary(colorScheme))
                         Spacer()
-                        Text("\(viewModel.formattedBytes(viewModel.totalBytes)) / \(viewModel.formattedBytes(viewModel.limitBytes))")
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                        Text(
+                            "\(viewModel.formattedBytes(viewModel.totalBytes)) / \(viewModel.formattedBytes(viewModel.limitBytes))"
+                        )
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                     }
 
                     ProgressView(value: viewModel.storageUsagePercentage)
-                        .tint(viewModel.storageUsagePercentage > 0.9 ? .sanchrError : .sanchrPrimary)
+                        .tint(
+                            viewModel.storageUsagePercentage > 0.9 ? .sanchrError : .sanchrPrimary)
                 }
                 .padding(.vertical, SanchrSpacing.xxs)
 
@@ -200,7 +203,9 @@ struct StorageView: View {
                 Task { await clearCache() }
             }
         } message: {
-            Text("This will remove all cached media. Downloaded files will need to be re-downloaded.")
+            Text(
+                "This will remove all cached media. Downloaded files will need to be re-downloaded."
+            )
         }
         .alert("Clear All Local Data", isPresented: $showClearAllConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -208,9 +213,11 @@ struct StorageView: View {
                 Task { await clearAll() }
             }
         } message: {
-            Text("This will delete all local messages, media, and cached data. This cannot be undone.")
+            Text(
+                "This will delete all local messages, media, and cached data. This cannot be undone."
+            )
         }
-        .task {
+        .task { @MainActor in
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
         }

@@ -23,12 +23,15 @@ enum ChatUseCases {
             // Try server first
             do {
                 let protoConversations = try await chatDataSource.getConversations()
-                let conversations = protoConversations.map { ChatDataSource.mapToDomainConversation($0) }
+                let conversations = protoConversations.map {
+                    ChatDataSource.mapToDomainConversation($0)
+                }
 
                 SanchrLogger.chat.info("Fetched \(conversations.count) conversations from server")
                 return conversations
             } catch {
-                SanchrLogger.chat.warning("Server fetch failed, falling back to local: \(error.localizedDescription)")
+                SanchrLogger.chat.warning(
+                    "Server fetch failed, falling back to local: \(error.localizedDescription)")
                 // Fall back to local database
                 return try await messageRepository.fetchConversations()
             }
@@ -56,7 +59,9 @@ enum ChatUseCases {
         }
 
         /// Sends a text message. Establishes encrypted sessions with all recipient devices if needed.
-        func execute(text: String, conversationId: String, recipientId: String) async throws -> Message {
+        func execute(text: String, conversationId: String, recipientId: String) async throws
+            -> Message
+        {
             let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedText.isEmpty else {
                 throw AppError.unknown(underlying: "Cannot send an empty message.")
@@ -104,8 +109,9 @@ enum ChatUseCases {
             let confirmedMessage = Message(
                 id: response.messageID,
                 conversationId: conversationId,
-                senderId: "local", // TODO: Get from SessionService.currentUserId
-                timestamp: Date(timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000),
+                senderId: "local",  // TODO: Get from SessionService.currentUserId
+                timestamp: Date(
+                    timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000),
                 content: .text(trimmedText),
                 status: .sent,
                 isOutgoing: true
@@ -130,7 +136,9 @@ enum ChatUseCases {
 
         /// Deletes a message. If `forEveryone` is true, also deletes on the server.
         func execute(messageId: String, conversationId: String, forEveryone: Bool) async throws {
-            SanchrLogger.chat.info("DeleteMessageUseCase: deleting \(messageId.prefix(8))... forEveryone=\(forEveryone)")
+            SanchrLogger.chat.info(
+                "DeleteMessageUseCase: deleting \(messageId.prefix(8))... forEveryone=\(forEveryone)"
+            )
 
             // Delete from server if for everyone
             if forEveryone {
@@ -160,7 +168,9 @@ enum ChatUseCases {
         }
 
         func execute(conversationId: String, upToMessageId: String) async throws {
-            SanchrLogger.chat.info("MarkAsReadUseCase: marking \(conversationId.prefix(8)) read up to \(upToMessageId.prefix(8))")
+            SanchrLogger.chat.info(
+                "MarkAsReadUseCase: marking \(conversationId.prefix(8)) read up to \(upToMessageId.prefix(8))"
+            )
 
             // Update local state
             try await messageRepository.markAsRead(
@@ -176,7 +186,8 @@ enum ChatUseCases {
                     status: "read"
                 )
             } catch {
-                SanchrLogger.chat.warning("Failed to send read receipt: \(error.localizedDescription)")
+                SanchrLogger.chat.warning(
+                    "Failed to send read receipt: \(error.localizedDescription)")
             }
         }
     }

@@ -1,5 +1,5 @@
-import Foundation
 import AVFoundation
+import Foundation
 
 /// Model for a call history entry.
 struct CallHistoryEntry: Identifiable, Sendable {

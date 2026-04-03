@@ -110,9 +110,11 @@ struct ChatSettingsView: View {
                 Toggle("Auto-save received media", isOn: $mediaAutoSave)
                     .tint(.sanchrPrimary)
 
-                Text("Automatically save photos and videos received in chats to your device library.")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                Text(
+                    "Automatically save photos and videos received in chats to your device library."
+                )
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 

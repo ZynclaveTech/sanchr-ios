@@ -14,7 +14,8 @@ final class SanchrSignedPreKeyStore: SignedPreKeyStore {
 
     /// In-memory cache to avoid repeated Keychain reads.
     private var cache: [UInt32: SignedPreKeyRecord] = [:]
-    private let queue = DispatchQueue(label: "io.sanchr.signal.signed-prekey-store", attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: "io.sanchr.signal.signed-prekey-store", attributes: .concurrent)
 
     /// Tracks the current signed pre-key ID for rotation decisions.
     private(set) var currentSignedPreKeyId: UInt32 = 0
@@ -76,7 +77,8 @@ final class SanchrSignedPreKeyStore: SignedPreKeyStore {
 
     private func loadCurrentIdFromKeychain() {
         guard let data = try? keychain.read(forKey: currentIdKeychainKey()),
-              data.count >= 4 else { return }
+            data.count >= 4
+        else { return }
         currentSignedPreKeyId = data.withUnsafeBytes { $0.load(as: UInt32.self) }
     }
 }

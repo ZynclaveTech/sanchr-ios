@@ -1,6 +1,6 @@
 import Foundation
-import UserNotifications
 import UIKit
+import UserNotifications
 
 /// Handles modifying notification content before display.
 /// In production, the actual decryption would live in a Notification Service Extension target
@@ -31,7 +31,8 @@ final class SanchrNotificationService: Sendable {
                 try await UNUserNotificationCenter.current().setBadgeCount(count)
                 SanchrLogger.push.info("Badge count updated to \(count)")
             } catch {
-                SanchrLogger.push.error("Failed to update badge count: \(error.localizedDescription)")
+                SanchrLogger.push.error(
+                    "Failed to update badge count: \(error.localizedDescription)")
             }
         } else {
             UIApplication.shared.applicationIconBadgeNumber = count
@@ -44,7 +45,8 @@ final class SanchrNotificationService: Sendable {
     static func clearNotifications(for conversationId: String) {
         let center = UNUserNotificationCenter.current()
         center.getDeliveredNotifications { notifications in
-            let matchingIds = notifications
+            let matchingIds =
+                notifications
                 .filter { notification in
                     let userInfo = notification.request.content.userInfo
                     if let payload = SanchrPushPayload.from(userInfo: userInfo) {
@@ -57,7 +59,9 @@ final class SanchrNotificationService: Sendable {
 
             if !matchingIds.isEmpty {
                 center.removeDeliveredNotifications(withIdentifiers: matchingIds)
-                SanchrLogger.push.info("Cleared \(matchingIds.count) notifications for conversation \(conversationId.prefix(8))...")
+                SanchrLogger.push.info(
+                    "Cleared \(matchingIds.count) notifications for conversation \(conversationId.prefix(8))..."
+                )
             }
         }
     }

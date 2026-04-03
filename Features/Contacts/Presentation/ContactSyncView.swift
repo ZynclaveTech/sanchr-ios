@@ -122,11 +122,13 @@ struct ContactSyncView: View {
                 .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
             // Description
-            Text("Sanchr uses secure contact discovery to find your friends. Your contacts are hashed locally and never stored on our servers.")
-                .font(SanchrTypography.body)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SanchrSpacing.lg)
+            Text(
+                "Sanchr uses secure contact discovery to find your friends. Your contacts are hashed locally and never stored on our servers."
+            )
+            .font(SanchrTypography.body)
+            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, SanchrSpacing.lg)
 
             // Permission cards
             VStack(spacing: SanchrSpacing.sm) {

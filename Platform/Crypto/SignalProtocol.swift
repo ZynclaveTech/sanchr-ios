@@ -13,7 +13,8 @@ protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data
 
     /// Encrypts a message for all devices of a recipient.
-    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Vync_Messaging_DeviceMessage]
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
+        -> [Vync_Messaging_DeviceMessage]
 
     /// Decrypts an incoming ciphertext from a sender device.
     func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
@@ -55,10 +56,12 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
     func establishSession(with userId: String, deviceId: Int32) async throws {
         let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
 
-        SanchrLogger.crypto.info("Establishing session with \(userId.prefix(8))... device \(deviceId)")
+        SanchrLogger.crypto.info(
+            "Establishing session with \(userId.prefix(8))... device \(deviceId)")
 
         // 1. Fetch the recipient's pre-key bundle from the server.
-        let preKeyBundle = try await keyManager.fetchPreKeyBundle(userId: userId, deviceId: deviceId)
+        let preKeyBundle = try await keyManager.fetchPreKeyBundle(
+            userId: userId, deviceId: deviceId)
 
         // 2. Process the bundle to perform X3DH key agreement and initialize the Double Ratchet.
         try processPreKeyBundle(
@@ -69,7 +72,8 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
             context: NullContext()
         )
 
-        SanchrLogger.crypto.info("Session established with \(userId.prefix(8))... device \(deviceId)")
+        SanchrLogger.crypto.info(
+            "Session established with \(userId.prefix(8))... device \(deviceId)")
     }
 
     func hasSession(with userId: String, deviceId: Int32) throws -> Bool {
@@ -117,7 +121,9 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         return envelope
     }
 
-    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Vync_Messaging_DeviceMessage] {
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
+        -> [Vync_Messaging_DeviceMessage]
+    {
         // Fetch all device IDs for this recipient from the server.
         let deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
 
@@ -125,7 +131,8 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         deviceMessages.reserveCapacity(deviceIds.count)
 
         for deviceId in deviceIds {
-            let ciphertext = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
+            let ciphertext = try await encrypt(
+                plaintext: plaintext, for: recipientId, deviceId: deviceId)
 
             var dm = Vync_Messaging_DeviceMessage()
             dm.recipientID = recipientId
@@ -139,7 +146,8 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
 
     // MARK: - Message Decryption
 
-    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
+    {
         guard !ciphertext.isEmpty else {
             throw AppError.decryptionFailed(reason: "Empty ciphertext")
         }
@@ -162,6 +170,7 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
                 identityStore: store,
                 preKeyStore: store,
                 signedPreKeyStore: store,
+                kyberPreKeyStore: store,
                 context: NullContext()
             )
             plaintext = Data(decryptedBytes)
@@ -203,17 +212,21 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
 
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String {
         let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
-        let localIdentity = try store.identityStore.identityKeyPair(context: NullContext()).identityKey
-        guard let remoteIdentity = try store.identityStore.identity(for: address, context: NullContext()) else {
+        let localIdentity = try store.identityStore.identityKeyPair(context: NullContext())
+            .identityKey
+        guard
+            let remoteIdentity = try store.identityStore.identity(
+                for: address, context: NullContext())
+        else {
             throw AppError.sessionNotEstablished
         }
 
         let fingerprint = try NumericFingerprintGenerator(iterations: 5200).create(
             version: 2,
             localIdentifier: Data(store.userId.utf8),
-            localKey: localIdentity,
+            localKey: localIdentity.publicKey,
             remoteIdentifier: Data(userId.utf8),
-            remoteKey: remoteIdentity
+            remoteKey: remoteIdentity.publicKey
         )
 
         return fingerprint.displayable.formatted

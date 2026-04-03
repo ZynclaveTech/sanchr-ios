@@ -82,7 +82,9 @@ struct CallHistoryRow: View {
                 HStack(spacing: SanchrSpacing.xxs) {
                     Image(systemName: entry.directionIcon)
                         .font(.caption2)
-                        .foregroundColor(entry.type == .missed ? .sanchrError : Color.sanchrTextTertiary(colorScheme))
+                        .foregroundColor(
+                            entry.type == .missed
+                                ? .sanchrError : Color.sanchrTextTertiary(colorScheme))
                     Text(entry.timestamp.chatTimestamp)
                         .font(SanchrTypography.captionSmall)
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))

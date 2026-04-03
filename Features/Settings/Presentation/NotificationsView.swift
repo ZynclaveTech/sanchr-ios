@@ -31,7 +31,7 @@ struct NotificationsView: View {
                         Button("Settings") {
                             viewModel.openSystemSettings()
                         }
-                        .font(SanchrTypography.captionBold)
+                        .font(SanchrTypography.caption.bold())
                         .foregroundColor(.sanchrPrimary)
                     }
                     .padding(.vertical, SanchrSpacing.xs)
@@ -110,9 +110,12 @@ struct NotificationsView: View {
                         Text("Notification tone")
                             .font(SanchrTypography.body)
                         Spacer()
-                        Text(viewModel.notificationSound.isEmpty ? "Default" : viewModel.notificationSound)
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                        Text(
+                            viewModel.notificationSound.isEmpty
+                                ? "Default" : viewModel.notificationSound
+                        )
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                     }
                 }
             }
@@ -132,7 +135,7 @@ struct NotificationsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .task { @MainActor in
             await viewModel.checkSystemPermission()
         }
     }
@@ -151,7 +154,7 @@ struct NotificationSoundPicker: View {
         ("Bell", "bell"),
         ("Pulse", "pulse"),
         ("Gentle", "gentle"),
-        ("None", "none")
+        ("None", "none"),
     ]
 
     var body: some View {
@@ -210,8 +213,9 @@ final class NotificationsViewModel {
     /// Check whether the user has granted notification permission at the system level.
     func checkSystemPermission() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        systemPermissionGranted = settings.authorizationStatus == .authorized ||
-                                  settings.authorizationStatus == .provisional
+        systemPermissionGranted =
+            settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
     }
 
     /// Open the system Settings app to the Sanchr notification settings.
@@ -232,7 +236,7 @@ final class NotificationsViewModel {
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            Task {
+            Task { @MainActor in
                 await self.performSync(using: service)
             }
         }
@@ -242,7 +246,9 @@ final class NotificationsViewModel {
     }
 
     /// Performs the actual gRPC call to update notification preferences.
-    private func performSync(using service: Vync_Notifications_NotificationServiceClientProtocol) async {
+    private func performSync(using service: Vync_Notifications_NotificationServiceClientProtocol)
+        async
+    {
         errorMessage = nil
 
         var request = Vync_Notifications_UpdateNotificationPrefsRequest()
@@ -258,7 +264,8 @@ final class NotificationsViewModel {
             SanchrLogger.push.info("Notification preferences synced to backend")
         } catch {
             errorMessage = "Failed to save preferences. Please try again."
-            SanchrLogger.push.error("Failed to sync notification preferences: \(error.localizedDescription)")
+            SanchrLogger.push.error(
+                "Failed to sync notification preferences: \(error.localizedDescription)")
         }
     }
 }

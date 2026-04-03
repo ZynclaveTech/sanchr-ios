@@ -181,7 +181,7 @@ struct LoginView: View {
 
     private var continueButton: some View {
         Button {
-            Task { await viewModel.requestOTP(authService: container.authService) }
+            Task { @MainActor in await viewModel.requestOTP(authService: container.authService) }
         } label: {
             HStack(spacing: SanchrSpacing.xs) {
                 if viewModel.isLoading {

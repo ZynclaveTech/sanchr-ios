@@ -1,6 +1,6 @@
+import Combine
 import Foundation
 import Network
-import Combine
 
 /// Protocol for observing network connectivity changes.
 protocol NetworkMonitorProtocol: AnyObject, Sendable {

@@ -161,7 +161,8 @@ struct RegisterView: View {
         } label: {
             ZStack {
                 if let imageData = viewModel.profileImageData,
-                   let uiImage = UIImage(data: imageData) {
+                    let uiImage = UIImage(data: imageData)
+                {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()

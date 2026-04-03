@@ -19,7 +19,8 @@ final class ChatDataSource: @unchecked Sendable {
         var request = Vync_Messaging_StartDirectConversationRequest()
         request.recipientID = recipientID
 
-        SanchrLogger.chat.info("ChatDataSource: startDirectConversation with \(recipientID.prefix(8))...")
+        SanchrLogger.chat.info(
+            "ChatDataSource: startDirectConversation with \(recipientID.prefix(8))...")
         return try await messagingClient.startDirectConversation(request)
     }
 
@@ -39,7 +40,9 @@ final class ChatDataSource: @unchecked Sendable {
         request.contentType = contentType
         request.expiresAfterSecs = expiresAfterSecs
 
-        SanchrLogger.chat.info("ChatDataSource: sendMessage to conversation \(conversationID.prefix(8))... (\(deviceMessages.count) device(s))")
+        SanchrLogger.chat.info(
+            "ChatDataSource: sendMessage to conversation \(conversationID.prefix(8))... (\(deviceMessages.count) device(s))"
+        )
         return try await messagingClient.sendMessage(request)
     }
 
@@ -127,7 +130,8 @@ final class ChatDataSource: @unchecked Sendable {
         request.messageID = messageID
         request.status = status
 
-        SanchrLogger.chat.info("ChatDataSource: sendReceipt \(status) for \(messageID.prefix(8))...")
+        SanchrLogger.chat.info(
+            "ChatDataSource: sendReceipt \(status) for \(messageID.prefix(8))...")
         _ = try await messagingClient.sendReceipt(request)
     }
 
@@ -135,7 +139,9 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Syncs messages from the server since a given timestamp.
     /// Returns an AsyncStream of encrypted envelopes.
-    func syncMessages(sinceTimestamp: Int64) async throws -> AsyncStream<Vync_Messaging_EncryptedEnvelope> {
+    func syncMessages(sinceTimestamp: Int64) async throws -> AsyncStream<
+        Vync_Messaging_EncryptedEnvelope
+    > {
         var request = Vync_Messaging_SyncRequest()
         request.sinceTimestamp = sinceTimestamp
 
@@ -157,7 +163,8 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Maps a proto Conversation to the domain Conversation model.
     static func mapToDomainConversation(_ proto: Vync_Messaging_Conversation) -> Conversation {
-        let conversationType: Conversation.ConversationType = proto.type == "group" ? .group : .oneToOne
+        let conversationType: Conversation.ConversationType =
+            proto.type == "group" ? .group : .oneToOne
 
         return Conversation(
             id: proto.id,

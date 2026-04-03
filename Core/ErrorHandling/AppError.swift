@@ -119,7 +119,7 @@ enum AppError: LocalizedError, Equatable {
     var isRetryable: Bool {
         switch self {
         case .networkUnavailable, .serverUnreachable, .requestTimeout,
-             .mediaUploadFailed, .mediaDownloadFailed, .callConnectionFailed:
+            .mediaUploadFailed, .mediaDownloadFailed, .callConnectionFailed:
             return true
         default:
             return false

@@ -1,6 +1,6 @@
 import Foundation
-import UserNotifications
 import UIKit
+import UserNotifications
 
 // MARK: - Notification Action
 
@@ -81,7 +81,9 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         let center = UNUserNotificationCenter.current()
 
         do {
-            let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound, .providesAppNotificationSettings])
+            let granted = try await center.requestAuthorization(options: [
+                .alert, .badge, .sound, .providesAppNotificationSettings,
+            ])
             isPermissionGranted = granted
 
             if granted {
@@ -96,7 +98,8 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
             return granted
         } catch {
-            SanchrLogger.push.error("Failed to request notification permission: \(error.localizedDescription)")
+            SanchrLogger.push.error(
+                "Failed to request notification permission: \(error.localizedDescription)")
             return false
         }
     }
@@ -218,7 +221,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         UNUserNotificationCenter.current().setNotificationCategories([
             messageCategory,
             callCategory,
-            missedCallCategory
+            missedCallCategory,
         ])
 
         SanchrLogger.push.info("Notification categories configured")
@@ -228,7 +231,9 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     /// Handle a foreground notification. Returns presentation options.
     /// Shows banner for notifications not belonging to the currently active conversation.
-    func handleForegroundNotification(_ notification: UNNotification) -> UNNotificationPresentationOptions {
+    func handleForegroundNotification(_ notification: UNNotification)
+        -> UNNotificationPresentationOptions
+    {
         let userInfo = notification.request.content.userInfo
         guard let payload = SanchrPushPayload.from(userInfo: userInfo) else {
             // Unknown payload -- show it anyway
@@ -238,8 +243,10 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         // Suppress notification if the user is already viewing this conversation.
         // The active conversation ID would be set by ChatDetailView on appear.
         if let conversationId = payload.conversationId,
-           conversationId == Self.activeConversationId {
-            SanchrLogger.push.info("Suppressing notification for active conversation \(conversationId.prefix(8))...")
+            conversationId == Self.activeConversationId
+        {
+            SanchrLogger.push.info(
+                "Suppressing notification for active conversation \(conversationId.prefix(8))...")
             return []
         }
 
@@ -266,8 +273,10 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         // Inline reply from notification
         case SanchrNotificationCategory.Action.reply:
             if let textResponse = response as? UNTextInputNotificationResponse,
-               let conversationId = payload?.conversationId {
-                SanchrLogger.push.info("Reply action for conversation \(conversationId.prefix(8))...")
+                let conversationId = payload?.conversationId
+            {
+                SanchrLogger.push.info(
+                    "Reply action for conversation \(conversationId.prefix(8))...")
                 return .replyToMessage(conversationId: conversationId, text: textResponse.userText)
             }
             return .none
@@ -422,7 +431,7 @@ extension PushManager {
                 "type": "message",
                 "conversation_id": conversationId,
                 "sender_name": senderName,
-                "message_preview": messagePreview
+                "message_preview": messagePreview,
             ]
         ]
         return content
@@ -445,7 +454,7 @@ extension PushManager {
                 "type": "call",
                 "call_id": callId,
                 "call_type": callType,
-                "sender_name": callerName
+                "sender_name": callerName,
             ]
         ]
         return content
@@ -465,7 +474,7 @@ extension PushManager {
             "sanchr": [
                 "type": "missed_call",
                 "sender_name": callerName,
-                "call_type": callType
+                "call_type": callType,
             ]
         ]
         return content

@@ -57,7 +57,8 @@ extension SanchrPushPayload {
             let payload = try JSONDecoder().decode(SanchrPushPayload.self, from: jsonData)
             return payload
         } catch {
-            SanchrLogger.push.error("Failed to decode SanchrPushPayload: \(error.localizedDescription)")
+            SanchrLogger.push.error(
+                "Failed to decode SanchrPushPayload: \(error.localizedDescription)")
             return nil
         }
     }

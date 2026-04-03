@@ -43,7 +43,7 @@ struct Conversation: Identifiable, Codable, Hashable, Sendable {
         case .oneToOne:
             return participants.first(where: { !$0.isLocalUser })?.avatarURL
         case .group:
-            return nil // TODO: Group avatar support
+            return nil  // TODO: Group avatar support
         }
     }
 

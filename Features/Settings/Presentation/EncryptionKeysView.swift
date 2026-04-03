@@ -25,9 +25,11 @@ struct EncryptionKeysView: View {
                             .foregroundColor(Color.sanchrTextPrimary(colorScheme))
                     }
 
-                    Text("Messages, calls, and files are secured with the Signal Protocol. Only you and the recipient can read your messages.")
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                    Text(
+                        "Messages, calls, and files are secured with the Signal Protocol. Only you and the recipient can read your messages."
+                    )
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                 }
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
@@ -132,9 +134,10 @@ struct EncryptionKeysView: View {
                     Text("\(preKeyCount)")
                         .font(SanchrTypography.bodyBold)
                         .foregroundColor(
-                            preKeyCount < 10 ? .sanchrError :
-                            preKeyCount < 50 ? .sanchrWarning :
-                            Color.sanchrTextSecondary(colorScheme)
+                            preKeyCount < 10
+                                ? .sanchrError
+                                : preKeyCount < 50
+                                    ? .sanchrWarning : Color.sanchrTextSecondary(colorScheme)
                         )
                 }
 
@@ -170,9 +173,11 @@ struct EncryptionKeysView: View {
                     Text("Reset encryption keys")
                 }
 
-                Text("This will end all active encrypted sessions. You will need to verify your identity with all contacts again.")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                Text(
+                    "This will end all active encrypted sessions. You will need to verify your identity with all contacts again."
+                )
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
         }
@@ -187,8 +192,11 @@ struct EncryptionKeysView: View {
     // MARK: - Key Info Loading
 
     private func loadKeyInfo() async {
-        if let pubKey = try? await container.keyManager.localIdentityPublicKey() {
-            let hex = pubKey.map { String(format: "%02x", $0) }.joined(separator: " ")
+        if container.keyManager.hasIdentityKeys,
+            let identity = try? container.keyManager.generateIdentityIfNeeded()
+        {
+            let pubKeyBytes = identity.identityKey.publicKey.serialize()
+            let hex = pubKeyBytes.map { String(format: "%02x", $0) }.joined(separator: " ")
             identityKeyFingerprint = hex
         } else {
             identityKeyFingerprint = "No identity key generated"

@@ -37,7 +37,9 @@ final class GRPCClient: GRPCClientProtocol, @unchecked Sendable {
     }
 
     func connect() async throws {
-        SanchrLogger.network.info("Connecting to gRPC server at \(self.configuration.grpcHost):\(self.configuration.grpcPort)")
+        SanchrLogger.network.info(
+            "Connecting to gRPC server at \(self.configuration.grpcHost):\(self.configuration.grpcPort)"
+        )
 
         // TODO: Implement gRPC channel setup
         // group = PlatformSupport.makeEventLoopGroup(loopCount: 1)

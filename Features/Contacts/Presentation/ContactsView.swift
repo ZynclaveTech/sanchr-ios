@@ -237,7 +237,8 @@ struct ContactRow: View {
                             Circle()
                                 .stroke(Color.sanchrSurface(colorScheme), lineWidth: 2)
                         )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                        .frame(
+                            maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
             }
             .frame(width: 48, height: 48)

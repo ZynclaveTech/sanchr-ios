@@ -10,13 +10,16 @@ struct SendMessageUseCase: Sendable {
     private let messageRepository: MessageRepositoryProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
 
-    init(messageRepository: MessageRepositoryProtocol, signalProtocol: SignalProtocolManagerProtocol) {
+    init(
+        messageRepository: MessageRepositoryProtocol, signalProtocol: SignalProtocolManagerProtocol
+    ) {
         self.messageRepository = messageRepository
         self.signalProtocol = signalProtocol
     }
 
     /// Sends a text message to the specified conversation.
-    func execute(text: String, conversationId: String, recipientId: String) async throws -> Message {
+    func execute(text: String, conversationId: String, recipientId: String) async throws -> Message
+    {
         // 1. Ensure encrypted session exists (establish via X3DH if needed)
         if !signalProtocol.hasSession(with: recipientId) {
             try await signalProtocol.establishSession(with: recipientId, deviceId: 1)
@@ -25,7 +28,7 @@ struct SendMessageUseCase: Sendable {
         // 2. Create message
         let message = Message.textMessage(
             conversationId: conversationId,
-            senderId: "local", // TODO: Get from SessionService.currentUserId
+            senderId: "local",  // TODO: Get from SessionService.currentUserId
             text: text,
             isOutgoing: true
         )

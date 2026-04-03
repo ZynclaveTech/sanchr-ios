@@ -13,7 +13,9 @@ final class CallDataSource: @unchecked Sendable {
     // MARK: - Call Signaling
 
     /// Sends an SDP offer to initiate a call with the specified recipient.
-    func initiateCall(recipientId: String, callType: String, sdpOffer: Data) async throws -> Vync_Calling_CallResponse {
+    func initiateCall(recipientId: String, callType: String, sdpOffer: Data) async throws
+        -> Vync_Calling_CallResponse
+    {
         var request = Vync_Calling_CallOffer()
         request.recipientID = recipientId
         request.callType = callType
@@ -22,7 +24,9 @@ final class CallDataSource: @unchecked Sendable {
     }
 
     /// Opens a bidirectional signaling stream for exchanging SDP, ICE candidates, and control messages.
-    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) async throws -> AsyncStream<Vync_Calling_CallSignal> {
+    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) async throws -> AsyncStream<
+        Vync_Calling_CallSignal
+    > {
         return try await callService.callStream(send: outbound)
     }
 

@@ -147,7 +147,7 @@ struct OTPView: View {
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .focused($isFocused)
-                .opacity(0.01) // Invisible but captures input
+                .opacity(0.01)  // Invisible but captures input
                 .onChange(of: viewModel.otpCode) { _, newValue in
                     if newValue.count == 6 {
                         Task {

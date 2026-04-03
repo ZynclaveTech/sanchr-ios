@@ -7,46 +7,47 @@ final class DependencyContainer {
 
     // MARK: - Platform Services
 
-    lazy var keychainService: KeychainServiceProtocol = KeychainService()
+    @ObservationIgnored lazy var keychainService: KeychainServiceProtocol = KeychainService()
 
-    lazy var secureStorage: SecureStorageProtocol = SecureStorage(
+    @ObservationIgnored lazy var secureStorage: SecureStorageProtocol = SecureStorage(
         keychain: keychainService
     )
 
-    lazy var networkMonitor: NetworkMonitorProtocol = NetworkMonitor()
+    @ObservationIgnored lazy var networkMonitor: NetworkMonitorProtocol = NetworkMonitor()
 
-    lazy var grpcClient: GRPCClientProtocol = GRPCClient(
+    @ObservationIgnored lazy var grpcClient: GRPCClientProtocol = GRPCClient(
         configuration: appConfiguration
     )
 
-    lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase()
+    @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase()
 
     // MARK: - Signal Protocol (E2EE)
 
     /// The unified Signal Protocol store backed by Keychain and local file persistence.
     /// Initialized with a placeholder user ID; updated after authentication via `configureSignalStore(userId:)`.
-    lazy var signalStore: SanchrSignalStore = SanchrSignalStore(
+    @ObservationIgnored lazy var signalStore: SanchrSignalStore = SanchrSignalStore(
         userId: sessionService.currentUserId ?? "pending",
         keychainService: keychainService
     )
 
     /// Key lifecycle manager: generates identity keys, signed pre-keys, one-time pre-keys,
     /// and synchronizes with the server's KeyService.
-    lazy var signalKeyManager: SignalKeyManager = SignalKeyManager(
+    @ObservationIgnored lazy var signalKeyManager: SignalKeyManager = SignalKeyManager(
         store: signalStore,
         keyService: keyServiceClient
     )
 
     /// Session manager: X3DH session establishment, Double Ratchet encrypt/decrypt.
-    lazy var signalSessionManager: SignalSessionManager = SignalSessionManager(
+    @ObservationIgnored lazy var signalSessionManager: SignalSessionManager = SignalSessionManager(
         store: signalStore,
         keyManager: signalKeyManager
     )
 
     /// gRPC client for the KeyService (pre-key uploads, bundle fetches, device queries).
-    lazy var keyServiceClient: Vync_Keys_KeyServiceClientProtocol = Vync_Keys_KeyServiceClient(
-        grpcClient: grpcClient
-    )
+    @ObservationIgnored lazy var keyServiceClient: Vync_Keys_KeyServiceClientProtocol =
+        Vync_Keys_KeyServiceClient(
+            grpcClient: grpcClient
+        )
 
     // MARK: - Crypto (Legacy Protocols Bridged to Signal)
 
@@ -56,27 +57,29 @@ final class DependencyContainer {
     /// Exposes the `SignalSessionManager` as the `SignalProtocolManagerProtocol` for existing call sites.
     var signalProtocol: SignalProtocolManagerProtocol { signalSessionManager }
 
-    lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
+    @ObservationIgnored lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
 
     // MARK: - Repositories
 
-    lazy var authRepository: AuthRepositoryProtocol = AuthRepositoryImpl(
+    @ObservationIgnored lazy var authRepository: AuthRepositoryProtocol = AuthRepositoryImpl(
         grpcClient: grpcClient,
         secureStorage: secureStorage
     )
 
-    lazy var messageRepository: MessageRepositoryProtocol = MessageRepositoryImpl(
-        grpcClient: grpcClient,
-        localDatabase: localDatabase,
-        signalProtocol: signalSessionManager
-    )
+    @ObservationIgnored lazy var messageRepository: MessageRepositoryProtocol =
+        MessageRepositoryImpl(
+            grpcClient: grpcClient,
+            localDatabase: localDatabase,
+            signalProtocol: signalSessionManager
+        )
 
-    lazy var contactRepository: ContactRepositoryProtocol = ContactRepositoryImpl(
-        grpcClient: grpcClient,
-        localDatabase: localDatabase
-    )
+    @ObservationIgnored lazy var contactRepository: ContactRepositoryProtocol =
+        ContactRepositoryImpl(
+            grpcClient: grpcClient,
+            localDatabase: localDatabase
+        )
 
-    lazy var vaultRepository: VaultRepositoryProtocol = VaultRepositoryImpl(
+    @ObservationIgnored lazy var vaultRepository: VaultRepositoryProtocol = VaultRepositoryImpl(
         grpcClient: grpcClient,
         localDatabase: localDatabase,
         mediaEncryption: mediaEncryption
@@ -84,12 +87,12 @@ final class DependencyContainer {
 
     // MARK: - Services
 
-    lazy var sessionService: SessionService = SessionService(
+    @ObservationIgnored lazy var sessionService: SessionService = SessionService(
         secureStorage: secureStorage,
         authRepository: authRepository
     )
 
-    lazy var authService: AuthServiceProtocol = AuthServiceImpl(
+    @ObservationIgnored lazy var authService: AuthServiceProtocol = AuthServiceImpl(
         repository: authRepository,
         sessionService: sessionService
     )
@@ -97,10 +100,10 @@ final class DependencyContainer {
     // MARK: - Sync
 
     /// Tracks sync state across the app (last sync time, syncing indicator, errors).
-    lazy var syncState: SyncState = SyncState.load()
+    @ObservationIgnored lazy var syncState: SyncState = SyncState.load()
 
     /// Background sync coordinator using BGTaskScheduler.
-    lazy var syncOrchestrator: SyncOrchestrator = SyncOrchestrator(
+    @ObservationIgnored lazy var syncOrchestrator: SyncOrchestrator = SyncOrchestrator(
         messageRepository: messageRepository,
         contactRepository: contactRepository,
         vaultRepository: vaultRepository,
@@ -114,57 +117,68 @@ final class DependencyContainer {
     // MARK: - Notifications
 
     /// gRPC client for the NotificationService (token registration, preference updates).
-    lazy var notificationServiceClient: Vync_Notifications_NotificationServiceClientProtocol = Vync_Notifications_NotificationServiceClient(
-        grpcClient: grpcClient
-    )
+    @ObservationIgnored lazy var notificationServiceClient:
+        Vync_Notifications_NotificationServiceClientProtocol =
+            Vync_Notifications_NotificationServiceClient(
+                grpcClient: grpcClient
+            )
 
     /// Manages APNs registration, token upload, foreground presentation, and notification actions.
-    lazy var pushManager: PushManager = PushManager(
+    @ObservationIgnored lazy var pushManager: PushManager = PushManager(
         notificationService: notificationServiceClient
     )
 
     // MARK: - Media
 
-    lazy var mediaManager: MediaManagerProtocol = MediaManager(
+    @ObservationIgnored lazy var mediaManager: MediaManagerProtocol = MediaManager(
         mediaEncryption: mediaEncryption
+    )
+
+    // MARK: - Chat Data
+
+    @ObservationIgnored lazy var chatDataSource: ChatDataSource = ChatDataSource(
+        grpcClient: grpcClient
     )
 
     // MARK: - Calls
 
     /// gRPC client for the CallSignalingService.
-    lazy var callSignalingService: Vync_Calling_CallSignalingServiceClientProtocol = Vync_Calling_CallSignalingServiceClient(
-        grpcClient: grpcClient
-    )
+    @ObservationIgnored lazy var callSignalingService:
+        Vync_Calling_CallSignalingServiceClientProtocol = Vync_Calling_CallSignalingServiceClient(
+            grpcClient: grpcClient
+        )
 
     /// WebRTC peer connection manager.
-    lazy var webRTCClient: WebRTCClient = WebRTCClient()
+    @ObservationIgnored lazy var webRTCClient: WebRTCClient = WebRTCClient()
 
     /// CallKit + signaling orchestrator for voice/video calls.
-    lazy var callManager: CallManager = CallManager(
+    @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
         callService: callSignalingService
     )
 
     /// Data source for call signaling gRPC operations.
-    lazy var callDataSource: CallDataSource = CallDataSource(
+    @ObservationIgnored lazy var callDataSource: CallDataSource = CallDataSource(
         callService: callSignalingService
     )
 
     /// Use case: fetch and format call history.
-    lazy var getCallHistoryUseCase: CallUseCases.GetCallHistory = CallUseCases.GetCallHistory(
-        callDataSource: callDataSource
-    )
+    @ObservationIgnored lazy var getCallHistoryUseCase: CallUseCases.GetCallHistory =
+        CallUseCases.GetCallHistory(
+            callDataSource: callDataSource
+        )
 
     /// Use case: validate and start an outgoing call.
-    lazy var startCallUseCase: CallUseCases.StartCall = CallUseCases.StartCall(
+    @ObservationIgnored lazy var startCallUseCase: CallUseCases.StartCall = CallUseCases.StartCall(
         callManager: callManager,
         networkMonitor: networkMonitor
     )
 
     /// Use case: fetch TURN credentials.
-    lazy var getTurnCredentialsUseCase: CallUseCases.GetTurnCredentials = CallUseCases.GetTurnCredentials(
-        callDataSource: callDataSource
-    )
+    @ObservationIgnored lazy var getTurnCredentialsUseCase: CallUseCases.GetTurnCredentials =
+        CallUseCases.GetTurnCredentials(
+            callDataSource: callDataSource
+        )
 
     // MARK: - Configuration
 

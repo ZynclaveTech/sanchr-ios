@@ -23,7 +23,9 @@ final class AuthDataSource: @unchecked Sendable {
     // MARK: - Registration
 
     /// Registers a new user and returns auth tokens.
-    func register(phoneNumber: String, displayName: String, password: String = "", email: String = "") async throws -> AuthTokens {
+    func register(
+        phoneNumber: String, displayName: String, password: String = "", email: String = ""
+    ) async throws -> AuthTokens {
         var request = Vync_Auth_RegisterRequest()
         request.phoneNumber = phoneNumber
         request.displayName = displayName
@@ -129,7 +131,7 @@ final class AuthDataSource: @unchecked Sendable {
         AuthTokens(
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
-            expiresAt: Date().addingTimeInterval(3600), // Default 1h expiry
+            expiresAt: Date().addingTimeInterval(3600),  // Default 1h expiry
             userId: response.user?.id ?? ""
         )
     }

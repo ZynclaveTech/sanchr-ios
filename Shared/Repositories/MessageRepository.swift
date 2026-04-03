@@ -52,9 +52,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         throw AppError.serverUnreachable
     }
 
-    func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
+    func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message]
+    {
         // TODO: Fetch from local DB first, then sync with server
-        return try await localDatabase.fetchMessages(conversationId: conversationId, limit: limit, offset: 0)
+        return try await localDatabase.fetchMessages(
+            conversationId: conversationId, limit: limit, offset: 0)
     }
 
     func fetchConversations() async throws -> [Conversation] {

@@ -83,7 +83,7 @@ struct ActiveCallView: View {
                 colors: [
                     Color(hex: 0x1A1033),
                     Color(hex: 0x0F0F1A),
-                    Color(hex: 0x0A0A14)
+                    Color(hex: 0x0A0A14),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -314,8 +314,8 @@ struct PulseRingView: View {
                     .opacity(isPulsing ? 0 : 0.6)
                     .animation(
                         .easeInOut(duration: 1.5)
-                        .repeatForever(autoreverses: false)
-                        .delay(Double(index) * 0.3),
+                            .repeatForever(autoreverses: false)
+                            .delay(Double(index) * 0.3),
                         value: isPulsing
                     )
             }
@@ -373,7 +373,7 @@ struct LocalVideoView: UIViewRepresentable {
     func makeUIView(context: Context) -> RTCMTLVideoView {
         let view = RTCMTLVideoView(frame: .zero)
         view.videoContentMode = .scaleAspectFill
-        view.transform = CGAffineTransform(scaleX: -1, y: 1) // Mirror front camera
+        view.transform = CGAffineTransform(scaleX: -1, y: 1)  // Mirror front camera
         callManager.attachLocalRenderer(view)
         return view
     }

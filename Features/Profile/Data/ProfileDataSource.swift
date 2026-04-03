@@ -1,5 +1,5 @@
-import Foundation
 import CryptoKit
+import Foundation
 
 /// Data source for profile-related gRPC service calls.
 /// Wires to SettingsService.UpdateProfile and MediaService for avatar upload.
@@ -44,7 +44,8 @@ final class ProfileDataSource: @unchecked Sendable {
         uploadRequest.contentType = "image/jpeg"
         uploadRequest.sha256Hash = hashHex
 
-        SanchrLogger.network.info("ProfileDataSource: getUploadUrl for avatar (\(imageData.count) bytes)")
+        SanchrLogger.network.info(
+            "ProfileDataSource: getUploadUrl for avatar (\(imageData.count) bytes)")
         let uploadResponse = try await mediaClient.getUploadUrl(uploadRequest)
 
         // 3. Upload to S3
@@ -56,7 +57,8 @@ final class ProfileDataSource: @unchecked Sendable {
         confirmRequest.fileSize = Int64(imageData.count)
         _ = try await mediaClient.confirmUpload(confirmRequest)
 
-        SanchrLogger.network.info("ProfileDataSource: avatar uploaded, mediaID=\(uploadResponse.mediaID)")
+        SanchrLogger.network.info(
+            "ProfileDataSource: avatar uploaded, mediaID=\(uploadResponse.mediaID)")
 
         // Return the URL (the server may transform this; use the presigned URL as fallback)
         return uploadResponse.url
@@ -91,7 +93,8 @@ final class ProfileDataSource: @unchecked Sendable {
         let (_, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
+            (200...299).contains(httpResponse.statusCode)
+        else {
             throw AppError.mediaUploadFailed
         }
 

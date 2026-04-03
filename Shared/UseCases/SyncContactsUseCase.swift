@@ -1,5 +1,5 @@
-import Foundation
 import Contacts
+import Foundation
 
 /// Legacy use case for syncing device contacts with the Sanchr server.
 /// Delegates to the ContactUseCases.SyncContacts use case via ContactDataSource.

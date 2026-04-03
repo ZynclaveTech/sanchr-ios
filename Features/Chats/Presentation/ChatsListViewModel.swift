@@ -127,7 +127,8 @@ final class ChatsListViewModel {
             do {
                 conversations = try await messageRepository.fetchConversations()
                 errorMessage = nil
-                SanchrLogger.chat.info("Pull-to-refresh via sync: \(self.conversations.count) conversations")
+                SanchrLogger.chat.info(
+                    "Pull-to-refresh via sync: \(self.conversations.count) conversations")
             } catch {
                 errorMessage = error.localizedDescription
                 SanchrLogger.chat.error("Post-sync fetch failed: \(error.localizedDescription)")
@@ -157,22 +158,29 @@ final class ChatsListViewModel {
 
     /// Toggles the pin state of a conversation.
     func togglePin(_ conversation: Conversation) async {
-        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else { return }
+        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
+            return
+        }
         conversations[index].isPinned.toggle()
-        SanchrLogger.chat.info("Toggled pin for \(conversation.id.prefix(8)): \(self.conversations[index].isPinned)")
+        SanchrLogger.chat.info(
+            "Toggled pin for \(conversation.id.prefix(8)): \(self.conversations[index].isPinned)")
         // TODO: Persist pin state
     }
 
     /// Toggles the mute state of a conversation.
     func toggleMute(_ conversation: Conversation) async {
-        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else { return }
+        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
+            return
+        }
         conversations[index].isMuted.toggle()
         // TODO: Persist mute state
     }
 
     /// Archives a conversation.
     func archiveConversation(_ conversation: Conversation) async {
-        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else { return }
+        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
+            return
+        }
         conversations[index].isArchived = true
         // TODO: Persist archive state
     }

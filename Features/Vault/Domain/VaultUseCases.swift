@@ -17,7 +17,9 @@ enum VaultUseCases {
             filter: String = "all",
             limit: Int32 = 20,
             cursor: String = ""
-        ) async throws -> (items: [VaultItem], totalPhotos: Int32, totalVideos: Int32, totalFiles: Int32) {
+        ) async throws -> (
+            items: [VaultItem], totalPhotos: Int32, totalVideos: Int32, totalFiles: Int32
+        ) {
             let response = try await vaultDataSource.getVaultItems(
                 filter: filter,
                 limit: limit,
