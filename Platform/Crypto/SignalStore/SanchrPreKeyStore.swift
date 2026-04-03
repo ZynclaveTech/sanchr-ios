@@ -63,7 +63,7 @@ final class SanchrPreKeyStore: PreKeyStore {
 
     func removePreKey(id: UInt32, context: StoreContext) throws {
         queue.sync(flags: .barrier) {
-            preKeys.removeValue(forKey: id)
+            _ = preKeys.removeValue(forKey: id)
         }
         let fileURL = storageDirectory.appendingPathComponent("\(id).prekey")
         try? FileManager.default.removeItem(at: fileURL)

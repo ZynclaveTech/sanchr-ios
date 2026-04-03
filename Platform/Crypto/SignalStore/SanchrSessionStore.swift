@@ -80,7 +80,7 @@ final class SanchrSessionStore: SessionStore {
     /// Removes the session for a given address (used for session reset / identity change).
     func deleteSession(for address: ProtocolAddress) throws {
         queue.sync(flags: .barrier) {
-            sessions.removeValue(forKey: address)
+            _ = sessions.removeValue(forKey: address)
         }
         let fileURL = fileURL(for: address)
         try? FileManager.default.removeItem(at: fileURL)

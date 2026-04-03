@@ -554,7 +554,7 @@ extension CallManager: CXProviderDelegate {
     func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         SanchrLogger.calls.info("CallKit: perform CXAnswerCallAction")
 
-        nonisolated(unsafe) let mgr = self
+        let mgr = self
         nonisolated(unsafe) let callAction = action
         Task { @Sendable in
             do {

@@ -3,6 +3,7 @@ import PhotosUI
 
 /// Encrypted vault screen for secure file storage.
 /// Matches Figma: vault-screen.
+@MainActor
 struct VaultView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
@@ -318,6 +319,7 @@ struct VaultView: View {
     private var addToVaultSheet: some View {
         NavigationStack {
             VStack(spacing: SanchrSpacing.lg) {
+                let currentScheme = colorScheme
                 PhotosPicker(
                     selection: $selectedPhotoItem,
                     matching: .any(of: [.images, .videos])
@@ -329,18 +331,18 @@ struct VaultView: View {
                         VStack(alignment: .leading) {
                             Text("Photo or Video")
                                 .font(SanchrTypography.bodyBold)
-                                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                                .foregroundColor(Color.sanchrTextPrimary(currentScheme))
                             Text("Select from your library")
                                 .font(SanchrTypography.captionSmall)
-                                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                                .foregroundColor(Color.sanchrTextSecondary(currentScheme))
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption)
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                            .foregroundColor(Color.sanchrTextTertiary(currentScheme))
                     }
                     .padding(SanchrSpacing.md)
-                    .background(Color.sanchrSurfaceElevated(colorScheme))
+                    .background(Color.sanchrSurfaceElevated(currentScheme))
                     .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
                 }
 

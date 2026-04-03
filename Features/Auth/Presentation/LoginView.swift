@@ -6,8 +6,6 @@ struct LoginView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = AuthViewModel()
-    @State private var showCountryPicker = false
-
     /// Common country codes for the selector.
     private let countryCodes = [
         ("+1", "US"), ("+44", "UK"), ("+91", "IN"), ("+61", "AU"),
@@ -48,6 +46,7 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, SanchrSpacing.xl)
             }
+            .scrollDismissesKeyboard(.interactively)
             .sanchrScreenBackground()
             .navigationDestination(isPresented: $viewModel.showOTPView) {
                 OTPView(viewModel: viewModel)
@@ -87,8 +86,19 @@ struct LoginView: View {
         VStack(spacing: SanchrSpacing.xs) {
             HStack(spacing: SanchrSpacing.xs) {
                 // Country code selector
-                Button {
-                    showCountryPicker.toggle()
+                Menu {
+                    ForEach(countryCodes, id: \.0) { code, label in
+                        Button {
+                            viewModel.countryCode = code
+                        } label: {
+                            HStack {
+                                Text("\(code) \(label)")
+                                if viewModel.countryCode == code {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
                 } label: {
                     HStack(spacing: SanchrSpacing.xxs) {
                         Text(viewModel.countryCode)
@@ -106,9 +116,6 @@ struct LoginView: View {
                         RoundedRectangle(cornerRadius: SanchrRadius.input)
                             .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
                     )
-                }
-                .popover(isPresented: $showCountryPicker) {
-                    countryCodePicker
                 }
 
                 // Phone number text field
@@ -303,30 +310,4 @@ struct LoginView: View {
         .padding(.bottom, SanchrSpacing.md)
     }
 
-    // MARK: - Country Code Picker
-
-    private var countryCodePicker: some View {
-        List(countryCodes, id: \.0) { code, label in
-            Button {
-                viewModel.countryCode = code
-                showCountryPicker = false
-            } label: {
-                HStack {
-                    Text(code)
-                        .font(SanchrTypography.body)
-                    Spacer()
-                    Text(label)
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                    if viewModel.countryCode == code {
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.sanchrPrimary)
-                    }
-                }
-            }
-            .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-        }
-        .frame(minWidth: 200, minHeight: 300)
-        .presentationCompactAdaptation(.popover)
-    }
 }

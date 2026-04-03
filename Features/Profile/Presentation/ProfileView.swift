@@ -3,6 +3,7 @@ import PhotosUI
 
 /// Profile screen for viewing and editing the current user's profile.
 /// Matches Figma: header screen with large avatar, name, phone, status, QR code, action buttons.
+@MainActor
 struct ProfileView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
@@ -37,6 +38,8 @@ struct ProfileView: View {
 
                         // Edit button overlay
                         if viewModel.isEditing {
+                            let isUploading = viewModel.isUploadingAvatar
+                            let currentScheme = colorScheme
                             PhotosPicker(
                                 selection: $selectedPhotoItem,
                                 matching: .images
@@ -45,7 +48,7 @@ struct ProfileView: View {
                                     .fill(Color.sanchrPrimary)
                                     .frame(width: 32, height: 32)
                                     .overlay {
-                                        if viewModel.isUploadingAvatar {
+                                        if isUploading {
                                             ProgressView()
                                                 .tint(.white)
                                                 .scaleEffect(0.7)
@@ -57,7 +60,7 @@ struct ProfileView: View {
                                     }
                                     .overlay(
                                         Circle()
-                                            .stroke(Color.sanchrBackground(colorScheme), lineWidth: 3)
+                                            .stroke(Color.sanchrBackground(currentScheme), lineWidth: 3)
                                     )
                             }
                         }

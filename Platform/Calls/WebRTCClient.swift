@@ -1,6 +1,6 @@
 import AVFoundation
 import Foundation
-import WebRTC
+@preconcurrency import WebRTC
 
 // MARK: - WebRTC Client Delegate
 
@@ -412,7 +412,7 @@ final class WebRTCClient: NSObject {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(
-                .playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .defaultToSpeaker])
+                .playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
             try session.setActive(true)
             SanchrLogger.calls.info("Audio session configured for voice chat")
         } catch {

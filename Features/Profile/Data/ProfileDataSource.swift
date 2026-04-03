@@ -71,7 +71,7 @@ final class ProfileDataSource: @unchecked Sendable {
         // Use updateProfile with current values to get a response, or use getSettings
         // For now, use a minimal update to fetch current state
         let settings = try await settingsClient.getSettings(Vync_Settings_GetSettingsRequest())
-        var profile = Vync_Settings_ProfileResponse()
+        let profile = Vync_Settings_ProfileResponse()
         // Settings doesn't return full profile; the profile is typically loaded from session
         _ = settings
         return profile

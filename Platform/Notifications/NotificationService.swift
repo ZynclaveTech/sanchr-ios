@@ -1,6 +1,6 @@
 import Foundation
 import UIKit
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Handles modifying notification content before display.
 /// In production, the actual decryption would live in a Notification Service Extension target

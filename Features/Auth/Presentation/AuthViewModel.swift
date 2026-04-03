@@ -205,14 +205,17 @@ final class AuthViewModel {
 
         resendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {
             [weak self] timer in
-            guard let self else {
-                timer.invalidate()
-                return
-            }
-            if self.resendCountdown > 0 {
-                self.resendCountdown -= 1
-            } else {
-                timer.invalidate()
+            nonisolated(unsafe) let tmr = timer
+            MainActor.assumeIsolated {
+                guard let self else {
+                    tmr.invalidate()
+                    return
+                }
+                if self.resendCountdown > 0 {
+                    self.resendCountdown -= 1
+                } else {
+                    tmr.invalidate()
+                }
             }
         }
     }

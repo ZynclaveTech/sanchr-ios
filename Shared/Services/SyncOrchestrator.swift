@@ -1,4 +1,4 @@
-import BackgroundTasks
+@preconcurrency import BackgroundTasks
 import Foundation
 import UIKit
 import UserNotifications
@@ -88,8 +88,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 task.setTaskCompleted(success: false)
                 return
             }
-            nonisolated(unsafe) let orch = orchestrator
-            nonisolated(unsafe) let bgTask = processingTask
+            let orch = orchestrator
+            let bgTask = processingTask
             Task { @Sendable in
                 await orch.performSync(task: bgTask)
             }
@@ -104,8 +104,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 task.setTaskCompleted(success: false)
                 return
             }
-            nonisolated(unsafe) let orch = orchestrator
-            nonisolated(unsafe) let bgTask = refreshTask
+            let orch = orchestrator
+            let bgTask = refreshTask
             Task { @Sendable in
                 await orch.performAppRefresh(task: bgTask)
             }
@@ -211,8 +211,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         // Schedule the next occurrence before we begin work.
         scheduleBackgroundSync()
 
-        nonisolated(unsafe) let orchestrator = self
-        nonisolated(unsafe) let bgTask = task
+        let orchestrator = self
+        let bgTask = task
         let workTask = Task { @Sendable in
             orchestrator.syncState.markSyncStarted()
 
@@ -262,8 +262,8 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         // Schedule the next refresh before we begin.
         scheduleAppRefresh()
 
-        nonisolated(unsafe) let orchestrator = self
-        nonisolated(unsafe) let bgTask = task
+        let orchestrator = self
+        let bgTask = task
         let workTask = Task { @Sendable in
             orchestrator.syncState.markSyncStarted()
 
@@ -362,8 +362,10 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         let conversations = (try? await messageRepository.fetchConversations()) ?? []
         let totalUnread = conversations.reduce(0) { $0 + $1.unreadCount }
 
-        await MainActor.run {
-            UIApplication.shared.applicationIconBadgeNumber = totalUnread
+        do {
+            try await UNUserNotificationCenter.current().setBadgeCount(totalUnread)
+        } catch {
+            SanchrLogger.sync.error("Failed to set badge count: \(error.localizedDescription)")
         }
 
         SanchrLogger.sync.info("Badge count updated to \(totalUnread)")

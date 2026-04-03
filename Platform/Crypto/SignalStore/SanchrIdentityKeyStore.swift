@@ -6,7 +6,7 @@ import LibSignalClient
 /// The local identity key pair is persisted in the iOS Keychain via `KeychainServiceProtocol`.
 /// Remote identity keys (trusted identities) are stored in an in-memory dictionary that is
 /// also flushed to a file on disk so that trust decisions survive app restarts.
-final class SanchrIdentityKeyStore: IdentityKeyStore {
+final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
 
     // MARK: - Constants
 
