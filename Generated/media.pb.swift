@@ -20,6 +20,44 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+enum Vync_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
+  typealias RawValue = Int
+
+  /// E2EE message attachment (private, presigned access)
+  case attachment // = 0
+
+  /// Profile avatar (public-read via CDN)
+  case avatar // = 1
+  case UNRECOGNIZED(Int)
+
+  init() {
+    self = .attachment
+  }
+
+  init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .attachment
+    case 1: self = .avatar
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  var rawValue: Int {
+    switch self {
+    case .attachment: return 0
+    case .avatar: return 1
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  static let allCases: [Vync_Media_MediaPurpose] = [
+    .attachment,
+    .avatar,
+  ]
+
+}
+
 struct Vync_Media_GetUploadUrlRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -32,6 +70,9 @@ struct Vync_Media_GetUploadUrlRequest: Sendable {
 
   /// hash of encrypted blob for dedup
   var sha256Hash: String = String()
+
+  /// controls ACL and storage path
+  var purpose: Vync_Media_MediaPurpose = .attachment
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -55,12 +96,16 @@ struct Vync_Media_PresignedUrlResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// presigned PUT/GET URL (for upload/download)
   var url: String = String()
 
   var mediaID: String = String()
 
   /// seconds until URL expires
   var expiresIn: Int64 = 0
+
+  /// permanent CDN URL for display (empty if no CDN configured)
+  var displayURL: String = String()
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -97,9 +142,13 @@ struct Vync_Media_ConfirmUploadResponse: Sendable {
 
 fileprivate let _protobuf_package = "vync.media"
 
+extension Vync_Media_MediaPurpose: SwiftProtobuf._ProtoNameProviding {
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MEDIA_PURPOSE_ATTACHMENT\0\u{1}MEDIA_PURPOSE_AVATAR\0")
+}
+
 extension Vync_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".GetUploadUrlRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}file_size\0\u{3}content_type\0\u{3}sha256_hash\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}file_size\0\u{3}content_type\0\u{3}sha256_hash\0\u{1}purpose\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -110,6 +159,7 @@ extension Vync_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._
       case 1: try { try decoder.decodeSingularInt64Field(value: &self.fileSize) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.contentType) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.sha256Hash) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.purpose) }()
       default: break
       }
     }
@@ -125,6 +175,9 @@ extension Vync_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.sha256Hash.isEmpty {
       try visitor.visitSingularStringField(value: self.sha256Hash, fieldNumber: 3)
     }
+    if self.purpose != .attachment {
+      try visitor.visitSingularEnumField(value: self.purpose, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -132,6 +185,7 @@ extension Vync_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.fileSize != rhs.fileSize {return false}
     if lhs.contentType != rhs.contentType {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
+    if lhs.purpose != rhs.purpose {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -169,7 +223,7 @@ extension Vync_Media_GetDownloadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Vync_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".PresignedUrlResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}media_id\0\u{3}expires_in\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}media_id\0\u{3}expires_in\0\u{3}display_url\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -180,6 +234,7 @@ extension Vync_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobuf.
       case 1: try { try decoder.decodeSingularStringField(value: &self.url) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.mediaID) }()
       case 3: try { try decoder.decodeSingularInt64Field(value: &self.expiresIn) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.displayURL) }()
       default: break
       }
     }
@@ -195,6 +250,9 @@ extension Vync_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobuf.
     if self.expiresIn != 0 {
       try visitor.visitSingularInt64Field(value: self.expiresIn, fieldNumber: 3)
     }
+    if !self.displayURL.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayURL, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -202,6 +260,7 @@ extension Vync_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.url != rhs.url {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.expiresIn != rhs.expiresIn {return false}
+    if lhs.displayURL != rhs.displayURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

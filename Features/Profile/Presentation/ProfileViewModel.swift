@@ -90,7 +90,8 @@ final class ProfileViewModel {
     func uploadAvatar(
         image: UIImage,
         profileDataSource: ProfileDataSource,
-        mediaManager: MediaManagerProtocol
+        mediaManager: MediaManagerProtocol,
+        sessionService: SessionService
     ) async {
         isUploadingAvatar = true
         defer { isUploadingAvatar = false }
@@ -104,6 +105,9 @@ final class ProfileViewModel {
             let newURL = try await useCase.execute(image: image)
             avatarURL = newURL
             SanchrLogger.media.info("Avatar URL updated")
+
+            // Persist to server immediately
+            await saveProfile(profileDataSource: profileDataSource, sessionService: sessionService)
         } catch {
             errorMessage = error.localizedDescription
         }

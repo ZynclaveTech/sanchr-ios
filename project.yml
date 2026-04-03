@@ -27,6 +27,9 @@ packages:
   WebRTC:
     url: https://github.com/stasel/WebRTC.git
     exactVersion: "146.0.0"
+  Kingfisher:
+    url: https://github.com/onevcat/Kingfisher.git
+    from: "8.1.0"
 
 targets:
   LibSignalClient:
@@ -69,6 +72,8 @@ targets:
         product: SwiftProtobuf
       - package: WebRTC
         product: WebRTC
+      - package: Kingfisher
+        product: Kingfisher
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true

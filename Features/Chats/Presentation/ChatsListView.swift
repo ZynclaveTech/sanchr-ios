@@ -1,3 +1,4 @@
+import Kingfisher
 import SwiftUI
 
 /// Conversation list screen showing all active chats.
@@ -49,7 +50,11 @@ struct ChatsListView: View {
 
     private var mainContent: some View {
         Group {
-            if viewModel.isEmpty && !viewModel.isLoading {
+            if viewModel.conversations.isEmpty && viewModel.isLoading {
+                ProgressView()
+                    .tint(.sanchrPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.conversations.isEmpty {
                 emptyState
             } else {
                 conversationList
@@ -336,13 +341,11 @@ struct ConversationRow: View {
     private var avatar: some View {
         Group {
             if let avatarURL = conversation.avatarURL {
-                AsyncImage(url: avatarURL) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    avatarPlaceholder
-                }
+                KFImage(avatarURL)
+                    .resizable()
+                    .placeholder { avatarPlaceholder }
+                    .fade(duration: 0.2)
+                    .scaledToFill()
             } else {
                 avatarPlaceholder
             }

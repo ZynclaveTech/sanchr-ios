@@ -1,3 +1,4 @@
+import Kingfisher
 import SwiftUI
 import PhotosUI
 
@@ -23,15 +24,13 @@ struct ProfileView: View {
                     // Large avatar with edit button
                     ZStack(alignment: .bottomTrailing) {
                         if let url = URL(string: viewModel.avatarURL), !viewModel.avatarURL.isEmpty {
-                            AsyncImage(url: url) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                avatarPlaceholder
-                            }
-                            .frame(width: 96, height: 96)
-                            .clipShape(Circle())
+                            KFImage(url)
+                                .resizable()
+                                .placeholder { avatarPlaceholder }
+                                .fade(duration: 0.2)
+                                .scaledToFill()
+                                .frame(width: 96, height: 96)
+                                .clipShape(Circle())
                         } else {
                             avatarPlaceholder
                         }
@@ -253,7 +252,8 @@ struct ProfileView: View {
                     await viewModel.uploadAvatar(
                         image: image,
                         profileDataSource: profileDataSource,
-                        mediaManager: container.mediaManager
+                        mediaManager: container.mediaManager,
+                        sessionService: container.sessionService
                     )
                 }
             }

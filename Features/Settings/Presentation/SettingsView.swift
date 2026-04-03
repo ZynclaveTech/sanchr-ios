@@ -1,3 +1,4 @@
+import Kingfisher
 import SwiftUI
 
 /// Main settings screen.
@@ -22,13 +23,13 @@ struct SettingsView: View {
                         // Avatar
                         if let url = URL(string: viewModel.avatarURL), !viewModel.avatarURL.isEmpty
                         {
-                            AsyncImage(url: url) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: {
-                                profileAvatarPlaceholder
-                            }
-                            .frame(width: 56, height: 56)
-                            .clipShape(Circle())
+                            KFImage(url)
+                                .resizable()
+                                .placeholder { profileAvatarPlaceholder }
+                                .fade(duration: 0.2)
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(Circle())
                         } else {
                             profileAvatarPlaceholder
                         }

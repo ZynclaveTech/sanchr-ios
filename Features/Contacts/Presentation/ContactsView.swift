@@ -1,3 +1,4 @@
+import Kingfisher
 import SwiftUI
 
 /// Contact list screen showing Sanchr contacts with alphabetical grouping.
@@ -11,7 +12,11 @@ struct ContactsView: View {
 
     var body: some View {
         Group {
-            if viewModel.contacts.isEmpty && !viewModel.isLoading {
+            if viewModel.contacts.isEmpty && viewModel.isLoading {
+                ProgressView()
+                    .tint(.sanchrPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.contacts.isEmpty {
                 emptyState
             } else {
                 contactList
@@ -267,15 +272,13 @@ struct ContactRow: View {
             // Avatar (48pt circle)
             ZStack {
                 if let avatarURL = contact.avatarURL {
-                    AsyncImage(url: avatarURL) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        avatarPlaceholder
-                    }
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
+                    KFImage(avatarURL)
+                        .resizable()
+                        .placeholder { avatarPlaceholder }
+                        .fade(duration: 0.2)
+                        .scaledToFill()
+                        .frame(width: 48, height: 48)
+                        .clipShape(Circle())
                 } else {
                     avatarPlaceholder
                 }
