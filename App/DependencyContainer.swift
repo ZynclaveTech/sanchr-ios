@@ -120,10 +120,39 @@ final class DependencyContainer {
 
     // MARK: - Calls
 
-    lazy var webRTCClient: WebRTCClientProtocol = WebRTCClient()
+    /// gRPC client for the CallSignalingService.
+    lazy var callSignalingService: Vync_Calling_CallSignalingServiceClientProtocol = Vync_Calling_CallSignalingServiceClient(
+        grpcClient: grpcClient
+    )
 
-    lazy var callManager: CallManagerProtocol = CallManager(
-        webRTCClient: webRTCClient
+    /// WebRTC peer connection manager.
+    lazy var webRTCClient: WebRTCClient = WebRTCClient()
+
+    /// CallKit + signaling orchestrator for voice/video calls.
+    lazy var callManager: CallManager = CallManager(
+        webRTCClient: webRTCClient,
+        callService: callSignalingService
+    )
+
+    /// Data source for call signaling gRPC operations.
+    lazy var callDataSource: CallDataSource = CallDataSource(
+        callService: callSignalingService
+    )
+
+    /// Use case: fetch and format call history.
+    lazy var getCallHistoryUseCase: CallUseCases.GetCallHistory = CallUseCases.GetCallHistory(
+        callDataSource: callDataSource
+    )
+
+    /// Use case: validate and start an outgoing call.
+    lazy var startCallUseCase: CallUseCases.StartCall = CallUseCases.StartCall(
+        callManager: callManager,
+        networkMonitor: networkMonitor
+    )
+
+    /// Use case: fetch TURN credentials.
+    lazy var getTurnCredentialsUseCase: CallUseCases.GetTurnCredentials = CallUseCases.GetTurnCredentials(
+        callDataSource: callDataSource
     )
 
     // MARK: - Configuration

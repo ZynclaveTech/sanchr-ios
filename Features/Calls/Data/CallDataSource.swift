@@ -1,28 +1,52 @@
 import Foundation
 
-/// Data source for call signaling gRPC service calls.
+/// Data source wrapping the CallSignalingService gRPC client.
+/// Provides typed domain-level access to call signaling, history, and TURN credentials.
 final class CallDataSource: @unchecked Sendable {
-    private let grpcClient: GRPCClientProtocol
 
-    init(grpcClient: GRPCClientProtocol) {
-        self.grpcClient = grpcClient
+    private let callService: Vync_Calling_CallSignalingServiceClientProtocol
+
+    init(callService: Vync_Calling_CallSignalingServiceClientProtocol) {
+        self.callService = callService
     }
 
-    // TODO: Implement when proto-generated stubs are available
-    //
-    // func sendOffer(callId: String, sdp: String, recipientId: String) async throws {
-    //     let request = Call_SignalingRequest.with {
-    //         $0.callID = callId
-    //         $0.sdp = sdp
-    //         $0.recipientID = recipientId
-    //         $0.type = .offer
-    //     }
-    //     try await grpcClient.callService.sendSignaling(request)
-    // }
-    //
-    // func sendAnswer(callId: String, sdp: String, recipientId: String) async throws { ... }
-    //
-    // func sendIceCandidate(callId: String, candidate: String, recipientId: String) async throws { ... }
-    //
-    // func openSignalingStream(callId: String) -> AsyncStream<Call_SignalingMessage> { ... }
+    // MARK: - Call Signaling
+
+    /// Sends an SDP offer to initiate a call with the specified recipient.
+    func initiateCall(recipientId: String, callType: String, sdpOffer: Data) async throws -> Vync_Calling_CallResponse {
+        var request = Vync_Calling_CallOffer()
+        request.recipientID = recipientId
+        request.callType = callType
+        request.sdpOffer = sdpOffer
+        return try await callService.initiateCall(request)
+    }
+
+    /// Opens a bidirectional signaling stream for exchanging SDP, ICE candidates, and control messages.
+    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) async throws -> AsyncStream<Vync_Calling_CallSignal> {
+        return try await callService.callStream(send: outbound)
+    }
+
+    /// Sends an end-call request to the server.
+    func endCall(callId: String) async throws {
+        var request = Vync_Calling_EndCallRequest()
+        request.callID = callId
+        _ = try await callService.endCall(request)
+    }
+
+    // MARK: - Call History
+
+    /// Fetches call history entries from the server.
+    func fetchCallHistory(limit: Int32 = 50) async throws -> [Vync_Calling_CallLogEntry] {
+        var request = Vync_Calling_GetCallHistoryRequest()
+        request.limit = limit
+        let response = try await callService.getCallHistory(request)
+        return response.entries
+    }
+
+    // MARK: - TURN Credentials
+
+    /// Fetches TURN server credentials for NAT traversal.
+    func fetchTurnCredentials() async throws -> Vync_Calling_TurnCredentials {
+        return try await callService.getTurnCredentials(Vync_Calling_GetTurnCredentialsRequest())
+    }
 }

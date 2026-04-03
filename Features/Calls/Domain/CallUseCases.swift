@@ -1,50 +1,88 @@
 import Foundation
+import AVFoundation
 
 /// Domain use cases for call operations.
 enum CallUseCases {
 
-    /// Initiates an outgoing encrypted call.
+    // MARK: - Start Call
+
+    /// Validates preconditions and initiates an outgoing voice or video call.
     struct StartCall: Sendable {
-        private let callManager: CallManagerProtocol
-        private let signalProtocol: SignalProtocolManagerProtocol
+        private let callManager: CallManager
+        private let networkMonitor: NetworkMonitorProtocol
 
-        init(callManager: CallManagerProtocol, signalProtocol: SignalProtocolManagerProtocol) {
+        init(callManager: CallManager, networkMonitor: NetworkMonitorProtocol) {
             self.callManager = callManager
-            self.signalProtocol = signalProtocol
+            self.networkMonitor = networkMonitor
         }
 
-        func execute(userId: String, hasVideo: Bool) async throws {
-            // Ensure encrypted session exists before initiating call
-            guard signalProtocol.hasSession(with: userId) else {
-                throw AppError.sessionNotEstablished
+        func execute(recipientId: String, recipientName: String, isVideo: Bool) async throws {
+            // Validate network connectivity
+            guard networkMonitor.isConnected else {
+                throw AppError.networkUnavailable
             }
-            try await callManager.startOutgoingCall(to: userId, hasVideo: hasVideo)
+
+            // Check microphone permission
+            let audioStatus = AVAudioApplication.shared.recordPermission
+            guard audioStatus == .granted else {
+                throw AppError.callPermissionDenied
+            }
+
+            try await callManager.startCall(
+                recipientId: recipientId,
+                recipientName: recipientName,
+                isVideo: isVideo
+            )
         }
     }
 
-    /// Answers an incoming call.
-    struct AnswerCall: Sendable {
-        private let callManager: CallManagerProtocol
+    // MARK: - Get Call History
 
-        init(callManager: CallManagerProtocol) {
-            self.callManager = callManager
+    /// Fetches and formats call history from the server for display.
+    struct GetCallHistory: Sendable {
+        private let callDataSource: CallDataSource
+
+        init(callDataSource: CallDataSource) {
+            self.callDataSource = callDataSource
         }
 
-        func execute(callId: String) async throws {
-            try await callManager.answerIncomingCall(callId: callId)
+        func execute(limit: Int32 = 50) async throws -> [CallHistoryEntry] {
+            let entries = try await callDataSource.fetchCallHistory(limit: limit)
+            return entries.map { entry in
+                let callType: CallHistoryEntry.CallType
+                if entry.status == "missed" {
+                    callType = .missed
+                } else if entry.direction == "incoming" {
+                    callType = .incoming
+                } else {
+                    callType = .outgoing
+                }
+
+                return CallHistoryEntry(
+                    id: entry.callID,
+                    contactId: entry.peerID,
+                    contactName: entry.peerName,
+                    timestamp: Date(timeIntervalSince1970: TimeInterval(entry.startedAt)),
+                    duration: TimeInterval(entry.durationSecs),
+                    type: callType,
+                    isVideo: entry.callType == "video"
+                )
+            }
         }
     }
 
-    /// Ends the current call.
-    struct EndCall: Sendable {
-        private let callManager: CallManagerProtocol
+    // MARK: - Get TURN Credentials
 
-        init(callManager: CallManagerProtocol) {
-            self.callManager = callManager
+    /// Fetches TURN server credentials for WebRTC NAT traversal.
+    struct GetTurnCredentials: Sendable {
+        private let callDataSource: CallDataSource
+
+        init(callDataSource: CallDataSource) {
+            self.callDataSource = callDataSource
         }
 
-        func execute(callId: String) async throws {
-            try await callManager.endCall(callId: callId)
+        func execute() async throws -> Vync_Calling_TurnCredentials {
+            return try await callDataSource.fetchTurnCredentials()
         }
     }
 }
