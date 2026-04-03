@@ -1,0 +1,114 @@
+name: Sanchr
+options:
+  bundleIdPrefix: com.sanchr
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: false
+
+packages:
+  grpc-swift:
+    url: https://github.com/grpc/grpc-swift.git
+    from: "1.21.0"
+  swift-protobuf:
+    url: https://github.com/apple/swift-protobuf.git
+    from: "1.25.0"
+  libsignal:
+    url: https://github.com/signalapp/libsignal.git
+    exactVersion: "0.88.1"
+  WebRTC-package:
+    url: https://github.com/nickkjolsing/WebRTC-package.git
+    from: "1.0.0"
+
+targets:
+  Sanchr:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Platform
+      - path: Shared
+      - path: Features
+      - path: Generated
+    resources:
+      - path: Resources
+    dependencies:
+      - package: grpc-swift
+        product: GRPC
+      - package: swift-protobuf
+        product: SwiftProtobuf
+      - package: libsignal
+        product: LibSignalClient
+      - package: WebRTC-package
+        product: WebRTC
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.sanchr.app
+        PRODUCT_NAME: Sanchr
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: true
+        CODE_SIGN_ENTITLEMENTS: Sanchr.entitlements
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Sanchr
+        CFBundleName: Sanchr
+        UILaunchStoryboardName: ""
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIBackgroundModes:
+          - remote-notification
+          - fetch
+          - processing
+          - voip
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.sanchr.sync.messages
+          - com.sanchr.sync.refresh
+        NSContactsUsageDescription: "Sanchr needs access to your contacts to find friends who use the app."
+        NSCameraUsageDescription: "Sanchr needs camera access for video calls and photos."
+        NSMicrophoneUsageDescription: "Sanchr needs microphone access for voice and video calls."
+        NSPhotoLibraryUsageDescription: "Sanchr needs photo library access to share photos and videos."
+        NSFaceIDUsageDescription: "Use Face ID to unlock Sanchr."
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: Sanchr.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.associated-domains: []
+
+  SanchrTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/UnitTests
+    dependencies:
+      - target: Sanchr
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+
+  SanchrUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/UITests
+    dependencies:
+      - target: Sanchr
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
