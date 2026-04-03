@@ -23,3 +23,5 @@ Thumbs.db
 *.pem
 *.p12
 *.mobileprovision
+
+Vendor/LibSignal/device/libsignal_ffi.a
