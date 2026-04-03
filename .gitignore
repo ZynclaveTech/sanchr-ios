@@ -25,3 +25,4 @@ Thumbs.db
 *.mobileprovision
 
 Vendor/LibSignal/device/libsignal_ffi.a
+Vendor/LibSignal/simulator/libsignal_ffi.a
