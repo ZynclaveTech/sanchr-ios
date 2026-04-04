@@ -185,6 +185,8 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     var syncResult = MessageSyncResult(appliedCount: 0, latestTimestamp: 0)
     private(set) var syncedTimestamps: [Int64] = []
     private(set) var openStreamCallCount = 0
+    private(set) var flushPendingAcksCallCount = 0
+    var flushPendingAcksResult = 0
     private(set) var streamContinuation: AsyncStream<RealtimeEvent>.Continuation?
 
     func sendMessage(_ message: Message) async throws -> Message {
@@ -221,7 +223,15 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         return syncResult
     }
 
+    func flushPendingAcks() async throws -> Int {
+        flushPendingAcksCallCount += 1
+        return flushPendingAcksResult
+    }
+
     func emit(_ event: RealtimeEvent) {
+        if case .message = event {
+            flushPendingAcksCallCount += 1
+        }
         streamContinuation?.yield(event)
     }
 

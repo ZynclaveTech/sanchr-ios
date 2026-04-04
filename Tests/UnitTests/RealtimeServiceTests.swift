@@ -25,6 +25,7 @@ final class RealtimeServiceTests: XCTestCase {
         await fulfillment(of: [notificationExpectation], timeout: 1.0)
         XCTAssertEqual(applied, 2)
         XCTAssertEqual(messageRepository.syncedTimestamps, [0])
+        XCTAssertEqual(messageRepository.flushPendingAcksCallCount, 1)
         XCTAssertEqual(sessionService.lastMessageSyncTimestamp, 1_750_000_123)
     }
 
@@ -86,6 +87,7 @@ final class RealtimeServiceTests: XCTestCase {
 
         service.start()
         try await waitUntil { messageRepository.openStreamCallCount == 1 }
+        XCTAssertEqual(messageRepository.flushPendingAcksCallCount, 1)
 
         messageRepository.emit(.message(message))
         messageRepository.emit(.typing(typing))
@@ -106,6 +108,7 @@ final class RealtimeServiceTests: XCTestCase {
         )
         XCTAssertEqual(callRouter.offers.first?.callID, "call-1")
         XCTAssertEqual(callRouter.lifecycleEvents.first?.eventType, "ended")
+        XCTAssertGreaterThanOrEqual(messageRepository.flushPendingAcksCallCount, 2)
 
         service.stop()
         messageRepository.finishStream()

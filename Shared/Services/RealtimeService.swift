@@ -45,6 +45,7 @@ final class RealtimeService: @unchecked Sendable {
             guard let self else { return }
             do {
                 isRunning = true
+                _ = try await messageRepository.flushPendingAcks()
                 let stream = try await messageRepository.openMessageStream()
                 for await event in stream {
                     guard !Task.isCancelled else { break }
@@ -73,6 +74,7 @@ final class RealtimeService: @unchecked Sendable {
             let result = try await messageRepository.syncPendingMessages(
                 sinceTimestamp: sessionService.lastMessageSyncTimestamp
             )
+            _ = try await messageRepository.flushPendingAcks()
             if result.latestTimestamp > sessionService.lastMessageSyncTimestamp {
                 sessionService.setLastMessageSyncTimestamp(result.latestTimestamp)
             }

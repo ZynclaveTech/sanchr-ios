@@ -198,6 +198,28 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     }
 }
 
+struct PendingMessageAckRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    static let databaseTableName = "pendingMessageAck"
+
+    var conversationId: String
+    var messageId: String
+    var createdAt: Date
+
+    init(from ack: PendingMessageAck) {
+        self.conversationId = ack.conversationId
+        self.messageId = ack.messageId
+        self.createdAt = ack.createdAt
+    }
+
+    func toDomain() -> PendingMessageAck {
+        PendingMessageAck(
+            conversationId: conversationId,
+            messageId: messageId,
+            createdAt: createdAt
+        )
+    }
+}
+
 // MARK: - Vault Item Record
 
 struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {

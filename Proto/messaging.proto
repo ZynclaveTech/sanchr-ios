@@ -6,6 +6,7 @@ service MessagingService {
   rpc StartDirectConversation(StartDirectConversationRequest) returns (Conversation);
   rpc MessageStream(stream ClientEvent) returns (stream ServerEvent);
   rpc SyncMessages(SyncRequest) returns (stream EncryptedEnvelope);
+  rpc AckMessages(AckMessagesRequest) returns (AckMessagesResponse);
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
   rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
@@ -48,7 +49,24 @@ message ServerEvent {
     ReceiptUpdate receipt = 3;
     PresenceUpdate presence = 4;
     PreKeyCountLow pre_key_count_low = 5;
+    CallOfferEvent call_offer = 6;
+    CallLifecycleEvent call_lifecycle = 7;
   }
+}
+
+message CallOfferEvent {
+  string call_id = 1;
+  string caller_id = 2;
+  string call_type = 3;
+  bytes sdp_offer = 4;
+  bytes srtp_key_params = 5;
+}
+
+message CallLifecycleEvent {
+  string call_id = 1;
+  string peer_id = 2;
+  string event_type = 3;
+  string actor_id = 4;
 }
 
 message EncryptedEnvelope {
@@ -99,6 +117,17 @@ message PreKeyCountLow {
 message SyncRequest {
   int64 since_timestamp = 1;
 }
+
+message AckedMessageRef {
+  string conversation_id = 1;
+  string message_id = 2;
+}
+
+message AckMessagesRequest {
+  repeated AckedMessageRef messages = 1;
+}
+
+message AckMessagesResponse {}
 
 message DeleteMessageRequest {
   string conversation_id = 1;

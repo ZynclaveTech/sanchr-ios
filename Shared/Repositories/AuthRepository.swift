@@ -222,6 +222,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         device.deviceName = "iPhone"
         device.platform = "ios"
         device.installationID = try secureStorage.readOrCreateInstallationId()
+        device.supportsDeliveryAck = true
         return device
     }
 

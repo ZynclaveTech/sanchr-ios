@@ -100,6 +100,40 @@ final class LocalDatabaseTests: XCTestCase {
         }
     }
 
+    func testIncomingMessageReplayDoesNotDuplicateUnreadCountOrAckQueue() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let conversation = makeConversation(id: "conversation-4")
+
+        try await database.saveConversation(conversation)
+
+        let incomingMessage = Message(
+            id: "incoming-1",
+            conversationId: conversation.id,
+            senderId: "remote-user",
+            timestamp: Date(timeIntervalSince1970: 1_750_001_000),
+            content: .text("hello again"),
+            status: .delivered,
+            isOutgoing: false
+        )
+
+        try await database.saveIncomingMessageAndQueueAck(incomingMessage)
+        try await database.saveIncomingMessageAndQueueAck(incomingMessage)
+
+        let messages = try await database.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 10
+        )
+        let conversations = try await database.fetchConversations()
+        let pendingAcks = try await database.fetchPendingMessageAcks(limit: 10)
+
+        XCTAssertEqual(messages.map(\.id), ["incoming-1"])
+        XCTAssertEqual(conversations.first?.unreadCount, 1)
+        XCTAssertEqual(pendingAcks.count, 1)
+        XCTAssertEqual(pendingAcks.first?.messageId, "incoming-1")
+    }
+
     private func makeTemporaryDatabasePath() -> String {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -29,6 +29,9 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 
     /// Drains pending messages from the server, decrypts, and saves locally.
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult
+
+    /// Flushes locally persisted message delivery acks to the server.
+    func flushPendingAcks() async throws -> Int
 }
 
 struct MessageSyncResult: Sendable {
@@ -39,6 +42,8 @@ struct MessageSyncResult: Sendable {
 // MARK: - Implementation
 
 final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendable {
+    private static let ackBatchSize = 100
+
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
@@ -231,6 +236,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         switch event {
                         case .message(let envelope):
                             if let message = await self.decodeMessage(from: envelope) {
+                                try? await self.flushPendingAcks()
                                 continuation.yield(.message(message))
                             }
                         case .typing(let indicator):
@@ -317,11 +323,32 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             }
         }
 
+        _ = try await flushPendingAcks()
+
         if count > 0 {
             SanchrLogger.chat.info("Synced \(count) pending message(s) from server")
         }
 
         return MessageSyncResult(appliedCount: count, latestTimestamp: latestTimestamp)
+    }
+
+    func flushPendingAcks() async throws -> Int {
+        let pendingAcks = try await localDatabase.fetchPendingMessageAcks(limit: Self.ackBatchSize)
+        guard !pendingAcks.isEmpty else { return 0 }
+
+        var request = Vync_Messaging_AckMessagesRequest()
+        request.messages = pendingAcks.map { ack in
+            var ref = Vync_Messaging_AckedMessageRef()
+            ref.conversationID = ack.conversationId
+            ref.messageID = ack.messageId
+            return ref
+        }
+
+        _ = try await grpcClient.messagingService.ackMessages(request)
+        try await localDatabase.deletePendingMessageAcks(pendingAcks)
+
+        SanchrLogger.chat.info("Flushed \(pendingAcks.count) pending delivery ack(s)")
+        return pendingAcks.count
     }
 
     // MARK: - Helpers
@@ -361,7 +388,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 isOutgoing: false
             )
 
-            try? await localDatabase.saveMessage(message)
+            try? await localDatabase.saveIncomingMessageAndQueueAck(message)
             return message
         } catch {
             SanchrLogger.chat.error("Failed to decrypt message: \(error)")

@@ -115,6 +115,7 @@ extension AuthInterceptorFactory: Vync_Messaging_MessagingServiceClientIntercept
     func makeStartDirectConversationInterceptors() -> [ClientInterceptor<Vync_Messaging_StartDirectConversationRequest, Vync_Messaging_Conversation>] { makeInterceptors() }
     func makeMessageStreamInterceptors() -> [ClientInterceptor<Vync_Messaging_ClientEvent, Vync_Messaging_ServerEvent>] { makeInterceptors() }
     func makeSyncMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>] { makeInterceptors() }
+    func makeAckMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>] { makeInterceptors() }
     func makeDeleteMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_DeleteMessageRequest, Vync_Messaging_DeleteMessageResponse>] { makeInterceptors() }
     func makeSendReceiptInterceptors() -> [ClientInterceptor<Vync_Messaging_ReceiptRequest, Vync_Messaging_ReceiptResponse>] { makeInterceptors() }
     func makeGetConversationsInterceptors() -> [ClientInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>] { makeInterceptors() }

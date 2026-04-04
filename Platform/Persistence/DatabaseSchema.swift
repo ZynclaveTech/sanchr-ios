@@ -113,6 +113,22 @@ enum DatabaseSchema {
             )
         }
 
+        migrator.registerMigration("v2_delivery_ack_queue") { db in
+            try db.create(table: "pendingMessageAck", ifNotExists: true) { t in
+                t.column("conversationId", .text).notNull()
+                t.column("messageId", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.primaryKey(["conversationId", "messageId"])
+            }
+
+            try db.create(
+                index: "idx_pendingMessageAck_createdAt",
+                on: "pendingMessageAck",
+                columns: ["createdAt"],
+                ifNotExists: true
+            )
+        }
+
         return migrator
     }
 }

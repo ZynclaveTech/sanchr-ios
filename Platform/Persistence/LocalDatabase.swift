@@ -6,10 +6,13 @@ protocol LocalDatabaseProtocol: AnyObject, Sendable {
     // MARK: - Messages
 
     func saveMessage(_ message: Message) async throws
+    func saveIncomingMessageAndQueueAck(_ message: Message) async throws
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message]
     func deleteMessage(id: String) async throws
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
+    func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
+    func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws
 
     // MARK: - Conversations
 
@@ -175,39 +178,17 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     // MARK: - Messages
 
     func saveMessage(_ message: Message) async throws {
-        let record = MessageRecord(from: message)
         try await dbPool.write { db in
-            try record.save(db, onConflict: .replace)
-
-            try db.execute(
-                sql: """
-                    UPDATE conversation
-                    SET
-                        updatedAt = ?,
-                        lastMessageId = ?,
-                        lastMessageContent = ?,
-                        lastMessageTimestamp = ?,
-                        lastMessageSenderId = ?,
-                        lastMessageStatus = ?,
-                        unreadCount = CASE
-                            WHEN ? THEN unreadCount
-                            ELSE unreadCount + 1
-                        END
-                    WHERE id = ?
-                    """,
-                arguments: [
-                    message.timestamp,
-                    message.id,
-                    MessageRecord.encodeContent(message.content),
-                    message.timestamp,
-                    message.senderId,
-                    message.status.rawValue,
-                    message.isOutgoing,
-                    message.conversationId,
-                ]
-            )
+            try persistMessage(message, in: db, queueAck: false)
         }
         SanchrLogger.persistence.debug("Saved message \(message.id)")
+    }
+
+    func saveIncomingMessageAndQueueAck(_ message: Message) async throws {
+        try await dbPool.write { db in
+            try persistMessage(message, in: db, queueAck: true)
+        }
+        SanchrLogger.persistence.debug("Saved incoming message \(message.id) and queued ack")
     }
 
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
@@ -256,13 +237,36 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
+    func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] {
+        try await dbPool.read { db in
+            try PendingMessageAckRecord
+                .order(Column("createdAt").asc)
+                .limit(limit)
+                .fetchAll(db)
+                .map { $0.toDomain() }
+        }
+    }
+
+    func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws {
+        guard !acks.isEmpty else { return }
+
+        try await dbPool.write { db in
+            for ack in acks {
+                _ = try PendingMessageAckRecord.deleteOne(
+                    db,
+                    key: ["conversationId": ack.conversationId, "messageId": ack.messageId]
+                )
+            }
+        }
+    }
+
     // MARK: - Conversations
 
     func saveConversation(_ conversation: Conversation) async throws {
         let record = ConversationRecord(from: conversation)
         try await dbPool.write { db in
             // Upsert conversation
-            try record.save(db, onConflict: .replace)
+            try record.save(db, onConflict: Database.ConflictResolution.replace)
 
             // Sync participants: delete old, insert current
             try ConversationParticipantRecord
@@ -272,7 +276,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             for participant in conversation.participants {
                 // Ensure user exists
                 let userRecord = UserRecord(from: participant)
-                try userRecord.save(db, onConflict: .replace)
+                try userRecord.save(db, onConflict: Database.ConflictResolution.replace)
 
                 // Link participant
                 let link = ConversationParticipantRecord(
@@ -327,7 +331,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func saveContact(_ user: User) async throws {
         let record = UserRecord(from: user)
         try await dbPool.write { db in
-            try record.save(db, onConflict: .replace)
+            try record.save(db, onConflict: Database.ConflictResolution.replace)
         }
     }
 
@@ -358,7 +362,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func saveVaultItem(_ item: VaultItem) async throws {
         let record = VaultItemRecord(from: item)
         try await dbPool.write { db in
-            try record.save(db, onConflict: .replace)
+            try record.save(db, onConflict: Database.ConflictResolution.replace)
         }
     }
 
@@ -381,6 +385,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     func purgeAllData() async throws {
         try await dbPool.write { db in
+            try PendingMessageAckRecord.deleteAll(db)
             try MessageRecord.deleteAll(db)
             try ConversationParticipantRecord.deleteAll(db)
             try ConversationRecord.deleteAll(db)
@@ -388,5 +393,73 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             try VaultItemRecord.deleteAll(db)
         }
         SanchrLogger.persistence.warning("All local data purged")
+    }
+
+    private func persistMessage(_ message: Message, in db: Database, queueAck: Bool) throws {
+        let record = MessageRecord(from: message)
+        let existing = try MessageRecord.fetchOne(db, key: message.id)
+        let shouldIncrementUnread = existing == nil && !message.isOutgoing
+
+        try record.save(db, onConflict: Database.ConflictResolution.replace)
+
+        if queueAck {
+            let ackRecord = PendingMessageAckRecord(
+                from: PendingMessageAck(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    createdAt: Date()
+                )
+            )
+            try ackRecord.save(db, onConflict: Database.ConflictResolution.replace)
+        }
+
+        try db.execute(
+            sql: """
+                UPDATE conversation
+                SET
+                    updatedAt = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE updatedAt
+                    END,
+                    lastMessageId = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE lastMessageId
+                    END,
+                    lastMessageContent = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE lastMessageContent
+                    END,
+                    lastMessageTimestamp = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE lastMessageTimestamp
+                    END,
+                    lastMessageSenderId = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE lastMessageSenderId
+                    END,
+                    lastMessageStatus = CASE
+                        WHEN lastMessageTimestamp IS NULL OR lastMessageTimestamp <= ? THEN ?
+                        ELSE lastMessageStatus
+                    END,
+                    unreadCount = unreadCount + ?
+                WHERE id = ?
+                """,
+            arguments: [
+                message.timestamp,
+                message.timestamp,
+                message.timestamp,
+                message.id,
+                message.timestamp,
+                MessageRecord.encodeContent(message.content),
+                message.timestamp,
+                message.timestamp,
+                message.timestamp,
+                message.senderId,
+                message.timestamp,
+                message.status.rawValue,
+                shouldIncrementUnread ? 1 : 0,
+                message.conversationId,
+            ]
+        )
     }
 }
