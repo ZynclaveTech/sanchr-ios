@@ -101,21 +101,6 @@ struct SettingsView: View {
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
-            // MARK: - Logout
-            Section {
-                Button(role: .destructive) {
-                    Task { await viewModel.logout(authService: container.authService) }
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Log Out")
-                            .font(SanchrTypography.bodyBold)
-                        Spacer()
-                    }
-                }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
-
             // MARK: - Version
             Section {
                 HStack {

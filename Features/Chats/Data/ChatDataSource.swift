@@ -70,20 +70,9 @@ final class ChatDataSource: @unchecked Sendable {
                 )
                 allDeviceMessages.append(contentsOf: deviceMessages)
             } else {
-                // Legacy path: single device
-                if !signalSessionManager.hasSession(with: recipientId) {
-                    try await signalSessionManager.establishSession(with: recipientId, deviceId: 1)
-                }
-                let ciphertext = try await signalSessionManager.encrypt(
-                    plaintext: plaintext,
-                    for: recipientId,
-                    deviceId: 1
+                throw AppError.encryptionFailed(
+                    reason: "Signal multi-device manager is unavailable."
                 )
-                var dm = Vync_Messaging_DeviceMessage()
-                dm.recipientID = recipientId
-                dm.deviceID = 1
-                dm.ciphertext = ciphertext
-                allDeviceMessages.append(dm)
             }
         }
 
@@ -203,8 +192,8 @@ final class ChatDataSource: @unchecked Sendable {
             isArchived: false,
             type: conversationType,
             disappearingMessagesDuration: nil,
-            createdAt: Date(),
-            updatedAt: Date()
+            createdAt: .distantPast,
+            updatedAt: .distantPast
         )
     }
 }

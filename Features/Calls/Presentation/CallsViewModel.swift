@@ -36,9 +36,6 @@ final class CallsViewModel {
     var callHistory: [CallHistoryEntry] = []
     var isLoading: Bool = false
     var errorMessage: String?
-    var isInActiveCall: Bool = false
-    var activeCallContactName: String = ""
-    var activeCallContactId: String = ""
 
     // MARK: - Dependencies
 
@@ -120,34 +117,10 @@ final class CallsViewModel {
         }
 
         do {
-            activeCallContactName = name
-            activeCallContactId = contactId
-            isInActiveCall = true
             try await useCase.execute(recipientId: contactId, recipientName: name, isVideo: isVideo)
         } catch {
-            isInActiveCall = false
             errorMessage = error.localizedDescription
             SanchrLogger.calls.error("Failed to start call: \(error.localizedDescription)")
-        }
-    }
-
-    // MARK: - Call State Observation
-
-    /// Observes the CallManager's state and updates the view model accordingly.
-    /// Call this from a `.task` modifier on the view.
-    func observeCallState() async {
-        guard let callManager else { return }
-
-        // Poll call state changes (CallManager is @Observable, so SwiftUI will
-        // react to its property changes directly when used in the view layer).
-        // This method handles the transition back to idle for the view model.
-        while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(500))
-            if case .idle = callManager.callState, isInActiveCall {
-                isInActiveCall = false
-                activeCallContactName = ""
-                activeCallContactId = ""
-            }
         }
     }
 }

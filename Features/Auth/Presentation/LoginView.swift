@@ -36,9 +36,6 @@ struct LoginView: View {
                     // MARK: - Continue Button
                     continueButton
 
-                    // MARK: - Social Sign-In Divider
-                    socialSignInSection
-
                     Spacer().frame(height: SanchrSpacing.md)
 
                     // MARK: - Privacy & Terms
@@ -216,70 +213,6 @@ struct LoginView: View {
         .disabled(!viewModel.isPhoneValid || viewModel.isLoading)
         .opacity(viewModel.isPhoneValid ? 1.0 : 0.5)
         .sanchrPrimaryGlow()
-    }
-
-    // MARK: - Social Sign-In
-
-    private var socialSignInSection: some View {
-        VStack(spacing: SanchrSpacing.md) {
-            // Divider with "Or connect with"
-            HStack(spacing: SanchrSpacing.sm) {
-                Rectangle()
-                    .fill(Color.sanchrDivider(colorScheme))
-                    .frame(height: 1)
-                Text("Or connect with")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                    .layoutPriority(1)
-                Rectangle()
-                    .fill(Color.sanchrDivider(colorScheme))
-                    .frame(height: 1)
-            }
-
-            HStack(spacing: SanchrSpacing.md) {
-                // Google sign-in button
-                Button {
-                    // TODO: Implement Google Sign-In
-                } label: {
-                    HStack(spacing: SanchrSpacing.xs) {
-                        Image(systemName: "g.circle.fill")
-                            .font(.title3)
-                        Text("Google")
-                            .font(SanchrTypography.body)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                    .background(Color.sanchrSurface(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SanchrRadius.button)
-                            .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
-                    )
-                }
-
-                // Apple sign-in button
-                Button {
-                    // TODO: Implement Apple Sign-In
-                } label: {
-                    HStack(spacing: SanchrSpacing.xs) {
-                        Image(systemName: "apple.logo")
-                            .font(.title3)
-                        Text("Apple")
-                            .font(SanchrTypography.body)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                    .background(Color.sanchrSurface(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SanchrRadius.button)
-                            .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
-                    )
-                }
-            }
-        }
     }
 
     // MARK: - Privacy Links

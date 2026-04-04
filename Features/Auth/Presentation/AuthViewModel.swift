@@ -185,12 +185,15 @@ final class AuthViewModel {
         defer { isLoading = false }
 
         do {
-            try await authService.register(
+            let result = try await authService.register(
                 phoneNumber: fullPhoneNumber,
                 displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines)
             )
-            authState = .authenticated
-            SanchrLogger.auth.info("Registration completed successfully")
+            otpRequestId = result.requestId
+            authState = .enterOTP
+            showOTPView = true
+            startResendCountdown(seconds: result.expiresInSeconds)
+            SanchrLogger.auth.info("Registration OTP requested successfully")
         } catch {
             errorMessage = error.localizedDescription
             SanchrLogger.auth.error("Registration failed: \(error.localizedDescription)")

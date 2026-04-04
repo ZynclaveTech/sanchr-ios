@@ -75,7 +75,7 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
     func encryptFile(at inputURL: URL, to outputURL: URL) async throws -> MediaEncryptionMetadata {
         SanchrLogger.media.info("Encrypting file at \(inputURL.lastPathComponent)")
 
-        let inputData = try Data(contentsOf: inputURL)
+        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
         let digest = SHA256.hash(data: inputData)
 
         let key = Self.generateMediaKey()
@@ -110,7 +110,7 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
     ) async throws {
         SanchrLogger.media.info("Decrypting file at \(inputURL.lastPathComponent)")
 
-        let ciphertext = try Data(contentsOf: inputURL)
+        let ciphertext = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
         let symmetricKey = SymmetricKey(data: metadata.key)
         let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
         let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)

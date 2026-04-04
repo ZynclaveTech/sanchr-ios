@@ -11,7 +11,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    SWIFT_STRICT_CONCURRENCY: minimal
+    SWIFT_STRICT_CONCURRENCY: targeted
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
@@ -30,6 +30,8 @@ packages:
   Kingfisher:
     url: https://github.com/onevcat/Kingfisher.git
     from: "8.1.0"
+  GRDB:
+    path: Vendor/GRDB.swift
 
 targets:
   LibSignalClient:
@@ -74,6 +76,8 @@ targets:
         product: WebRTC
       - package: Kingfisher
         product: Kingfisher
+      - package: GRDB
+        product: GRDB
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
@@ -125,9 +129,15 @@ targets:
       - path: Tests/UnitTests
     dependencies:
       - target: Sanchr
+      - target: LibSignalClient
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
+        SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
+        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lc++"
 
   SanchrUITests:
     type: bundle.ui-testing

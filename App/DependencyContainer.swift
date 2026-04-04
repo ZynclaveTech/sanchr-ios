@@ -3,7 +3,7 @@ import SwiftUI
 /// Protocol-based dependency injection container.
 /// All services are lazily initialized and shared across the app.
 @Observable
-final class DependencyContainer {
+final class DependencyContainer: @unchecked Sendable {
 
     // MARK: - Platform Services
 
@@ -32,7 +32,11 @@ final class DependencyContainer {
         authInterceptors: authInterceptorFactory
     )
 
-    @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase()
+    @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase(
+        passphraseProvider: { [secureStorage] in
+            try secureStorage.readOrCreateDatabaseKey()
+        }
+    )
 
     // MARK: - Signal Protocol (E2EE)
 
@@ -96,7 +100,11 @@ final class DependencyContainer {
 
     @ObservationIgnored lazy var sessionService: SessionService = SessionService(
         secureStorage: secureStorage,
-        authRepository: authRepository
+        authRepository: authRepository,
+        cleanup: {
+            nonisolated(unsafe) weak var weakSelf = self
+            await weakSelf?.wipeLocalSessionArtifacts()
+        }
     )
 
     @ObservationIgnored lazy var authService: AuthServiceProtocol = AuthServiceImpl(
@@ -122,15 +130,29 @@ final class DependencyContainer {
         sessionService: sessionService,
         networkMonitor: networkMonitor,
         localDatabase: localDatabase,
+        realtimeService: realtimeService,
         syncState: syncState
     )
 
     // MARK: - Notifications
 
     /// Manages APNs registration, token upload, foreground presentation, and notification actions.
-    @ObservationIgnored lazy var pushManager: PushManager = PushManager(
-        notificationService: grpcClient.notificationService
-    )
+    @ObservationIgnored lazy var pushManager: PushManager = {
+        nonisolated(unsafe) weak var weakSelf = self
+        let manager = PushManager(notificationService: grpcClient.notificationService)
+        manager.silentPushHandler = { payload in
+            guard let container = weakSelf else { return .noData }
+
+            let syncedCount = await container.realtimeService.syncNow()
+            let conversations = (try? await container.messageRepository.fetchConversations()) ?? []
+            let unreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
+            let effectiveBadge = payload.badge ?? unreadCount
+            await SanchrNotificationService.updateBadgeCount(effectiveBadge)
+
+            return syncedCount > 0 ? .newData : (payload.badge == nil ? .noData : .newData)
+        }
+        return manager
+    }()
 
     /// Convenience accessor for the notification gRPC client (used by NotificationsView).
     var notificationServiceClient: Vync_Notifications_NotificationServiceAsyncClientProtocol {
@@ -158,6 +180,13 @@ final class DependencyContainer {
     @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
         callService: grpcClient.callSignalingService
+    )
+
+    @ObservationIgnored lazy var realtimeService: RealtimeService = RealtimeService(
+        messageRepository: messageRepository,
+        signalKeyManager: signalKeyManager,
+        sessionService: sessionService,
+        callManager: callManager
     )
 
     /// Data source for call signaling gRPC operations.
@@ -255,6 +284,28 @@ final class DependencyContainer {
             } catch {
                 SanchrLogger.crypto.error("Signal file store migration failed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    private func wipeLocalSessionArtifacts() async {
+        realtimeService.stop()
+        callManager.resetState()
+        try? await localDatabase.purgeAllData()
+        try? await mediaManager.clearCache()
+        try? keychainService.deleteAll()
+        removeSignalStoreDirectory()
+        pushManager.resetUploadState()
+        SanchrNotificationService.clearAllNotifications()
+        syncState.lastSyncTimestamp = nil
+        syncState.pendingMessageCount = 0
+        syncState.syncError = nil
+    }
+
+    private func removeSignalStoreDirectory() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let signalStoreDir = base.appendingPathComponent("SignalStore", isDirectory: true)
+        if FileManager.default.fileExists(atPath: signalStoreDir.path) {
+            try? FileManager.default.removeItem(at: signalStoreDir)
         }
     }
 }

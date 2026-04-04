@@ -19,13 +19,21 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     func deleteMessage(id: String, forEveryone: Bool) async throws
 
     /// Opens a bidirectional message stream for real-time delivery.
-    func openMessageStream() async throws -> AsyncStream<Message>
+    func openMessageStream() async throws -> AsyncStream<RealtimeEvent>
 
     /// Sends a typing indicator to a conversation.
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws
 
     /// Fetches the pre-key bundle for a user to establish an encrypted session.
     func fetchPreKeyBundle(userId: String) async throws -> Data
+
+    /// Drains pending messages from the server, decrypts, and saves locally.
+    func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult
+}
+
+struct MessageSyncResult: Sendable {
+    let appliedCount: Int
+    let latestTimestamp: Int64
 }
 
 // MARK: - Implementation
@@ -103,62 +111,77 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
-        // Fetch from local DB first, then sync with server
         return try await localDatabase.fetchMessages(
-            conversationId: conversationId, limit: limit, offset: 0)
+            conversationId: conversationId,
+            before: before,
+            limit: limit
+        )
     }
 
     func fetchConversations() async throws -> [Conversation] {
         SanchrLogger.chat.info("Fetching conversations from server")
+        do {
+            let request = Vync_Messaging_GetConversationsRequest()
+            let response = try await grpcClient.messagingService.getConversations(request)
+            let cachedConversations = (try? await localDatabase.fetchConversations()) ?? []
+            let cachedLookup = Dictionary(uniqueKeysWithValues: cachedConversations.map { ($0.id, $0) })
 
-        let request = Vync_Messaging_GetConversationsRequest()
-        let response = try await grpcClient.messagingService.getConversations(request)
+            // Build a contacts lookup to resolve participant names
+            let contacts = (try? await localDatabase.fetchContacts()) ?? []
+            let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
 
-        // Build a contacts lookup to resolve participant names
-        let contacts = (try? await localDatabase.fetchContacts()) ?? []
-        let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+            let conversations = response.conversations.map { conv -> Conversation in
+                let convType: Conversation.ConversationType = conv.type == "group" ? .group : .oneToOne
+                let cachedConversation = cachedLookup[conv.id]
 
-        let conversations = response.conversations.map { conv -> Conversation in
-            let convType: Conversation.ConversationType = conv.type == "group" ? .group : .oneToOne
-
-            let participants = conv.participantIds.map { participantId -> User in
-                if let cached = contactsLookup[participantId] {
-                    return cached
+                let participants = conv.participantIds.map { participantId -> User in
+                    if let cached = contactsLookup[participantId] {
+                        return cached
+                    }
+                    return User(
+                        id: participantId,
+                        phoneNumber: "",
+                        displayName: participantId,
+                        avatarURL: nil,
+                        bio: nil,
+                        isVerified: false,
+                        lastSeen: nil,
+                        identityKeyFingerprint: nil,
+                        status: .offline
+                    )
                 }
-                return User(
-                    id: participantId,
-                    phoneNumber: "",
-                    displayName: participantId,
-                    avatarURL: nil,
-                    bio: nil,
-                    isVerified: false,
-                    lastSeen: nil,
-                    identityKeyFingerprint: nil,
-                    status: .offline
+
+                let updatedAt = cachedConversation?.updatedAt
+                    ?? cachedConversation?.lastMessage?.timestamp
+                    ?? .distantPast
+                let createdAt = cachedConversation?.createdAt ?? updatedAt
+
+                return Conversation(
+                    id: conv.id,
+                    participants: participants,
+                    lastMessage: cachedConversation?.lastMessage,
+                    unreadCount: Int(conv.unreadCount),
+                    isPinned: cachedConversation?.isPinned ?? false,
+                    isMuted: cachedConversation?.isMuted ?? false,
+                    isArchived: cachedConversation?.isArchived ?? false,
+                    type: convType,
+                    disappearingMessagesDuration: cachedConversation?.disappearingMessagesDuration,
+                    createdAt: createdAt,
+                    updatedAt: updatedAt
                 )
             }
 
-            return Conversation(
-                id: conv.id,
-                participants: participants,
-                lastMessage: nil,
-                unreadCount: Int(conv.unreadCount),
-                isPinned: false,
-                isMuted: false,
-                isArchived: false,
-                type: convType,
-                disappearingMessagesDuration: nil,
-                createdAt: Date(),
-                updatedAt: Date()
+            for conversation in conversations {
+                try? await localDatabase.saveConversation(conversation)
+            }
+
+            return conversations
+        } catch {
+            SanchrLogger.chat.warning(
+                "Fetching conversations from server failed, using local cache: \(error.localizedDescription)"
             )
+            return try await localDatabase.fetchConversations()
         }
-
-        // Cache conversations locally
-        for conversation in conversations {
-            try? await localDatabase.saveConversation(conversation)
-        }
-
-        return conversations
     }
 
     func markAsRead(conversationId: String, upToMessageId: String) async throws {
@@ -171,8 +194,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         _ = try await grpcClient.messagingService.sendReceipt(request)
 
-        // Update local database
-        try await localDatabase.markMessageAsRead(id: upToMessageId)
+        try await localDatabase.markConversationAsRead(
+            conversationId: conversationId,
+            upToMessageId: upToMessageId
+        )
     }
 
     func deleteMessage(id: String, forEveryone: Bool) async throws {
@@ -189,7 +214,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         try await localDatabase.deleteMessage(id: id)
     }
 
-    func openMessageStream() async throws -> AsyncStream<Message> {
+    func openMessageStream() async throws -> AsyncStream<RealtimeEvent> {
         SanchrLogger.chat.info("Opening bidirectional message stream")
 
         // Use the async bidirectional stream API.
@@ -205,33 +230,27 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
                         switch event {
                         case .message(let envelope):
-                            // Decrypt the incoming encrypted envelope
-                            do {
-                                let plaintext = try await self.signalProtocol.decryptEnvelope(envelope)
-                                let contentText = String(data: plaintext, encoding: .utf8) ?? ""
-                                let serverTimestamp = Date(
-                                    timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000.0
-                                )
-
-                                let message = Message(
-                                    id: envelope.messageID,
-                                    conversationId: envelope.conversationID,
-                                    senderId: envelope.senderID,
-                                    timestamp: serverTimestamp,
-                                    content: .text(contentText),
-                                    status: .delivered,
-                                    isOutgoing: false
-                                )
-
-                                try? await self.localDatabase.saveMessage(message)
-                                continuation.yield(message)
-                            } catch {
-                                SanchrLogger.chat.error("Failed to decrypt message: \(error)")
+                            if let message = await self.decodeMessage(from: envelope) {
+                                continuation.yield(.message(message))
                             }
-
-                        case .typing, .receipt, .presence, .preKeyCountLow:
-                            // These are non-message events; skip in message stream
-                            break
+                        case .typing(let indicator):
+                            continuation.yield(.typing(indicator))
+                        case .receipt(let receipt):
+                            if let status = Message.DeliveryStatus(rawValue: receipt.status) {
+                                try? await self.localDatabase.updateMessageStatus(
+                                    id: receipt.messageID,
+                                    status: status
+                                )
+                            }
+                            continuation.yield(.receipt(receipt))
+                        case .presence(let presence):
+                            continuation.yield(.presence(presence))
+                        case .preKeyCountLow(let preKeyCountLow):
+                            continuation.yield(.preKeyCountLow(preKeyCountLow))
+                        case .callOffer(let offer):
+                            continuation.yield(.callOffer(offer))
+                        case .callLifecycle(let lifecycle):
+                            continuation.yield(.callLifecycle(lifecycle))
                         }
                     }
                     continuation.finish()
@@ -279,6 +298,32 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return try response.serializedData()
     }
 
+    // MARK: - Sync
+
+    func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult {
+        SanchrLogger.chat.info("Syncing pending messages from server")
+
+        var request = Vync_Messaging_SyncRequest()
+        request.sinceTimestamp = sinceTimestamp
+
+        let stream = grpcClient.messagingService.syncMessages(request)
+        var count = 0
+        var latestTimestamp = sinceTimestamp
+
+        for try await envelope in stream {
+            if let message = await decodeMessage(from: envelope) {
+                count += 1
+                latestTimestamp = max(latestTimestamp, Int64(message.timestamp.timeIntervalSince1970 * 1000))
+            }
+        }
+
+        if count > 0 {
+            SanchrLogger.chat.info("Synced \(count) pending message(s) from server")
+        }
+
+        return MessageSyncResult(appliedCount: count, latestTimestamp: latestTimestamp)
+    }
+
     // MARK: - Helpers
 
     private static func contentTypeString(for content: Message.MessageContent) -> String {
@@ -291,6 +336,48 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         case .location: return "location"
         case .contact: return "contact"
         case .system: return "system"
+        }
+    }
+
+    private func decodeMessage(from envelope: Vync_Messaging_EncryptedEnvelope) async -> Message? {
+        do {
+            let plaintext = try await signalProtocol.decryptEnvelope(envelope)
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000.0
+            )
+
+            let content = decodeContent(
+                plaintext,
+                contentType: envelope.contentType
+            )
+
+            let message = Message(
+                id: envelope.messageID,
+                conversationId: envelope.conversationID,
+                senderId: envelope.senderID,
+                timestamp: serverTimestamp,
+                content: content,
+                status: .delivered,
+                isOutgoing: false
+            )
+
+            try? await localDatabase.saveMessage(message)
+            return message
+        } catch {
+            SanchrLogger.chat.error("Failed to decrypt message: \(error)")
+            return nil
+        }
+    }
+
+    private func decodeContent(_ plaintext: Data, contentType: String) -> Message.MessageContent {
+        switch contentType {
+        case "text":
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        default:
+            if let content = try? JSONDecoder().decode(Message.MessageContent.self, from: plaintext) {
+                return content
+            }
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
         }
     }
 }

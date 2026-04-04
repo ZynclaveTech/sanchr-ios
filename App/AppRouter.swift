@@ -39,6 +39,8 @@ final class AppRouter {
     var callsPath = NavigationPath()
     var contactsPath = NavigationPath()
     var settingsPath = NavigationPath()
+    var pendingConversationId: String?
+    var pendingCallId: String?
 
     /// Resets all navigation stacks to their root views.
     func resetAllNavigation() {
@@ -61,6 +63,30 @@ final class AppRouter {
             selectedTab = tab
         }
     }
+
+    func routeNotificationAction(_ action: NotificationAction) {
+        switch action {
+        case .openConversation(let conversationId):
+            selectedTab = .chats
+            pendingConversationId = conversationId
+        case .openCall(let callId):
+            selectedTab = .calls
+            pendingCallId = callId
+        case .replyToMessage(let conversationId, _):
+            selectedTab = .chats
+            pendingConversationId = conversationId
+        case .none:
+            break
+        }
+    }
+
+    func clearPendingConversation() {
+        pendingConversationId = nil
+    }
+
+    func clearPendingCall() {
+        pendingCallId = nil
+    }
 }
 
 // MARK: - Main Tab View
@@ -68,6 +94,7 @@ final class AppRouter {
 /// Root tabbed interface with four primary sections.
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(DependencyContainer.self) private var container
 
     var body: some View {
         @Bindable var router = router
@@ -106,5 +133,17 @@ struct MainTabView: View {
             .tag(AppRouter.Tab.settings)
         }
         .tint(Color.sanchrPrimary)
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { container.callManager.callState != .idle },
+                set: { presented in
+                    if !presented {
+                        container.callManager.resetState()
+                    }
+                }
+            )
+        ) {
+            ActiveCallView()
+        }
     }
 }

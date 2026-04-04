@@ -29,6 +29,8 @@ struct Vync_Auth_DeviceInfo: Sendable {
 
   var platform: String = String()
 
+  var installationID: String = String()
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -228,7 +230,7 @@ fileprivate let _protobuf_package = "vync.auth"
 
 extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_name\0\u{1}platform\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_name\0\u{1}platform\0\u{3}installation_id\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -238,6 +240,7 @@ extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.deviceName) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.platform) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.installationID) }()
       default: break
       }
     }
@@ -250,12 +253,16 @@ extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if !self.platform.isEmpty {
       try visitor.visitSingularStringField(value: self.platform, fieldNumber: 2)
     }
+    if !self.installationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.installationID, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   static func ==(lhs: Vync_Auth_DeviceInfo, rhs: Vync_Auth_DeviceInfo) -> Bool {
     if lhs.deviceName != rhs.deviceName {return false}
     if lhs.platform != rhs.platform {return false}
+    if lhs.installationID != rhs.installationID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

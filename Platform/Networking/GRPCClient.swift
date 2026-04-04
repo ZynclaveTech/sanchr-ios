@@ -46,7 +46,9 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
     private let coreChannel: ClientConnection
     private let callChannel: ClientConnection
 
-    private(set) var isConnected: Bool = false
+    var isConnected: Bool {
+        coreChannel.connectivity.state == .ready || callChannel.connectivity.state == .ready
+    }
 
     // MARK: - Service clients (created eagerly)
 
@@ -127,8 +129,9 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
         SanchrLogger.network.info(
             "Connecting gRPC: core=\(config.grpcHost):\(config.grpcPort), call=\(config.callHost):\(config.callPort)"
         )
-        isConnected = true
-        SanchrLogger.network.info("gRPC channels established")
+        SanchrLogger.network.info(
+            "gRPC channels prepared: coreState=\(String(describing: self.coreChannel.connectivity.state)), callState=\(String(describing: self.callChannel.connectivity.state))"
+        )
     }
 
     func disconnect() async throws {
@@ -137,8 +140,8 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
         let coreClose = coreChannel.close()
         let callClose = callChannel.close()
 
-        _ = try? coreClose.wait()
-        _ = try? callClose.wait()
+        _ = try? await coreClose.get()
+        _ = try? await callClose.get()
 
         let groupToShutdown = group
         try? await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -151,8 +154,6 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
                 }
             }
         }
-
-        isConnected = false
     }
 
     deinit {

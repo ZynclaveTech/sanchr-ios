@@ -5,6 +5,7 @@ import SwiftUI
 /// Matches Figma: chats-list-screen with search, E2EE banner, and FAB.
 struct ChatsListView: View {
     @Environment(DependencyContainer.self) private var container
+    @Environment(AppRouter.self) private var router
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = ChatsListViewModel()
     @State private var searchText = ""
@@ -39,10 +40,25 @@ struct ChatsListView: View {
             }
         }
         .refreshable {
-            await viewModel.refresh(messageRepository: container.messageRepository)
+            await viewModel.refresh(
+                messageRepository: container.messageRepository,
+                syncOrchestrator: container.syncOrchestrator
+            )
         }
         .task {
             await viewModel.loadConversations(messageRepository: container.messageRepository)
+            await openPendingConversationIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { _ in
+            Task {
+                await viewModel.loadConversations(messageRepository: container.messageRepository)
+                await openPendingConversationIfNeeded()
+            }
+        }
+        .onChange(of: router.pendingConversationId) { _, _ in
+            Task {
+                await openPendingConversationIfNeeded()
+            }
         }
     }
 
@@ -99,33 +115,6 @@ struct ChatsListView: View {
                 }
                 .listRowBackground(Color.sanchrBackground(colorScheme))
                 .listRowSeparator(.hidden)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        Task { await viewModel.deleteConversation(conversation) }
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-
-                    Button {
-                        Task { await viewModel.togglePin(conversation) }
-                    } label: {
-                        Label(
-                            conversation.isPinned ? "Unpin" : "Pin",
-                            systemImage: conversation.isPinned ? "pin.slash" : "pin"
-                        )
-                    }
-                    .tint(.sanchrPrimary)
-
-                    Button {
-                        Task { await viewModel.toggleMute(conversation) }
-                    } label: {
-                        Label(
-                            conversation.isMuted ? "Unmute" : "Mute",
-                            systemImage: conversation.isMuted ? "bell" : "bell.slash"
-                        )
-                    }
-                    .tint(.sanchrWarning)
-                }
             }
 
             // Error message
@@ -243,6 +232,17 @@ struct ChatsListView: View {
         }
         .padding(.trailing, SanchrSpacing.lg)
         .padding(.bottom, SanchrSpacing.lg)
+    }
+
+    private func openPendingConversationIfNeeded() async {
+        guard let pendingConversationId = router.pendingConversationId else { return }
+
+        if let conversation = viewModel.conversations.first(where: { $0.id == pendingConversationId }) {
+            router.selectedTab = .chats
+            router.chatsPath = NavigationPath()
+            router.chatsPath.append(conversation)
+            router.clearPendingConversation()
+        }
     }
 }
 

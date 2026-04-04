@@ -172,16 +172,6 @@ final class SettingsViewModel {
         }
     }
 
-    // MARK: - Logout
-
-    func logout(authService: AuthServiceProtocol) async {
-        do {
-            try await authService.logout()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
     // MARK: - Private Helpers
 
     private func applySettings(_ settings: Vync_Settings_UserSettings) {

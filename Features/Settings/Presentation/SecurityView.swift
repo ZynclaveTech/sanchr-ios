@@ -282,13 +282,8 @@ struct ChangePasswordSheet: View {
         isProcessing = true
         defer { isProcessing = false }
 
-        let authDataSource = AuthDataSource(
-            grpcClient: container.grpcClient,
-            keychainService: container.keychainService
-        )
-
         do {
-            try await authDataSource.changePassword(
+            try await container.authService.changePassword(
                 currentPassword: currentPassword,
                 newPassword: newPassword
             )

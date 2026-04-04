@@ -49,42 +49,31 @@ struct ChatDetailView: View {
             // Call and menu buttons
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: SanchrSpacing.sm) {
-                    Button {
-                        // TODO: Video call
-                    } label: {
-                        Image(systemName: "video.fill")
-                            .font(.system(size: 16))
-                    }
-                    Button {
-                        // TODO: Voice call
-                    } label: {
-                        Image(systemName: "phone.fill")
-                            .font(.system(size: 16))
-                    }
-                    Menu {
+                    if let recipient {
                         Button {
-                            // TODO: View contact info
+                            Task {
+                                try? await container.startCallUseCase.execute(
+                                    recipientId: recipient.id,
+                                    recipientName: recipient.displayName,
+                                    isVideo: true
+                                )
+                            }
                         } label: {
-                            Label("Contact Info", systemImage: "person.circle")
+                            Image(systemName: "video.fill")
+                                .font(.system(size: 16))
                         }
                         Button {
-                            // TODO: Search in conversation
+                            Task {
+                                try? await container.startCallUseCase.execute(
+                                    recipientId: recipient.id,
+                                    recipientName: recipient.displayName,
+                                    isVideo: false
+                                )
+                            }
                         } label: {
-                            Label("Search", systemImage: "magnifyingglass")
+                            Image(systemName: "phone.fill")
+                                .font(.system(size: 16))
                         }
-                        Button {
-                            // TODO: Mute notifications
-                        } label: {
-                            Label("Mute", systemImage: "bell.slash")
-                        }
-                        Button(role: .destructive) {
-                            // TODO: Clear chat
-                        } label: {
-                            Label("Clear Chat", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16))
                     }
                 }
                 .foregroundColor(.sanchrPrimary)
@@ -95,6 +84,51 @@ struct ChatDetailView: View {
                 conversationId: conversation.id,
                 messageRepository: container.messageRepository
             )
+        }
+        .onAppear {
+            viewModel.onConversationAppear(
+                conversationId: conversation.id,
+                pushManager: container.pushManager
+            )
+        }
+        .onDisappear {
+            viewModel.onConversationDisappear(pushManager: container.pushManager)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+                conversationId == conversation.id,
+                let message = userInfo[RealtimeNotificationKey.message] as? Message
+            else {
+                return
+            }
+
+            viewModel.handleRealtimeMessage(message)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeTypingChanged)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+                conversationId == conversation.id,
+                let typing = userInfo[RealtimeNotificationKey.typing] as? Vync_Messaging_TypingIndicator
+            else {
+                return
+            }
+
+            viewModel.handleTypingIndicator(typing)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeReceiptUpdated)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+                conversationId == conversation.id,
+                let receipt = userInfo[RealtimeNotificationKey.receipt] as? Vync_Messaging_ReceiptUpdate
+            else {
+                return
+            }
+
+            viewModel.handleReceipt(receipt)
         }
     }
 
@@ -153,6 +187,17 @@ struct ChatDetailView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: SanchrSpacing.xxs) {
+                    Color.clear
+                        .frame(height: 1)
+                        .onAppear {
+                            Task {
+                                await viewModel.loadMore(
+                                    conversationId: conversation.id,
+                                    messageRepository: container.messageRepository
+                                )
+                            }
+                        }
+
                     // Load more indicator
                     if viewModel.isLoadingMore {
                         ProgressView()
@@ -161,26 +206,15 @@ struct ChatDetailView: View {
                     }
 
                     // Grouped messages with date separators
-                    ForEach(viewModel.groupedMessages, id: \.0) { dateLabel, messages in
+                    ForEach(viewModel.messageSections) { section in
                         // Date separator
-                        dateSeparator(dateLabel)
+                        dateSeparator(section.title)
 
-                        ForEach(messages) { message in
+                        ForEach(section.messages) { message in
                             MessageBubble(message: message, colorScheme: colorScheme)
                                 .id(message.id)
                                 .contextMenu {
                                     messageContextMenu(message)
-                                }
-                                .onAppear {
-                                    // Trigger load more when first message appears
-                                    if message.id == viewModel.messages.first?.id {
-                                        Task {
-                                            await viewModel.loadMore(
-                                                conversationId: conversation.id,
-                                                messageRepository: container.messageRepository
-                                            )
-                                        }
-                                    }
                                 }
                         }
                     }
@@ -269,7 +303,8 @@ struct ChatDetailView: View {
                     await viewModel.deleteMessage(
                         message,
                         forEveryone: true,
-                        messageRepository: container.messageRepository
+                        messageRepository: container.messageRepository,
+                        chatDataSource: container.chatDataSource
                     )
                 }
             } label: {
@@ -282,7 +317,8 @@ struct ChatDetailView: View {
                 await viewModel.deleteMessage(
                     message,
                     forEveryone: false,
-                    messageRepository: container.messageRepository
+                    messageRepository: container.messageRepository,
+                    chatDataSource: container.chatDataSource
                 )
             }
         } label: {

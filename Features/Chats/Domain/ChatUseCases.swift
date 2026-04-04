@@ -64,15 +64,18 @@ enum ChatUseCases {
         private let messageRepository: MessageRepositoryProtocol
         private let signalSessionManager: SignalProtocolManagerProtocol
         private let chatDataSource: ChatDataSource
+        private let localUserId: String
 
         init(
             messageRepository: MessageRepositoryProtocol,
             signalSessionManager: SignalProtocolManagerProtocol,
-            chatDataSource: ChatDataSource
+            chatDataSource: ChatDataSource,
+            localUserId: String
         ) {
             self.messageRepository = messageRepository
             self.signalSessionManager = signalSessionManager
             self.chatDataSource = chatDataSource
+            self.localUserId = localUserId
         }
 
         /// Sends a text message. Establishes encrypted sessions with all recipient devices if needed.
@@ -99,20 +102,9 @@ enum ChatUseCases {
                     recipientId: recipientId
                 )
             } else {
-                // Legacy fallback: encrypt for device 1 only
-                if !signalSessionManager.hasSession(with: recipientId) {
-                    try await signalSessionManager.establishSession(with: recipientId, deviceId: 1)
-                }
-                let ciphertext = try await signalSessionManager.encrypt(
-                    plaintext: plaintext,
-                    for: recipientId,
-                    deviceId: 1
+                throw AppError.encryptionFailed(
+                    reason: "Signal multi-device manager is unavailable."
                 )
-                var dm = Vync_Messaging_DeviceMessage()
-                dm.recipientID = recipientId
-                dm.deviceID = 1
-                dm.ciphertext = ciphertext
-                deviceMessages = [dm]
             }
 
             // 3. Send via gRPC
@@ -126,7 +118,7 @@ enum ChatUseCases {
             let confirmedMessage = Message(
                 id: response.messageID,
                 conversationId: conversationId,
-                senderId: "local",  // TODO: Get from SessionService.currentUserId
+                senderId: localUserId,
                 timestamp: Date(
                     timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000),
                 content: .text(trimmedText),

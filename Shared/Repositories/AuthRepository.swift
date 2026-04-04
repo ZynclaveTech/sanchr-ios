@@ -4,20 +4,22 @@ import GRPC
 /// Protocol defining authentication operations against the backend.
 protocol AuthRepositoryProtocol: AnyObject, Sendable {
     /// Requests an OTP for the given phone number.
-    func requestOTP(phoneNumber: String) async throws -> OTPRequestResult
+    func requestOTP(phoneNumber: String, displayName: String?) async throws -> OTPRequestResult
 
     /// Verifies the OTP code and returns authentication tokens.
     func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens
 
-    /// Registers a new user account.
-    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws
-        -> AuthTokens
+    /// Starts the staged registration flow by requesting an OTP.
+    func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult
 
     /// Refreshes an expired access token using the refresh token.
     func refreshToken(refreshToken: String) async throws -> AuthTokens
 
     /// Logs out and invalidates the current session on the server.
     func logout(accessToken: String) async throws
+
+    /// Changes the current account password.
+    func changePassword(currentPassword: String, newPassword: String) async throws
 
     /// Uploads pre-key bundle to the server for Signal Protocol.
     func uploadPreKeyBundle(
@@ -44,6 +46,7 @@ struct AuthTokens: Sendable {
     let displayName: String
     let phoneNumber: String
     let avatarURL: String
+    let deviceId: String?
 }
 
 // MARK: - Implementation
@@ -61,21 +64,18 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         grpcClient.authService
     }
 
-    func requestOTP(phoneNumber: String) async throws -> OTPRequestResult {
+    func requestOTP(phoneNumber: String, displayName: String? = nil) async throws -> OTPRequestResult {
         SanchrLogger.auth.info("Requesting OTP for \(phoneNumber.prefix(4))****")
-
-        var device = Vync_Auth_DeviceInfo()
-        device.deviceName = "iPhone"
-        device.platform = "ios"
+        let device = try makeDeviceInfo()
 
         // Call Register which handles both new and existing users.
-        // New users get created; existing users get an OTP generated for login.
+        // New users are staged; existing users get an OTP generated for login.
         // Both paths return OK — the server handles user-enumeration prevention.
         do {
             var registerReq = Vync_Auth_RegisterRequest()
             registerReq.phoneNumber = phoneNumber
-            registerReq.displayName = "Sanchr User"
-            registerReq.password = "temp_otp_flow"
+            registerReq.displayName = sanitizedDisplayName(displayName)
+            registerReq.password = Self.otpBootstrapPassword()
             registerReq.device = device
             _ = try await authService.register(registerReq)
             SanchrLogger.auth.info("Register/OTP request succeeded")
@@ -97,10 +97,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         var request = Vync_Auth_VerifyOTPRequest()
         request.phoneNumber = phoneNumber
         request.otpCode = code
-        var device = Vync_Auth_DeviceInfo()
-        device.deviceName = "iPhone"
-        device.platform = "ios"
-        request.device = device
+        request.device = try makeDeviceInfo()
 
         let response: Vync_Auth_AuthResponse
         do {
@@ -116,36 +113,15 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         // Persist tokens
         try secureStorage.saveAccessToken(tokens.accessToken)
         try secureStorage.saveRefreshToken(tokens.refreshToken)
-        if response.deviceID != 0 {
-            try secureStorage.saveDeviceId(String(response.deviceID))
+        if let deviceId = tokens.deviceId {
+            try secureStorage.saveDeviceId(deviceId)
         }
 
         return tokens
     }
 
-    func register(phoneNumber: String, displayName: String, identityPublicKey: Data) async throws
-        -> AuthTokens
-    {
-        SanchrLogger.auth.info("Registering \(phoneNumber.prefix(4))****")
-
-        var request = Vync_Auth_RegisterRequest()
-        request.phoneNumber = phoneNumber
-        request.displayName = displayName
-        var device = Vync_Auth_DeviceInfo()
-        device.deviceName = "iPhone"
-        device.platform = "ios"
-        request.device = device
-
-        let response = try await authService.register(request)
-        let tokens = Self.mapTokens(response)
-
-        try secureStorage.saveAccessToken(tokens.accessToken)
-        try secureStorage.saveRefreshToken(tokens.refreshToken)
-        if response.deviceID != 0 {
-            try secureStorage.saveDeviceId(String(response.deviceID))
-        }
-
-        return tokens
+    func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult {
+        try await requestOTP(phoneNumber: phoneNumber, displayName: displayName)
     }
 
     func refreshToken(refreshToken: String) async throws -> AuthTokens {
@@ -165,6 +141,9 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         let tokens = Self.mapTokens(response)
         try secureStorage.saveAccessToken(tokens.accessToken)
         try secureStorage.saveRefreshToken(tokens.refreshToken)
+        if let deviceId = tokens.deviceId {
+            try secureStorage.saveDeviceId(deviceId)
+        }
 
         return tokens
     }
@@ -179,6 +158,13 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         request.refreshToken = refreshToken
 
         _ = try await authService.logout(request)
+    }
+
+    func changePassword(currentPassword: String, newPassword: String) async throws {
+        var request = Vync_Auth_ChangePasswordRequest()
+        request.currentPassword = currentPassword
+        request.newPassword = newPassword
+        _ = try await authService.changePassword(request)
     }
 
     func uploadPreKeyBundle(
@@ -222,11 +208,52 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         AuthTokens(
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
-            expiresAt: Date().addingTimeInterval(3600),
+            expiresAt: decodeJWTExpiration(from: response.accessToken) ?? Date().addingTimeInterval(3600),
             userId: response.hasUser ? response.user.id : "",
             displayName: response.hasUser ? response.user.displayName : "",
             phoneNumber: response.hasUser ? response.user.phoneNumber : "",
-            avatarURL: response.hasUser ? response.user.avatarURL : ""
+            avatarURL: response.hasUser ? response.user.avatarURL : "",
+            deviceId: response.deviceID == 0 ? nil : String(response.deviceID)
         )
+    }
+
+    private func makeDeviceInfo() throws -> Vync_Auth_DeviceInfo {
+        var device = Vync_Auth_DeviceInfo()
+        device.deviceName = "iPhone"
+        device.platform = "ios"
+        device.installationID = try secureStorage.readOrCreateInstallationId()
+        return device
+    }
+
+    private func sanitizedDisplayName(_ displayName: String?) -> String {
+        let trimmed = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? "Sanchr User" : trimmed
+    }
+
+    private static func otpBootstrapPassword() -> String {
+        UUID().uuidString.replacingOccurrences(of: "-", with: "") + "Aa1!"
+    }
+
+    private static func decodeJWTExpiration(from token: String) -> Date? {
+        let segments = token.split(separator: ".")
+        guard segments.count >= 2 else { return nil }
+
+        var payload = String(segments[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let remainder = payload.count % 4
+        if remainder != 0 {
+            payload += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard
+            let data = Data(base64Encoded: payload),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let exp = json["exp"] as? TimeInterval
+        else {
+            return nil
+        }
+
+        return Date(timeIntervalSince1970: exp)
     }
 }

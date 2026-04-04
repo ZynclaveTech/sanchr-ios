@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// Protocol for encrypted key-value storage backed by Keychain.
 protocol SecureStorageProtocol: AnyObject, Sendable {
@@ -12,7 +13,16 @@ protocol SecureStorageProtocol: AnyObject, Sendable {
     func readPreKeys() throws -> [Data]
     func saveDeviceId(_ deviceId: String) throws
     func readDeviceId() throws -> String?
+    func saveInstallationId(_ installationId: String) throws
+    func readInstallationId() throws -> String?
+    func readOrCreateInstallationId() throws -> String
+    func saveSessionSnapshot(_ snapshot: SessionSnapshot) throws
+    func readSessionSnapshot() throws -> SessionSnapshot?
+    func saveDatabaseKey(_ key: String) throws
+    func readDatabaseKey() throws -> String?
+    func readOrCreateDatabaseKey() throws -> String
     func deleteAllTokens() throws
+    func deleteSessionData() throws
     func deleteAllKeys() throws
 }
 
@@ -24,6 +34,9 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         static let accessToken = "io.sanchr.access_token"
         static let refreshToken = "io.sanchr.refresh_token"
         static let deviceId = "io.sanchr.device_id"
+        static let installationId = "io.sanchr.installation_id"
+        static let sessionSnapshot = "io.sanchr.session_snapshot"
+        static let databaseKey = "io.sanchr.database_key"
         static let identityKey = "io.sanchr.identity_key"
         static let preKeys = "io.sanchr.pre_keys"
     }
@@ -80,9 +93,73 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         return String(data: data, encoding: .utf8)
     }
 
+    func saveInstallationId(_ installationId: String) throws {
+        guard let data = installationId.data(using: .utf8) else { return }
+        try keychain.save(data, forKey: Keys.installationId)
+    }
+
+    func readInstallationId() throws -> String? {
+        guard let data = try keychain.read(forKey: Keys.installationId) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func readOrCreateInstallationId() throws -> String {
+        if let existing = try readInstallationId(), !existing.isEmpty {
+            return existing
+        }
+
+        let installationId = UUID().uuidString.lowercased()
+        try saveInstallationId(installationId)
+        return installationId
+    }
+
+    func saveSessionSnapshot(_ snapshot: SessionSnapshot) throws {
+        let archived = try JSONEncoder().encode(snapshot)
+        try keychain.save(archived, forKey: Keys.sessionSnapshot)
+    }
+
+    func readSessionSnapshot() throws -> SessionSnapshot? {
+        guard let data = try keychain.read(forKey: Keys.sessionSnapshot) else { return nil }
+        return try JSONDecoder().decode(SessionSnapshot.self, from: data)
+    }
+
+    func saveDatabaseKey(_ key: String) throws {
+        guard let data = key.data(using: .utf8) else { return }
+        try keychain.save(data, forKey: Keys.databaseKey)
+    }
+
+    func readDatabaseKey() throws -> String? {
+        guard let data = try keychain.read(forKey: Keys.databaseKey) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func readOrCreateDatabaseKey() throws -> String {
+        if let existing = try readDatabaseKey(), !existing.isEmpty {
+            return existing
+        }
+
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        guard status == errSecSuccess else {
+            throw AppError.keychainWriteFailed
+        }
+
+        let key = Data(randomBytes).base64EncodedString()
+        try saveDatabaseKey(key)
+        return key
+    }
+
     func deleteAllTokens() throws {
         try keychain.delete(forKey: Keys.accessToken)
         try keychain.delete(forKey: Keys.refreshToken)
+    }
+
+    func deleteSessionData() throws {
+        try deleteAllTokens()
+        try keychain.delete(forKey: Keys.deviceId)
+        try keychain.delete(forKey: Keys.installationId)
+        try keychain.delete(forKey: Keys.sessionSnapshot)
+        try keychain.delete(forKey: Keys.databaseKey)
     }
 
     func deleteAllKeys() throws {

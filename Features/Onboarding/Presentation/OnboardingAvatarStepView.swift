@@ -103,8 +103,14 @@ struct OnboardingAvatarStepView: View {
         .onChange(of: selectedPhotoItem) { _, newValue in
             guard let newValue else { return }
             Task {
-                if let data = try? await newValue.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
+                guard
+                    let data = try? await newValue.loadTransferable(type: Data.self),
+                    let image = UIImage(data: data)
+                else {
+                    return
+                }
+
+                await MainActor.run {
                     viewModel.selectedImage = image
                 }
             }

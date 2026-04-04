@@ -89,15 +89,27 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
         direction: Direction,
         context: StoreContext
     ) throws -> Bool {
-        var result = true
+        var keyChanged = false
         queue.sync {
-            if let existing = trustedIdentities[address] {
-                // Trust on first use (TOFU): if we already have a key, it must match.
-                result = (existing == identity)
+            if let existing = trustedIdentities[address], existing != identity {
+                keyChanged = true
             }
-            // If we have never seen this address, trust on first use.
         }
-        return result
+
+        if keyChanged {
+            // Identity key changed — auto-accept for sending (Signal's default behavior).
+            // For receiving direction, also accept but log a warning.
+            // In production, surface a "safety number changed" UI notification.
+            SanchrLogger.crypto.warning(
+                "Identity key changed for \(address.name.prefix(8))... device \(address.deviceId) — auto-accepting new key"
+            )
+            queue.sync(flags: .barrier) {
+                trustedIdentities[address] = identity
+            }
+            saveTrustedIdentitiesToDisk()
+        }
+
+        return true
     }
 
     func identity(

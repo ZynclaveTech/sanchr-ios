@@ -13,24 +13,36 @@ struct CallsListView: View {
                 emptyState
             } else {
                 List(viewModel.callHistory) { entry in
-                    CallHistoryRow(entry: entry, colorScheme: colorScheme)
+                    CallHistoryRow(
+                        entry: entry,
+                        colorScheme: colorScheme
+                    ) {
+                        Task {
+                            if entry.isVideo {
+                                await viewModel.startVideoCall(
+                                    contactId: entry.contactId,
+                                    name: entry.contactName
+                                )
+                            } else {
+                                await viewModel.startVoiceCall(
+                                    contactId: entry.contactId,
+                                    name: entry.contactName
+                                )
+                            }
+                        }
+                    }
                         .listRowBackground(Color.sanchrSurface(colorScheme))
                 }
                 .listStyle(.plain)
             }
         }
         .navigationTitle("Calls")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    // TODO: New call composer
-                } label: {
-                    Image(systemName: "phone.badge.plus")
-                        .foregroundColor(.sanchrPrimary)
-                }
-            }
-        }
         .task {
+            viewModel.configure(
+                callManager: container.callManager,
+                getCallHistoryUseCase: container.getCallHistoryUseCase,
+                startCallUseCase: container.startCallUseCase
+            )
             await viewModel.loadCallHistory()
         }
     }
@@ -57,6 +69,7 @@ struct CallsListView: View {
 struct CallHistoryRow: View {
     let entry: CallHistoryEntry
     let colorScheme: ColorScheme
+    let action: () -> Void
 
     var body: some View {
         HStack(spacing: SanchrSpacing.sm) {
@@ -94,7 +107,7 @@ struct CallHistoryRow: View {
             Spacer()
 
             Button {
-                // TODO: Initiate call
+                action()
             } label: {
                 Image(systemName: entry.isVideo ? "video.fill" : "phone.fill")
                     .foregroundColor(.sanchrPrimary)

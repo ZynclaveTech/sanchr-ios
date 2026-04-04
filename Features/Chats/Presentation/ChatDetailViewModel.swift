@@ -1,6 +1,12 @@
 import Foundation
 import UserNotifications
 
+struct MessageSection: Identifiable, Sendable {
+    let id: Date
+    let title: String
+    let messages: [Message]
+}
+
 /// View model for the chat conversation detail screen.
 /// Manages messages, input, sending, optimistic updates, and pagination.
 /// All outgoing messages are encrypted via Signal Protocol before sending.
@@ -24,28 +30,13 @@ final class ChatDetailViewModel {
     var peerIsTyping: Bool = false
     var peerTypingName: String = ""
 
-    /// Grouped messages by date for section headers.
-    var groupedMessages: [(String, [Message])] {
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: messages) { message in
-            if calendar.isDateInToday(message.timestamp) {
-                return "Today"
-            } else if calendar.isDateInYesterday(message.timestamp) {
-                return "Yesterday"
-            } else {
-                return message.timestamp.formatted(date: .abbreviated, time: .omitted)
-            }
-        }
-        return grouped.sorted { lhs, rhs in
-            guard let lhsDate = lhs.value.first?.timestamp,
-                let rhsDate = rhs.value.first?.timestamp
-            else { return false }
-            return lhsDate < rhsDate
-        }
-    }
+    /// Grouped messages by day for stable section headers.
+    private(set) var messageSections: [MessageSection] = []
 
     /// Whether there are more messages to load.
     var hasMoreMessages: Bool = true
+
+    private var lastPaginationAnchor: Date?
 
     // MARK: - Conversation Lifecycle
 
@@ -53,21 +44,11 @@ final class ChatDetailViewModel {
     /// Clears any pending notifications for this conversation and sets the active conversation
     /// so that foreground notifications for it are suppressed.
     @MainActor
-    func onConversationAppear(conversationId: String) {
-        PushManager.activeConversationId = conversationId
+    func onConversationAppear(conversationId: String, pushManager: PushManager) {
+        pushManager.setActiveConversation(conversationId)
 
         // Clear delivered notifications for this conversation
         SanchrNotificationService.clearNotifications(for: conversationId)
-
-        // Decrement badge (best-effort; the server is the source of truth for badge count)
-        Task {
-            let center = UNUserNotificationCenter.current()
-            let delivered = await center.deliveredNotifications()
-            let remainingCount = delivered.filter {
-                $0.request.content.threadIdentifier != conversationId
-            }.count
-            await SanchrNotificationService.updateBadgeCount(remainingCount)
-        }
 
         SanchrLogger.chat.info(
             "Entered conversation \(conversationId.prefix(8))..., notifications cleared")
@@ -75,8 +56,8 @@ final class ChatDetailViewModel {
 
     /// Called when the user leaves a conversation.
     @MainActor
-    func onConversationDisappear() {
-        PushManager.activeConversationId = nil
+    func onConversationDisappear(pushManager: PushManager) {
+        pushManager.setActiveConversation(nil)
     }
 
     // MARK: - Load Messages
@@ -97,7 +78,9 @@ final class ChatDetailViewModel {
                 before: nil,
                 limit: 50
             )
+            rebuildSections()
             hasMoreMessages = messages.count >= 50
+            lastPaginationAnchor = nil
             SanchrLogger.chat.info(
                 "Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
         } catch {
@@ -127,17 +110,19 @@ final class ChatDetailViewModel {
         // Optimistic UI: add message immediately with .sending status
         let optimisticMessage = Message.textMessage(
             conversationId: conversationId,
-            senderId: "local",
+            senderId: sessionService.currentUserId ?? "unknown",
             text: text,
             isOutgoing: true
         )
         messages.append(optimisticMessage)
+        rebuildSections()
 
         do {
             let useCase = ChatUseCases.SendMessageUseCase(
                 messageRepository: messageRepository,
                 signalSessionManager: signalProtocol,
-                chatDataSource: chatDataSource
+                chatDataSource: chatDataSource,
+                localUserId: sessionService.currentUserId ?? "unknown"
             )
             // Wrap in auth retry so UNAUTHENTICATED errors refresh the token and retry
             let sentMessage = try await sessionService.withAuthRetry {
@@ -151,12 +136,14 @@ final class ChatDetailViewModel {
             if let index = messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
                 messages[index] = sentMessage
             }
+            rebuildSections()
             SanchrLogger.chat.info("Message sent successfully")
         } catch {
             // Mark optimistic message as failed
             if let index = messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
                 messages[index].status = .failed
             }
+            rebuildSections()
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Send failed: \(error.localizedDescription)")
         }
@@ -189,6 +176,7 @@ final class ChatDetailViewModel {
                 isOutgoing: false
             )
             messages.append(incomingMessage)
+            rebuildSections()
             SanchrLogger.chat.info(
                 "Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
         } catch {
@@ -206,6 +194,7 @@ final class ChatDetailViewModel {
                 isOutgoing: false
             )
             messages.append(errorMsg)
+            rebuildSections()
         }
     }
 
@@ -214,7 +203,9 @@ final class ChatDetailViewModel {
     /// Loads older messages for infinite scroll.
     func loadMore(conversationId: String, messageRepository: MessageRepositoryProtocol) async {
         guard !isLoadingMore, hasMoreMessages, let oldest = messages.first else { return }
+        guard lastPaginationAnchor != oldest.timestamp else { return }
         isLoadingMore = true
+        lastPaginationAnchor = oldest.timestamp
 
         defer { isLoadingMore = false }
 
@@ -227,7 +218,10 @@ final class ChatDetailViewModel {
             if olderMessages.isEmpty {
                 hasMoreMessages = false
             } else {
-                messages.insert(contentsOf: olderMessages, at: 0)
+                let existingIds = Set(messages.map(\.id))
+                let deduped = olderMessages.filter { !existingIds.contains($0.id) }
+                messages.insert(contentsOf: deduped, at: 0)
+                rebuildSections()
             }
         } catch {
             SanchrLogger.chat.error("Load more failed: \(error.localizedDescription)")
@@ -248,6 +242,7 @@ final class ChatDetailViewModel {
 
         // Remove the failed message
         messages.removeAll { $0.id == message.id }
+        rebuildSections()
 
         // Re-send
         inputText = text
@@ -266,11 +261,19 @@ final class ChatDetailViewModel {
     func deleteMessage(
         _ message: Message,
         forEveryone: Bool,
-        messageRepository: MessageRepositoryProtocol
+        messageRepository: MessageRepositoryProtocol,
+        chatDataSource: ChatDataSource
     ) async {
         do {
+            if forEveryone {
+                try await chatDataSource.deleteMessage(
+                    conversationID: message.conversationId,
+                    messageID: message.id
+                )
+            }
             try await messageRepository.deleteMessage(id: message.id, forEveryone: forEveryone)
             messages.removeAll { $0.id == message.id }
+            rebuildSections()
             SanchrLogger.chat.info("Deleted message \(message.id.prefix(8))")
         } catch {
             errorMessage = error.localizedDescription
@@ -292,5 +295,52 @@ final class ChatDetailViewModel {
         } catch {
             // Typing indicator failures are non-critical
         }
+    }
+
+    func handleRealtimeMessage(_ message: Message) {
+        guard !messages.contains(where: { $0.id == message.id }) else { return }
+        messages.append(message)
+        messages.sort { $0.timestamp < $1.timestamp }
+        rebuildSections()
+    }
+
+    func handleTypingIndicator(_ indicator: Vync_Messaging_TypingIndicator) {
+        peerIsTyping = indicator.isTyping
+        peerTypingName = indicator.userID
+    }
+
+    func handleReceipt(_ receipt: Vync_Messaging_ReceiptUpdate) {
+        guard let index = messages.firstIndex(where: { $0.id == receipt.messageID }) else { return }
+        if let status = Message.DeliveryStatus(rawValue: receipt.status) {
+            messages[index].status = status
+            rebuildSections()
+        }
+    }
+
+    private func rebuildSections() {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: messages) { message in
+            calendar.startOfDay(for: message.timestamp)
+        }
+
+        messageSections = grouped
+            .map { day, messages in
+                MessageSection(
+                    id: day,
+                    title: sectionTitle(for: day, calendar: calendar),
+                    messages: messages.sorted { $0.timestamp < $1.timestamp }
+                )
+            }
+            .sorted { $0.id < $1.id }
+    }
+
+    private func sectionTitle(for day: Date, calendar: Calendar) -> String {
+        if calendar.isDateInToday(day) {
+            return "Today"
+        }
+        if calendar.isDateInYesterday(day) {
+            return "Yesterday"
+        }
+        return day.formatted(date: .abbreviated, time: .omitted)
     }
 }

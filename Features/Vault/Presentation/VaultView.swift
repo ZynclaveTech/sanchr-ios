@@ -200,9 +200,7 @@ struct VaultView: View {
             HStack(spacing: SanchrSpacing.xs) {
                 ForEach(VaultViewModel.Filter.allCases) { filter in
                     Button {
-                        Task {
-                            await viewModel.changeFilter(filter, vaultDataSource: vaultDataSource)
-                        }
+                        viewModel.changeFilter(filter)
                     } label: {
                         HStack(spacing: SanchrSpacing.xxs) {
                             Image(systemName: filter.icon)

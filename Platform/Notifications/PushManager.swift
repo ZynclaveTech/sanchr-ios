@@ -56,6 +56,12 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// The most recent notification action, observed by the app router for navigation.
     var pendingAction: NotificationAction = .none
 
+    /// Conversation currently visible in the UI, used to suppress duplicate banners.
+    private var activeConversationId: String?
+
+    /// Optional app-provided sync handler used for silent pushes.
+    var silentPushHandler: (@Sendable (SanchrPushPayload) async -> UIBackgroundFetchResult)?
+
     // MARK: - Dependencies
 
     private let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
@@ -243,7 +249,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         // Suppress notification if the user is already viewing this conversation.
         // The active conversation ID would be set by ChatDetailView on appear.
         if let conversationId = payload.conversationId,
-            conversationId == Self.activeConversationId
+            conversationId == activeConversationId
         {
             SanchrLogger.push.info(
                 "Suppressing notification for active conversation \(conversationId.prefix(8))...")
@@ -355,14 +361,25 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
             await SanchrNotificationService.updateBadgeCount(badge)
         }
 
-        return .newData
+        if let silentPushHandler {
+            return await silentPushHandler(payload)
+        }
+
+        return payload.badge == nil ? .noData : .newData
     }
 
     // MARK: - Active Conversation Tracking
 
-    /// Set by `ChatDetailView` when the user enters/leaves a conversation.
-    /// Used to suppress duplicate banners for the conversation being viewed.
-    nonisolated(unsafe) static var activeConversationId: String?
+    func setActiveConversation(_ conversationId: String?) {
+        activeConversationId = conversationId
+    }
+
+    func resetUploadState() {
+        UserDefaults.standard.removeObject(forKey: Self.lastUploadedTokenKey)
+        deviceToken = nil
+        pendingAction = .none
+        activeConversationId = nil
+    }
 
     // MARK: - Private Helpers
 

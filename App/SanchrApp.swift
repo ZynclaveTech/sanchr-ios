@@ -1,6 +1,10 @@
 import SwiftUI
 import UserNotifications
 
+private struct SendableNotificationPayload: @unchecked Sendable {
+    let userInfo: [AnyHashable: Any]
+}
+
 /// Main entry point for the Sanchr encrypted messaging application.
 /// Configures the app environment, dependency injection, APNs delegate,
 /// background sync registration, and root scene.
@@ -23,10 +27,8 @@ struct SanchrApp: App {
                     configureBackgroundSync()
                 }
                 .task {
-                    // Capture container locally to avoid Sendable diagnostic on @State property.
-                    nonisolated(unsafe) let grpcContainer = container
                     do {
-                        try await grpcContainer.connectGRPC()
+                        try await container.connectGRPC()
                     } catch {
                         SanchrLogger.network.error("Failed to connect gRPC channels: \(error.localizedDescription)")
                     }
@@ -129,9 +131,9 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 
         // Check if launched from a notification
         if let remoteNotification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-            nonisolated(unsafe) let notification = remoteNotification
+            let notification = SendableNotificationPayload(userInfo: remoteNotification)
             Task { @Sendable in
-                await self.pushManager?.handleNotification(userInfo: notification)
+                await self.pushManager?.handleNotification(userInfo: notification.userInfo)
             }
         }
 
@@ -165,9 +167,9 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
             return
         }
 
-        nonisolated(unsafe) let info = userInfo
+        let info = SendableNotificationPayload(userInfo: userInfo)
         Task { @Sendable in
-            let result = await pushManager.handleSilentPush(userInfo: info)
+            let result = await pushManager.handleSilentPush(userInfo: info.userInfo)
             completionHandler(result)
         }
     }
@@ -226,18 +228,27 @@ struct RootView: View {
             }
         }
         .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
+        .onChange(of: container.pushManager.pendingAction) { _, action in
+            guard action != .none else { return }
+            router.routeNotificationAction(action)
+            container.pushManager.pendingAction = .none
+        }
     }
 
     /// Refreshes the session token before showing the main UI.
     /// Ensures all subsequent API calls have a valid token.
     /// Also configures the Signal Protocol store with the authenticated user's ID.
     private func refreshSessionToken() async {
-        do {
-            try await container.sessionService.forceRefreshToken()
-            SanchrLogger.auth.info("Session token refreshed, showing main UI")
-        } catch {
-            SanchrLogger.auth.error("Session token refresh failed: \(error.localizedDescription)")
-            // Token is invalid and can't be refreshed — session is expired
+        if container.sessionService.isTokenValid {
+            SanchrLogger.auth.info("Restored persisted session without immediate token refresh")
+        } else {
+            do {
+                try await container.sessionService.forceRefreshToken()
+                SanchrLogger.auth.info("Session token refreshed, showing main UI")
+            } catch {
+                SanchrLogger.auth.error("Session token refresh failed: \(error.localizedDescription)")
+                // Token is invalid and can't be refreshed — session is expired
+            }
         }
 
         // Configure Signal store with the real user ID (replaces "pending" placeholder)
@@ -257,6 +268,12 @@ struct RootView: View {
             }
         } catch {
             SanchrLogger.crypto.warning("Signal key setup failed on startup: \(error.localizedDescription)")
+        }
+
+        if container.sessionService.isAuthenticated {
+            container.realtimeService.start()
+        } else {
+            container.realtimeService.stop()
         }
 
         sessionReady = true

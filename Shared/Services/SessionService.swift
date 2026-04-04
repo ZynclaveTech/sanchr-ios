@@ -6,6 +6,7 @@ import GRPC
 final class SessionService: @unchecked Sendable {
     private let secureStorage: SecureStorageProtocol
     private let authRepository: AuthRepositoryProtocol
+    private let cleanup: @Sendable () async -> Void
 
     /// Whether the user is currently authenticated.
     private(set) var isAuthenticated: Bool = false
@@ -22,21 +23,30 @@ final class SessionService: @unchecked Sendable {
     /// The current user's avatar URL (nil if not set).
     private(set) var currentAvatarURL: String?
 
+    /// The current server-issued device ID (if authenticated).
+    private(set) var currentDeviceId: String?
+
+    /// Stable per-installation identifier used for device upsert.
+    private(set) var currentInstallationId: String?
+
+    /// High-water mark used for incremental message sync.
+    private(set) var lastMessageSyncTimestamp: Int64 = 0
+
     /// Token expiration date.
     private var tokenExpiresAt: Date?
 
     /// Guards against concurrent refresh requests.
     private var activeRefreshTask: Task<String, Error>?
 
-    init(secureStorage: SecureStorageProtocol, authRepository: AuthRepositoryProtocol) {
+    init(
+        secureStorage: SecureStorageProtocol,
+        authRepository: AuthRepositoryProtocol,
+        cleanup: @escaping @Sendable () async -> Void = {}
+    ) {
         self.secureStorage = secureStorage
         self.authRepository = authRepository
-
-        // Check for existing session on init
-        if (try? secureStorage.readAccessToken()) != nil {
-            isAuthenticated = true
-            // TODO: Read userId from stored session data
-        }
+        self.cleanup = cleanup
+        restorePersistedSession()
     }
 
     // MARK: - Token Validity
@@ -57,12 +67,20 @@ final class SessionService: @unchecked Sendable {
     func storeTokens(_ tokens: AuthTokens) async throws {
         try secureStorage.saveAccessToken(tokens.accessToken)
         try secureStorage.saveRefreshToken(tokens.refreshToken)
+        if let deviceId = tokens.deviceId {
+            try secureStorage.saveDeviceId(deviceId)
+            currentDeviceId = deviceId
+        }
+
+        let installationId = try secureStorage.readOrCreateInstallationId()
         tokenExpiresAt = tokens.expiresAt
+        currentInstallationId = installationId
         currentUserId = tokens.userId
         currentDisplayName = tokens.displayName.isEmpty ? currentDisplayName : tokens.displayName
         currentPhoneNumber = tokens.phoneNumber.isEmpty ? currentPhoneNumber : tokens.phoneNumber
         currentAvatarURL = tokens.avatarURL.isEmpty ? currentAvatarURL : tokens.avatarURL
         isAuthenticated = true
+        try persistSnapshot()
 
         SanchrLogger.auth.info("Session tokens stored, expires at \(tokens.expiresAt)")
     }
@@ -138,7 +156,9 @@ final class SessionService: @unchecked Sendable {
             defer { activeRefreshTask = nil }
 
             guard let refreshToken = try secureStorage.readRefreshToken() else {
+                try? secureStorage.deleteSessionData()
                 await clearSessionState()
+                await cleanup()
                 throw AppError.sessionExpired
             }
 
@@ -150,7 +170,9 @@ final class SessionService: @unchecked Sendable {
                 return tokens.accessToken
             } catch {
                 SanchrLogger.auth.error("Token refresh failed: \(error.localizedDescription)")
+                try? secureStorage.deleteSessionData()
                 await clearSessionState()
+                await cleanup()
                 throw AppError.sessionExpired
             }
         }
@@ -179,6 +201,13 @@ final class SessionService: @unchecked Sendable {
         if let avatarURL {
             currentAvatarURL = avatarURL
         }
+        try? persistSnapshot()
+    }
+
+    func setLastMessageSyncTimestamp(_ timestamp: Int64) {
+        guard timestamp > lastMessageSyncTimestamp else { return }
+        lastMessageSyncTimestamp = timestamp
+        try? persistSnapshot()
     }
 
     /// Clears the session and logs out.
@@ -186,8 +215,9 @@ final class SessionService: @unchecked Sendable {
         if let token = try? secureStorage.readAccessToken() {
             try? await authRepository.logout(accessToken: token)
         }
-        try secureStorage.deleteAllTokens()
+        try secureStorage.deleteSessionData()
         await clearSessionState()
+        await cleanup()
     }
 
     @MainActor
@@ -197,6 +227,56 @@ final class SessionService: @unchecked Sendable {
         currentDisplayName = nil
         currentPhoneNumber = nil
         currentAvatarURL = nil
+        currentDeviceId = nil
+        currentInstallationId = nil
+        lastMessageSyncTimestamp = 0
         tokenExpiresAt = nil
+    }
+
+    private func restorePersistedSession() {
+        currentInstallationId = try? secureStorage.readOrCreateInstallationId()
+        currentDeviceId = try? secureStorage.readDeviceId()
+
+        let storedAccessToken = (try? secureStorage.readAccessToken()) ?? nil
+        let storedSnapshot = (try? secureStorage.readSessionSnapshot()) ?? nil
+
+        guard
+            let snapshot = storedSnapshot,
+            let storedAccessToken,
+            !storedAccessToken.isEmpty
+        else {
+            return
+        }
+
+        isAuthenticated = true
+        currentUserId = snapshot.userId
+        currentDisplayName = snapshot.displayName
+        currentPhoneNumber = snapshot.phoneNumber
+        currentAvatarURL = snapshot.avatarURL
+        tokenExpiresAt = snapshot.tokenExpiresAt
+        currentDeviceId = snapshot.deviceId ?? currentDeviceId
+        currentInstallationId = snapshot.installationId
+        lastMessageSyncTimestamp = snapshot.lastMessageSyncTimestamp
+    }
+
+    private func persistSnapshot() throws {
+        guard
+            let currentUserId,
+            let currentInstallationId
+        else {
+            return
+        }
+
+        let snapshot = SessionSnapshot(
+            userId: currentUserId,
+            displayName: currentDisplayName ?? "",
+            phoneNumber: currentPhoneNumber ?? "",
+            avatarURL: currentAvatarURL,
+            tokenExpiresAt: tokenExpiresAt,
+            deviceId: currentDeviceId,
+            installationId: currentInstallationId,
+            lastMessageSyncTimestamp: lastMessageSyncTimestamp
+        )
+        try secureStorage.saveSessionSnapshot(snapshot)
     }
 }

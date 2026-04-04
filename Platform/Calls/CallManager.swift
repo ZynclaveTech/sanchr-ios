@@ -4,6 +4,16 @@ import Foundation
 import GRPC
 import WebRTC
 
+protocol CallEventRouting: AnyObject, Sendable {
+    func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent)
+    func handleCallLifecycleEvent(_ event: Vync_Messaging_CallLifecycleEvent)
+    func resetState()
+}
+
+private struct SendableAnswerAction: @unchecked Sendable {
+    let action: CXAnswerCallAction
+}
+
 // MARK: - Call State
 
 enum CallState: Equatable, Sendable {
@@ -40,7 +50,7 @@ enum CallState: Equatable, Sendable {
 // MARK: - CallManager
 
 @Observable
-final class CallManager: NSObject, @unchecked Sendable {
+final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     // MARK: - Observable State
 
@@ -50,6 +60,8 @@ final class CallManager: NSObject, @unchecked Sendable {
     var isVideoEnabled: Bool = false
     var callDuration: TimeInterval = 0
     var callType: String = "voice"
+    var peerId: String?
+    var peerName: String?
 
     // MARK: - Dependencies
 
@@ -130,6 +142,7 @@ final class CallManager: NSObject, @unchecked Sendable {
         callOffer.recipientID = recipientId
         callOffer.callType = isVideo ? "video" : "voice"
         callOffer.sdpOffer = sdpData
+        callOffer.srtpKeyParams = Data()
 
         let response = try await callService.initiateCall(callOffer)
         let callId = response.callID
@@ -143,6 +156,8 @@ final class CallManager: NSObject, @unchecked Sendable {
         }
 
         callState = .outgoing(callId: callId, recipientId: recipientId)
+        peerId = recipientId
+        peerName = recipientName
 
         // 6. Report to CallKit
         let uuid = UUID()
@@ -173,6 +188,8 @@ final class CallManager: NSObject, @unchecked Sendable {
         self.callType = isVideo ? "video" : "voice"
         self.isVideoEnabled = isVideo
         self.pendingSdpOffer = sdpOffer
+        self.peerId = callerId
+        self.peerName = callerName
 
         let uuid = UUID()
         self.callUUID = uuid
@@ -348,15 +365,11 @@ final class CallManager: NSObject, @unchecked Sendable {
 
         signalingTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                let inboundStream = self.callService.callStream(outboundStream)
-                await self.handleSignalingStream(inboundStream, callId: callId)
-            } catch {
-                SanchrLogger.calls.error("Signaling stream error: \(error.localizedDescription)")
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.endCallInternal(callId: callId, reason: .networkError)
-                    }
+            let inboundStream = self.callService.callStream(outboundStream)
+            await self.handleSignalingStream(inboundStream, callId: callId)
+            if !Task.isCancelled, self.callState.callId == callId {
+                await MainActor.run {
+                    self.endCallInternal(callId: callId, reason: .networkError)
                 }
             }
         }
@@ -505,8 +518,91 @@ final class CallManager: NSObject, @unchecked Sendable {
                 self.isSpeakerOn = false
                 self.isVideoEnabled = false
                 self.callType = "voice"
+                self.peerId = nil
+                self.peerName = nil
             }
         }
+    }
+
+    func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent) {
+        guard case .idle = callState else {
+            SanchrLogger.calls.warning("Ignoring incoming call offer while another call is active")
+            return
+        }
+
+        handleIncomingCall(
+            callId: offer.callID,
+            callerId: offer.callerID,
+            callerName: offer.callerID,
+            sdpOffer: offer.sdpOffer,
+            isVideo: offer.callType == "video"
+        )
+    }
+
+    func handleCallLifecycleEvent(_ event: Vync_Messaging_CallLifecycleEvent) {
+        if !event.peerID.isEmpty {
+            peerId = event.peerID
+            if peerName == nil || peerName?.isEmpty == true {
+                peerName = event.peerID
+            }
+        }
+
+        switch event.eventType {
+        case "ringing":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "ringing"), callId: event.callID)
+            }
+        case "accepted":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "accepted"), callId: event.callID)
+            }
+        case "declined":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "declined"), callId: event.callID)
+            }
+        case "busy":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "busy"), callId: event.callID)
+            }
+        case "ended":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "ended"), callId: event.callID)
+            }
+        case "missed":
+            Task { @MainActor in
+                handleControlMessage(controlMessage(action: "missed"), callId: event.callID)
+            }
+        default:
+            SanchrLogger.calls.info(
+                "Ignoring unsupported call lifecycle event: \(event.eventType)")
+        }
+    }
+
+    func resetState() {
+        durationTimer?.invalidate()
+        durationTimer = nil
+        signalingTask?.cancel()
+        signalingTask = nil
+        outboundContinuation?.finish()
+        outboundContinuation = nil
+        pendingSdpOffer = nil
+        callUUID = nil
+        webRTCClient.stopLocalMedia()
+        webRTCClient.close()
+        callState = .idle
+        isMuted = false
+        isSpeakerOn = false
+        isVideoEnabled = false
+        callDuration = 0
+        callType = "voice"
+        peerId = nil
+        peerName = nil
+    }
+
+    private func controlMessage(action: String) -> Vync_Calling_CallControl {
+        var control = Vync_Calling_CallControl()
+        control.action = action
+        return control
     }
 
     // MARK: - Helpers
@@ -563,14 +659,14 @@ extension CallManager: CXProviderDelegate {
         SanchrLogger.calls.info("CallKit: perform CXAnswerCallAction")
 
         let mgr = self
-        nonisolated(unsafe) let callAction = action
-        Task { @Sendable in
+        let callAction = SendableAnswerAction(action: action)
+        Task { @MainActor [callAction] in
             do {
                 try await mgr.answerCall()
-                callAction.fulfill()
+                callAction.action.fulfill()
             } catch {
                 SanchrLogger.calls.error("Failed to answer call: \(error.localizedDescription)")
-                callAction.fail()
+                callAction.action.fail()
             }
         }
     }

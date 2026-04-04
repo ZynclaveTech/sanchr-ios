@@ -33,8 +33,7 @@ actor ThumbnailCache {
     /// Returns nil for items without a thumbnail URL.
     func thumbnail(for item: VaultItem) async -> UIImage? {
         // Already have plaintext thumbnail in memory from this session's upload
-        if let data = item.thumbnailData, let image = UIImage(data: data) {
-            saveToDisk(data, for: item.id)
+        if let data = item.thumbnailData, let image = downsampleImage(data: data) {
             memoryCache.setObject(image, forKey: item.id as NSString)
             return image
         }
@@ -100,7 +99,7 @@ actor ThumbnailCache {
             let symmetricKey = SymmetricKey(data: key)
             let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
 
-            guard let image = UIImage(data: plaintext) else {
+            guard let image = self.downsampleImage(data: plaintext) else {
                 SanchrLogger.media.error("ThumbnailCache: decrypted data is not a valid image for \(itemId)")
                 return nil
             }
@@ -127,6 +126,32 @@ actor ThumbnailCache {
     private func loadFromDisk(for itemId: String) -> UIImage? {
         let url = diskCacheDir.appendingPathComponent(itemId)
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return UIImage(data: data)
+        return downsampleImage(data: data)
+    }
+
+    private nonisolated func downsampleImage(data: Data, maxDimension: CGFloat = 320) -> UIImage? {
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+        ]
+        guard let source = CGImageSourceCreateWithData(data as CFData, options as CFDictionary) else {
+            return nil
+        }
+
+        let downsampleOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension,
+        ]
+
+        guard let image = CGImageSourceCreateThumbnailAtIndex(
+            source,
+            0,
+            downsampleOptions as CFDictionary
+        ) else {
+            return nil
+        }
+
+        return UIImage(cgImage: image)
     }
 }

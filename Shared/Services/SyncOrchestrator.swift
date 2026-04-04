@@ -39,6 +39,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     private let sessionService: SessionService
     private let networkMonitor: NetworkMonitorProtocol
     private let localDatabase: LocalDatabaseProtocol
+    private let realtimeService: RealtimeService
     let syncState: SyncState
 
     private var syncTask: Task<Void, Never>?
@@ -57,6 +58,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         sessionService: SessionService,
         networkMonitor: NetworkMonitorProtocol,
         localDatabase: LocalDatabaseProtocol,
+        realtimeService: RealtimeService,
         syncState: SyncState
     ) {
         self.messageRepository = messageRepository
@@ -66,6 +68,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         self.sessionService = sessionService
         self.networkMonitor = networkMonitor
         self.localDatabase = localDatabase
+        self.realtimeService = realtimeService
         self.syncState = syncState
     }
 
@@ -298,13 +301,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     /// - Returns: The number of new messages received.
     private func syncPendingMessages() async throws -> Int {
         SanchrLogger.sync.info("Syncing pending messages")
-
-        // Fetch conversations to get any new messages via the repository layer.
-        // The repository merges remote data with local storage.
-        let conversations = try await messageRepository.fetchConversations()
-
-        // Count total unread messages as a proxy for "new" messages.
-        let newMessageCount = conversations.reduce(0) { $0 + $1.unreadCount }
+        let newMessageCount = await realtimeService.syncNow()
 
         SanchrLogger.sync.info("Synced conversations, \(newMessageCount) unread message(s)")
         return newMessageCount

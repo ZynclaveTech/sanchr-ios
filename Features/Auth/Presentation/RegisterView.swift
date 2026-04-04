@@ -23,7 +23,7 @@ struct RegisterView: View {
                         .font(SanchrTypography.screenTitle)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
-                    Text("Set up your VyncChat profile")
+                    Text("Set up your VyncChat profile before verification")
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                 }
@@ -109,7 +109,7 @@ struct RegisterView: View {
                             ProgressView()
                                 .tint(.white)
                         } else {
-                            Text("Create your account")
+                            Text("Continue to Verification")
                                 .font(SanchrTypography.button)
                         }
                     }
@@ -134,7 +134,7 @@ struct RegisterView: View {
                 HStack(spacing: SanchrSpacing.xxs) {
                     Image(systemName: "lock.fill")
                         .font(.caption2)
-                    Text("End-to-end encrypted from day one")
+                    Text("We'll verify your number before creating the account")
                         .font(SanchrTypography.captionSmall)
                 }
                 .foregroundColor(SanchrColors.encryptionBadgeText)

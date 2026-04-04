@@ -4,11 +4,16 @@ import WebRTC
 /// Active call UI with controls for mute, speaker, video, and end call.
 /// Matches Figma: call-main.
 struct ActiveCallView: View {
-    let contactName: String
-    let contactId: String
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+
+    private var contactName: String {
+        let value = container.callManager.peerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !value.isEmpty {
+            return value
+        }
+        return container.callManager.peerId ?? "Unknown"
+    }
 
     var body: some View {
         let callManager = container.callManager

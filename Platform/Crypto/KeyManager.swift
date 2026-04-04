@@ -245,9 +245,8 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         request.userID = recipientId
         let response = try await keyService.getUserDevices(request)
 
-        // If the server returns no devices, default to device 1 (primary).
         if response.deviceIds.isEmpty {
-            return [1]
+            throw AppError.sessionNotEstablished
         }
         return response.deviceIds
     }

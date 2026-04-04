@@ -175,6 +175,22 @@ struct Vync_Messaging_ServerEvent: Sendable {
     set {event = .preKeyCountLow(newValue)}
   }
 
+  var callOffer: Vync_Messaging_CallOfferEvent {
+    get {
+      if case .callOffer(let v)? = event {return v}
+      return Vync_Messaging_CallOfferEvent()
+    }
+    set {event = .callOffer(newValue)}
+  }
+
+  var callLifecycle: Vync_Messaging_CallLifecycleEvent {
+    get {
+      if case .callLifecycle(let v)? = event {return v}
+      return Vync_Messaging_CallLifecycleEvent()
+    }
+    set {event = .callLifecycle(newValue)}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   enum OneOf_Event: Equatable, Sendable {
@@ -183,8 +199,48 @@ struct Vync_Messaging_ServerEvent: Sendable {
     case receipt(Vync_Messaging_ReceiptUpdate)
     case presence(Vync_Messaging_PresenceUpdate)
     case preKeyCountLow(Vync_Messaging_PreKeyCountLow)
+    case callOffer(Vync_Messaging_CallOfferEvent)
+    case callLifecycle(Vync_Messaging_CallLifecycleEvent)
 
   }
+
+  init() {}
+}
+
+struct Vync_Messaging_CallOfferEvent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var callID: String = String()
+
+  var callerID: String = String()
+
+  var callType: String = String()
+
+  var sdpOffer: Data = Data()
+
+  var srtpKeyParams: Data = Data()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Vync_Messaging_CallLifecycleEvent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var callID: String = String()
+
+  var peerID: String = String()
+
+  var eventType: String = String()
+
+  var actorID: String = String()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 }
@@ -631,7 +687,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".ServerEvent"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -704,6 +760,32 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
           self.event = .preKeyCountLow(v)
         }
       }()
+      case 6: try {
+        var v: Vync_Messaging_CallOfferEvent?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .callOffer(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .callOffer(v)
+        }
+      }()
+      case 7: try {
+        var v: Vync_Messaging_CallLifecycleEvent?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .callLifecycle(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .callLifecycle(v)
+        }
+      }()
       default: break
       }
     }
@@ -735,6 +817,14 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
       guard case .preKeyCountLow(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
+    case .callOffer?: try {
+      guard case .callOffer(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .callLifecycle?: try {
+      guard case .callLifecycle(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -742,6 +832,101 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
   static func ==(lhs: Vync_Messaging_ServerEvent, rhs: Vync_Messaging_ServerEvent) -> Bool {
     if lhs.event != rhs.event {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".CallOfferEvent"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}caller_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.callID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.callerID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.callType) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.sdpOffer) }()
+      case 5: try { try decoder.decodeSingularBytesField(value: &self.srtpKeyParams) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.callID.isEmpty {
+      try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
+    }
+    if !self.callerID.isEmpty {
+      try visitor.visitSingularStringField(value: self.callerID, fieldNumber: 2)
+    }
+    if !self.callType.isEmpty {
+      try visitor.visitSingularStringField(value: self.callType, fieldNumber: 3)
+    }
+    if !self.sdpOffer.isEmpty {
+      try visitor.visitSingularBytesField(value: self.sdpOffer, fieldNumber: 4)
+    }
+    if !self.srtpKeyParams.isEmpty {
+      try visitor.visitSingularBytesField(value: self.srtpKeyParams, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_CallOfferEvent, rhs: Vync_Messaging_CallOfferEvent) -> Bool {
+    if lhs.callID != rhs.callID {return false}
+    if lhs.callerID != rhs.callerID {return false}
+    if lhs.callType != rhs.callType {return false}
+    if lhs.sdpOffer != rhs.sdpOffer {return false}
+    if lhs.srtpKeyParams != rhs.srtpKeyParams {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".CallLifecycleEvent"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}peer_id\0\u{3}event_type\0\u{3}actor_id\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.callID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.peerID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.eventType) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.actorID) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.callID.isEmpty {
+      try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
+    }
+    if !self.peerID.isEmpty {
+      try visitor.visitSingularStringField(value: self.peerID, fieldNumber: 2)
+    }
+    if !self.eventType.isEmpty {
+      try visitor.visitSingularStringField(value: self.eventType, fieldNumber: 3)
+    }
+    if !self.actorID.isEmpty {
+      try visitor.visitSingularStringField(value: self.actorID, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_CallLifecycleEvent, rhs: Vync_Messaging_CallLifecycleEvent) -> Bool {
+    if lhs.callID != rhs.callID {return false}
+    if lhs.peerID != rhs.peerID {return false}
+    if lhs.eventType != rhs.eventType {return false}
+    if lhs.actorID != rhs.actorID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

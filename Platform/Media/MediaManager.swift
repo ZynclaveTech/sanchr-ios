@@ -28,13 +28,17 @@ final class MediaManager: MediaManagerProtocol, @unchecked Sendable {
 
     init(mediaEncryption: MediaEncryptionProtocol) {
         self.mediaEncryption = mediaEncryption
-        self.cacheDirectory = FileManager.default.temporaryDirectory
+        self.cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("sanchr_media", isDirectory: true)
 
         // Ensure cache directory exists
         try? FileManager.default.createDirectory(
             at: cacheDirectory,
             withIntermediateDirectories: true
+        )
+        try? (cacheDirectory as NSURL).setResourceValue(
+            URLFileProtection.completeUntilFirstUserAuthentication,
+            forKey: .fileProtectionKey
         )
     }
 
@@ -79,7 +83,11 @@ final class MediaManager: MediaManagerProtocol, @unchecked Sendable {
 
     func cacheMedia(data: Data, filename: String) async throws -> URL {
         let fileURL = cacheDirectory.appendingPathComponent(filename)
-        try data.write(to: fileURL)
+        try data.write(to: fileURL, options: .atomic)
+        try? (fileURL as NSURL).setResourceValue(
+            URLFileProtection.completeUntilFirstUserAuthentication,
+            forKey: .fileProtectionKey
+        )
         return fileURL
     }
 
