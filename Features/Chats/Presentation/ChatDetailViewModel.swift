@@ -26,6 +26,9 @@ final class ChatDetailViewModel {
     var conversationInfo: Conversation?
     var isTyping: Bool = false
 
+    /// Message being replied to (shown as quote in composer)
+    var replyingToMessage: Message?
+
     /// Whether the peer is typing.
     var peerIsTyping: Bool = false
     var peerTypingName: String = ""
@@ -83,6 +86,16 @@ final class ChatDetailViewModel {
         peerPresenceHidden = false
     }
 
+    // MARK: - Reply State
+
+    func setReply(to message: Message?) {
+        replyingToMessage = message
+    }
+
+    func clearReply() {
+        replyingToMessage = nil
+    }
+
     // MARK: - Load Messages
 
     func loadMessages(
@@ -129,6 +142,7 @@ final class ChatDetailViewModel {
 
         // Clear input immediately for responsive UI
         inputText = ""
+        clearReply()
         isSending = true
 
         // Optimistic UI: add message immediately with .sending status
