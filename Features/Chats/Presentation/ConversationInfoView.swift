@@ -637,6 +637,7 @@ struct ConversationInfoView: View {
 private struct VerifySecurityCodeView: View {
     let conversation: Conversation
     @Environment(\.dismiss) private var dismiss
+    @State private var copiedFingerprint = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -717,7 +718,6 @@ private struct VerifySecurityCodeView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .padding(.horizontal, 20)
-        .padding(.top, 56)
         .padding(.bottom, 24)
         .background(
             LinearGradient(
@@ -727,6 +727,7 @@ private struct VerifySecurityCodeView: View {
             )
             .ignoresSafeArea(edges: .top)
         )
+        .safeAreaInset(edge: .top) { Color.clear.frame(height: 0) }
     }
 
     // MARK: - Main Content
@@ -759,17 +760,11 @@ private struct VerifySecurityCodeView: View {
             }
 
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(SanchrExportColors.surfaceSoft)
                 .frame(height: 280)
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.white)
+                        .fill(SanchrExportColors.background)
                         .frame(width: 220, height: 220)
                         .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
                         .overlay {
@@ -806,11 +801,18 @@ private struct VerifySecurityCodeView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
                 Spacer()
-                Button {} label: {
+                Button {
+                    let allNumbers = fingerprint.flatMap { $0 }.joined(separator: " ")
+                    UIPasteboard.general.string = allNumbers
+                    copiedFingerprint = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copiedFingerprint = false
+                    }
+                } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "doc.on.doc")
+                        Image(systemName: copiedFingerprint ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 11, weight: .semibold))
-                        Text("Copy")
+                        Text(copiedFingerprint ? "Copied!" : "Copy")
                             .font(SanchrTypography.messageBubbleText)
                             .fontWeight(.semibold)
                     }
@@ -834,7 +836,7 @@ private struct VerifySecurityCodeView: View {
                                 .foregroundColor(SanchrExportColors.textPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.white)
+                                .background(SanchrExportColors.background)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
                         }
@@ -842,7 +844,7 @@ private struct VerifySecurityCodeView: View {
                 }
             }
             .padding(20)
-            .background(Color(hex: 0xF9FAFB))
+            .background(SanchrExportColors.surfaceSoft)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
@@ -934,13 +936,19 @@ private struct VerifySecurityCodeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [gradientStart, gradientEnd],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [gradientStart, gradientEnd],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .allowsHitTesting(false)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
