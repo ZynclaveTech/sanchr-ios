@@ -136,6 +136,17 @@ struct ChatDetailView: View {
 
             viewModel.handlePresenceUpdate(presence, participantId: recipient?.id)
         }
+        .onChange(of: viewModel.inputText) { _, newValue in
+            let isTyping = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            Task {
+                await viewModel.sendTypingIndicator(
+                    conversationId: conversation.id,
+                    isTyping: isTyping,
+                    messageRepository: container.messageRepository,
+                    canSend: container.privacySettings.canSendTypingIndicators
+                )
+            }
+        }
     }
 
     private var header: some View {
