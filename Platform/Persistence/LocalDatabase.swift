@@ -981,6 +981,7 @@ final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable
     func saveVaultItem(_ item: VaultItem) async throws { throw error }
     func fetchVaultItems() async throws -> [VaultItem] { throw error }
     func deleteVaultItem(id: String) async throws { throw error }
+    func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
     func hasLocalHistory() async throws -> Bool { throw error }
     func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
