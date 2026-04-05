@@ -37,27 +37,7 @@ struct ChatDetailView: View {
                     scrollToBottomFAB
                 }
 
-                if viewModel.showReactionPickerForMessageId != nil {
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            viewModel.showReactionPickerForMessageId = nil
-                        }
-
-                    ReactionPickerView { emoji in
-                        if let messageId = viewModel.showReactionPickerForMessageId {
-                            let userId = container.signalProtocol.localUserId
-                            viewModel.toggleReaction(
-                                emoji: emoji,
-                                messageId: messageId,
-                                conversationId: conversation.id,
-                                userId: userId
-                            )
-                            // TODO: Send via gRPC when proto is regenerated
-                        }
-                        viewModel.showReactionPickerForMessageId = nil
-                    }
-                }
+                // Reaction picker overlay removed — reactions are in context menu
             }
 
             composer
@@ -525,11 +505,25 @@ struct ChatDetailView: View {
                             }
                             .id(message.id)
                             .contextMenu {
+                                // Quick reactions row
+                                let quickEmojis = ["❤️", "👍", "😂", "😮", "😢", "🙏"]
+                                ForEach(quickEmojis, id: \.self) { emoji in
+                                    Button {
+                                        let userId = container.signalProtocol.localUserId
+                                        viewModel.toggleReaction(
+                                            emoji: emoji,
+                                            messageId: message.id,
+                                            conversationId: conversation.id,
+                                            userId: userId
+                                        )
+                                    } label: {
+                                        Label(emoji, systemImage: "face.smiling")
+                                    }
+                                }
+
+                                Divider()
+
                                 messageContextMenu(message)
-                            }
-                            .onLongPressGesture {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                viewModel.showReactionPickerForMessageId = message.id
                             }
                         }
                     }
