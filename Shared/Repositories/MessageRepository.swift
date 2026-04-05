@@ -15,6 +15,9 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Marks messages as read up to the given message ID.
     func markAsRead(conversationId: String, upToMessageId: String) async throws
 
+    /// Marks messages as read locally only — no read receipt sent to the server.
+    func markAsReadLocally(conversationId: String, upToMessageId: String) async throws
+
     /// Deletes a message (local and optionally remote).
     func deleteMessage(id: String, forEveryone: Bool) async throws
 
@@ -239,6 +242,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             conversationId: conversationId,
             upToMessageId: upToMessageId
         )
+    }
+
+    func markAsReadLocally(conversationId: String, upToMessageId: String) async throws {
+        try await localDatabase.markConversationAsRead(
+            conversationId: conversationId,
+            upToMessageId: upToMessageId
+        )
+        SanchrLogger.chat.info("Marked conversation \(conversationId.prefix(8)) as read locally (no receipt sent)")
     }
 
     func deleteMessage(id: String, forEveryone: Bool) async throws {

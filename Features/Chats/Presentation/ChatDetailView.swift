@@ -44,12 +44,19 @@ struct ChatDetailView: View {
                 container.realtimeService.trackPresencePeer(recipient.id)
             }
 
-            // Mark conversation as read + send read receipts
+            // Mark conversation as read — gate receipt sending on privacy setting
             if let lastMessageId = viewModel.messages.last?.id {
-                try? await container.messageRepository.markAsRead(
-                    conversationId: conversation.id,
-                    upToMessageId: lastMessageId
-                )
+                if container.privacySettings.canSendReadReceipts {
+                    try? await container.messageRepository.markAsRead(
+                        conversationId: conversation.id,
+                        upToMessageId: lastMessageId
+                    )
+                } else {
+                    try? await container.messageRepository.markAsReadLocally(
+                        conversationId: conversation.id,
+                        upToMessageId: lastMessageId
+                    )
+                }
                 // Notify chat list to refresh unread counts
                 NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
             }
@@ -79,12 +86,19 @@ struct ChatDetailView: View {
 
             viewModel.handleRealtimeMessage(message)
 
-            // Auto-mark incoming messages as read since conversation is open
+            // Auto-mark incoming messages as read — gate receipt sending on privacy setting
             Task {
-                try? await container.messageRepository.markAsRead(
-                    conversationId: conversation.id,
-                    upToMessageId: message.id
-                )
+                if container.privacySettings.canSendReadReceipts {
+                    try? await container.messageRepository.markAsRead(
+                        conversationId: conversation.id,
+                        upToMessageId: message.id
+                    )
+                } else {
+                    try? await container.messageRepository.markAsReadLocally(
+                        conversationId: conversation.id,
+                        upToMessageId: message.id
+                    )
+                }
                 NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
             }
         }
