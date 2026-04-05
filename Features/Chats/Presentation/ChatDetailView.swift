@@ -505,25 +505,37 @@ struct ChatDetailView: View {
                             }
                             .id(message.id)
                             .contextMenu {
-                                // Quick reactions row
-                                let quickEmojis = ["❤️", "👍", "😂", "😮", "😢", "🙏"]
-                                ForEach(quickEmojis, id: \.self) { emoji in
-                                    Button {
-                                        let userId = container.signalProtocol.localUserId
-                                        viewModel.toggleReaction(
-                                            emoji: emoji,
-                                            messageId: message.id,
-                                            conversationId: conversation.id,
-                                            userId: userId
-                                        )
-                                    } label: {
-                                        Label(emoji, systemImage: "face.smiling")
-                                    }
-                                }
-
-                                Divider()
-
                                 messageContextMenu(message)
+                            } preview: {
+                                // Horizontal reaction bar as context menu preview
+                                VStack(spacing: 12) {
+                                    HStack(spacing: 8) {
+                                        let quickEmojis = ["❤️", "👍", "😂", "😮", "😢", "🙏"]
+                                        ForEach(quickEmojis, id: \.self) { emoji in
+                                            Button {
+                                                let userId = container.signalProtocol.localUserId
+                                                viewModel.toggleReaction(
+                                                    emoji: emoji,
+                                                    messageId: message.id,
+                                                    conversationId: conversation.id,
+                                                    userId: userId
+                                                )
+                                            } label: {
+                                                Text(emoji)
+                                                    .font(.system(size: 30))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+
+                                    // Message preview
+                                    MessageBubble(message: message)
+                                        .padding(.horizontal, 16)
+                                        .padding(.bottom, 8)
+                                }
+                                .frame(width: 320)
                             }
                         }
                     }
