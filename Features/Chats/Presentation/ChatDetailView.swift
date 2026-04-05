@@ -73,6 +73,15 @@ struct ChatDetailView: View {
             if let recipient {
                 container.realtimeService.untrackPresencePeer(recipient.id)
             }
+            // Clear typing indicator when leaving conversation
+            Task {
+                await viewModel.sendTypingIndicator(
+                    conversationId: conversation.id,
+                    isTyping: false,
+                    messageRepository: container.messageRepository,
+                    canSend: container.privacySettings.canSendTypingIndicators
+                )
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
             guard
@@ -145,6 +154,19 @@ struct ChatDetailView: View {
                     messageRepository: container.messageRepository,
                     canSend: container.privacySettings.canSendTypingIndicators
                 )
+            }
+        }
+        .onChange(of: isInputFocused) { _, focused in
+            if !focused {
+                // Keyboard dismissed — stop typing indicator
+                Task {
+                    await viewModel.sendTypingIndicator(
+                        conversationId: conversation.id,
+                        isTyping: false,
+                        messageRepository: container.messageRepository,
+                        canSend: container.privacySettings.canSendTypingIndicators
+                    )
+                }
             }
         }
     }
