@@ -9,6 +9,14 @@ struct ConversationInfoView: View {
     @State private var notificationsMuted = false
     @State private var mediaVisibility = true
     @State private var sanchrModeEnabled = false
+    @State private var showDisappearingMessages = false
+    @State private var showVaultMedia = false
+    @State private var showWallpaper = false
+    @State private var showSearchConversation = false
+    @State private var showExportChat = false
+    @State private var showClearChat = false
+    @State private var showBlockContact = false
+    @State private var showReportContact = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -27,6 +35,43 @@ struct ConversationInfoView: View {
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationBarHidden(true)
+        .navigationDestination(isPresented: $showWallpaper) {
+            WallpaperThemeView()
+        }
+        .navigationDestination(isPresented: $showDisappearingMessages) {
+            DisappearingMessagesView()
+        }
+        .navigationDestination(isPresented: $showVaultMedia) {
+            VaultMediaView()
+        }
+        .sheet(isPresented: $showSearchConversation) {
+            SearchConversationView(conversationName: conversation.displayName)
+        }
+        .confirmationDialog("Export Chat", isPresented: $showExportChat) {
+            Button("Export with Media") {}
+            Button("Export without Media") {}
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Choose how to export this conversation")
+        }
+        .alert("Clear Chat", isPresented: $showClearChat) {
+            Button("Clear All Messages", role: .destructive) {}
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all messages in this conversation. This action cannot be undone.")
+        }
+        .alert("Block Contact", isPresented: $showBlockContact) {
+            Button("Block", role: .destructive) {}
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Blocked contacts cannot send you messages or call you. You can unblock them later from Settings.")
+        }
+        .alert("Report Contact", isPresented: $showReportContact) {
+            Button("Report", role: .destructive) {}
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Report this contact for inappropriate behavior. We'll review your report and take appropriate action.")
+        }
     }
 
     private var settingsHeader: some View {
@@ -255,13 +300,16 @@ struct ConversationInfoView: View {
                 isOn: $mediaVisibility
             )
 
-            settingsRow(
-                icon: "paintpalette.fill",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Wallpaper & Theme",
-                subtitle: "Customize chat appearance"
-            )
+            Button { showWallpaper = true } label: {
+                settingsRow(
+                    icon: "paintpalette.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Wallpaper & Theme",
+                    subtitle: "Customize chat appearance"
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
@@ -339,21 +387,27 @@ struct ConversationInfoView: View {
 
     private var disappearingMessagesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            settingsRow(
-                icon: "clock.arrow.circlepath",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Disappearing Messages",
-                subtitle: "Off"
-            )
+            Button { showDisappearingMessages = true } label: {
+                settingsRow(
+                    icon: "clock.arrow.circlepath",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Disappearing Messages",
+                    subtitle: "Off"
+                )
+            }
+            .buttonStyle(.plain)
 
-            settingsRow(
-                icon: "lock.shield.fill",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Vault Media",
-                subtitle: "Self-destructing photos & videos"
-            )
+            Button { showVaultMedia = true } label: {
+                settingsRow(
+                    icon: "lock.shield.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Vault Media",
+                    subtitle: "Self-destructing photos & videos"
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
@@ -367,29 +421,38 @@ struct ConversationInfoView: View {
 
     private var chatActionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            settingsRow(
-                icon: "magnifyingglass",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Search in Conversation"
-            )
+            Button { showSearchConversation = true } label: {
+                settingsRow(
+                    icon: "magnifyingglass",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Search in Conversation"
+                )
+            }
+            .buttonStyle(.plain)
 
-            settingsRow(
-                icon: "square.and.arrow.down.fill",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Export Chat",
-                subtitle: "Save conversation backup"
-            )
+            Button { showExportChat = true } label: {
+                settingsRow(
+                    icon: "square.and.arrow.down.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Export Chat",
+                    subtitle: "Save conversation backup"
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 8)
 
-            settingsRow(
-                icon: "trash.fill",
-                iconBg: SanchrExportColors.surfaceSoft,
-                iconColor: SanchrExportColors.textSecondary,
-                title: "Clear Chat",
-                subtitle: "Delete all messages"
-            )
+            Button { showClearChat = true } label: {
+                settingsRow(
+                    icon: "trash.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Clear Chat",
+                    subtitle: "Delete all messages"
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
@@ -403,12 +466,12 @@ struct ConversationInfoView: View {
 
     private var dangerZoneSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {} label: {
+            Button { showBlockContact = true } label: {
                 dangerRow(icon: "person.fill.xmark", title: "Block Contact")
             }
             .buttonStyle(.plain)
 
-            Button {} label: {
+            Button { showReportContact = true } label: {
                 dangerRow(icon: "flag.fill", title: "Report Contact")
             }
             .buttonStyle(.plain)
@@ -898,5 +961,409 @@ private struct VerifySecurityCodeView: View {
                 .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -4)
                 .ignoresSafeArea(edges: .bottom)
         )
+    }
+}
+
+// MARK: - Shared Screen Header Helper
+
+@ViewBuilder
+private func screenHeader(title: String, onBack: @escaping () -> Void) -> some View {
+    HStack {
+        Button(action: onBack) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(.sanchrPrimary)
+                .frame(width: 40, height: 40)
+        }
+        .buttonStyle(.plain)
+
+        Spacer()
+
+        Text(title)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(SanchrExportColors.textPrimary)
+
+        Spacer()
+
+        Color.clear.frame(width: 40, height: 40)
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 16)
+    .background(SanchrExportColors.background)
+    .overlay(alignment: .bottom) {
+        Rectangle()
+            .fill(SanchrExportColors.line)
+            .frame(height: 1)
+    }
+}
+
+// MARK: - WallpaperThemeView
+
+private struct WallpaperThemeView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedWallpaper = 0
+    @State private var darkMode = false
+
+    private let wallpaperColors: [[Color]] = [
+        [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],  // Default
+        [Color(hex: 0xEEF2FF), Color(hex: 0xE0E7FF)],  // Indigo
+        [Color(hex: 0xECFEFF), Color(hex: 0xCFFAFE)],  // Cyan
+        [Color(hex: 0xFDF2F8), Color(hex: 0xFCE7F3)],  // Pink
+        [Color(hex: 0xF0FDF4), Color(hex: 0xDCFCE7)],  // Green
+        [Color(hex: 0xFFFBEB), Color(hex: 0xFEF3C7)],  // Amber
+        [Color(hex: 0x1E1B4B), Color(hex: 0x312E81)],  // Dark Indigo
+        [Color(hex: 0x0F172A), Color(hex: 0x1E293B)],  // Midnight
+        [Color(hex: 0x1A1A2E), Color(hex: 0x16213E)],  // Deep Blue
+    ]
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                screenHeader(title: "Wallpaper & Theme", onBack: { dismiss() })
+
+                VStack(alignment: .leading, spacing: 24) {
+                    // Theme toggle
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(SanchrExportColors.surfaceSoft)
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                Image(systemName: darkMode ? "moon.fill" : "sun.max.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(SanchrColors.primary)
+                            }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dark Mode")
+                                .font(SanchrTypography.messageBubbleText)
+                                .fontWeight(.medium)
+                                .foregroundColor(SanchrExportColors.textPrimary)
+                            Text("Use dark theme for this chat")
+                                .font(SanchrTypography.captionSmall)
+                                .foregroundColor(SanchrExportColors.textSecondary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: $darkMode)
+                            .labelsHidden()
+                            .tint(.sanchrPrimary)
+                    }
+                    .padding(.vertical, 12)
+
+                    // Wallpaper grid
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Chat Wallpaper")
+                            .font(SanchrTypography.messageBubbleText)
+                            .fontWeight(.semibold)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                            ForEach(0..<wallpaperColors.count, id: \.self) { index in
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(LinearGradient(colors: wallpaperColors[index], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .aspectRatio(0.7, contentMode: .fit)
+                                    .overlay {
+                                        if selectedWallpaper == index {
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                .stroke(SanchrColors.primary, lineWidth: 3)
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundColor(SanchrColors.primary)
+                                        }
+                                    }
+                                    .onTapGesture {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedWallpaper = index
+                                        }
+                                    }
+                            }
+                        }
+                    }
+
+                    // Reset button
+                    Button {} label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Reset to Default")
+                                .font(SanchrTypography.messageBubbleText)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(SanchrColors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(SanchrColors.primary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 32)
+            }
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .navigationBarHidden(true)
+    }
+}
+
+// MARK: - DisappearingMessagesView
+
+private struct DisappearingMessagesView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedDuration: Int = 0
+
+    private let options: [(String, String, Int)] = [
+        ("Off", "Messages won't be deleted", 0),
+        ("5 minutes", "For sensitive conversations", 300),
+        ("1 hour", "Short-lived messages", 3600),
+        ("24 hours", "Daily cleanup", 86400),
+        ("7 days", "Weekly cleanup", 604800),
+        ("30 days", "Monthly cleanup", 2592000),
+    ]
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                screenHeader(title: "Disappearing Messages", onBack: { dismiss() })
+
+                VStack(spacing: 0) {
+                    // Info banner
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(SanchrColors.primary)
+                            .padding(.top, 2)
+                        Text("When enabled, new messages will disappear after the selected time. This applies to both sides of the conversation.")
+                            .font(SanchrTypography.messageBubbleText)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .padding(16)
+                    .background(SanchrColors.primary.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
+
+                    // Timer options
+                    ForEach(0..<options.count, id: \.self) { index in
+                        let option = options[index]
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedDuration = option.2
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(selectedDuration == option.2 ? SanchrColors.primary.opacity(0.1) : SanchrExportColors.surfaceSoft)
+                                    .frame(width: 40, height: 40)
+                                    .overlay {
+                                        Image(systemName: option.2 == 0 ? "xmark" : "clock.fill")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(selectedDuration == option.2 ? SanchrColors.primary : SanchrExportColors.textSecondary)
+                                    }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(option.0)
+                                        .font(SanchrTypography.messageBubbleText)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(SanchrExportColors.textPrimary)
+                                    Text(option.1)
+                                        .font(SanchrTypography.captionSmall)
+                                        .foregroundColor(SanchrExportColors.textSecondary)
+                                }
+
+                                Spacer()
+
+                                if selectedDuration == option.2 {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(SanchrColors.primary)
+                                } else {
+                                    Circle()
+                                        .stroke(SanchrExportColors.line, lineWidth: 2)
+                                        .frame(width: 20, height: 20)
+                                }
+                            }
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 20)
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < options.count - 1 {
+                            Rectangle()
+                                .fill(SanchrExportColors.line)
+                                .frame(height: 1)
+                                .padding(.leading, 72)
+                        }
+                    }
+                }
+            }
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .navigationBarHidden(true)
+    }
+}
+
+// MARK: - VaultMediaView
+
+private struct VaultMediaView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var autoVault = false
+    @State private var viewOnce = true
+    @State private var screenshotProtection = true
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                screenHeader(title: "Vault Media", onBack: { dismiss() })
+
+                VStack(alignment: .leading, spacing: 0) {
+                    // Info banner
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(SanchrColors.primaryDark)
+                            .padding(.top, 2)
+                        Text("Vault media is protected with extra encryption and can be set to self-destruct after viewing.")
+                            .font(SanchrTypography.messageBubbleText)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .padding(16)
+                    .background(
+                        LinearGradient(
+                            colors: [SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
+
+                    // Toggles
+                    vaultToggle(icon: "tray.and.arrow.down.fill", title: "Auto-Vault Incoming", subtitle: "Automatically protect received media", isOn: $autoVault)
+
+                    Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
+
+                    vaultToggle(icon: "eye.fill", title: "View Once", subtitle: "Media disappears after first viewing", isOn: $viewOnce)
+
+                    Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
+
+                    vaultToggle(icon: "camera.metering.none", title: "Screenshot Protection", subtitle: "Prevent screenshots of vault media", isOn: $screenshotProtection)
+                }
+            }
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .navigationBarHidden(true)
+    }
+
+    private func vaultToggle(icon: String, title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(SanchrExportColors.surfaceSoft)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.medium)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text(subtitle)
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(.sanchrPrimary)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - SearchConversationView
+
+private struct SearchConversationView: View {
+    let conversationName: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 12) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+
+                    TextField("Search in \(conversationName)...", text: $searchText)
+                        .font(SanchrTypography.messageBubbleText)
+                        .textFieldStyle(.plain)
+                        .focused($isFocused)
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 40)
+                .background(SanchrExportColors.surfaceSoft)
+                .clipShape(Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+            }
+
+            if searchText.isEmpty {
+                Spacer()
+                VStack(spacing: 14) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 40))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                    Text("Search messages")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                    Text("Find messages, photos, links and more")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
+                Spacer()
+            } else {
+                // Empty results state
+                Spacer()
+                VStack(spacing: 14) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 40))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                    Text("No results found")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+                Spacer()
+            }
+        }
+        .background(SanchrExportColors.background)
+        .onAppear { isFocused = true }
     }
 }
