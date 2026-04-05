@@ -23,12 +23,6 @@ struct ChatDetailView: View {
         VStack(spacing: 0) {
             header
 
-            if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
-                typingPill
-                    .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
-                    .padding(.top, 8)
-            }
-
             messagesScrollView
 
             composer
@@ -267,29 +261,30 @@ struct ChatDetailView: View {
     }
 
     private var typingPill: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { _ in
+        HStack(spacing: 6) {
+            HStack(spacing: 3) {
+                ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .fill(SanchrExportColors.textTertiary)
                         .frame(width: 6, height: 6)
                 }
             }
-            Text("Typing...")
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrExportColors.textSecondary)
-            Spacer()
+
+            if let name = recipient?.displayName.components(separatedBy: " ").first {
+                Text("\(name) is typing...")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textTertiary)
+                    .italic()
+            }
         }
-        .padding(.horizontal, 14)
-        .frame(height: 40)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     private var messagesScrollView: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: SanchrSpacing.messageGap) {
                     Color.clear
                         .frame(height: 1)
                         .onAppear {
@@ -318,6 +313,10 @@ struct ChatDetailView: View {
                                 }
                         }
                     }
+
+                    if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+                        typingPill
+                    }
                 }
                 .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
                 .padding(.top, 14)
@@ -335,14 +334,24 @@ struct ChatDetailView: View {
     }
 
     private func dateSeparator(_ label: String) -> some View {
-        Text(label)
-            .font(SanchrTypography.captionSmall)
-            .foregroundColor(SanchrExportColors.textSecondary)
-            .padding(.horizontal, 14)
-            .frame(height: 30)
-            .background(SanchrExportColors.surface)
-            .clipShape(Capsule())
-            .padding(.vertical, 6)
+        HStack {
+            Spacer()
+            Text(label)
+                .font(SanchrTypography.captionSmall)
+                .fontWeight(.medium)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .padding(.horizontal, 14)
+                .frame(height: 28)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
+                .overlay {
+                    Capsule()
+                        .stroke(Color(hex: 0xF3F4F6), lineWidth: 1)
+                }
+            Spacer()
+        }
+        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -522,37 +531,74 @@ struct MessageBubble: View {
     let message: Message
 
     var body: some View {
-        HStack(alignment: .bottom) {
-            if message.isOutgoing { Spacer(minLength: 0) }
-
-            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
-                messageContent
-                    .padding(.horizontal, SanchrSpacing.bubbleHPadding)
-                    .padding(.vertical, SanchrSpacing.bubbleVPadding)
-                    .background(bubbleBackground)
-                    .clipShape(bubbleShape)
-                    .shadow(
-                        color: message.isOutgoing
-                            ? Color.black.opacity(0.1)
-                            : Color.black.opacity(0.04),
-                        radius: message.isOutgoing ? 6 : 3,
-                        x: 0,
-                        y: message.isOutgoing ? 2 : 1
-                    )
-                    .overlay {
-                        if !message.isOutgoing {
-                            bubbleShape
-                                .stroke(SanchrColors.receivedBubbleBorderLight, lineWidth: 1)
-                        }
-                    }
-
-                timestampRow
-                    .padding(.top, 4)
-                    .padding(.horizontal, 4)
+        if case .system(let event) = message.content {
+            // Centered system event pill
+            HStack {
+                Spacer()
+                HStack(spacing: 6) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(SanchrColors.securityEventIcon)
+                    Text(systemEventLabel(event))
+                        .font(SanchrTypography.captionSmall)
+                        .fontWeight(.medium)
+                        .foregroundColor(SanchrColors.securityEventText)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(SanchrColors.securityEventBg)
+                .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(SanchrColors.securityEventBorder, lineWidth: 1)
+                }
+                Spacer()
             }
-            .frame(maxWidth: UIScreen.main.bounds.width * SanchrSpacing.messageMaxWidthFraction, alignment: message.isOutgoing ? .trailing : .leading)
+            .padding(.vertical, 6)
+        } else {
+            HStack(alignment: .bottom) {
+                if message.isOutgoing { Spacer(minLength: 0) }
 
-            if !message.isOutgoing { Spacer(minLength: 0) }
+                VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
+                    messageContent
+                        .padding(.horizontal, SanchrSpacing.bubbleHPadding)
+                        .padding(.vertical, SanchrSpacing.bubbleVPadding)
+                        .background(bubbleBackground)
+                        .clipShape(bubbleShape)
+                        .shadow(
+                            color: message.isOutgoing
+                                ? Color.black.opacity(0.1)
+                                : Color.black.opacity(0.04),
+                            radius: message.isOutgoing ? 6 : 3,
+                            x: 0,
+                            y: message.isOutgoing ? 2 : 1
+                        )
+                        .overlay {
+                            if !message.isOutgoing {
+                                bubbleShape
+                                    .stroke(SanchrColors.receivedBubbleBorderLight, lineWidth: 1)
+                            }
+                        }
+
+                    timestampRow
+                        .padding(.top, 4)
+                        .padding(.horizontal, 4)
+                }
+                .frame(maxWidth: UIScreen.main.bounds.width * SanchrSpacing.messageMaxWidthFraction, alignment: message.isOutgoing ? .trailing : .leading)
+
+                if !message.isOutgoing { Spacer(minLength: 0) }
+            }
+        }
+    }
+
+    private func systemEventLabel(_ event: Message.SystemEvent) -> String {
+        switch event {
+        case .identityKeyChanged: return "Security code changed"
+        case .disappearingTimerChanged: return "Disappearing timer changed"
+        case .groupCreated: return "Group created"
+        case .memberAdded: return "Member added"
+        case .memberRemoved: return "Member removed"
+        case .screenshotDetected: return "Screenshot detected"
         }
     }
 
