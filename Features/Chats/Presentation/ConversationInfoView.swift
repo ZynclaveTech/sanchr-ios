@@ -1625,7 +1625,10 @@ private class QRScannerViewController: UIViewController {
         view.layer.addSublayer(previewLayer)
 
         self.captureSession = session
-        session.startRunning()
+        let capturedSession = session
+        DispatchQueue.global(qos: .userInitiated).async { [weak capturedSession] in
+            capturedSession?.startRunning()
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
