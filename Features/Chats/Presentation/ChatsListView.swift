@@ -451,18 +451,41 @@ struct ConversationRow: View {
                         deliveryStatusView(lastMessage.status)
                     }
 
-                    Text(messagePreview)
-                        .font(
-                            conversation.unreadCount > 0
-                                ? SanchrTypography.conversationPreviewBold
-                                : SanchrTypography.conversationPreview
-                        )
-                        .foregroundColor(
-                            conversation.unreadCount > 0
-                                ? SanchrExportColors.textPrimary
-                                : SanchrExportColors.textSecondary
-                        )
-                        .lineLimit(1)
+                    Group {
+                        if conversation.type == .group,
+                           let lastMessage = conversation.lastMessage,
+                           !lastMessage.isOutgoing,
+                           let sender = conversation.participants.first(where: { $0.id == lastMessage.senderId }) {
+                            (Text((sender.displayName.components(separatedBy: " ").first ?? sender.displayName) + ": ")
+                                .font(SanchrTypography.conversationPreviewBold)
+                                .foregroundColor(Color.sanchrGroupSender(colorScheme))
+                            + Text(messagePreviewText)
+                                .font(
+                                    conversation.unreadCount > 0
+                                        ? SanchrTypography.conversationPreviewBold
+                                        : SanchrTypography.conversationPreview
+                                )
+                                .foregroundColor(
+                                    conversation.unreadCount > 0
+                                        ? SanchrExportColors.textPrimary
+                                        : SanchrExportColors.textSecondary
+                                ))
+                            .lineLimit(1)
+                        } else {
+                            Text(messagePreview)
+                                .font(
+                                    conversation.unreadCount > 0
+                                        ? SanchrTypography.conversationPreviewBold
+                                        : SanchrTypography.conversationPreview
+                                )
+                                .foregroundColor(
+                                    conversation.unreadCount > 0
+                                        ? SanchrExportColors.textPrimary
+                                        : SanchrExportColors.textSecondary
+                                )
+                                .lineLimit(1)
+                        }
+                    }
 
                     Spacer(minLength: 8)
 
@@ -495,7 +518,7 @@ struct ConversationRow: View {
             avatarImage
                 .overlay {
                     Circle()
-                        .stroke(Color.white, lineWidth: 2)
+                        .stroke(Color.sanchrAvatarBorder(colorScheme), lineWidth: 2)
                 }
                 .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
             statusDot
@@ -563,7 +586,7 @@ struct ConversationRow: View {
                 .frame(width: SanchrSpacing.statusIndicatorSize, height: SanchrSpacing.statusIndicatorSize)
                 .overlay {
                     Circle()
-                        .stroke(Color.white, lineWidth: SanchrSpacing.statusIndicatorBorder)
+                        .stroke(Color.sanchrAvatarBorder(colorScheme), lineWidth: SanchrSpacing.statusIndicatorBorder)
                 }
                 .offset(x: 1, y: 1)
                 .modifier(PulseModifier(isActive: user.status == .online))
@@ -634,6 +657,20 @@ struct ConversationRow: View {
             return "Contact: \(name)"
         case .system(let event):
             return systemEventText(event)
+        }
+    }
+
+    private var messagePreviewText: String {
+        guard let lastMessage = conversation.lastMessage else { return "No messages yet" }
+        switch lastMessage.content {
+        case .text(let text): return text
+        case .image: return "Photo"
+        case .video: return "Video"
+        case .audio: return "Voice message"
+        case .document: return "Document"
+        case .location: return "Location"
+        case .contact(let name, _): return "Contact: \(name)"
+        case .system(let event): return systemEventText(event)
         }
     }
 
