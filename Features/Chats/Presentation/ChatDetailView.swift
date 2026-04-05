@@ -10,6 +10,9 @@ struct ChatDetailView: View {
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
     @State private var showConversationInfo = false
+    @State private var isScrolledToBottom = true
+    @State private var newMessageCountWhileScrolled = 0
+    @State private var scrollToBottomAction: (() -> Void)?
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -23,7 +26,13 @@ struct ChatDetailView: View {
         VStack(spacing: 0) {
             header
 
-            messagesScrollView
+            ZStack(alignment: .bottomTrailing) {
+                messagesScrollView
+
+                if !isScrolledToBottom {
+                    scrollToBottomFAB
+                }
+            }
 
             composer
         }
@@ -379,6 +388,13 @@ struct ChatDetailView: View {
                     if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
                         typingPill
                     }
+
+                    // Bottom anchor for scroll position detection
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom_anchor")
+                        .onAppear { isScrolledToBottom = true; newMessageCountWhileScrolled = 0 }
+                        .onDisappear { isScrolledToBottom = false }
                 }
                 .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
                 .padding(.top, 14)
@@ -387,15 +403,66 @@ struct ChatDetailView: View {
             .defaultScrollAnchor(.bottom)
             .background(SanchrExportColors.surfaceSoft)
             .onChange(of: viewModel.messages.count) { oldCount, newCount in
-                // Only auto-scroll for new incoming messages, not initial load
                 guard oldCount > 0, newCount > oldCount else { return }
-                if let lastID = viewModel.messages.last?.id {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(lastID, anchor: .bottom)
+                let added = newCount - oldCount
+                if isScrolledToBottom {
+                    // At bottom — auto-scroll to new messages
+                    if let lastID = viewModel.messages.last?.id {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(lastID, anchor: .bottom)
+                        }
+                    }
+                } else {
+                    // Scrolled up — accumulate unread count, don't auto-scroll
+                    newMessageCountWhileScrolled += added
+                }
+            }
+            .onChange(of: isScrolledToBottom) { _, atBottom in
+                if atBottom { newMessageCountWhileScrolled = 0 }
+            }
+            .onAppear {
+                scrollToBottomAction = {
+                    if let lastID = viewModel.messages.last?.id {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            proxy.scrollTo(lastID, anchor: .bottom)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private var scrollToBottomFAB: some View {
+        Button {
+            scrollToBottomAction?()
+            newMessageCountWhileScrolled = 0
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .frame(width: 40, height: 40)
+                    .background(SanchrExportColors.surface)
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                if newMessageCountWhileScrolled > 0 {
+                    Text("\(newMessageCountWhileScrolled)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .padding(.horizontal, 4)
+                        .background(SanchrColors.primary)
+                        .clipShape(Capsule())
+                        .offset(x: 6, y: -6)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 16)
+        .padding(.bottom, 12)
+        .transition(.scale.combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.2), value: isScrolledToBottom)
     }
 
     private func dateSeparator(_ label: String) -> some View {
