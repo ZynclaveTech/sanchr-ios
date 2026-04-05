@@ -26,6 +26,10 @@ struct ChatDetailView: View {
         VStack(spacing: 0) {
             header
 
+            if viewModel.isSearching {
+                chatSearchBar
+            }
+
             ZStack(alignment: .bottomTrailing) {
                 messagesScrollView
 
@@ -178,6 +182,17 @@ struct ChatDetailView: View {
                 }
             }
         }
+        .onChange(of: viewModel.searchQuery) { _, query in
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 300ms debounce
+                guard viewModel.searchQuery == query else { return } // Cancelled by newer input
+                await viewModel.searchMessages(
+                    conversationId: conversation.id,
+                    query: query,
+                    localDatabase: container.localDatabase
+                )
+            }
+        }
     }
 
     private var header: some View {
@@ -230,6 +245,22 @@ struct ChatDetailView: View {
                             }
                         }
                     }
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.isSearching.toggle()
+                            if !viewModel.isSearching {
+                                viewModel.searchQuery = ""
+                                viewModel.searchResults = []
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+                    }
+                    .buttonStyle(.plain)
 
                     Button {
                         showConversationInfo = true
@@ -331,6 +362,75 @@ struct ChatDetailView: View {
         .buttonStyle(.plain)
     }
 
+    private var chatSearchBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+
+                TextField("Search messages...", text: $viewModel.searchQuery)
+                    .font(SanchrTypography.messageBubbleText)
+                    .textFieldStyle(.plain)
+                    .onSubmit {
+                        Task {
+                            await viewModel.searchMessages(
+                                conversationId: conversation.id,
+                                query: viewModel.searchQuery,
+                                localDatabase: container.localDatabase
+                            )
+                        }
+                    }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .background(SanchrExportColors.surfaceSoft)
+            .clipShape(Capsule())
+
+            if !viewModel.searchResults.isEmpty {
+                HStack(spacing: 4) {
+                    Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(minWidth: 30)
+
+                    Button { viewModel.previousSearchResult() } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button { viewModel.nextSearchResult() } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Button {
+                withAnimation {
+                    viewModel.isSearching = false
+                    viewModel.searchQuery = ""
+                    viewModel.searchResults = []
+                }
+            } label: {
+                Text("Cancel")
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(SanchrColors.primary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(SanchrExportColors.background)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
     private var typingPill: some View {
         HStack(spacing: 6) {
             HStack(spacing: 3) {
@@ -423,6 +523,13 @@ struct ChatDetailView: View {
             }
             .onChange(of: isScrolledToBottom) { _, atBottom in
                 if atBottom { newMessageCountWhileScrolled = 0 }
+            }
+            .onChange(of: viewModel.currentSearchIndex) { _, _ in
+                if let resultId = viewModel.currentSearchResultId {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(resultId, anchor: .center)
+                    }
+                }
             }
             .onAppear {
                 scrollToBottomAction = {
