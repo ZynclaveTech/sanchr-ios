@@ -76,42 +76,22 @@ struct ContactSyncView: View {
 
     private var permissionRequestView: some View {
         VStack(spacing: 28) {
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: SanchrExportMetrics.largeRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 184, height: 184)
+            ZStack(alignment: .bottomTrailing) {
+                Image("SanchrLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
 
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 96, height: 96)
+                Circle()
+                    .fill(SanchrColors.accent)
+                    .frame(width: 40, height: 40)
                     .overlay {
-                        Image(systemName: "person.crop.square.fill")
-                            .font(.system(size: 38, weight: .semibold))
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
                     }
-                    .overlay(alignment: .topTrailing) {
-                        Circle()
-                            .fill(SanchrColors.accent)
-                            .frame(width: 44, height: 44)
-                            .overlay {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .offset(x: 14, y: -14)
-                    }
+                    .offset(x: 8, y: 8)
             }
             .padding(.top, 8)
 
@@ -175,13 +155,7 @@ struct ContactSyncView: View {
             Spacer()
         }
         .padding(16)
-        .background(
-            LinearGradient(
-                colors: [Color.white, Color(hex: 0xF8FBFF)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
+        .background(SanchrExportColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous)
