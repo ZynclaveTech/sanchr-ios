@@ -662,7 +662,7 @@ struct MessageBubble: View {
                         .overlay {
                             if !message.isOutgoing {
                                 bubbleShape
-                                    .stroke(SanchrColors.receivedBubbleBorderLight, lineWidth: 1)
+                                    .stroke(SanchrExportColors.line, lineWidth: 1)
                             }
                         }
 
@@ -772,7 +772,7 @@ struct MessageBubble: View {
                     endPoint: .bottomTrailing
                 )
             } else {
-                SanchrExportColors.background
+                SanchrExportColors.surface
             }
         }
     }
