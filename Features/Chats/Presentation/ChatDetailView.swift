@@ -48,6 +48,27 @@ struct ChatDetailView: View {
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
         }
+        .confirmationDialog("Share", isPresented: $showAttachmentPicker) {
+            Button { /* TODO: Photo picker */ } label: {
+                Label("Photo & Video Library", systemImage: "photo.on.rectangle")
+            }
+            Button { /* TODO: Camera */ } label: {
+                Label("Camera", systemImage: "camera.fill")
+            }
+            Button { /* TODO: Document picker */ } label: {
+                Label("Document", systemImage: "doc.fill")
+            }
+            Button { /* TODO: Location */ } label: {
+                Label("Location", systemImage: "location.fill")
+            }
+            Button { /* TODO: Contact */ } label: {
+                Label("Contact", systemImage: "person.crop.circle.fill")
+            }
+            Button { /* TODO: Vault media */ } label: {
+                Label("Vault Media", systemImage: "lock.shield.fill")
+            }
+            Button("Cancel", role: .cancel) {}
+        }
         .task {
             viewModel.configurePeer(recipient)
             await viewModel.loadMessages(
@@ -744,144 +765,102 @@ struct ChatDetailView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Row 1: plus + input + paperclip + camera
-            HStack(alignment: .center, spacing: 8) {
+            // Single-row adaptive composer
+            HStack(alignment: .bottom, spacing: 10) {
+                // Plus button — opens attachment sheet
                 Button {
                     showAttachmentPicker = true
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(SanchrColors.primary)
-                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
+                        .frame(width: 36, height: 36)
+                        .background(SanchrColors.primary.opacity(0.1))
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
 
-                HStack(spacing: 8) {
-                    TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
+                // Text input field
+                HStack(spacing: 6) {
+                    TextField("Message...", text: $viewModel.inputText, axis: .vertical)
                         .font(SanchrTypography.messageBubbleText)
                         .textFieldStyle(.plain)
-                        .lineLimit(1...4)
+                        .lineLimit(1...5)
                         .focused($isInputFocused)
 
-                    Button {} label: {
-                        Image(systemName: "face.smiling")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(SanchrExportColors.textTertiary)
+                    if !hasInput {
+                        Button {} label: {
+                            Image(systemName: "face.smiling")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(SanchrExportColors.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity)
                     }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(SanchrExportColors.surfaceSoft)
-                .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous))
+                .background(SanchrExportColors.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(
-                            isInputFocused ? SanchrColors.primary : SanchrExportColors.line,
+                            isInputFocused ? SanchrColors.primary.opacity(0.4) : SanchrExportColors.line.opacity(0.6),
                             lineWidth: 1
                         )
                 }
 
-                Button {
-                    showAttachmentPicker = true
-                } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
-                }
-                .buttonStyle(.plain)
-
-                Button {} label: {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Row 2: voice + vault + send
-            HStack(spacing: 16) {
-                Spacer()
-
-                Button {} label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrColors.primary)
-                        Text("Voice")
-                            .font(SanchrTypography.captionSmall)
-                            .fontWeight(.medium)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-
-                Button {} label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrColors.primary)
-                        Text("Vault")
-                            .font(SanchrTypography.captionSmall)
-                            .fontWeight(.medium)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    Task {
-                        await viewModel.sendMessage(
-                            conversationId: conversation.id,
-                            recipientId: recipient?.id ?? "",
-                            messageRepository: container.messageRepository,
-                            signalProtocol: container.signalProtocol,
-                            chatDataSource: container.chatDataSource,
-                            localDatabase: container.localDatabase,
-                            sessionService: container.sessionService
-                        )
-                    }
-                } label: {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: SanchrSpacing.composerSendSize, height: SanchrSpacing.composerSendSize)
-                        .background(
-                            LinearGradient(
-                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                // Right button: mic (empty) or send (has text)
+                if hasInput {
+                    // Send button
+                    Button {
+                        Task {
+                            await viewModel.sendMessage(
+                                conversationId: conversation.id,
+                                recipientId: recipient?.id ?? "",
+                                messageRepository: container.messageRepository,
+                                signalProtocol: container.signalProtocol,
+                                chatDataSource: container.chatDataSource,
+                                localDatabase: container.localDatabase,
+                                sessionService: container.sessionService
                             )
-                        )
-                        .clipShape(Circle())
-                        .shadow(color: SanchrColors.primary.opacity(0.3), radius: 12, x: 0, y: 4)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                LinearGradient(
+                                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(Circle())
+                            .shadow(color: SanchrColors.primary.opacity(0.25), radius: 8, x: 0, y: 3)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    // Mic button (placeholder for voice messages)
+                    Button {} label: {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .disabled(!hasInput)
-                .opacity(hasInput ? 1 : 0.5)
-
-                Spacer()
             }
-            .padding(.top, 8)
-            .padding(.bottom, 0)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(SanchrExportColors.line)
-                    .frame(height: 1)
-                    .padding(.top, 2)
-            }
+            .animation(.easeInOut(duration: 0.2), value: hasInput)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
         .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
-        .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: -6)
+        .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
     }
 
     private var hasInput: Bool {
