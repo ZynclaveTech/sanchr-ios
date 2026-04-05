@@ -716,21 +716,21 @@ private struct VerifySecurityCodeView: View {
                 onScanned: { scannedData in
                     showScannerSheet = false
                     guard let recipientId = recipient?.id else { return }
-                    guard let scannedString = String(data: scannedData, encoding: .utf8) else {
-                        scanResult = .error("Invalid QR code format")
-                        return
-                    }
 
-                    // Compare scanned safety number digits against our local one
-                    let scannedDigits = scannedString.filter(\.isNumber)
-                    let localDigits = fingerprintRaw.filter(\.isNumber)
-
-                    if !localDigits.isEmpty && scannedDigits == localDigits {
-                        container.signalProtocol.markIdentityVerified(userId: recipientId)
-                        isVerified = true
-                        scanResult = .match
-                    } else {
-                        scanResult = .mismatch
+                    do {
+                        // Use Signal's ScannableFingerprint comparison
+                        let matches = try container.signalProtocol.compareFingerprint(
+                            scannedData, for: recipientId, deviceId: 1
+                        )
+                        if matches {
+                            container.signalProtocol.markIdentityVerified(userId: recipientId)
+                            isVerified = true
+                            scanResult = .match
+                        } else {
+                            scanResult = .mismatch
+                        }
+                    } catch {
+                        scanResult = .error(error.localizedDescription)
                     }
                 },
                 onCancel: { showScannerSheet = false }
@@ -791,9 +791,13 @@ private struct VerifySecurityCodeView: View {
                     Array(digits[i..<min(i + 5, digits.count)])
                 }
 
-                // QR encodes the safety number digits for cross-device comparison
-                let qrContent = safetyNumber
-                let qr = makeQRCodeImage(from: qrContent)
+                // QR encodes scannable fingerprint binary for proper Signal verification
+                let qr: UIImage?
+                if let scannable {
+                    qr = makeQRCodeFromBinary(scannable)
+                } else {
+                    qr = makeQRCodeImage(from: safetyNumber)
+                }
 
                 return (safetyNumber, rows, scannable, qr)
             } catch {
@@ -1653,15 +1657,45 @@ private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegat
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
-        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              let stringValue = object.stringValue,
-              let data = stringValue.data(using: .utf8) else { return }
-        handler(data)
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject else { return }
+
+        // Try to read raw binary data from QR descriptor (iOS 17+)
+        if #available(iOS 17.0, *),
+           let descriptor = object.descriptor as? CIQRCodeDescriptor {
+            handler(descriptor.errorCorrectedPayload)
+            return
+        }
+
+        // Fallback: use string value and try to decode as binary
+        if let stringValue = object.stringValue {
+            // If it looks like raw bytes that got string-encoded, use Latin1 to preserve bytes
+            if let data = stringValue.data(using: .isoLatin1) {
+                handler(data)
+            } else if let data = stringValue.data(using: .utf8) {
+                handler(data)
+            }
+        }
     }
 }
 
 // MARK: - QR Code Generation (nonisolated, Sendable-safe)
 
+/// Generates a QR code from raw binary data (Signal ScannableFingerprint).
+private nonisolated func makeQRCodeFromBinary(_ data: Data) -> UIImage? {
+    guard !data.isEmpty,
+          let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+    filter.setValue(data, forKey: "inputMessage")
+    filter.setValue("L", forKey: "inputCorrectionLevel")
+    guard let ciImage = filter.outputImage else { return nil }
+
+    let scale = 10.0
+    let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+    let context = CIContext()
+    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
+}
+
+/// Generates a QR code from a string (fallback for safety number digits).
 private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
     guard !string.isEmpty,
           let data = string.data(using: .utf8),
