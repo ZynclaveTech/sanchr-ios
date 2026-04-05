@@ -545,71 +545,358 @@ private struct VerifySecurityCodeView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                SanchrCenteredHeader(title: "Verify Security Code") {
-                    SanchrIconButton(systemName: "chevron.left") { dismiss() }
-                } trailing: {
-                    Color.clear
+        ZStack(alignment: .bottom) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    gradientHeader
+                    mainContent
                 }
+            }
+            .background(SanchrExportColors.background.ignoresSafeArea())
 
-                VStack(spacing: 18) {
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+            verifyFooter
+        }
+        .navigationBarHidden(true)
+    }
+
+    // MARK: - Gradient Header
+
+    private var gradientHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 16) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Text("Encryption Keys")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .padding(.bottom, 24)
+
+            HStack(spacing: 16) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [SanchrColors.accent, SanchrColors.primary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(height: 220)
-                        .overlay {
-                            VStack(spacing: 16) {
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .fill(SanchrExportColors.surface)
-                                    .frame(width: 164, height: 164)
-                                    .overlay {
-                                        VStack(spacing: 8) {
-                                            Image(systemName: "qrcode")
-                                                .font(.system(size: 72))
-                                                .foregroundColor(SanchrExportColors.textPrimary)
-                                            Text("Scan to verify")
-                                                .font(SanchrTypography.caption)
-                                                .foregroundColor(SanchrExportColors.textSecondary)
-                                        }
-                                    }
-
-                                Text(conversation.displayName)
-                                    .font(SanchrTypography.bodyBold)
-                                    .foregroundColor(SanchrExportColors.textPrimary)
-                            }
-                        }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Security Fingerprint")
-                            .font(SanchrTypography.bodyBold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-
-                        Text("28394 75621 94857 10293\n48375 18472 92015 66741")
-                            .font(UIFont(name: "Afacad", size: 22) == nil ? .system(size: 22, weight: .semibold, design: .rounded) : .custom("Afacad", size: 22))
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                            .lineSpacing(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(18)
-                            .background(SanchrExportColors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    )
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
                     }
 
-                    Button {} label: {
-                        SanchrGradientButtonLabel(title: "Mark as Verified", systemName: "checkmark.shield.fill")
-                    }
-                    .buttonStyle(SanchrPrimaryCTA())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("End-to-End Encrypted")
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(.white.opacity(0.8))
+                    Text(conversation.displayName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
                 }
-                .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
-                .padding(.bottom, 28)
+
+                Spacer()
+
+                Circle()
+                    .fill(SanchrColors.accent.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                    .overlay {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(SanchrColors.accent)
+                    }
+            }
+            .padding(16)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 56)
+        .padding(.bottom, 24)
+        .background(
+            LinearGradient(
+                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .ignoresSafeArea(edges: .top)
+        )
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        VStack(spacing: 32) {
+            qrVerificationSection
+            fingerprintSection
+            encryptionDetailsSection
+            infoCard
+            Color.clear.frame(height: 80) // space for fixed footer
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+    }
+
+    // MARK: - QR Verification
+
+    private var qrVerificationSection: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 8) {
+                Text("Verify Security Code")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(SanchrExportColors.textPrimary)
+
+                Text("Compare this QR code with your contact's device or verify the 60-digit code below")
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(height: 280)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white)
+                        .frame(width: 220, height: 220)
+                        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+                        .overlay {
+                            Image(systemName: "qrcode")
+                                .font(.system(size: 120))
+                                .foregroundColor(SanchrExportColors.textPrimary)
+                        }
+                }
+
+            Button {} label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "qrcode.viewfinder")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Scan QR Code")
+                        .font(SanchrTypography.body)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(SanchrColors.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(SanchrColors.primary.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Security Fingerprint
+
+    private var fingerprintSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Security Fingerprint")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Spacer()
+                Button {} label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Copy")
+                            .font(SanchrTypography.messageBubbleText)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(SanchrColors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            let fingerprint = [
+                ["28394", "75621", "94857", "63294", "12847"],
+                ["58392", "67483", "92847", "38475", "84729"],
+                ["39485", "73829", "48573", "92847", "58392"]
+            ]
+
+            VStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { row in
+                    HStack(spacing: 8) {
+                        ForEach(0..<5, id: \.self) { col in
+                            Text(fingerprint[row][col])
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(SanchrExportColors.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+            .background(Color(hex: 0xF9FAFB))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    // MARK: - Encryption Details
+
+    private var encryptionDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Encryption Details")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(SanchrExportColors.textPrimary)
+
+            encryptionDetailCard(
+                icon: "key.fill",
+                iconBg: SanchrColors.primary.opacity(0.1),
+                iconColor: SanchrColors.primary,
+                title: "Your Identity Key",
+                subtitle: "Your unique encryption key that identifies you in all conversations",
+                gradientStart: SanchrColors.primary.opacity(0.05),
+                gradientEnd: SanchrColors.accent.opacity(0.05),
+                borderColor: SanchrColors.primary.opacity(0.1)
+            )
+
+            encryptionDetailCard(
+                icon: "lock.fill",
+                iconBg: SanchrColors.accent.opacity(0.1),
+                iconColor: SanchrColors.accent,
+                title: "Session Key",
+                subtitle: "Temporary key for this conversation, regenerated periodically",
+                gradientStart: SanchrColors.accent.opacity(0.05),
+                gradientEnd: SanchrColors.primary.opacity(0.05),
+                borderColor: SanchrColors.accent.opacity(0.1)
+            )
+
+            encryptionDetailCard(
+                icon: "shield.fill",
+                iconBg: Color(hex: 0xDCFCE7),
+                iconColor: Color(hex: 0x16A34A),
+                title: "Verification Status",
+                subtitle: nil,
+                statusText: "Verified on Dec 8, 2024",
+                gradientStart: Color(hex: 0xF0FDF4),
+                gradientEnd: Color(hex: 0xECFDF5),
+                borderColor: Color(hex: 0xBBF7D0)
+            )
+        }
+    }
+
+    private func encryptionDetailCard(
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        title: String,
+        subtitle: String?,
+        statusText: String? = nil,
+        gradientStart: Color,
+        gradientEnd: Color,
+        borderColor: Color
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(iconBg)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(iconColor)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.semibold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+                if let statusText {
+                    Text(statusText)
+                        .font(SanchrTypography.captionSmall)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(hex: 0x16A34A))
+                }
             }
         }
-        .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [gradientStart, gradientEnd],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(borderColor, lineWidth: 1)
+        }
+    }
+
+    // MARK: - Info Card
+
+    private var infoCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle()
+                .fill(SanchrColors.primary.opacity(0.1))
+                .frame(width: 32, height: 32)
+                .overlay {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(SanchrColors.primary)
+                }
+
+            Text("If your security code matches your contact's code, your conversation is secure. No one, not even Sanchr, can read your messages.")
+                .font(SanchrTypography.messageBubbleText)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .padding(20)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    // MARK: - Footer
+
+    private var verifyFooter: some View {
+        VStack(spacing: 0) {
+            Button {} label: {
+                SanchrGradientButtonLabel(title: "Mark as Verified", systemName: "checkmark.shield.fill")
+            }
+            .buttonStyle(SanchrPrimaryCTA())
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(
+            SanchrExportColors.background
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -4)
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 }
