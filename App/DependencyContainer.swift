@@ -121,6 +121,10 @@ final class DependencyContainer: @unchecked Sendable {
         sessionService: sessionService
     )
 
+    // MARK: - Privacy
+
+    let privacySettings = PrivacySettingsCache()
+
     // MARK: - Security
 
     @ObservationIgnored lazy var appLockManager: AppLockManager = AppLockManager()

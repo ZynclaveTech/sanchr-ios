@@ -323,6 +323,17 @@ struct RootView: View {
 
         if container.sessionService.isAuthenticated {
             container.realtimeService.enterForeground()
+
+            // Warm the privacy cache so enforcement is ready before the first message send.
+            do {
+                let settingsDataSource = SettingsDataSource(grpcClient: container.grpcClient)
+                let settings = try await settingsDataSource.getSettings()
+                await container.privacySettings.update(from: settings)
+            } catch {
+                SanchrLogger.settings.warning(
+                    "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
+                )
+            }
         } else {
             container.realtimeService.stop()
         }

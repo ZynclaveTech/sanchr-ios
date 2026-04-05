@@ -35,4 +35,7 @@ enum SanchrLogger {
 
     /// Background sync operations.
     static let sync = Logger(subsystem: subsystem, category: "Sync")
+
+    /// Privacy and user settings operations.
+    static let settings = Logger(subsystem: subsystem, category: "Settings")
 }
