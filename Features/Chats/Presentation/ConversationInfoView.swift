@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import CoreImage.CIFilterBuiltins
+import CryptoKit
 import Kingfisher
 import SwiftUI
 
@@ -1549,8 +1550,6 @@ private struct SearchConversationView: View {
 }
 
 // MARK: - Signal-Compatible Fingerprint (QR Verification)
-
-import CryptoKit
 
 private struct SanchrFingerprintQR {
     let myHash: Data      // 32 bytes
