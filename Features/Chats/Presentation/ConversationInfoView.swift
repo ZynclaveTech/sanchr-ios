@@ -1807,22 +1807,80 @@ private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegat
     ) {
         guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject else { return }
 
-        // Try to read raw binary data from QR descriptor (iOS 17+)
+        // Extract raw binary data from QR codewords using Signal's approach
         if #available(iOS 17.0, *),
            let descriptor = object.descriptor as? CIQRCodeDescriptor {
-            handler(descriptor.errorCorrectedPayload)
-            return
-        }
-
-        // Fallback: use string value and try to decode as binary
-        if let stringValue = object.stringValue {
-            // If it looks like raw bytes that got string-encoded, use Latin1 to preserve bytes
-            if let data = stringValue.data(using: .isoLatin1) {
-                handler(data)
-            } else if let data = stringValue.data(using: .utf8) {
-                handler(data)
+            let codewords = descriptor.errorCorrectedPayload
+            let version = descriptor.symbolVersion
+            if let payload = QRByteModeParser.parse(codewords: codewords, qrVersion: version) {
+                SanchrLogger.crypto.info("QR scan: parsed \(payload.count) bytes from codewords (\(codewords.count) raw)")
+                handler(payload)
+                return
             }
         }
+
+        // Fallback: use string value with Latin1 to preserve byte values
+        if let stringValue = object.stringValue,
+           let data = stringValue.data(using: .isoLatin1) {
+            SanchrLogger.crypto.info("QR scan: fallback Latin1, \(data.count) bytes")
+            handler(data)
+        }
+    }
+}
+
+// MARK: - QR Byte-Mode Parser (Signal's QRCodePayload approach)
+
+/// Parses raw QR error-corrected codewords to extract byte-mode payload.
+/// CIQRCodeDescriptor.errorCorrectedPayload returns raw codewords which include
+/// mode indicators and character count bits -- NOT the actual data bytes.
+private enum QRByteModeParser {
+    static func parse(codewords: Data, qrVersion: Int) -> Data? {
+        var bitOffset = 0
+        let bits = codewords.flatMap { byte -> [UInt8] in
+            (0..<8).reversed().map { UInt8((byte >> $0) & 1) }
+        }
+
+        // Read 4-bit mode indicator
+        guard bitOffset + 4 <= bits.count else { return nil }
+        let mode = readBits(bits, offset: &bitOffset, count: 4)
+        guard mode == 4 else {
+            // Mode 4 = Byte mode. Other modes not supported for fingerprint QR.
+            SanchrLogger.crypto.warning("QR parse: unsupported mode \(mode)")
+            return nil
+        }
+
+        // Character count indicator length depends on QR version
+        let charCountBits: Int
+        if qrVersion <= 9 {
+            charCountBits = 8
+        } else if qrVersion <= 26 {
+            charCountBits = 16
+        } else {
+            charCountBits = 16
+        }
+
+        guard bitOffset + charCountBits <= bits.count else { return nil }
+        let charCount = Int(readBits(bits, offset: &bitOffset, count: charCountBits))
+        guard charCount > 0 else { return nil }
+
+        // Read the actual data bytes
+        var result = Data(capacity: charCount)
+        for _ in 0..<charCount {
+            guard bitOffset + 8 <= bits.count else { return nil }
+            let byte = UInt8(readBits(bits, offset: &bitOffset, count: 8))
+            result.append(byte)
+        }
+
+        return result
+    }
+
+    private static func readBits(_ bits: [UInt8], offset: inout Int, count: Int) -> UInt32 {
+        var value: UInt32 = 0
+        for _ in 0..<count {
+            value = (value << 1) | UInt32(bits[offset])
+            offset += 1
+        }
+        return value
     }
 }
 
