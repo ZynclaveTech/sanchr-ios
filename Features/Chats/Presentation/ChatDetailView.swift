@@ -28,7 +28,7 @@ struct ChatDetailView: View {
             composer
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarBackButtonHidden(false)
+        .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
@@ -108,6 +108,15 @@ struct ChatDetailView: View {
     private var header: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.sanchrPrimary)
+                }
+                .buttonStyle(.plain)
+
                 chatHeaderAvatar
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -521,12 +530,13 @@ struct ChatDetailView: View {
 
                 Spacer()
             }
-            .padding(.top, 8)
+            .padding(.top, 12)
             .padding(.bottom, 0)
             .overlay(alignment: .top) {
                 Rectangle()
                     .fill(SanchrExportColors.line)
                     .frame(height: 1)
+                    .padding(.top, 2)
             }
         }
         .padding(.horizontal, 16)
