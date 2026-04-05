@@ -698,13 +698,29 @@ private struct VerifySecurityCodeView: View {
         }
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private func generateQRCode(from string: String) -> UIImage? {
         guard !string.isEmpty,
               let data = string.data(using: .utf8),
               let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
         filter.setValue(data, forKey: "inputMessage")
         filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard let ciImage = filter.outputImage else { return nil }
+        guard var ciImage = filter.outputImage else { return nil }
+
+        // Apply theme-appropriate colors
+        let fg = colorScheme == .dark ? CIColor.white : CIColor.black
+        let bg = colorScheme == .dark ? CIColor(red: 0.1, green: 0.1, blue: 0.13) : CIColor.white
+
+        if let colorFilter = CIFilter(name: "CIFalseColor") {
+            colorFilter.setValue(ciImage, forKey: "inputImage")
+            colorFilter.setValue(fg, forKey: "inputColor0")
+            colorFilter.setValue(bg, forKey: "inputColor1")
+            if let output = colorFilter.outputImage {
+                ciImage = output
+            }
+        }
+
         let scale = 10.0
         let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         return UIImage(ciImage: transformed)
@@ -820,7 +836,7 @@ private struct VerifySecurityCodeView: View {
                 .frame(height: 280)
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(SanchrExportColors.background)
+                        .fill(SanchrExportColors.surface)
                         .frame(width: 220, height: 220)
                         .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
                         .overlay {
@@ -831,9 +847,8 @@ private struct VerifySecurityCodeView: View {
                                     .scaledToFit()
                                     .frame(width: 180, height: 180)
                             } else {
-                                Image(systemName: "qrcode")
-                                    .font(.system(size: 120))
-                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                ProgressView()
+                                    .tint(.sanchrPrimary)
                             }
                         }
                 }
@@ -900,9 +915,9 @@ private struct VerifySecurityCodeView: View {
                                 .foregroundColor(SanchrExportColors.textPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(SanchrExportColors.background)
+                                .background(SanchrExportColors.surface)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
+                                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                         }
                     }
                 }
