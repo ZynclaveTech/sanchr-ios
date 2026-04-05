@@ -7,6 +7,7 @@ extension Notification.Name {
     static let sanchrRealtimeTypingChanged = Notification.Name("io.sanchr.realtime.typingChanged")
     static let sanchrRealtimeReceiptUpdated = Notification.Name("io.sanchr.realtime.receiptUpdated")
     static let sanchrRealtimePresenceUpdated = Notification.Name("io.sanchr.realtime.presenceUpdated")
+    static let sanchrRealtimeReactionReceived = Notification.Name("io.sanchr.realtime.reactionReceived")
 }
 
 enum RealtimeNotificationKey {
@@ -237,6 +238,18 @@ final class RealtimeService: @unchecked Sendable {
 
         case .callLifecycle(let lifecycle):
             callManager.handleCallLifecycleEvent(lifecycle)
+
+        case .reaction(let reaction):
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .sanchrRealtimeReactionReceived,
+                    object: nil,
+                    userInfo: [
+                        RealtimeNotificationKey.conversationId: reaction.conversationID,
+                        "reaction": reaction,
+                    ]
+                )
+            }
         }
     }
 
