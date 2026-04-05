@@ -639,10 +639,11 @@ private struct VerifySecurityCodeView: View {
     let conversation: Conversation
     @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
+    @Environment(\.colorScheme) private var colorScheme
     @State private var copiedFingerprint = false
     @State private var fingerprintDigits: [[String]] = []
     @State private var fingerprintRaw: String = ""
-    @State private var qrData: Data?
+    @State private var qrImage: UIImage?
     @State private var loadError: String?
 
     private var recipient: User? {
@@ -696,34 +697,25 @@ private struct VerifySecurityCodeView: View {
             ]
             fingerprintRaw = fingerprintDigits.flatMap { $0 }.joined()
         }
+
+        // Generate QR after fingerprint is ready
+        qrImage = Self.makeQRCode(from: fingerprintRaw)
     }
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    private func generateQRCode(from string: String) -> UIImage? {
+    private static func makeQRCode(from string: String) -> UIImage? {
         guard !string.isEmpty,
               let data = string.data(using: .utf8),
               let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
         filter.setValue(data, forKey: "inputMessage")
         filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard var ciImage = filter.outputImage else { return nil }
-
-        // Apply theme-appropriate colors
-        let fg = colorScheme == .dark ? CIColor.white : CIColor.black
-        let bg = colorScheme == .dark ? CIColor(red: 0.1, green: 0.1, blue: 0.13) : CIColor.white
-
-        if let colorFilter = CIFilter(name: "CIFalseColor") {
-            colorFilter.setValue(ciImage, forKey: "inputImage")
-            colorFilter.setValue(fg, forKey: "inputColor0")
-            colorFilter.setValue(bg, forKey: "inputColor1")
-            if let output = colorFilter.outputImage {
-                ciImage = output
-            }
-        }
+        guard let ciImage = filter.outputImage else { return nil }
 
         let scale = 10.0
         let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        return UIImage(ciImage: transformed)
+
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     // MARK: - Gradient Header
@@ -832,20 +824,25 @@ private struct VerifySecurityCodeView: View {
             }
 
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(SanchrExportColors.surfaceSoft)
+                .fill(colorScheme == .dark ? Color(hex: 0x1A1A24) : Color(hex: 0xF9FAFB))
                 .frame(height: 280)
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(SanchrExportColors.surface)
+                        .fill(colorScheme == .dark ? Color(hex: 0x24243A) : Color.white)
                         .frame(width: 220, height: 220)
                         .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
                         .overlay {
-                            if let qrImage = generateQRCode(from: fingerprintRaw) {
-                                Image(uiImage: qrImage)
+                            if let qrImage {
+                                let img = Image(uiImage: qrImage)
                                     .interpolation(.none)
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 180, height: 180)
+                                    .padding(16)
+                                if colorScheme == .dark {
+                                    img.colorInvert()
+                                } else {
+                                    img
+                                }
                             } else {
                                 ProgressView()
                                     .tint(.sanchrPrimary)
@@ -915,7 +912,7 @@ private struct VerifySecurityCodeView: View {
                                 .foregroundColor(SanchrExportColors.textPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(SanchrExportColors.surface)
+                                .background(colorScheme == .dark ? Color(hex: 0x24243A) : Color.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                         }
@@ -924,7 +921,7 @@ private struct VerifySecurityCodeView: View {
                 }
             }
             .padding(20)
-            .background(SanchrExportColors.surfaceSoft)
+            .background(colorScheme == .dark ? Color(hex: 0x1A1A24) : Color(hex: 0xF9FAFB))
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
