@@ -23,6 +23,7 @@ final class RealtimeService: @unchecked Sendable {
     private let signalKeyManager: KeyManagerProtocol
     private let sessionService: SessionService
     private let callManager: CallEventRouting
+    private let privacySettings: PrivacySettingsCache
 
     private var streamTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
@@ -34,12 +35,14 @@ final class RealtimeService: @unchecked Sendable {
         messageRepository: MessageRepositoryProtocol,
         signalKeyManager: KeyManagerProtocol,
         sessionService: SessionService,
-        callManager: CallEventRouting
+        callManager: CallEventRouting,
+        privacySettings: PrivacySettingsCache
     ) {
         self.messageRepository = messageRepository
         self.signalKeyManager = signalKeyManager
         self.sessionService = sessionService
         self.callManager = callManager
+        self.privacySettings = privacySettings
     }
 
     func start() {
@@ -107,7 +110,9 @@ final class RealtimeService: @unchecked Sendable {
         start()
         startHeartbeatLoop()
         Task {
-            try? await sendPresenceHeartbeat(.foreground)
+            if await privacySettings.canSendPresence {
+                try? await sendPresenceHeartbeat(.foreground)
+            }
             await refreshPresenceSnapshot(for: Array(trackedPeerIds))
         }
     }
@@ -121,7 +126,9 @@ final class RealtimeService: @unchecked Sendable {
         }
 
         Task {
-            try? await sendPresenceHeartbeat(.background)
+            if await privacySettings.canSendPresence {
+                try? await sendPresenceHeartbeat(.background)
+            }
             try? await Task.sleep(nanoseconds: 200_000_000)
             stop()
         }
@@ -264,6 +271,7 @@ final class RealtimeService: @unchecked Sendable {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard !Task.isCancelled, sessionService.isAuthenticated else { return }
+                guard await privacySettings.canSendPresence else { continue }
                 try? await sendPresenceHeartbeat(.foreground)
             }
         }
