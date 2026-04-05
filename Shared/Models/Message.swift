@@ -10,6 +10,7 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
     var status: DeliveryStatus
     var isOutgoing: Bool
     var replyToMessageId: String?
+    var reactions: [MessageReaction] = []
 
     /// Disappearing message timer (nil if persistent).
     var expiresAt: Date?
@@ -61,6 +62,14 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
         case delivered
         case read
         case failed
+    }
+
+    // MARK: - Reactions
+
+    struct MessageReaction: Codable, Hashable, Sendable {
+        let emoji: String
+        let userId: String
+        let timestamp: Date
     }
 
     // MARK: - Factory
