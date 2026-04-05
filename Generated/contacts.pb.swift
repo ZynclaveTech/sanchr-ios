@@ -62,6 +62,8 @@ struct Vync_Contacts_MatchedContact: Sendable {
 
   var statusText: String = String()
 
+  var phoneNumber: String = String()
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -105,6 +107,8 @@ struct Vync_Contacts_Contact: Sendable {
   var isBlocked: Bool = false
 
   var isFavorite: Bool = false
+
+  var phoneNumber: String = String()
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -243,7 +247,7 @@ extension Vync_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProtob
 
 extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".MatchedContact"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -255,6 +259,7 @@ extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
       default: break
       }
     }
@@ -273,6 +278,9 @@ extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.statusText.isEmpty {
       try visitor.visitSingularStringField(value: self.statusText, fieldNumber: 4)
     }
+    if !self.phoneNumber.isEmpty {
+      try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -281,6 +289,7 @@ extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
+    if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -337,7 +346,7 @@ extension Vync_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProtobu
 
 extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Contact"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -351,6 +360,7 @@ extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       case 4: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isBlocked) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isFavorite) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
       default: break
       }
     }
@@ -375,6 +385,9 @@ extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if self.isFavorite != false {
       try visitor.visitSingularBoolField(value: self.isFavorite, fieldNumber: 6)
     }
+    if !self.phoneNumber.isEmpty {
+      try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -385,6 +398,7 @@ extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs.statusText != rhs.statusText {return false}
     if lhs.isBlocked != rhs.isBlocked {return false}
     if lhs.isFavorite != rhs.isFavorite {return false}
+    if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

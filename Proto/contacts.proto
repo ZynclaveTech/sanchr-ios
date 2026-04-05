@@ -22,6 +22,7 @@ message MatchedContact {
   string display_name = 2;
   string avatar_url = 3;
   string status_text = 4;
+  string phone_number = 5;
 }
 
 message GetContactsRequest {}
@@ -37,6 +38,7 @@ message Contact {
   string status_text = 4;
   bool is_blocked = 5;
   bool is_favorite = 6;
+  string phone_number = 7;
 }
 
 message BlockContactRequest {
