@@ -1,91 +1,57 @@
+import Kingfisher
 import SwiftUI
 
-/// Chat conversation detail view with message list and input.
-/// Matches Figma: chat-screen with navigation bar, E2EE banner,
-/// date separators, message bubbles, and rich input bar.
 struct ChatDetailView: View {
     let conversation: Conversation
+
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = ChatDetailViewModel()
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
+    @State private var showConversationInfo = false
 
-    /// The recipient user for 1:1 conversations.
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
     }
 
+    private var settingsDataSource: SettingsDataSource {
+        SettingsDataSource(grpcClient: container.grpcClient)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - E2EE Banner
-            e2eeBanner
+            header
 
-            // MARK: - Messages
+            if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+                typingPill
+                    .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+                    .padding(.top, 8)
+            }
+
             messagesScrollView
 
-            // MARK: - Typing Indicator
-            if viewModel.peerIsTyping {
-                typingIndicator
-            }
-
-            Divider()
-                .foregroundColor(Color.sanchrDivider(colorScheme))
-
-            // MARK: - Input Bar
-            messageInputBar
-
-            // MARK: - Bottom Toolbar
-            bottomToolbar
+            composer
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            // Navigation bar: avatar, name, status
-            ToolbarItem(placement: .principal) {
-                chatNavTitle
-            }
-
-            // Call and menu buttons
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: SanchrSpacing.sm) {
-                    if let recipient {
-                        Button {
-                            Task {
-                                try? await container.startCallUseCase.execute(
-                                    recipientId: recipient.id,
-                                    recipientName: recipient.displayName,
-                                    isVideo: true
-                                )
-                            }
-                        } label: {
-                            Image(systemName: "video.fill")
-                                .font(.system(size: 16))
-                        }
-                        Button {
-                            Task {
-                                try? await container.startCallUseCase.execute(
-                                    recipientId: recipient.id,
-                                    recipientName: recipient.displayName,
-                                    isVideo: false
-                                )
-                            }
-                        } label: {
-                            Image(systemName: "phone.fill")
-                                .font(.system(size: 16))
-                        }
-                    }
-                }
-                .foregroundColor(.sanchrPrimary)
-            }
+        .navigationDestination(isPresented: $showConversationInfo) {
+            ConversationInfoView(conversation: conversation, recipient: recipient)
         }
         .task {
+            viewModel.configurePeer(recipient)
             await viewModel.loadMessages(
                 conversationId: conversation.id,
                 messageRepository: container.messageRepository
             )
+            await loadHeaderPreferences()
+            if let recipient {
+                container.realtimeService.trackPresencePeer(recipient.id)
+            }
         }
         .onAppear {
+            viewModel.configurePeer(recipient)
             viewModel.onConversationAppear(
                 conversationId: conversation.id,
                 pushManager: container.pushManager
@@ -93,6 +59,9 @@ struct ChatDetailView: View {
         }
         .onDisappear {
             viewModel.onConversationDisappear(pushManager: container.pushManager)
+            if let recipient {
+                container.realtimeService.untrackPresencePeer(recipient.id)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
             guard
@@ -130,63 +99,197 @@ struct ChatDetailView: View {
 
             viewModel.handleReceipt(receipt)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let presence = userInfo[RealtimeNotificationKey.presence] as? Vync_Messaging_PresenceUpdate
+            else {
+                return
+            }
+
+            viewModel.handlePresenceUpdate(presence, participantId: recipient?.id)
+        }
     }
 
-    // MARK: - Navigation Title (Avatar + Name + Status)
+    private var header: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+                }
+                .buttonStyle(.plain)
 
-    private var chatNavTitle: some View {
-        HStack(spacing: SanchrSpacing.xs) {
-            // Small avatar
-            Circle()
-                .fill(SanchrColors.primary.opacity(0.15))
-                .frame(width: 32, height: 32)
-                .overlay {
-                    Text(conversation.displayName.prefix(1).uppercased())
+                chatHeaderAvatar
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(conversation.displayName)
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .lineLimit(1)
+
+                    Text(headerStatusText)
                         .font(SanchrTypography.captionSmall)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.sanchrPrimary)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
                 }
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(conversation.displayName)
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                    .lineLimit(1)
+                Spacer(minLength: 0)
 
-                if let phone = recipient?.phoneNumber, !phone.isEmpty {
-                    Text(phone)
-                        .font(SanchrTypography.micro)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                HStack(spacing: 6) {
+                    if let recipient {
+                        headerActionButton(icon: "video.fill") {
+                            Task {
+                                try? await container.startCallUseCase.execute(
+                                    recipientId: recipient.id,
+                                    recipientName: recipient.displayName,
+                                    isVideo: true
+                                )
+                            }
+                        }
+
+                        headerActionButton(icon: "phone.fill") {
+                            Task {
+                                try? await container.startCallUseCase.execute(
+                                    recipientId: recipient.id,
+                                    recipientName: recipient.displayName,
+                                    isVideo: false
+                                )
+                            }
+                        }
+                    }
+
+                    Menu {
+                        Button {
+                            showConversationInfo = true
+                        } label: {
+                            Label("Chat Settings", systemImage: "person.crop.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(SanchrColors.accent)
+                Text("Messages are end-to-end encrypted")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                LinearGradient(
+                    colors: [SanchrColors.e2eBannerStartLight, SanchrColors.e2eBannerEndLight],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(SanchrColors.e2eBannerBorder)
+                    .frame(height: 1)
+            }
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea(edges: .top))
+    }
+
+    private var chatHeaderAvatar: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let avatarURL = conversation.avatarURL {
+                    KFImage(avatarURL)
+                        .resizable()
+                        .placeholder {
+                            Text(conversation.displayName.prefix(1).uppercased())
+                                .font(SanchrTypography.bodyBold)
+                                .foregroundColor(.sanchrPrimary)
+                        }
+                        .fade(duration: 0.2)
+                        .scaledToFill()
                 } else {
-                    Text("Encrypted chat")
-                        .font(SanchrTypography.micro)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [SanchrColors.primary.opacity(0.2), SanchrColors.accent.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay {
+                            Text(conversation.displayName.prefix(1).uppercased())
+                                .font(SanchrTypography.bodyBold)
+                                .foregroundColor(.sanchrPrimary)
+                        }
                 }
+            }
+            .frame(width: SanchrSpacing.chatHeaderAvatarSize, height: SanchrSpacing.chatHeaderAvatarSize)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color.white, lineWidth: 2)
+            }
+            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
+
+            if let recipient, recipient.status == .online || recipient.status == .typing {
+                Circle()
+                    .fill(SanchrColors.statusOnline)
+                    .frame(width: SanchrSpacing.chatHeaderStatusDot, height: SanchrSpacing.chatHeaderStatusDot)
+                    .overlay {
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                    }
+                    .offset(x: 1, y: 1)
             }
         }
     }
 
-    // MARK: - E2EE Banner
-
-    private var e2eeBanner: some View {
-        HStack(spacing: SanchrSpacing.xxs) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 10))
-            Text("Messages are end-to-end encrypted")
-                .font(SanchrTypography.micro)
+    private func headerActionButton(icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
         }
-        .foregroundColor(SanchrColors.encryptionBadgeText)
-        .padding(.vertical, SanchrSpacing.xxs)
-        .frame(maxWidth: .infinity)
-        .background(SanchrColors.encryptionBadge)
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Messages Scroll View
+    private var typingPill: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { _ in
+                    Circle()
+                        .fill(SanchrExportColors.textTertiary)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            Text("Typing...")
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 40)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
 
     private var messagesScrollView: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: SanchrSpacing.xxs) {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 10) {
                     Color.clear
                         .frame(height: 1)
                         .onAppear {
@@ -198,20 +301,17 @@ struct ChatDetailView: View {
                             }
                         }
 
-                    // Load more indicator
                     if viewModel.isLoadingMore {
                         ProgressView()
                             .tint(.sanchrPrimary)
-                            .padding(.vertical, SanchrSpacing.sm)
+                            .padding(.vertical, 12)
                     }
 
-                    // Grouped messages with date separators
                     ForEach(viewModel.messageSections) { section in
-                        // Date separator
                         dateSeparator(section.title)
 
                         ForEach(section.messages) { message in
-                            MessageBubble(message: message, colorScheme: colorScheme)
+                            MessageBubble(message: message)
                                 .id(message.id)
                                 .contextMenu {
                                     messageContextMenu(message)
@@ -219,60 +319,31 @@ struct ChatDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, SanchrSpacing.md)
-                .padding(.vertical, SanchrSpacing.xs)
+                .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+                .padding(.top, 14)
+                .padding(.bottom, 16)
             }
+            .background(SanchrExportColors.surfaceSoft)
             .onChange(of: viewModel.messages.count) { _, _ in
-                if let lastId = viewModel.messages.last?.id {
+                if let lastID = viewModel.messages.last?.id {
                     withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(lastId, anchor: .bottom)
+                        proxy.scrollTo(lastID, anchor: .bottom)
                     }
                 }
             }
         }
     }
 
-    // MARK: - Date Separator
-
     private func dateSeparator(_ label: String) -> some View {
-        HStack {
-            Spacer()
-            Text(label)
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                .padding(.horizontal, SanchrSpacing.sm)
-                .padding(.vertical, SanchrSpacing.xxxs)
-                .background(Color.sanchrSurface(colorScheme).opacity(0.8))
-                .clipShape(Capsule())
-            Spacer()
-        }
-        .padding(.vertical, SanchrSpacing.xs)
+        Text(label)
+            .font(SanchrTypography.captionSmall)
+            .foregroundColor(SanchrExportColors.textSecondary)
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(SanchrExportColors.surface)
+            .clipShape(Capsule())
+            .padding(.vertical, 6)
     }
-
-    // MARK: - Typing Indicator
-
-    private var typingIndicator: some View {
-        HStack(spacing: SanchrSpacing.xs) {
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color.sanchrTextTertiary(colorScheme))
-                        .frame(width: 6, height: 6)
-                }
-            }
-            .padding(.horizontal, SanchrSpacing.sm)
-            .padding(.vertical, SanchrSpacing.xs)
-            .background(colorScheme == .dark ? SanchrColors.bubbleReceived : Color(hex: 0xF3F4F6))
-            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.bubble))
-
-            Spacer()
-        }
-        .padding(.horizontal, SanchrSpacing.md)
-        .padding(.bottom, SanchrSpacing.xxs)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-    }
-
-    // MARK: - Message Context Menu
 
     @ViewBuilder
     private func messageContextMenu(_ message: Message) -> some View {
@@ -285,19 +356,18 @@ struct ChatDetailView: View {
         }
 
         Button {
-            // TODO: Reply to message
         } label: {
             Label("Reply", systemImage: "arrowshape.turn.up.left")
         }
 
         Button {
-            // TODO: Forward message
         } label: {
             Label("Forward", systemImage: "arrowshape.turn.up.right")
         }
 
         if message.isOutgoing {
             Divider()
+
             Button(role: .destructive) {
                 Task {
                     await viewModel.deleteMessage(
@@ -326,54 +396,48 @@ struct ChatDetailView: View {
         }
     }
 
-    // MARK: - Input Bar
-
-    private var messageInputBar: some View {
-        HStack(alignment: .bottom, spacing: SanchrSpacing.xs) {
-            // Attachment button
+    private var composer: some View {
+        HStack(alignment: .bottom, spacing: 10) {
             Button {
                 showAttachmentPicker = true
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.sanchrPrimary)
-                    .frame(width: 36, height: 36)
-                    .background(SanchrColors.primary.opacity(0.1))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SanchrColors.primary)
+                    .frame(width: 40, height: 40)
+                    .background(SanchrExportColors.surfaceMuted)
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
 
-            // Text field with inline buttons
-            HStack(spacing: SanchrSpacing.xxs) {
+            HStack(spacing: 10) {
                 TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
-                    .font(SanchrTypography.chatMessage)
+                    .font(SanchrTypography.body)
                     .textFieldStyle(.plain)
-                    .lineLimit(1...5)
+                    .lineLimit(1...4)
                     .focused($isInputFocused)
 
-                // Emoji button
-                Button {
-                    // TODO: Emoji picker
-                } label: {
+                Button {} label: {
                     Image(systemName: "face.smiling")
-                        .font(.system(size: 18))
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(SanchrExportColors.textTertiary)
                 }
+                .buttonStyle(.plain)
 
-                // Attachment clip button
                 Button {
                     showAttachmentPicker = true
                 } label: {
                     Image(systemName: "paperclip")
-                        .font(.system(size: 18))
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(SanchrExportColors.textTertiary)
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, SanchrSpacing.sm)
-            .padding(.vertical, SanchrSpacing.xs)
-            .background(Color.sanchrSurface(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.bubble))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(SanchrExportColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            // Send button (indigo circle with arrow)
             Button {
                 Task {
                     await viewModel.sendMessage(
@@ -382,6 +446,7 @@ struct ChatDetailView: View {
                         messageRepository: container.messageRepository,
                         signalProtocol: container.signalProtocol,
                         chatDataSource: container.chatDataSource,
+                        localDatabase: container.localDatabase,
                         sessionService: container.sessionService
                     )
                 }
@@ -389,115 +454,104 @@ struct ChatDetailView: View {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        hasInput
-                            ? AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: 0x6366F1), Color(hex: 0x4C1D95)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            : AnyShapeStyle(Color.sanchrTextTertiary(colorScheme).opacity(0.3))
-                    )
+                    .frame(width: 42, height: 42)
+                    .background(hasInput ? SanchrColors.primary : SanchrExportColors.textTertiary.opacity(0.3))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             .disabled(!hasInput)
         }
-        .padding(.horizontal, SanchrSpacing.sm)
-        .padding(.vertical, SanchrSpacing.xs)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
+        .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .background(
+            SanchrExportColors.surface
+                .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: -6)
+        )
     }
-
-    // MARK: - Bottom Toolbar
-
-    private var bottomToolbar: some View {
-        HStack(spacing: SanchrSpacing.xxxxl) {
-            Button {
-                // TODO: Voice message
-            } label: {
-                VStack(spacing: SanchrSpacing.xxxs) {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 18))
-                    Text("Voice")
-                        .font(SanchrTypography.micro)
-                }
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-            }
-
-            Button {
-                // TODO: Open vault
-            } label: {
-                VStack(spacing: SanchrSpacing.xxxs) {
-                    Image(systemName: "lock.rectangle.stack.fill")
-                        .font(.system(size: 18))
-                    Text("Vault")
-                        .font(SanchrTypography.micro)
-                }
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-            }
-        }
-        .padding(.vertical, SanchrSpacing.xxs)
-        .frame(maxWidth: .infinity)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
-    }
-
-    // MARK: - Helpers
 
     private var hasInput: Bool {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    private var headerStatusText: String {
+        if viewModel.showsTypingIndicators, (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+            return "Typing..."
+        }
+
+        if viewModel.showsPresence, !viewModel.peerPresenceHidden, conversation.type == .oneToOne {
+            if viewModel.peerPresenceStatus == .online {
+                return "Online now"
+            }
+
+            if let lastSeen = viewModel.peerLastSeen {
+                return "Last seen \(lastSeen.relativePresenceDescription)"
+            }
+        }
+
+        if let phone = recipient?.phoneNumber, !phone.isEmpty {
+            return phone
+        }
+
+        return "Encrypted conversation"
+    }
+
+    private func loadHeaderPreferences() async {
+        do {
+            let settings = try await settingsDataSource.getSettings()
+            viewModel.configurePeer(
+                recipient,
+                showsPresence: settings.onlineStatusVisible,
+                showsTypingIndicators: settings.typingIndicator
+            )
+        } catch {
+            SanchrLogger.chat.error("Failed to load chat header preferences: \(error.localizedDescription)")
+        }
+    }
 }
 
-// MARK: - Message Bubble
+private extension Date {
+    var relativePresenceDescription: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: self, relativeTo: Date())
+    }
+}
 
 struct MessageBubble: View {
     let message: Message
-    let colorScheme: ColorScheme
 
     var body: some View {
         HStack(alignment: .bottom) {
-            if message.isOutgoing { Spacer(minLength: 60) }
+            if message.isOutgoing { Spacer(minLength: 54) }
 
-            VStack(
-                alignment: message.isOutgoing ? .trailing : .leading, spacing: SanchrSpacing.xxxs
-            ) {
-                // Content
+            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 6) {
                 messageContent
-
-                // Timestamp + Read Receipt
                 timestampRow
             }
-            .padding(.horizontal, SanchrSpacing.sm)
-            .padding(.vertical, SanchrSpacing.xs)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .background(bubbleBackground)
             .clipShape(bubbleShape)
 
-            if !message.isOutgoing { Spacer(minLength: 60) }
+            if !message.isOutgoing { Spacer(minLength: 54) }
         }
     }
-
-    // MARK: - Content
 
     @ViewBuilder
     private var messageContent: some View {
         switch message.content {
         case .text(let text):
             Text(text)
-                .font(SanchrTypography.chatMessage)
-                .foregroundColor(
-                    message.isOutgoing
-                        ? SanchrColors.bubbleSentText
-                        : SanchrColors.bubbleReceivedText
-                )
+                .font(SanchrTypography.body)
+                .foregroundColor(messageTextColor)
+                .multilineTextAlignment(.leading)
 
         case .image(let attachment):
-            // Image message with rounded preview
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxs) {
-                RoundedRectangle(cornerRadius: SanchrRadius.sm)
-                    .fill(Color.sanchrSurface(colorScheme))
-                    .frame(width: 200, height: 150)
+            VStack(alignment: .leading, spacing: 8) {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(hex: 0xE5E7EB))
+                    .frame(width: 210, height: 156)
                     .overlay {
                         if let thumbnailURL = attachment.thumbnailURL {
                             AsyncImage(url: thumbnailURL) { image in
@@ -509,86 +563,86 @@ struct MessageBubble: View {
                             }
                         } else {
                             Image(systemName: "photo")
-                                .font(.largeTitle)
-                                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                                .font(.system(size: 34))
+                                .foregroundColor(SanchrExportColors.textTertiary)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 if let caption = attachment.caption, !caption.isEmpty {
                     Text(caption)
-                        .font(SanchrTypography.chatMessage)
-                        .foregroundColor(
-                            message.isOutgoing
-                                ? SanchrColors.bubbleSentText
-                                : SanchrColors.bubbleReceivedText
-                        )
+                        .font(SanchrTypography.body)
+                        .foregroundColor(messageTextColor)
                 }
             }
 
         default:
             Text("[Unsupported content]")
                 .font(SanchrTypography.caption)
-                .italic()
-                .foregroundColor(
-                    message.isOutgoing
-                        ? SanchrColors.bubbleSentText.opacity(0.7)
-                        : Color.sanchrTextTertiary(colorScheme)
-                )
+                .foregroundColor(messageTextColor.opacity(0.72))
         }
     }
 
-    // MARK: - Timestamp Row
-
     private var timestampRow: some View {
-        HStack(spacing: SanchrSpacing.xxxs) {
+        HStack(spacing: 4) {
             Text(message.timestamp.messageTime)
                 .font(SanchrTypography.micro)
 
             if message.isOutgoing {
-                // Read receipt icon (double checkmark for read)
                 Image(systemName: statusIcon)
-                    .font(.system(size: 10))
-                    .foregroundColor(
-                        message.status == .read
-                            ? Color.white.opacity(0.9)
-                            : Color.white.opacity(0.6)
-                    )
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(message.status == .read ? Color.white.opacity(0.95) : Color.white.opacity(0.72))
             }
         }
-        .foregroundColor(
-            message.isOutgoing
-                ? SanchrColors.bubbleSentText.opacity(0.7)
-                : Color.sanchrTextTertiary(colorScheme)
+        .foregroundColor(message.isOutgoing ? Color.white.opacity(0.75) : SanchrExportColors.textSecondary)
+    }
+
+    private var bubbleBackground: some View {
+        Group {
+            if message.isOutgoing {
+                LinearGradient(
+                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                SanchrExportColors.surface
+            }
+        }
+    }
+
+    private var bubbleShape: UnevenRoundedRectangle {
+        if message.isOutgoing {
+            return UnevenRoundedRectangle(
+                topLeadingRadius: 20,
+                bottomLeadingRadius: 20,
+                bottomTrailingRadius: 6,
+                topTrailingRadius: 20
+            )
+        }
+
+        return UnevenRoundedRectangle(
+            topLeadingRadius: 20,
+            bottomLeadingRadius: 6,
+            bottomTrailingRadius: 20,
+            topTrailingRadius: 20
         )
     }
 
-    // MARK: - Bubble Styling
-
-    @ViewBuilder
-    private var bubbleBackground: some View {
-        if message.isOutgoing {
-            LinearGradient(
-                colors: [Color(hex: 0x6366F1), Color(hex: 0x4C1D95)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            Color(hex: colorScheme == .dark ? 0x1F1F2E : 0xF3F4F6)
-        }
-    }
-
-    private var bubbleShape: some Shape {
-        RoundedRectangle(cornerRadius: SanchrRadius.bubble)
+    private var messageTextColor: Color {
+        message.isOutgoing ? .white : SanchrExportColors.textPrimary
     }
 
     private var statusIcon: String {
         switch message.status {
-        case .sending: return "clock"
-        case .sent: return "checkmark"
-        case .delivered: return "checkmark"
-        case .read: return "checkmark.message.fill"
-        case .failed: return "exclamationmark.circle"
+        case .sending:
+            return "clock"
+        case .sent:
+            return "checkmark"
+        case .delivered, .read:
+            return "checkmark.double"
+        case .failed:
+            return "exclamationmark.circle.fill"
         }
     }
 }
