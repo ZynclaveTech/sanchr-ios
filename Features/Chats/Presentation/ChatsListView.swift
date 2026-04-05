@@ -312,6 +312,7 @@ struct ChatsListView: View {
 
     private func sectionHeaderLabel(_ title: String, systemImage: String? = nil) -> some View {
         SanchrSectionEyebrow(title: title, systemImage: systemImage)
+            .listRowInsets(EdgeInsets())
             .textCase(nil)
     }
 
