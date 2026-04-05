@@ -206,9 +206,9 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     }
 
     private func loadTrustedIdentitiesFromDisk() {
-        guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
+        guard FileManager.default.fileExists(atPath: self.persistenceURL.path) else { return }
         do {
-            let data = try Data(contentsOf: persistenceURL)
+            let data = try Data(contentsOf: self.persistenceURL)
             let entries = try JSONDecoder().decode([[String: Data]].self, from: data)
             for entry in entries {
                 guard let addressData = entry["address"],
@@ -247,12 +247,12 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     }
 
     private func loadVerifiedFromDisk() {
-        guard FileManager.default.fileExists(atPath: verifiedURL.path) else { return }
+        guard FileManager.default.fileExists(atPath: self.verifiedURL.path) else { return }
         do {
-            let data = try Data(contentsOf: verifiedURL)
+            let data = try Data(contentsOf: self.verifiedURL)
             let ids = try JSONDecoder().decode([String].self, from: data)
-            verifiedUserIds = Set(ids)
-            SanchrLogger.crypto.info("Loaded \(verifiedUserIds.count) verified identities from disk")
+            self.verifiedUserIds = Set(ids)
+            SanchrLogger.crypto.info("Loaded \(self.verifiedUserIds.count) verified identities from disk")
         } catch {
             SanchrLogger.crypto.error("Failed to load verified identities: \(error.localizedDescription)")
         }
