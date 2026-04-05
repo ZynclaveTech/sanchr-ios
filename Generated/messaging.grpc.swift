@@ -61,6 +61,11 @@ internal protocol Vync_Messaging_MessagingServiceClientProtocol: GRPCClient {
     _ request: Vync_Messaging_GetPresenceSnapshotRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>
+
+  func sendReaction(
+    _ request: Vync_Messaging_Reaction,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction>
 }
 
 extension Vync_Messaging_MessagingServiceClientProtocol {
@@ -225,6 +230,19 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
       interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
     )
   }
+
+  /// Unary call to SendReaction
+  internal func sendReaction(
+    _ request: Vync_Messaging_Reaction,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction> {
+    return self.makeUnaryCall(
+      path: "/vync.messaging.MessagingService/SendReaction",
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -332,6 +350,11 @@ internal protocol Vync_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     _ request: Vync_Messaging_GetPresenceSnapshotRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>
+
+  func makeSendReactionCall(
+    _ request: Vync_Messaging_Reaction,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -447,6 +470,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
+    )
+  }
+
+  internal func makeSendReactionCall(
+    _ request: Vync_Messaging_Reaction,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction> {
+    return self.makeAsyncUnaryCall(
+      path: "/vync.messaging.MessagingService/SendReaction",
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: []
     )
   }
 }
@@ -570,6 +605,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
+    )
+  }
+
+  internal func sendReaction(
+    _ request: Vync_Messaging_Reaction,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_Reaction {
+    return try await self.performAsyncUnaryCall(
+      path: "/vync.messaging.MessagingService/SendReaction",
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: []
     )
   }
 }

@@ -11,6 +11,7 @@ service MessagingService {
   rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
   rpc GetPresenceSnapshot(GetPresenceSnapshotRequest) returns (GetPresenceSnapshotResponse);
+  rpc SendReaction(Reaction) returns (Reaction);
 }
 
 message StartDirectConversationRequest {
@@ -52,6 +53,7 @@ message ServerEvent {
     PreKeyCountLow pre_key_count_low = 5;
     CallOfferEvent call_offer = 6;
     CallLifecycleEvent call_lifecycle = 7;
+    Reaction reaction = 8;
   }
 }
 
@@ -181,4 +183,13 @@ message Participant {
   string user_id = 1;
   string display_name = 2;
   string avatar_url = 3;
+}
+
+message Reaction {
+  string message_id = 1;
+  string conversation_id = 2;
+  string user_id = 3;
+  string emoji = 4;
+  bool removed = 5;
+  int64 timestamp = 6;
 }

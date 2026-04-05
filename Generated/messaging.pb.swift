@@ -275,6 +275,14 @@ struct Vync_Messaging_ServerEvent: Sendable {
     set {event = .callLifecycle(newValue)}
   }
 
+  var reaction: Vync_Messaging_Reaction {
+    get {
+      if case .reaction(let v)? = event {return v}
+      return Vync_Messaging_Reaction()
+    }
+    set {event = .reaction(newValue)}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   enum OneOf_Event: Equatable, Sendable {
@@ -285,6 +293,7 @@ struct Vync_Messaging_ServerEvent: Sendable {
     case preKeyCountLow(Vync_Messaging_PreKeyCountLow)
     case callOffer(Vync_Messaging_CallOfferEvent)
     case callLifecycle(Vync_Messaging_CallLifecycleEvent)
+    case reaction(Vync_Messaging_Reaction)
 
   }
 
@@ -615,6 +624,28 @@ struct Vync_Messaging_Participant: Sendable {
   init() {}
 }
 
+struct Vync_Messaging_Reaction: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var messageID: String = String()
+
+  var conversationID: String = String()
+
+  var userID: String = String()
+
+  var emoji: String = String()
+
+  var removed: Bool = false
+
+  var timestamp: Int64 = 0
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "vync.messaging"
@@ -863,7 +894,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".ServerEvent"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -962,6 +993,19 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
           self.event = .callLifecycle(v)
         }
       }()
+      case 8: try {
+        var v: Vync_Messaging_Reaction?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .reaction(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .reaction(v)
+        }
+      }()
       default: break
       }
     }
@@ -1000,6 +1044,10 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
     case .callLifecycle?: try {
       guard case .callLifecycle(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .reaction?: try {
+      guard case .reaction(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
     case nil: break
     }
@@ -1794,6 +1842,61 @@ extension Vync_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".Reaction"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}conversation_id\0\u{3}user_id\0\u{1}emoji\0\u{1}removed\0\u{1}timestamp\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.messageID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.userID) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.emoji) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.removed) }()
+      case 6: try { try decoder.decodeSingularInt64Field(value: &self.timestamp) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.messageID.isEmpty {
+      try visitor.visitSingularStringField(value: self.messageID, fieldNumber: 1)
+    }
+    if !self.conversationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 2)
+    }
+    if !self.userID.isEmpty {
+      try visitor.visitSingularStringField(value: self.userID, fieldNumber: 3)
+    }
+    if !self.emoji.isEmpty {
+      try visitor.visitSingularStringField(value: self.emoji, fieldNumber: 4)
+    }
+    if self.removed != false {
+      try visitor.visitSingularBoolField(value: self.removed, fieldNumber: 5)
+    }
+    if self.timestamp != 0 {
+      try visitor.visitSingularInt64Field(value: self.timestamp, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_Reaction, rhs: Vync_Messaging_Reaction) -> Bool {
+    if lhs.messageID != rhs.messageID {return false}
+    if lhs.conversationID != rhs.conversationID {return false}
+    if lhs.userID != rhs.userID {return false}
+    if lhs.emoji != rhs.emoji {return false}
+    if lhs.removed != rhs.removed {return false}
+    if lhs.timestamp != rhs.timestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
