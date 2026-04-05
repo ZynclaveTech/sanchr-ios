@@ -1,37 +1,43 @@
 import Foundation
-import SwiftUI
+import OSLog
 
 /// Thread-safe cached copy of user privacy settings.
-/// Read synchronously from any context. Updated after settings fetch/change.
-@MainActor
-@Observable
-final class PrivacySettingsCache {
-    private(set) var readReceipts: Bool = true
-    private(set) var typingIndicator: Bool = true
-    private(set) var onlineStatusVisible: Bool = true
-    private(set) var sanchrModeEnabled: Bool = false
+/// Readable from any context. Updated after settings fetch/change.
+final class PrivacySettingsCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _readReceipts: Bool = true
+    private var _typingIndicator: Bool = true
+    private var _onlineStatusVisible: Bool = true
+    private var _sanchrModeEnabled: Bool = false
 
-    /// Effective privacy state accounting for Sanchr Mode override.
     var canSendReadReceipts: Bool {
-        !sanchrModeEnabled && readReceipts
+        lock.lock()
+        defer { lock.unlock() }
+        return _readReceipts && !_sanchrModeEnabled
     }
 
     var canSendTypingIndicators: Bool {
-        !sanchrModeEnabled && typingIndicator
+        lock.lock()
+        defer { lock.unlock() }
+        return _typingIndicator && !_sanchrModeEnabled
     }
 
     var canSendPresence: Bool {
-        !sanchrModeEnabled && onlineStatusVisible
+        lock.lock()
+        defer { lock.unlock() }
+        return _onlineStatusVisible && !_sanchrModeEnabled
     }
 
-    /// Update cache from server settings response.
+    /// Update cache from server settings response. Safe to call from any thread.
     func update(from settings: Vync_Settings_UserSettings) {
-        readReceipts = settings.readReceipts
-        typingIndicator = settings.typingIndicator
-        onlineStatusVisible = settings.onlineStatusVisible
-        sanchrModeEnabled = settings.vyncModeEnabled
+        lock.lock()
+        _readReceipts = settings.readReceipts
+        _typingIndicator = settings.typingIndicator
+        _onlineStatusVisible = settings.onlineStatusVisible
+        _sanchrModeEnabled = settings.vyncModeEnabled
+        lock.unlock()
         SanchrLogger.settings.info(
-            "Privacy cache updated: readReceipts=\(self.readReceipts), typing=\(self.typingIndicator), presence=\(self.onlineStatusVisible), sanchrMode=\(self.sanchrModeEnabled)"
+            "Privacy cache updated: rr=\(settings.readReceipts), ti=\(settings.typingIndicator), os=\(settings.onlineStatusVisible), vm=\(settings.vyncModeEnabled)"
         )
     }
 }

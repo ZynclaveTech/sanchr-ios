@@ -328,7 +328,7 @@ struct RootView: View {
             do {
                 let settingsDataSource = SettingsDataSource(grpcClient: container.grpcClient)
                 let settings = try await settingsDataSource.getSettings()
-                await container.privacySettings.update(from: settings)
+                container.privacySettings.update(from: settings)
             } catch {
                 SanchrLogger.settings.warning(
                     "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
