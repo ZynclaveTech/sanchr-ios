@@ -8,6 +8,8 @@ struct ConversationInfoView: View {
     let recipient: User?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(DependencyContainer.self) private var container
+    @State private var refreshedRecipient: User?
     @State private var notificationsMuted = false
     @State private var mediaVisibility = true
     @State private var sanchrModeEnabled = false
@@ -20,18 +22,20 @@ struct ConversationInfoView: View {
     @State private var showBlockContact = false
     @State private var showReportContact = false
 
+    /// Use refreshed data if available, fall back to initial snapshot
+    private var activeRecipient: User? {
+        refreshedRecipient ?? recipient
+    }
+
     private var recipientHasPhone: Bool {
-        if let phone = recipient?.phoneNumber, !phone.isEmpty { return true }
+        if let phone = activeRecipient?.phoneNumber, !phone.isEmpty { return true }
         return false
     }
 
     private var recipientPhoneDisplay: String {
-        if let phone = recipient?.phoneNumber, !phone.isEmpty {
+        if let phone = activeRecipient?.phoneNumber, !phone.isEmpty {
             return phone
         }
-        // Log for debugging
-        SanchrLogger.chat.debug(
-            "Chat Settings: recipient phoneNumber is empty. recipient=\(recipient?.id.prefix(8) ?? "nil"), name=\(recipient?.displayName ?? "nil"), phone='\(recipient?.phoneNumber ?? "nil")'")
         return "Encrypted conversation"
     }
 
@@ -52,12 +56,18 @@ struct ConversationInfoView: View {
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationBarHidden(true)
-        .onAppear {
-            SanchrLogger.chat.info("Chat Settings opened. Conversation: \(conversation.id.prefix(8)), participants: \(conversation.participants.count)")
-            for p in conversation.participants {
-                SanchrLogger.chat.info("  Participant: id=\(p.id.prefix(8)), name=\(p.displayName), phone='\(p.phoneNumber)', isLocal=\(p.isLocalUser)")
+        .task {
+            // Fetch fresh contacts from server to get phone numbers
+            guard let recipientId = recipient?.id else { return }
+            do {
+                let contacts = try await container.contactRepository.fetchContacts()
+                if let fresh = contacts.first(where: { $0.id == recipientId }) {
+                    refreshedRecipient = fresh
+                    SanchrLogger.chat.info("Chat Settings: refreshed recipient phone='\(fresh.phoneNumber)'")
+                }
+            } catch {
+                SanchrLogger.chat.warning("Chat Settings: failed to refresh contacts: \(error.localizedDescription)")
             }
-            SanchrLogger.chat.info("  Recipient: \(recipient?.id.prefix(8) ?? "nil"), phone='\(recipient?.phoneNumber ?? "nil")'")
         }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView()
