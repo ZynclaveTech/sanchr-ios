@@ -311,8 +311,10 @@ final class ChatDetailViewModel {
     func sendTypingIndicator(
         conversationId: String,
         isTyping: Bool,
-        messageRepository: MessageRepositoryProtocol
+        messageRepository: MessageRepositoryProtocol,
+        canSend: Bool
     ) async {
+        guard canSend else { return }
         do {
             try await messageRepository.sendTypingIndicator(
                 conversationId: conversationId,
