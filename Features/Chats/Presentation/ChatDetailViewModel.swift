@@ -93,6 +93,40 @@ final class ChatDetailViewModel {
         peerPresenceHidden = false
     }
 
+    // MARK: - Reactions
+
+    var showReactionPickerForMessageId: String?
+
+    func toggleReaction(emoji: String, messageId: String, conversationId: String, userId: String) {
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+
+        if let reactionIndex = messages[index].reactions.firstIndex(where: { $0.emoji == emoji && $0.userId == userId }) {
+            // Remove own reaction
+            messages[index].reactions.remove(at: reactionIndex)
+        } else {
+            // Add reaction
+            let reaction = Message.MessageReaction(
+                emoji: emoji,
+                userId: userId,
+                timestamp: Date()
+            )
+            messages[index].reactions.append(reaction)
+        }
+    }
+
+    func handleRealtimeReaction(messageId: String, userId: String, emoji: String, removed: Bool) {
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+
+        if removed {
+            messages[index].reactions.removeAll { $0.emoji == emoji && $0.userId == userId }
+        } else {
+            let reaction = Message.MessageReaction(emoji: emoji, userId: userId, timestamp: Date())
+            if !messages[index].reactions.contains(where: { $0.emoji == emoji && $0.userId == userId }) {
+                messages[index].reactions.append(reaction)
+            }
+        }
+    }
+
     // MARK: - Reply State
 
     func setReply(to message: Message?) {
