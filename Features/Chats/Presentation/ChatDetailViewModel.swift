@@ -46,6 +46,13 @@ final class ChatDetailViewModel {
 
     private var lastPaginationAnchor: Date?
 
+    // MARK: - Search State
+
+    var isSearching = false
+    var searchQuery = ""
+    var searchResults: [Message] = []
+    var currentSearchIndex = 0
+
     // MARK: - Conversation Lifecycle
 
     /// Called when the user enters a conversation.
@@ -386,6 +393,41 @@ final class ChatDetailViewModel {
             messages[index].status = status
             rebuildSections()
         }
+    }
+
+    // MARK: - Search
+
+    func searchMessages(conversationId: String, query: String, localDatabase: LocalDatabaseProtocol) async {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            searchResults = []
+            currentSearchIndex = 0
+            return
+        }
+        do {
+            searchResults = try await localDatabase.searchMessages(
+                conversationId: conversationId,
+                query: query
+            )
+            currentSearchIndex = 0
+        } catch {
+            SanchrLogger.chat.error("Search failed: \(error.localizedDescription)")
+            searchResults = []
+        }
+    }
+
+    func nextSearchResult() {
+        guard !searchResults.isEmpty else { return }
+        currentSearchIndex = (currentSearchIndex + 1) % searchResults.count
+    }
+
+    func previousSearchResult() {
+        guard !searchResults.isEmpty else { return }
+        currentSearchIndex = (currentSearchIndex - 1 + searchResults.count) % searchResults.count
+    }
+
+    var currentSearchResultId: String? {
+        guard !searchResults.isEmpty else { return nil }
+        return searchResults[currentSearchIndex].id
     }
 
     private func rebuildSections() {
