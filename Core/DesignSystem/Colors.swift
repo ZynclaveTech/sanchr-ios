@@ -49,6 +49,46 @@ enum SanchrColors {
 
     static let encryptionBadge = Color(hex: 0x22C55E).opacity(0.15)
     static let encryptionBadgeText = Color(hex: 0x22C55E)
+
+    // MARK: - Chat List (Figma Exact)
+
+    /// Search bar / filter tab background — Figma #F3F4F6
+    static let searchBackgroundLight = Color(hex: 0xF3F4F6)
+    static let searchBackgroundDark = Color(hex: 0x1F1F2E)
+
+    /// Filter chip inactive background — same as search bg
+    static let chipInactiveLight = Color(hex: 0xF3F4F6)
+    static let chipInactiveDark = Color(hex: 0x1F1F2E)
+
+    /// Avatar border color
+    static let avatarBorderLight = Color.white
+    static let avatarBorderDark = Color(hex: 0x24243A)
+
+    /// Group message sender name — Figma #374151
+    static let groupSenderLight = Color(hex: 0x374151)
+    static let groupSenderDark = Color(hex: 0xD1D5DB)
+
+    /// Message preview text — Figma #4B5563
+    static let previewTextLight = Color(hex: 0x4B5563)
+    static let previewTextDark = Color(hex: 0x9CA3AF)
+
+    // MARK: - Presence Status
+
+    /// Online indicator — Figma #22C55E
+    static let statusOnline = Color(hex: 0x22C55E)
+    /// Away/idle indicator — Figma #FACC15
+    static let statusAway = Color(hex: 0xFACC15)
+    /// Offline indicator — Figma #D1D5DB
+    static let statusOffline = Color(hex: 0xD1D5DB)
+    /// Do-not-disturb indicator
+    static let statusDND = Color(hex: 0xEF4444)
+
+    // MARK: - Group Avatar Gradients (Figma Exact)
+
+    static let groupGradientBlue = (Color(hex: 0x3B82F6), Color(hex: 0x1D4ED8))
+    static let groupGradientPurple = (Color(hex: 0x8B5CF6), Color(hex: 0x6D28D9))
+    static let groupGradientPink = (Color(hex: 0xEC4899), Color(hex: 0xBE185D))
+    static let groupGradientTeal = (Color(hex: 0x14B8A6), Color(hex: 0x0D9488))
 }
 
 // MARK: - Color Extension
@@ -95,6 +135,26 @@ extension Color {
 
     static func sanchrDivider(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? SanchrColors.dividerDark : SanchrColors.dividerLight
+    }
+
+    static func sanchrSearchBackground(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? SanchrColors.searchBackgroundDark : SanchrColors.searchBackgroundLight
+    }
+
+    static func sanchrPreviewText(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? SanchrColors.previewTextDark : SanchrColors.previewTextLight
+    }
+
+    static func sanchrChipInactive(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? SanchrColors.chipInactiveDark : SanchrColors.chipInactiveLight
+    }
+
+    static func sanchrAvatarBorder(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? SanchrColors.avatarBorderDark : SanchrColors.avatarBorderLight
+    }
+
+    static func sanchrGroupSender(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? SanchrColors.groupSenderDark : SanchrColors.groupSenderLight
     }
 }
 
