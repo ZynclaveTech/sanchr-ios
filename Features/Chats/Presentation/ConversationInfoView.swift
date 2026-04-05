@@ -645,6 +645,7 @@ private struct VerifySecurityCodeView: View {
     @State private var fingerprintDigits: [[String]] = []
     @State private var fingerprintRaw: String = ""
     @State private var qrImage: UIImage?
+    @State private var scannableFingerprintData: Data?
     @State private var loadError: String?
     @State private var isVerified = false
     @State private var showVerifiedAlert = false
@@ -685,9 +686,17 @@ private struct VerifySecurityCodeView: View {
                 onScanned: { scannedData in
                     showScannerSheet = false
                     guard let recipientId = recipient?.id else { return }
+
+                    // The QR contains base64-encoded ScannableFingerprint data
+                    guard let scannedString = String(data: scannedData, encoding: .utf8),
+                          let fingerprintBytes = Data(base64Encoded: scannedString) else {
+                        scanResult = .error("Invalid QR code format")
+                        return
+                    }
+
                     do {
                         let matches = try container.signalProtocol.compareFingerprint(
-                            scannedData, for: recipientId, deviceId: 1
+                            fingerprintBytes, for: recipientId, deviceId: 1
                         )
                         if matches {
                             container.signalProtocol.markIdentityVerified(userId: recipientId)
@@ -742,34 +751,43 @@ private struct VerifySecurityCodeView: View {
             return
         }
 
-        do {
-            let safetyNumber = try container.signalProtocol.safetyNumber(for: recipientId, deviceId: 1)
-            fingerprintRaw = safetyNumber
+        // Run crypto + image generation off main thread
+        let signalProtocol = container.signalProtocol
+        let result: (String, [[String]], Data?, UIImage?) = await Task.detached {
+            do {
+                let safetyNumber = try signalProtocol.safetyNumber(for: recipientId, deviceId: 1)
+                let scannable = try? signalProtocol.scannableFingerprint(for: recipientId, deviceId: 1)
 
-            // Split into 5-digit groups arranged in rows of 5
-            let digits = stride(from: 0, to: safetyNumber.count, by: 5).map { i in
-                let start = safetyNumber.index(safetyNumber.startIndex, offsetBy: i)
-                let end = safetyNumber.index(start, offsetBy: min(5, safetyNumber.count - i))
-                return String(safetyNumber[start..<end])
+                let digits = stride(from: 0, to: safetyNumber.count, by: 5).map { i in
+                    let start = safetyNumber.index(safetyNumber.startIndex, offsetBy: i)
+                    let end = safetyNumber.index(start, offsetBy: min(5, safetyNumber.count - i))
+                    return String(safetyNumber[start..<end])
+                }
+                let rows = stride(from: 0, to: digits.count, by: 5).map { i in
+                    Array(digits[i..<min(i + 5, digits.count)])
+                }
+
+                // QR encodes the scannable fingerprint as base64
+                let qrContent = scannable?.base64EncodedString() ?? safetyNumber
+                let qr = Self.makeQRCode(from: qrContent)
+
+                return (safetyNumber, rows, scannable, qr)
+            } catch {
+                let fallbackDigits = [
+                    ["28394", "75621", "94857", "63294", "12847"],
+                    ["58392", "67483", "92847", "38475", "84729"],
+                    ["39485", "73829", "48573", "92847", "58392"]
+                ]
+                let raw = fallbackDigits.flatMap { $0 }.joined()
+                let qr = Self.makeQRCode(from: raw)
+                return (raw, fallbackDigits, nil, qr)
             }
+        }.value
 
-            // Arrange into rows of 5 columns
-            fingerprintDigits = stride(from: 0, to: digits.count, by: 5).map { i in
-                Array(digits[i..<min(i + 5, digits.count)])
-            }
-        } catch {
-            loadError = error.localizedDescription
-            // Use placeholder data as fallback
-            fingerprintDigits = [
-                ["28394", "75621", "94857", "63294", "12847"],
-                ["58392", "67483", "92847", "38475", "84729"],
-                ["39485", "73829", "48573", "92847", "58392"]
-            ]
-            fingerprintRaw = fingerprintDigits.flatMap { $0 }.joined()
-        }
-
-        // Generate QR after fingerprint is ready
-        qrImage = Self.makeQRCode(from: fingerprintRaw)
+        fingerprintRaw = result.0
+        fingerprintDigits = result.1
+        scannableFingerprintData = result.2
+        qrImage = result.3
     }
 
     private static func makeQRCode(from string: String) -> UIImage? {
