@@ -416,12 +416,13 @@ struct ChatsListView: View {
 
 struct ConversationRow: View {
     let conversation: Conversation
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 12) {
             avatarWithStatus
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: SanchrSpacing.namePreviewGap) {
                 HStack(alignment: .center, spacing: 10) {
                     HStack(spacing: 6) {
                         Text(conversation.displayName)
@@ -431,7 +432,7 @@ struct ConversationRow: View {
                             .lineLimit(1)
 
                         Image(systemName: "shield.fill")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: SanchrSpacing.e2eeIconSize, weight: .semibold))
                             .foregroundColor(SanchrColors.accent)
                     }
 
@@ -464,13 +465,6 @@ struct ConversationRow: View {
 
                     Spacer(minLength: 8)
 
-                    if conversation.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textTertiary)
-                            .rotationEffect(.degrees(45))
-                    }
-
                     if conversation.isMuted {
                         Image(systemName: "bell.slash.fill")
                             .font(.system(size: 10, weight: .semibold))
@@ -481,23 +475,28 @@ struct ConversationRow: View {
                         Text("\(conversation.unreadCount)")
                             .font(SanchrTypography.unreadBadge)
                             .foregroundColor(.white)
-                            .frame(minWidth: 22)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
+                            .frame(minWidth: SanchrSpacing.unreadBadgeSize)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
                             .background(SanchrColors.primary)
                             .clipShape(Capsule())
                     }
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
+        .padding(.horizontal, SanchrSpacing.chatRowHPadding)
+        .padding(.vertical, SanchrSpacing.chatRowVPadding)
         .listRowInsets(EdgeInsets())
     }
 
     private var avatarWithStatus: some View {
         ZStack(alignment: .bottomTrailing) {
             avatarImage
+                .overlay {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                }
+                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
             statusDot
         }
         .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
@@ -518,6 +517,17 @@ struct ConversationRow: View {
                         Image(systemName: "person.3.fill")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.white)
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                            .overlay {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundColor(Color(hex: 0x9CA3AF))
+                            }
+                            .offset(x: 1, y: 1)
                     }
             } else if let avatarURL = conversation.avatarURL {
                 KFImage(avatarURL)
@@ -552,9 +562,10 @@ struct ConversationRow: View {
                 .frame(width: SanchrSpacing.statusIndicatorSize, height: SanchrSpacing.statusIndicatorSize)
                 .overlay {
                     Circle()
-                        .stroke(Color.white, lineWidth: 2.5)
+                        .stroke(Color.white, lineWidth: SanchrSpacing.statusIndicatorBorder)
                 }
                 .offset(x: 1, y: 1)
+                .modifier(PulseModifier(isActive: user.status == .online))
         }
     }
 
@@ -590,7 +601,9 @@ struct ConversationRow: View {
         switch status {
         case .online, .typing:
             return SanchrColors.statusOnline
-        case .away, .offline:
+        case .away:
+            return SanchrColors.statusAway
+        case .offline:
             return SanchrColors.statusOffline
         }
     }
@@ -638,5 +651,27 @@ struct ConversationRow: View {
         case .screenshotDetected:
             return "Screenshot detected"
         }
+    }
+}
+
+private struct PulseModifier: ViewModifier {
+    let isActive: Bool
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive && isPulsing ? 0.5 : 1.0)
+            .animation(
+                isActive
+                    ? .easeInOut(duration: 1.0).repeatForever(autoreverses: true)
+                    : .default,
+                value: isPulsing
+            )
+            .onAppear {
+                if isActive { isPulsing = true }
+            }
+            .onChange(of: isActive) { _, newValue in
+                isPulsing = newValue
+            }
     }
 }
