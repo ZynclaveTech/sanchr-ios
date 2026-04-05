@@ -162,9 +162,12 @@ struct ChatsListView: View {
     }
 
     private func conversationCell(_ conversation: Conversation) -> some View {
-        NavigationLink(value: conversation) {
-            ConversationRow(conversation: conversation)
-        }
+        ConversationRow(conversation: conversation)
+            .background(
+                NavigationLink(value: conversation) { EmptyView() }
+                    .opacity(0)
+            )
+            .listRowInsets(EdgeInsets())
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 conversationToDelete = conversation
@@ -242,7 +245,6 @@ struct ChatsListView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .buttonStyle(ChatRowButtonStyle())
     }
 
     private var customHeader: some View {
@@ -510,7 +512,7 @@ struct ConversationRow: View {
         }
         .padding(.horizontal, SanchrSpacing.chatRowHPadding)
         .padding(.vertical, SanchrSpacing.chatRowVPadding)
-        .listRowInsets(EdgeInsets())
+        .contentShape(Rectangle())
     }
 
     private var avatarWithStatus: some View {
