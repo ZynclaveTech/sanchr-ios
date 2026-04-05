@@ -83,10 +83,10 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     ) throws -> IdentityChange {
         var change: IdentityChange = .newOrUnchanged
         queue.sync(flags: .barrier) {
-            if let existing = trustedIdentities[address], existing != identity {
+            if let existing = self.trustedIdentities[address], existing != identity {
                 change = .replacedExisting
             }
-            trustedIdentities[address] = identity
+            self.trustedIdentities[address] = identity
         }
         saveTrustedIdentitiesToDisk()
         return change
@@ -100,7 +100,7 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     ) throws -> Bool {
         var keyChanged = false
         queue.sync {
-            if let existing = trustedIdentities[address], existing != identity {
+            if let existing = self.trustedIdentities[address], existing != identity {
                 keyChanged = true
             }
         }
@@ -130,7 +130,7 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     ) throws -> IdentityKey? {
         var result: IdentityKey?
         queue.sync {
-            result = trustedIdentities[address]
+            result = self.trustedIdentities[address]
         }
         return result
     }
