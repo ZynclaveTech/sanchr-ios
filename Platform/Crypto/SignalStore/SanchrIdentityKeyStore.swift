@@ -164,13 +164,13 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
 
     /// Returns whether the given user has been manually verified (safety number confirmed).
     func isIdentityVerified(userId: String) -> Bool {
-        queue.sync { verifiedUserIds.contains(userId) }
+        queue.sync { self.verifiedUserIds.contains(userId) }
     }
 
     /// Marks a user's identity as verified after safety number comparison.
     func markIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
-            _ = verifiedUserIds.insert(userId)
+            _ = self.verifiedUserIds.insert(userId)
         }
         saveVerifiedToDisk()
         SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
@@ -179,7 +179,7 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     /// Removes verification for a user (e.g., after unblock or manual reset).
     func unmarkIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
-            _ = verifiedUserIds.remove(userId)
+            _ = self.verifiedUserIds.remove(userId)
         }
         saveVerifiedToDisk()
     }

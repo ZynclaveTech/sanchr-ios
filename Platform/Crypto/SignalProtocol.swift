@@ -288,9 +288,25 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
     }
 
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool {
-        let localScannable = try scannableFingerprint(for: userId, deviceId: deviceId)
-        let localFingerprint = ScannableFingerprint(encoding: localScannable)
-        return try localFingerprint.compare(againstEncoding: scannedData)
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        let localIdentity = try store.identityStore.identityKeyPair(context: NullContext())
+            .identityKey
+        guard
+            let remoteIdentity = try store.identityStore.identity(
+                for: address, context: NullContext())
+        else {
+            throw AppError.sessionNotEstablished
+        }
+
+        let fingerprint = try NumericFingerprintGenerator(iterations: 5200).create(
+            version: 2,
+            localIdentifier: Data(store.userId.utf8),
+            localKey: localIdentity.publicKey,
+            remoteIdentifier: Data(userId.utf8),
+            remoteKey: remoteIdentity.publicKey
+        )
+
+        return try fingerprint.scannable.compare(againstEncoding: scannedData)
     }
 
     func markIdentityVerified(userId: String) {
