@@ -813,77 +813,7 @@ private struct VerifySecurityCodeView: View {
     // MARK: - Gradient Header
 
     private var gradientHeader: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 16) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                Text("Encryption Keys")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            .padding(.bottom, 24)
-
-            HStack(spacing: 16) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.accent, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 48, height: 48)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("End-to-End Encrypted")
-                        .font(SanchrTypography.messageBubbleText)
-                        .foregroundColor(.white.opacity(0.8))
-                    Text(conversation.displayName)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-
-                Spacer()
-
-                Circle()
-                    .fill(SanchrColors.accent.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                    .overlay {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(SanchrColors.accent)
-                    }
-            }
-            .padding(16)
-            .background(Color.white.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 24)
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .ignoresSafeArea(edges: .top)
-        )
-        .safeAreaInset(edge: .top) { Color.clear.frame(height: 0) }
+        screenHeader(title: "Encryption Keys", onBack: { dismiss() })
     }
 
     // MARK: - Main Content
