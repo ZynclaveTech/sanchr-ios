@@ -716,27 +716,21 @@ private struct VerifySecurityCodeView: View {
                 onScanned: { scannedData in
                     showScannerSheet = false
                     guard let recipientId = recipient?.id else { return }
-
-                    // The QR contains base64-encoded ScannableFingerprint data
-                    guard let scannedString = String(data: scannedData, encoding: .utf8),
-                          let fingerprintBytes = Data(base64Encoded: scannedString) else {
+                    guard let scannedString = String(data: scannedData, encoding: .utf8) else {
                         scanResult = .error("Invalid QR code format")
                         return
                     }
 
-                    do {
-                        let matches = try container.signalProtocol.compareFingerprint(
-                            fingerprintBytes, for: recipientId, deviceId: 1
-                        )
-                        if matches {
-                            container.signalProtocol.markIdentityVerified(userId: recipientId)
-                            isVerified = true
-                            scanResult = .match
-                        } else {
-                            scanResult = .mismatch
-                        }
-                    } catch {
-                        scanResult = .error(error.localizedDescription)
+                    // Compare scanned safety number digits against our local one
+                    let scannedDigits = scannedString.filter(\.isNumber)
+                    let localDigits = fingerprintRaw.filter(\.isNumber)
+
+                    if !localDigits.isEmpty && scannedDigits == localDigits {
+                        container.signalProtocol.markIdentityVerified(userId: recipientId)
+                        isVerified = true
+                        scanResult = .match
+                    } else {
+                        scanResult = .mismatch
                     }
                 },
                 onCancel: { showScannerSheet = false }
@@ -797,8 +791,8 @@ private struct VerifySecurityCodeView: View {
                     Array(digits[i..<min(i + 5, digits.count)])
                 }
 
-                // QR encodes the scannable fingerprint as base64
-                let qrContent = scannable?.base64EncodedString() ?? safetyNumber
+                // QR encodes the safety number digits for cross-device comparison
+                let qrContent = safetyNumber
                 let qr = makeQRCodeImage(from: qrContent)
 
                 return (safetyNumber, rows, scannable, qr)
