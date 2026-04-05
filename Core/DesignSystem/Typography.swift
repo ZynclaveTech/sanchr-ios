@@ -105,6 +105,12 @@ enum SanchrTypography {
     /// Chat message text (16pt medium).
     static let chatMessage = secondary(size: .sm, weight: .medium)
 
+    /// Message bubble text — Afacad 14pt medium
+    static let messageBubbleText = secondary(size: .xs, weight: .medium)
+
+    /// Message timestamp external — Afacad 12pt regular
+    static let messageTimestamp = secondary(size: .xxs, weight: .regular)
+
     /// Chat timestamp — Afacad 12pt medium
     static let chatTimestamp = secondary(size: .xxs, weight: .medium)
 

@@ -89,6 +89,25 @@ enum SanchrColors {
     static let groupGradientPurple = (Color(hex: 0x8B5CF6), Color(hex: 0x6D28D9))
     static let groupGradientPink = (Color(hex: 0xEC4899), Color(hex: 0xBE185D))
     static let groupGradientTeal = (Color(hex: 0x14B8A6), Color(hex: 0x0D9488))
+
+    // MARK: - Chat Screen (Export Exact)
+
+    /// E2E banner gradient start — cyan/10
+    static let e2eBannerStartLight = Color(hex: 0x06B6D4).opacity(0.1)
+    static let e2eBannerStartDark = Color(hex: 0x06B6D4).opacity(0.15)
+    /// E2E banner gradient end — indigo/10
+    static let e2eBannerEndLight = Color(hex: 0x6366F1).opacity(0.1)
+    static let e2eBannerEndDark = Color(hex: 0x6366F1).opacity(0.15)
+    /// E2E banner border — cyan/20
+    static let e2eBannerBorder = Color(hex: 0x06B6D4).opacity(0.2)
+    /// Received bubble border — gray-100
+    static let receivedBubbleBorderLight = Color(hex: 0xF3F4F6)
+    static let receivedBubbleBorderDark = Color(hex: 0x2D2D3F)
+    /// Security event amber colors
+    static let securityEventBg = Color(hex: 0xFFFBEB)
+    static let securityEventBorder = Color(hex: 0xFDE68A)
+    static let securityEventText = Color(hex: 0xB45309)
+    static let securityEventIcon = Color(hex: 0xD97706)
 }
 
 // MARK: - Color Extension

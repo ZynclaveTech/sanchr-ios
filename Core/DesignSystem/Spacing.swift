@@ -85,4 +85,31 @@ enum SanchrSpacing {
 
     /// Section header top padding — 8pt
     static let sectionHeaderTop: CGFloat = 8
+
+    // MARK: - Chat Screen (Export Exact)
+
+    /// Header avatar size — 40pt
+    static let chatHeaderAvatarSize: CGFloat = 40
+    /// Header avatar status dot — 12pt
+    static let chatHeaderStatusDot: CGFloat = 12
+    /// Header action button size — 36pt
+    static let chatHeaderActionSize: CGFloat = 36
+    /// Message bubble horizontal padding — 16pt
+    static let bubbleHPadding: CGFloat = 16
+    /// Message bubble vertical padding — 10pt
+    static let bubbleVPadding: CGFloat = 10
+    /// Message bubble tail radius — 4pt
+    static let bubbleTailRadius: CGFloat = 4
+    /// Message bubble main radius — 20pt
+    static let bubbleMainRadius: CGFloat = 20
+    /// Message max width fraction — 0.75
+    static let messageMaxWidthFraction: CGFloat = 0.75
+    /// Message gap — 12pt
+    static let messageGap: CGFloat = 12
+    /// Composer plus button size — 40pt
+    static let composerButtonSize: CGFloat = 40
+    /// Composer send button size — 44pt
+    static let composerSendSize: CGFloat = 44
+    /// Composer input border radius — 24pt
+    static let composerInputRadius: CGFloat = 24
 }
