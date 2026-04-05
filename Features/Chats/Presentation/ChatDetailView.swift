@@ -523,18 +523,36 @@ struct MessageBubble: View {
 
     var body: some View {
         HStack(alignment: .bottom) {
-            if message.isOutgoing { Spacer(minLength: 54) }
+            if message.isOutgoing { Spacer(minLength: 0) }
 
-            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 6) {
+            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
                 messageContent
-                timestampRow
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(bubbleBackground)
-            .clipShape(bubbleShape)
+                    .padding(.horizontal, SanchrSpacing.bubbleHPadding)
+                    .padding(.vertical, SanchrSpacing.bubbleVPadding)
+                    .background(bubbleBackground)
+                    .clipShape(bubbleShape)
+                    .shadow(
+                        color: message.isOutgoing
+                            ? Color.black.opacity(0.1)
+                            : Color.black.opacity(0.04),
+                        radius: message.isOutgoing ? 6 : 3,
+                        x: 0,
+                        y: message.isOutgoing ? 2 : 1
+                    )
+                    .overlay {
+                        if !message.isOutgoing {
+                            bubbleShape
+                                .stroke(SanchrColors.receivedBubbleBorderLight, lineWidth: 1)
+                        }
+                    }
 
-            if !message.isOutgoing { Spacer(minLength: 54) }
+                timestampRow
+                    .padding(.top, 4)
+                    .padding(.horizontal, 4)
+            }
+            .frame(maxWidth: UIScreen.main.bounds.width * SanchrSpacing.messageMaxWidthFraction, alignment: message.isOutgoing ? .trailing : .leading)
+
+            if !message.isOutgoing { Spacer(minLength: 0) }
         }
     }
 
@@ -543,7 +561,7 @@ struct MessageBubble: View {
         switch message.content {
         case .text(let text):
             Text(text)
-                .font(SanchrTypography.body)
+                .font(SanchrTypography.messageBubbleText)
                 .foregroundColor(messageTextColor)
                 .multilineTextAlignment(.leading)
 
@@ -571,7 +589,7 @@ struct MessageBubble: View {
 
                 if let caption = attachment.caption, !caption.isEmpty {
                     Text(caption)
-                        .font(SanchrTypography.body)
+                        .font(SanchrTypography.messageBubbleText)
                         .foregroundColor(messageTextColor)
                 }
             }
@@ -586,15 +604,19 @@ struct MessageBubble: View {
     private var timestampRow: some View {
         HStack(spacing: 4) {
             Text(message.timestamp.messageTime)
-                .font(SanchrTypography.micro)
+                .font(SanchrTypography.messageTimestamp)
+                .foregroundColor(SanchrExportColors.textTertiary)
 
             if message.isOutgoing {
                 Image(systemName: statusIcon)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(message.status == .read ? Color.white.opacity(0.95) : Color.white.opacity(0.72))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(
+                        message.status == .read
+                            ? SanchrColors.accent
+                            : SanchrExportColors.textTertiary
+                    )
             }
         }
-        .foregroundColor(message.isOutgoing ? Color.white.opacity(0.75) : SanchrExportColors.textSecondary)
     }
 
     private var bubbleBackground: some View {
@@ -606,26 +628,27 @@ struct MessageBubble: View {
                     endPoint: .bottomTrailing
                 )
             } else {
-                SanchrExportColors.surface
+                Color.white
             }
         }
     }
 
     private var bubbleShape: UnevenRoundedRectangle {
+        let main = SanchrSpacing.bubbleMainRadius
+        let tail = SanchrSpacing.bubbleTailRadius
         if message.isOutgoing {
             return UnevenRoundedRectangle(
-                topLeadingRadius: 20,
-                bottomLeadingRadius: 20,
-                bottomTrailingRadius: 6,
-                topTrailingRadius: 20
+                topLeadingRadius: main,
+                bottomLeadingRadius: main,
+                bottomTrailingRadius: tail,
+                topTrailingRadius: main
             )
         }
-
         return UnevenRoundedRectangle(
-            topLeadingRadius: 20,
-            bottomLeadingRadius: 6,
-            bottomTrailingRadius: 20,
-            topTrailingRadius: 20
+            topLeadingRadius: main,
+            bottomLeadingRadius: tail,
+            bottomTrailingRadius: main,
+            topTrailingRadius: main
         )
     }
 
