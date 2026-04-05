@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = AuthViewModel()
 
@@ -67,31 +68,11 @@ struct LoginView: View {
 
     private var heroSection: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .bottomTrailing) {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 112, height: 112)
-
-                Image(systemName: "bubble.left.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundColor(.white)
-
-                ZStack {
-                    Circle()
-                        .fill(SanchrColors.accent)
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .frame(width: 28, height: 28)
-                .offset(x: 6, y: 6)
-            }
+            Image("SanchrLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
 
             Spacer()
                 .frame(height: 40)
@@ -148,7 +129,7 @@ struct LoginView: View {
                     .frame(width: 88, height: 60)
                     .overlay(alignment: .trailing) {
                         Rectangle()
-                            .fill(Color(hex: 0xE5E7EB))
+                            .fill(SanchrExportColors.line)
                             .frame(width: 1, height: 28)
                             .padding(.trailing, 1)
                     }
@@ -163,16 +144,16 @@ struct LoginView: View {
                     .frame(height: 60)
                     .foregroundColor(SanchrExportColors.textPrimary)
             }
-            .background(Color.white)
+            .background(SanchrExportColors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(
-                        viewModel.errorMessage == nil ? Color(hex: 0xEDF2F7) : SanchrColors.error.opacity(0.35),
+                        viewModel.errorMessage == nil ? SanchrExportColors.line : SanchrColors.error.opacity(0.35),
                         lineWidth: 1.2
                     )
             }
-            .shadow(color: Color.black.opacity(0.02), radius: 18, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.04), radius: 18, x: 0, y: 10)
 
             Spacer()
                 .frame(height: 14)
@@ -199,7 +180,7 @@ struct LoginView: View {
     private var securityCard: some View {
         HStack(alignment: .top, spacing: 16) {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(hex: 0xEEF2FF))
+                .fill(SanchrColors.primary.opacity(0.1))
                 .frame(width: 52, height: 52)
                 .overlay {
                     Image(systemName: "lock.fill")
@@ -224,17 +205,11 @@ struct LoginView: View {
         .padding(.vertical, 20)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0xF8FAFF), Color(hex: 0xF3F8FF)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(SanchrExportColors.surface)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color(hex: 0xDDE6FF), lineWidth: 1)
+                .stroke(SanchrColors.primary.opacity(colorScheme == .dark ? 0.15 : 0.12), lineWidth: 1)
         }
     }
 
@@ -291,7 +266,7 @@ struct LoginView: View {
                 .foregroundColor(SanchrColors.primary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color(hex: 0xEEF2FF))
+                .background(SanchrColors.primary.opacity(0.1))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
