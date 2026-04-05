@@ -1,42 +1,39 @@
 import Kingfisher
 import SwiftUI
 
-/// Conversation list screen showing all active chats.
-/// Matches Figma: chats-list-screen with search, E2EE banner, and FAB.
 struct ChatsListView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
-    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = ChatsListViewModel()
     @State private var searchText = ""
     @State private var showNewConversation = false
+    @State private var conversationToDelete: Conversation?
+    @State private var sanchrModeEnabled = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             mainContent
             fabButton
         }
-        .navigationTitle("Chats")
+        .navigationBarHidden(true)
         .navigationDestination(for: Conversation.self) { conversation in
             ChatDetailView(conversation: conversation)
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        showNewConversation = true
-                    } label: {
-                        Label("New Chat", systemImage: "square.and.pencil")
-                    }
-                    Button {
-                        // TODO: New group
-                    } label: {
-                        Label("New Group", systemImage: "person.3")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundColor(.sanchrPrimary)
+        .confirmationDialog(
+            "Delete Conversation",
+            isPresented: Binding(
+                get: { conversationToDelete != nil },
+                set: { if !$0 { conversationToDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let conversation = conversationToDelete {
+                    Task { await viewModel.deleteConversation(conversation) }
                 }
+                conversationToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                conversationToDelete = nil
             }
         }
         .refreshable {
@@ -46,192 +43,363 @@ struct ChatsListView: View {
             )
         }
         .task {
+            await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
             await viewModel.loadConversations(messageRepository: container.messageRepository)
             await openPendingConversationIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { _ in
             Task {
-                await viewModel.loadConversations(messageRepository: container.messageRepository)
+                await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
                 await openPendingConversationIfNeeded()
             }
         }
         .onChange(of: router.pendingConversationId) { _, _ in
-            Task {
-                await openPendingConversationIfNeeded()
-            }
+            Task { await openPendingConversationIfNeeded() }
+        }
+        .onChange(of: viewModel.totalUnreadCount) { _, newCount in
+            router.chatUnreadCount = newCount
         }
     }
-
-    // MARK: - Main Content
 
     private var mainContent: some View {
         Group {
             if viewModel.conversations.isEmpty && viewModel.isLoading {
-                ProgressView()
-                    .tint(.sanchrPrimary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                loadingState
             } else if viewModel.conversations.isEmpty {
                 emptyState
             } else {
                 conversationList
             }
         }
+        .background(SanchrExportColors.background)
     }
 
-    // MARK: - Conversation List
+    private var loadingState: some View {
+        VStack(spacing: 0) {
+            customHeader
+            Spacer()
+            ProgressView()
+                .tint(.sanchrPrimary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SanchrExportColors.background)
+    }
 
     private var conversationList: some View {
         List {
-            // E2EE Banner
-            if viewModel.showEncryptionBanner {
-                encryptionBanner
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(
-                        EdgeInsets(
-                            top: SanchrSpacing.xs,
-                            leading: SanchrSpacing.md,
-                            bottom: SanchrSpacing.xs,
-                            trailing: SanchrSpacing.md
-                        ))
-            }
+            Section {
+                customHeader
+                    .listRowInsets(EdgeInsets())
 
-            // Loading indicator at top
-            if viewModel.isLoading && viewModel.conversations.isEmpty {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .tint(.sanchrPrimary)
-                    Spacer()
+                searchBar
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 2)
+                    .listRowInsets(EdgeInsets())
+
+                chipBar
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 2)
+                    .listRowInsets(EdgeInsets())
+
+                if viewModel.isSyncing {
+                    syncingIndicator
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(SanchrExportColors.background)
+
+            let pinned = viewModel.pinnedConversations(searchText: searchText)
+            if !pinned.isEmpty {
+                Section {
+                    ForEach(pinned) { conversation in
+                        conversationCell(conversation)
+                    }
+                } header: {
+                    sectionHeaderLabel("PINNED")
                 }
                 .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .listRowBackground(SanchrExportColors.background)
             }
 
-            // Conversation rows
-            ForEach(viewModel.filteredConversations(searchText: searchText)) { conversation in
-                NavigationLink(value: conversation) {
-                    ConversationRow(conversation: conversation)
+            let recent = viewModel.recentConversations(searchText: searchText)
+            if !recent.isEmpty {
+                Section {
+                    ForEach(recent) { conversation in
+                        conversationCell(conversation)
+                    }
+                } header: {
+                    sectionHeaderLabel("ALL CHATS")
                 }
-                .listRowBackground(Color.sanchrBackground(colorScheme))
                 .listRowSeparator(.hidden)
+                .listRowBackground(SanchrExportColors.background)
             }
 
-            // Error message
             if let error = viewModel.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.sanchrWarning)
-                    Text(error)
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                Section {
+                    errorBanner(error)
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                        .listRowInsets(EdgeInsets())
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             }
+
+            Section {
+                Color.clear
+                    .frame(height: 90)
+                    .listRowInsets(EdgeInsets())
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
-        .searchable(text: $searchText, prompt: "Search conversations")
+        .scrollContentBackground(.hidden)
+        .background(SanchrExportColors.background)
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: SanchrSpacing.lg) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(SanchrColors.primary.opacity(0.1))
-                    .frame(width: 96, height: 96)
-
-                Image(systemName: "message.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(SanchrGradients.primaryDark)
+    private func conversationCell(_ conversation: Conversation) -> some View {
+        NavigationLink(value: conversation) {
+            ConversationRow(conversation: conversation)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                conversationToDelete = conversation
+            } label: {
+                Label("Delete", systemImage: "trash.fill")
             }
-
-            Text("No conversations yet")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-
-            Text("Start a new conversation to begin\nmessaging securely.")
-                .font(SanchrTypography.body)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                .multilineTextAlignment(.center)
+            .tint(.sanchrError)
 
             Button {
-                showNewConversation = true
+                Task { await viewModel.archiveConversation(conversation) }
             } label: {
-                Text("Start a Chat")
-                    .font(SanchrTypography.button)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, SanchrSpacing.xxl)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .background(SanchrGradients.primaryDark)
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                Label("Archive", systemImage: "archivebox.fill")
             }
-            .sanchrPrimaryGlow()
+            .tint(Color(hex: 0x6B7280))
+
+            Button {
+                Task { await viewModel.toggleMute(conversation) }
+            } label: {
+                Label(
+                    conversation.isMuted ? "Unmute" : "Mute",
+                    systemImage: conversation.isMuted ? "bell.fill" : "bell.slash.fill"
+                )
+            }
+            .tint(.sanchrWarning)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button {
+                Task { await viewModel.togglePin(conversation) }
+            } label: {
+                Label(
+                    conversation.isPinned ? "Unpin" : "Pin",
+                    systemImage: conversation.isPinned ? "pin.slash.fill" : "pin.fill"
+                )
+            }
+            .tint(.sanchrPrimary)
+        }
+        .contextMenu {
+            Button {
+                Task { await viewModel.togglePin(conversation) }
+            } label: {
+                Label(
+                    conversation.isPinned ? "Unpin" : "Pin",
+                    systemImage: conversation.isPinned ? "pin.slash" : "pin"
+                )
+            }
+
+            Button {
+                Task { await viewModel.toggleMute(conversation) }
+            } label: {
+                Label(
+                    conversation.isMuted ? "Unmute" : "Mute",
+                    systemImage: conversation.isMuted ? "bell" : "bell.slash"
+                )
+            }
+
+            if conversation.unreadCount > 0 {
+                Button {
+                    Task { await viewModel.markAsRead(conversation) }
+                } label: {
+                    Label("Mark as Read", systemImage: "envelope.open")
+                }
+            }
+
+            Button {
+                Task { await viewModel.archiveConversation(conversation) }
+            } label: {
+                Label("Archive", systemImage: "archivebox")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                conversationToDelete = conversation
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private var customHeader: some View {
+        SanchrBrandHeader(title: "Sanchr") {
+            HStack(spacing: 10) {
+                SanchrIconButton(systemName: "camera.fill") {}
+
+                Menu {
+                    Button {
+                        showNewConversation = true
+                    } label: {
+                        Label("New Chat", systemImage: "square.and.pencil")
+                    }
+
+                    Button {
+                        router.selectedTab = .settings
+                    } label: {
+                        Label("Open Settings", systemImage: "gearshape")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.vertical")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(width: 40, height: 40)
+                }
+            }
+        }
+    }
+
+    private var searchBar: some View {
+        SanchrSearchField(placeholder: "Search chats...", text: $searchText) {
+            Button {
+                searchText = ""
+            } label: {
+                Image(systemName: searchText.isEmpty ? "slider.horizontal.3" : "xmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var chipBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(ChatsListViewModel.ChatFilter.allCases) { filter in
+                    SanchrFilterChip(
+                        title: filter.rawValue,
+                        isSelected: viewModel.selectedFilter == filter
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.selectedFilter = filter
+                        }
+                    }
+                }
+
+                SanchrModeChip(isActive: sanchrModeEnabled) {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        sanchrModeEnabled.toggle()
+                    }
+                }
+            }
+        }
+    }
+
+    private func sectionHeaderLabel(_ title: String) -> some View {
+        SanchrSectionEyebrow(title: title)
+            .textCase(nil)
+    }
+
+    private var syncingIndicator: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .tint(.sanchrPrimary)
+                .scaleEffect(0.82)
+            Text("Syncing...")
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+    }
+
+    private func errorBanner(_ error: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.sanchrWarning)
+            Text(error)
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SanchrExportColors.surfaceMuted)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 0) {
+            customHeader
+
+            Spacer()
+
+            VStack(spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(SanchrColors.primary.opacity(0.12))
+                        .frame(width: 106, height: 106)
+
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 42))
+                        .foregroundStyle(SanchrGradients.primaryDark)
+                }
+
+                Text("No conversations yet")
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+
+                Text("Start a new conversation to begin messaging securely.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    showNewConversation = true
+                } label: {
+                    SanchrGradientButtonLabel(title: "Start a Chat", systemName: "plus")
+                }
+                .buttonStyle(SanchrPrimaryCTA())
+            }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.sanchrBackground(colorScheme))
+        .background(SanchrExportColors.background)
     }
-
-    // MARK: - E2EE Banner
-
-    private var encryptionBanner: some View {
-        HStack(spacing: SanchrSpacing.xs) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 14))
-                .foregroundColor(SanchrColors.encryptionBadgeText)
-
-            Text("Messages are end-to-end encrypted")
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrColors.encryptionBadgeText)
-
-            Spacer()
-
-            Button {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    viewModel.dismissEncryptionBanner()
-                }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                    .padding(SanchrSpacing.xxs)
-            }
-        }
-        .padding(.horizontal, SanchrSpacing.sm)
-        .padding(.vertical, SanchrSpacing.xs)
-        .background(SanchrColors.encryptionBadge)
-        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
-    }
-
-    // MARK: - FAB (Floating Action Button)
 
     private var fabButton: some View {
         Button {
             showNewConversation = true
         } label: {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 20, weight: .semibold))
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .semibold))
                 .foregroundColor(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: 0x6366F1), Color(hex: 0x4C1D95)],
+                        colors: [SanchrColors.primary, SanchrColors.primaryDark],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .clipShape(Circle())
-                .sanchrElevatedShadow()
-                .sanchrPrimaryGlow()
+                .shadow(color: SanchrColors.primary.opacity(0.28), radius: 28, x: 0, y: 14)
         }
-        .padding(.trailing, SanchrSpacing.lg)
-        .padding(.bottom, SanchrSpacing.lg)
+        .padding(.trailing, 20)
+        .padding(.bottom, 20)
     }
 
     private func openPendingConversationIfNeeded() async {
@@ -246,101 +414,112 @@ struct ChatsListView: View {
     }
 }
 
-// MARK: - Conversation Row
-
 struct ConversationRow: View {
     let conversation: Conversation
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: SanchrSpacing.sm) {
-            // Avatar (48pt circle)
-            avatar
+        HStack(spacing: 12) {
+            avatarWithStatus
 
-            // Content
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
-                // Top row: name + timestamp
-                HStack {
-                    Text(conversation.displayName)
-                        .font(SanchrTypography.bodyBold)
-                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .center, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Text(conversation.displayName)
+                            .font(SanchrTypography.conversationName)
+                            .tracking(SanchrTypography.conversationNameTracking)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                            .lineLimit(1)
 
-                    Spacer()
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SanchrColors.accent)
+                    }
+
+                    Spacer(minLength: 8)
 
                     if let lastMessage = conversation.lastMessage {
                         Text(lastMessage.timestamp.chatTimestamp)
                             .font(SanchrTypography.chatTimestamp)
-                            .foregroundColor(
-                                conversation.unreadCount > 0
-                                    ? .sanchrPrimary
-                                    : Color.sanchrTextTertiary(colorScheme)
-                            )
+                            .foregroundColor(SanchrExportColors.textSecondary)
                     }
                 }
 
-                // Bottom row: preview + unread badge
-                HStack(spacing: SanchrSpacing.xxs) {
-                    // Delivery status for outgoing messages
+                HStack(spacing: 6) {
                     if let lastMessage = conversation.lastMessage, lastMessage.isOutgoing {
-                        Image(systemName: deliveryStatusIcon(lastMessage.status))
-                            .font(.system(size: 12))
-                            .foregroundColor(
-                                lastMessage.status == .read
-                                    ? .sanchrPrimary
-                                    : Color.sanchrTextTertiary(colorScheme)
-                            )
+                        deliveryStatusView(lastMessage.status)
                     }
 
                     Text(messagePreview)
-                        .font(SanchrTypography.caption)
+                        .font(
+                            conversation.unreadCount > 0
+                                ? SanchrTypography.conversationPreviewBold
+                                : SanchrTypography.conversationPreview
+                        )
                         .foregroundColor(
                             conversation.unreadCount > 0
-                                ? Color.sanchrTextPrimary(colorScheme)
-                                : Color.sanchrTextSecondary(colorScheme)
+                                ? SanchrExportColors.textPrimary
+                                : SanchrExportColors.textSecondary
                         )
                         .lineLimit(1)
-                        .fontWeight(conversation.unreadCount > 0 ? .medium : .regular)
 
-                    Spacer()
+                    Spacer(minLength: 8)
 
-                    // Pin indicator
                     if conversation.isPinned {
                         Image(systemName: "pin.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textTertiary)
                             .rotationEffect(.degrees(45))
                     }
 
-                    // Mute indicator
                     if conversation.isMuted {
                         Image(systemName: "bell.slash.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textTertiary)
                     }
 
-                    // Unread badge (indigo circle with count)
                     if conversation.unreadCount > 0 {
                         Text("\(conversation.unreadCount)")
-                            .font(SanchrTypography.micro)
-                            .fontWeight(.bold)
+                            .font(SanchrTypography.unreadBadge)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 7)
+                            .frame(minWidth: 22)
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Color.sanchrPrimary)
+                            .background(SanchrColors.primary)
                             .clipShape(Capsule())
                     }
                 }
             }
         }
-        .padding(.vertical, SanchrSpacing.xxs)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+        .listRowInsets(EdgeInsets())
     }
 
-    // MARK: - Avatar
+    private var avatarWithStatus: some View {
+        ZStack(alignment: .bottomTrailing) {
+            avatarImage
+            statusDot
+        }
+        .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
+    }
 
-    private var avatar: some View {
+    private var avatarImage: some View {
         Group {
-            if let avatarURL = conversation.avatarURL {
+            if conversation.type == .group {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: 0xEC4899), Color(hex: 0x8B5CF6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        Image(systemName: "person.3.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+            } else if let avatarURL = conversation.avatarURL {
                 KFImage(avatarURL)
                     .resizable()
                     .placeholder { avatarPlaceholder }
@@ -350,13 +529,13 @@ struct ConversationRow: View {
                 avatarPlaceholder
             }
         }
-        .frame(width: 48, height: 48)
+        .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
         .clipShape(Circle())
     }
 
     private var avatarPlaceholder: some View {
         Circle()
-            .fill(SanchrColors.primary.opacity(0.15))
+            .fill(SanchrColors.primary.opacity(0.14))
             .overlay {
                 Text(conversation.displayName.prefix(1).uppercased())
                     .font(SanchrTypography.cardTitle)
@@ -364,40 +543,100 @@ struct ConversationRow: View {
             }
     }
 
-    // MARK: - Helpers
-
-    private var messagePreview: String {
-        guard let lastMessage = conversation.lastMessage else { return "No messages yet" }
-        switch lastMessage.content {
-        case .text(let text): return text
-        case .image: return "Photo"
-        case .video: return "Video"
-        case .audio: return "Voice message"
-        case .document: return "Document"
-        case .location: return "Location"
-        case .contact(let name, _): return "Contact: \(name)"
-        case .system(let event): return systemEventText(event)
+    @ViewBuilder
+    private var statusDot: some View {
+        let otherUser = conversation.participants.first(where: { !$0.isLocalUser })
+        if let user = otherUser, conversation.type == .oneToOne {
+            Circle()
+                .fill(statusColor(for: user.status))
+                .frame(width: SanchrSpacing.statusIndicatorSize, height: SanchrSpacing.statusIndicatorSize)
+                .overlay {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2.5)
+                }
+                .offset(x: 1, y: 1)
         }
     }
 
-    private func deliveryStatusIcon(_ status: Message.DeliveryStatus) -> String {
+    @ViewBuilder
+    private func deliveryStatusView(_ status: Message.DeliveryStatus) -> some View {
         switch status {
-        case .sending: return "clock"
-        case .sent: return "checkmark"
-        case .delivered: return "checkmark"
-        case .read: return "checkmark.circle.fill"
-        case .failed: return "exclamationmark.circle"
+        case .sending:
+            Image(systemName: "clock")
+                .font(.system(size: 11))
+                .foregroundColor(SanchrExportColors.textTertiary)
+        case .sent:
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(SanchrExportColors.textTertiary)
+        case .delivered, .read:
+            ZStack(alignment: .leading) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+                    .offset(x: 5)
+            }
+            .foregroundColor(status == .read ? SanchrColors.accent : SanchrExportColors.textTertiary)
+            .frame(width: 18)
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.sanchrError)
+        }
+    }
+
+    private func statusColor(for status: User.Status) -> Color {
+        switch status {
+        case .online, .typing:
+            return SanchrColors.statusOnline
+        case .away, .offline:
+            return SanchrColors.statusOffline
+        }
+    }
+
+    private var messagePreview: String {
+        if let otherUser = conversation.participants.first(where: { !$0.isLocalUser }),
+           otherUser.status == .typing
+        {
+            return "typing..."
+        }
+
+        guard let lastMessage = conversation.lastMessage else { return "No messages yet" }
+        switch lastMessage.content {
+        case .text(let text):
+            return text
+        case .image:
+            return "Photo"
+        case .video:
+            return "Video"
+        case .audio:
+            return "Voice message"
+        case .document:
+            return "Document"
+        case .location:
+            return "Location"
+        case .contact(let name, _):
+            return "Contact: \(name)"
+        case .system(let event):
+            return systemEventText(event)
         }
     }
 
     private func systemEventText(_ event: Message.SystemEvent) -> String {
         switch event {
-        case .identityKeyChanged: return "Security code changed"
-        case .disappearingTimerChanged: return "Disappearing timer changed"
-        case .groupCreated: return "Group created"
-        case .memberAdded: return "Member added"
-        case .memberRemoved: return "Member removed"
-        case .screenshotDetected: return "Screenshot detected"
+        case .identityKeyChanged:
+            return "Security code changed"
+        case .disappearingTimerChanged:
+            return "Disappearing timer changed"
+        case .groupCreated:
+            return "Group created"
+        case .memberAdded:
+            return "Member added"
+        case .memberRemoved:
+            return "Member removed"
+        case .screenshotDetected:
+            return "Screenshot detected"
         }
     }
 }

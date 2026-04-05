@@ -16,6 +16,7 @@ struct User: Identifiable, Codable, Hashable, Sendable {
         case online
         case offline
         case typing
+        case away
     }
 
     var status: Status
