@@ -100,7 +100,7 @@ struct ChatsListView: View {
                 chipBar
                     .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
                     .padding(.top, 8)
-                    .padding(.bottom, 2)
+                    .padding(.bottom, 12)
                     .listRowInsets(EdgeInsets())
 
                 if viewModel.isSyncing {
@@ -118,7 +118,7 @@ struct ChatsListView: View {
                         conversationCell(conversation)
                     }
                 } header: {
-                    sectionHeaderLabel("PINNED")
+                    sectionHeaderLabel("PINNED", systemImage: "pin.fill")
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(SanchrExportColors.background)
@@ -286,7 +286,7 @@ struct ChatsListView: View {
 
     private var chipBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: SanchrSpacing.filterTabGap) {
                 ForEach(ChatsListViewModel.ChatFilter.allCases) { filter in
                     SanchrFilterChip(
                         title: filter.rawValue,
@@ -307,8 +307,8 @@ struct ChatsListView: View {
         }
     }
 
-    private func sectionHeaderLabel(_ title: String) -> some View {
-        SanchrSectionEyebrow(title: title)
+    private func sectionHeaderLabel(_ title: String, systemImage: String? = nil) -> some View {
+        SanchrSectionEyebrow(title: title, systemImage: systemImage)
             .textCase(nil)
     }
 
@@ -385,7 +385,7 @@ struct ChatsListView: View {
             showNewConversation = true
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: SanchrSpacing.fabIconSize, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
                 .background(
@@ -396,7 +396,7 @@ struct ChatsListView: View {
                     )
                 )
                 .clipShape(Circle())
-                .shadow(color: SanchrColors.primary.opacity(0.28), radius: 28, x: 0, y: 14)
+                .shadow(color: SanchrColors.primary.opacity(0.4), radius: 24, x: 0, y: 8)
         }
         .padding(.trailing, 20)
         .padding(.bottom, 20)
