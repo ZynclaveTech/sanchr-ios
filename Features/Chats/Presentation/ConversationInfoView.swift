@@ -958,14 +958,14 @@ private struct VerifySecurityCodeView: View {
 
             encryptionDetailCard(
                 icon: "shield.fill",
-                iconBg: Color(hex: 0xDCFCE7),
+                iconBg: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xDCFCE7),
                 iconColor: Color(hex: 0x16A34A),
                 title: "Verification Status",
                 subtitle: nil,
                 statusText: "Verified on Dec 8, 2024",
-                gradientStart: Color(hex: 0xF0FDF4),
-                gradientEnd: Color(hex: 0xECFDF5),
-                borderColor: Color(hex: 0xBBF7D0)
+                gradientStart: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.08) : Color(hex: 0xF0FDF4),
+                gradientEnd: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.05) : Color(hex: 0xECFDF5),
+                borderColor: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xBBF7D0)
             )
         }
     }
@@ -1013,23 +1013,20 @@ private struct VerifySecurityCodeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [gradientStart, gradientEnd],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+        .background(
+            ZStack {
+                colorScheme == .dark ? Color(hex: 0x1A1A24) : Color.white
+                LinearGradient(
+                    colors: [gradientStart, gradientEnd],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .allowsHitTesting(false)
-        }
+            }
+        )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(borderColor, lineWidth: 1)
+                .stroke(colorScheme == .dark ? borderColor.opacity(0.3) : borderColor, lineWidth: 1)
         }
     }
 
@@ -1051,13 +1048,7 @@ private struct VerifySecurityCodeView: View {
                 .foregroundColor(SanchrExportColors.textSecondary)
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(colorScheme == .dark ? Color(hex: 0x1A1A24) : Color(hex: 0xF9FAFB))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
