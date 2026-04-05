@@ -406,76 +406,145 @@ struct ChatDetailView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            Button {
-                showAttachmentPicker = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(SanchrColors.primary)
-                    .frame(width: 40, height: 40)
-                    .background(SanchrExportColors.surfaceMuted)
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-
-            HStack(spacing: 10) {
-                TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
-                    .font(SanchrTypography.body)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...4)
-                    .focused($isInputFocused)
-
-                Button {} label: {
-                    Image(systemName: "face.smiling")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textTertiary)
+        VStack(spacing: 0) {
+            // Row 1: plus + input + paperclip + camera
+            HStack(alignment: .center, spacing: 8) {
+                Button {
+                    showAttachmentPicker = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrColors.primary)
+                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
                 }
                 .buttonStyle(.plain)
+
+                HStack(spacing: 8) {
+                    TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
+                        .font(SanchrTypography.messageBubbleText)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...4)
+                        .focused($isInputFocused)
+
+                    Button {} label: {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(SanchrExportColors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color(hex: 0xF9FAFB))
+                .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous)
+                        .stroke(
+                            isInputFocused ? SanchrColors.primary : Color(hex: 0xE5E7EB),
+                            lineWidth: 1
+                        )
+                }
 
                 Button {
                     showAttachmentPicker = true
                 } label: {
                     Image(systemName: "paperclip")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textTertiary)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
+                }
+                .buttonStyle(.plain)
+
+                Button {} label: {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(width: SanchrSpacing.composerButtonSize, height: SanchrSpacing.composerButtonSize)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            Button {
-                Task {
-                    await viewModel.sendMessage(
-                        conversationId: conversation.id,
-                        recipientId: recipient?.id ?? "",
-                        messageRepository: container.messageRepository,
-                        signalProtocol: container.signalProtocol,
-                        chatDataSource: container.chatDataSource,
-                        localDatabase: container.localDatabase,
-                        sessionService: container.sessionService
-                    )
+            // Row 2: voice + vault + send
+            HStack(spacing: 16) {
+                Spacer()
+
+                Button {} label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrColors.primary)
+                        Text("Voice")
+                            .font(SanchrTypography.captionSmall)
+                            .fontWeight(.medium)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 }
-            } label: {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 42, height: 42)
-                    .background(hasInput ? SanchrColors.primary : SanchrExportColors.textTertiary.opacity(0.3))
-                    .clipShape(Circle())
+                .buttonStyle(.plain)
+
+                Button {} label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrColors.primaryDark)
+                        Text("Vault")
+                            .font(SanchrTypography.captionSmall)
+                            .fontWeight(.medium)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    Task {
+                        await viewModel.sendMessage(
+                            conversationId: conversation.id,
+                            recipientId: recipient?.id ?? "",
+                            messageRepository: container.messageRepository,
+                            signalProtocol: container.signalProtocol,
+                            chatDataSource: container.chatDataSource,
+                            localDatabase: container.localDatabase,
+                            sessionService: container.sessionService
+                        )
+                    }
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: SanchrSpacing.composerSendSize, height: SanchrSpacing.composerSendSize)
+                        .background(
+                            LinearGradient(
+                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(Circle())
+                        .shadow(color: SanchrColors.primary.opacity(0.3), radius: 12, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasInput)
+                .opacity(hasInput ? 1 : 0.5)
+
+                Spacer()
             }
-            .buttonStyle(.plain)
-            .disabled(!hasInput)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color(hex: 0xF3F4F6))
+                    .frame(height: 1)
+            }
         }
-        .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
-        .padding(.top, 10)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
         .padding(.bottom, 12)
         .background(
-            SanchrExportColors.surface
-                .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: -6)
+            SanchrExportColors.background
+                .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: -6)
         )
     }
 
