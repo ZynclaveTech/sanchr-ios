@@ -156,18 +156,15 @@ struct ChatDetailView: View {
                         }
                     }
 
-                    Menu {
-                        Button {
-                            showConversationInfo = true
-                        } label: {
-                            Label("Chat Settings", systemImage: "person.crop.circle")
-                        }
+                    Button {
+                        showConversationInfo = true
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(SanchrExportColors.textSecondary)
                             .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
