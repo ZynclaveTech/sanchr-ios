@@ -265,9 +265,9 @@ struct ChatsListView: View {
                         Label("Open Settings", systemImage: "gearshape")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.vertical")
+                    Image(systemName: "ellipsis")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .foregroundColor(SanchrExportColors.textPrimary)
                         .frame(width: 40, height: 40)
                 }
             }
@@ -428,17 +428,11 @@ struct ConversationRow: View {
 
             VStack(alignment: .leading, spacing: SanchrSpacing.namePreviewGap) {
                 HStack(alignment: .center, spacing: 10) {
-                    HStack(spacing: 6) {
-                        Text(conversation.displayName)
-                            .font(SanchrTypography.conversationName)
-                            .tracking(SanchrTypography.conversationNameTracking)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                            .lineLimit(1)
-
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: SanchrSpacing.e2eeIconSize, weight: .semibold))
-                            .foregroundColor(SanchrColors.accent)
-                    }
+                    Text(conversation.displayName)
+                        .font(SanchrTypography.conversationName)
+                        .tracking(SanchrTypography.conversationNameTracking)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .lineLimit(1)
 
                     Spacer(minLength: 8)
 
