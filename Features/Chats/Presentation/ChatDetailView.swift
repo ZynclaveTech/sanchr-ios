@@ -698,16 +698,17 @@ struct ChatDetailView: View {
         VStack(spacing: 0) {
             // Reply banner
             if let replyMessage = viewModel.replyingToMessage {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(SanchrColors.primary)
-                        .frame(width: 4)
+                        .frame(width: 3, height: 36)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(replyMessage.isOutgoing ? "You" : conversation.displayName)
                             .font(SanchrTypography.captionSmall)
                             .fontWeight(.semibold)
                             .foregroundColor(SanchrColors.primary)
+                            .lineLimit(1)
 
                         Text(replyPreviewText(replyMessage))
                             .font(SanchrTypography.captionSmall)
@@ -715,24 +716,26 @@ struct ChatDetailView: View {
                             .lineLimit(1)
                     }
 
-                    Spacer()
+                    Spacer(minLength: 0)
 
                     Button {
-                        viewModel.clearReply()
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            viewModel.clearReply()
+                        }
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .semibold))
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
                             .foregroundColor(SanchrExportColors.textTertiary)
-                            .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .background(SanchrExportColors.surface)
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(SanchrExportColors.line).frame(height: 1)
                 }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Row 1: plus + input + paperclip + camera
