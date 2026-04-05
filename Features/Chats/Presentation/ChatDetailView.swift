@@ -107,7 +107,7 @@ struct ChatDetailView: View {
 
     private var header: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Button {
                     dismiss()
                 } label: {
@@ -486,7 +486,7 @@ struct ChatDetailView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrColors.primaryDark)
+                            .foregroundColor(SanchrColors.primary)
                         Text("Vault")
                             .font(SanchrTypography.captionSmall)
                             .fontWeight(.medium)
@@ -530,7 +530,7 @@ struct ChatDetailView: View {
 
                 Spacer()
             }
-            .padding(.top, 12)
+            .padding(.top, 8)
             .padding(.bottom, 0)
             .overlay(alignment: .top) {
                 Rectangle()
@@ -541,12 +541,9 @@ struct ChatDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
-        .padding(.bottom, 6)
-        .background(
-            SanchrExportColors.background
-                .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: -6)
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .padding(.bottom, 4)
+        .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
+        .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: -6)
     }
 
     private var hasInput: Bool {
