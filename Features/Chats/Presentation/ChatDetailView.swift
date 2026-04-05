@@ -360,12 +360,12 @@ struct ChatDetailView: View {
                 .foregroundColor(SanchrExportColors.textSecondary)
                 .padding(.horizontal, 14)
                 .frame(height: 28)
-                .background(Color.white)
+                .background(SanchrExportColors.surface)
                 .clipShape(Capsule())
                 .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
                 .overlay {
                     Capsule()
-                        .stroke(Color(hex: 0xF3F4F6), lineWidth: 1)
+                        .stroke(SanchrExportColors.line, lineWidth: 1)
                 }
             Spacer()
         }
