@@ -1617,12 +1617,12 @@ private struct QRScannerRepresentable: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: QRScannerViewController, context: Context) {}
 }
 
-private class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    private let onScanned: (Data) -> Void
-    private let captureSession = AVCaptureSession()
+private class QRScannerViewController: UIViewController {
+    private let onScanned: @MainActor (Data) -> Void
+    private var captureSession: AVCaptureSession?
     private var hasScanned = false
 
-    init(onScanned: @escaping (Data) -> Void) {
+    init(onScanned: @escaping @MainActor (Data) -> Void) {
         self.onScanned = onScanned
         super.init(nibName: nil, bundle: nil)
     }
@@ -1642,28 +1642,54 @@ private class QRScannerViewController: UIViewController, AVCaptureMetadataOutput
     }
 
     private func setupCamera() {
+        let session = AVCaptureSession()
         guard let device = AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
 
-        if captureSession.canAddInput(input) {
-            captureSession.addInput(input)
+        if session.canAddInput(input) {
+            session.addInput(input)
         }
 
         let output = AVCaptureMetadataOutput()
-        if captureSession.canAddOutput(output) {
-            captureSession.addOutput(output)
-            output.setMetadataObjectsDelegate(self, queue: .main)
+        if session.canAddOutput(output) {
+            session.addOutput(output)
+            let delegate = QRScannerDelegate { [weak self] data in
+                guard let self, !self.hasScanned else { return }
+                self.hasScanned = true
+                self.captureSession?.stopRunning()
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                self.onScanned(data)
+            }
+            // Keep delegate alive
+            objc_setAssociatedObject(output, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
+            output.setMetadataObjectsDelegate(delegate, queue: .main)
             output.metadataObjectTypes = [.qr]
         }
 
-        let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.frame = view.bounds
         previewLayer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(previewLayer)
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession.startRunning()
+        self.captureSession = session
+
+        let sessionRef = session
+        DispatchQueue.global(qos: .userInitiated).async {
+            sessionRef.startRunning()
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        captureSession?.stopRunning()
+    }
+}
+
+private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+    private let handler: (Data) -> Void
+
+    init(handler: @escaping (Data) -> Void) {
+        self.handler = handler
     }
 
     func metadataOutput(
@@ -1671,22 +1697,9 @@ private class QRScannerViewController: UIViewController, AVCaptureMetadataOutput
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
-        guard !hasScanned,
-              let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let stringValue = object.stringValue,
               let data = stringValue.data(using: .utf8) else { return }
-
-        hasScanned = true
-        captureSession.stopRunning()
-
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        onScanned(data)
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        if captureSession.isRunning {
-            captureSession.stopRunning()
-        }
+        handler(data)
     }
 }
