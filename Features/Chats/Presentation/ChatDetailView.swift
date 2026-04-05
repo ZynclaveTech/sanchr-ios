@@ -435,12 +435,12 @@ struct ChatDetailView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color(hex: 0xF9FAFB))
+                .background(SanchrExportColors.surfaceSoft)
                 .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: SanchrSpacing.composerInputRadius, style: .continuous)
                         .stroke(
-                            isInputFocused ? SanchrColors.primary : Color(hex: 0xE5E7EB),
+                            isInputFocused ? SanchrColors.primary : SanchrExportColors.line,
                             lineWidth: 1
                         )
                 }
@@ -532,19 +532,20 @@ struct ChatDetailView: View {
                 Spacer()
             }
             .padding(.top, 8)
-            .padding(.bottom, 4)
+            .padding(.bottom, 0)
             .overlay(alignment: .top) {
                 Rectangle()
-                    .fill(Color(hex: 0xF3F4F6))
+                    .fill(SanchrExportColors.line)
                     .frame(height: 1)
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
-        .padding(.bottom, 12)
+        .padding(.bottom, 6)
         .background(
             SanchrExportColors.background
                 .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: -6)
+                .ignoresSafeArea(edges: .bottom)
         )
     }
 
@@ -723,13 +724,25 @@ struct MessageBubble: View {
                 .foregroundColor(SanchrExportColors.textTertiary)
 
             if message.isOutgoing {
-                Image(systemName: statusIcon)
-                    .font(.system(size: 10, weight: .medium))
+                if isDoubleCheck {
+                    ZStack(alignment: .leading) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .medium))
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .medium))
+                            .offset(x: 5)
+                    }
                     .foregroundColor(
                         message.status == .read
                             ? SanchrColors.accent
                             : SanchrExportColors.textTertiary
                     )
+                    .frame(width: 16)
+                } else {
+                    Image(systemName: statusIcon)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
             }
         }
     }
@@ -743,7 +756,7 @@ struct MessageBubble: View {
                     endPoint: .bottomTrailing
                 )
             } else {
-                Color.white
+                SanchrExportColors.background
             }
         }
     }
@@ -775,12 +788,17 @@ struct MessageBubble: View {
         switch message.status {
         case .sending:
             return "clock"
-        case .sent:
+        case .sent, .delivered:
             return "checkmark"
-        case .delivered, .read:
-            return "checkmark.double"
+        case .read:
+            return "checkmark"
         case .failed:
             return "exclamationmark.circle.fill"
         }
+    }
+
+    /// Whether to show double-check (delivered/read) vs single-check (sent).
+    private var isDoubleCheck: Bool {
+        message.status == .delivered || message.status == .read
     }
 }
