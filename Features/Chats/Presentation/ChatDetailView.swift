@@ -43,6 +43,16 @@ struct ChatDetailView: View {
             if let recipient {
                 container.realtimeService.trackPresencePeer(recipient.id)
             }
+
+            // Mark conversation as read + send read receipts
+            if let lastMessageId = viewModel.messages.last?.id {
+                try? await container.messageRepository.markAsRead(
+                    conversationId: conversation.id,
+                    upToMessageId: lastMessageId
+                )
+                // Notify chat list to refresh unread counts
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            }
         }
         .onAppear {
             viewModel.configurePeer(recipient)
@@ -68,6 +78,15 @@ struct ChatDetailView: View {
             }
 
             viewModel.handleRealtimeMessage(message)
+
+            // Auto-mark incoming messages as read since conversation is open
+            Task {
+                try? await container.messageRepository.markAsRead(
+                    conversationId: conversation.id,
+                    upToMessageId: message.id
+                )
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeTypingChanged)) { note in
             guard
