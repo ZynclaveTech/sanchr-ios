@@ -9,4 +9,5 @@ enum RealtimeEvent: Sendable {
     case preKeyCountLow(Vync_Messaging_PreKeyCountLow)
     case callOffer(Vync_Messaging_CallOfferEvent)
     case callLifecycle(Vync_Messaging_CallLifecycleEvent)
+    case reaction(Vync_Messaging_Reaction)
 }

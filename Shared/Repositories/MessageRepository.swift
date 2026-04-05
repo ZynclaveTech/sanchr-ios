@@ -302,6 +302,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                             continuation.yield(.callOffer(offer))
                         case .callLifecycle(let lifecycle):
                             continuation.yield(.callLifecycle(lifecycle))
+                        case .reaction(let reaction):
+                            continuation.yield(.reaction(reaction))
                         }
                     }
                     continuation.finish()
