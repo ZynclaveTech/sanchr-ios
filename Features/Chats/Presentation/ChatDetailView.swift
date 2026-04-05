@@ -876,10 +876,16 @@ struct MessageBubble: View {
     private var messageContent: some View {
         switch message.content {
         case .text(let text):
-            Text(text)
-                .font(SanchrTypography.messageBubbleText)
-                .foregroundColor(messageTextColor)
-                .multilineTextAlignment(.leading)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(text)
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(messageTextColor)
+                    .multilineTextAlignment(.leading)
+
+                if let url = LinkPreviewService.firstURL(in: text) {
+                    LinkPreviewCard(url: url, isOutgoing: message.isOutgoing)
+                }
+            }
 
         case .image(let attachment):
             VStack(alignment: .leading, spacing: 8) {
@@ -1000,6 +1006,68 @@ struct MessageBubble: View {
     /// Whether to show double-check (delivered/read) vs single-check (sent).
     private var isDoubleCheck: Bool {
         message.status == .delivered || message.status == .read
+    }
+}
+
+private struct LinkPreviewCard: View {
+    let url: URL
+    let isOutgoing: Bool
+    @State private var preview: LinkPreviewData?
+    @State private var isLoading = true
+
+    var body: some View {
+        Group {
+            if let preview {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let imageData = preview.imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxHeight: 140)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let title = preview.title, !title.isEmpty {
+                            Text(title)
+                                .font(SanchrTypography.captionSmall)
+                                .fontWeight(.semibold)
+                                .foregroundColor(isOutgoing ? Color.white : SanchrExportColors.textPrimary)
+                                .lineLimit(2)
+                        }
+
+                        Text(preview.domain)
+                            .font(SanchrTypography.micro)
+                            .foregroundColor(isOutgoing ? Color.white.opacity(0.7) : SanchrExportColors.textTertiary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                }
+                .background(
+                    isOutgoing
+                        ? Color.white.opacity(0.1)
+                        : SanchrExportColors.surfaceSoft
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .onTapGesture {
+                    UIApplication.shared.open(url)
+                }
+            } else if isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .tint(isOutgoing ? .white : Color.sanchrPrimary)
+                    Text(url.host ?? "Loading...")
+                        .font(SanchrTypography.micro)
+                        .foregroundColor(isOutgoing ? Color.white.opacity(0.6) : SanchrExportColors.textTertiary)
+                }
+                .padding(8)
+            }
+        }
+        .task {
+            preview = await LinkPreviewService.shared.preview(for: url)
+            isLoading = false
+        }
     }
 }
 
