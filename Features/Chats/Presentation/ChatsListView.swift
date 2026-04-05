@@ -163,10 +163,9 @@ struct ChatsListView: View {
 
     private func conversationCell(_ conversation: Conversation) -> some View {
         ConversationRow(conversation: conversation)
-            .background(
-                NavigationLink(value: conversation) { EmptyView() }
-                    .opacity(0)
-            )
+            .onTapGesture {
+                router.chatsPath.append(conversation)
+            }
             .listRowInsets(EdgeInsets())
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
