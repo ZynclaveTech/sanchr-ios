@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import CoreImage.CIFilterBuiltins
 import Kingfisher
 import SwiftUI
@@ -769,7 +769,7 @@ private struct VerifySecurityCodeView: View {
 
                 // QR encodes the scannable fingerprint as base64
                 let qrContent = scannable?.base64EncodedString() ?? safetyNumber
-                let qr = Self.makeQRCode(from: qrContent)
+                let qr = makeQRCodeImage(from: qrContent)
 
                 return (safetyNumber, rows, scannable, qr)
             } catch {
@@ -779,7 +779,7 @@ private struct VerifySecurityCodeView: View {
                     ["39485", "73829", "48573", "92847", "58392"]
                 ]
                 let raw = fallbackDigits.flatMap { $0 }.joined()
-                let qr = Self.makeQRCode(from: raw)
+                let qr = makeQRCodeImage(from: raw)
                 return (raw, fallbackDigits, nil, qr)
             }
         }.value
@@ -790,21 +790,7 @@ private struct VerifySecurityCodeView: View {
         qrImage = result.3
     }
 
-    private static func makeQRCode(from string: String) -> UIImage? {
-        guard !string.isEmpty,
-              let data = string.data(using: .utf8),
-              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-        filter.setValue(data, forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard let ciImage = filter.outputImage else { return nil }
-
-        let scale = 10.0
-        let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
-    }
+    // makeQRCode moved to file-scope free function (makeQRCodeImage) for Sendable compliance
 
     private var scanResultTitle: String {
         switch scanResult {
@@ -1636,11 +1622,11 @@ private struct QRScannerRepresentable: UIViewControllerRepresentable {
 }
 
 private class QRScannerViewController: UIViewController {
-    private let onScanned: @MainActor (Data) -> Void
+    private let onScanned: (Data) -> Void
     private var captureSession: AVCaptureSession?
     private var hasScanned = false
 
-    init(onScanned: @escaping @MainActor (Data) -> Void) {
+    init(onScanned: @escaping (Data) -> Void) {
         self.onScanned = onScanned
         super.init(nibName: nil, bundle: nil)
     }
@@ -1678,7 +1664,6 @@ private class QRScannerViewController: UIViewController {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 self.onScanned(data)
             }
-            // Keep delegate alive
             objc_setAssociatedObject(output, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
             output.setMetadataObjectsDelegate(delegate, queue: .main)
             output.metadataObjectTypes = [.qr]
@@ -1690,11 +1675,7 @@ private class QRScannerViewController: UIViewController {
         view.layer.addSublayer(previewLayer)
 
         self.captureSession = session
-
-        let sessionRef = session
-        DispatchQueue.global(qos: .userInitiated).async {
-            sessionRef.startRunning()
-        }
+        session.startRunning()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -1720,4 +1701,22 @@ private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegat
               let data = stringValue.data(using: .utf8) else { return }
         handler(data)
     }
+}
+
+// MARK: - QR Code Generation (nonisolated, Sendable-safe)
+
+private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
+    guard !string.isEmpty,
+          let data = string.data(using: .utf8),
+          let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+    filter.setValue(data, forKey: "inputMessage")
+    filter.setValue("M", forKey: "inputCorrectionLevel")
+    guard let ciImage = filter.outputImage else { return nil }
+
+    let scale = 10.0
+    let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+    let context = CIContext()
+    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
 }
