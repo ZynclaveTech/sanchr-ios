@@ -242,6 +242,7 @@ struct ChatsListView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+        .buttonStyle(ChatRowButtonStyle())
     }
 
     private var customHeader: some View {
@@ -651,6 +652,19 @@ struct ConversationRow: View {
         case .screenshotDetected:
             return "Screenshot detected"
         }
+    }
+}
+
+private struct ChatRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .background(
+                configuration.isPressed
+                    ? SanchrColors.primary.opacity(0.05)
+                    : Color.clear
+            )
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
