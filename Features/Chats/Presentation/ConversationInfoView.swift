@@ -20,6 +20,21 @@ struct ConversationInfoView: View {
     @State private var showBlockContact = false
     @State private var showReportContact = false
 
+    private var recipientHasPhone: Bool {
+        if let phone = recipient?.phoneNumber, !phone.isEmpty { return true }
+        return false
+    }
+
+    private var recipientPhoneDisplay: String {
+        if let phone = recipient?.phoneNumber, !phone.isEmpty {
+            return phone
+        }
+        // Log for debugging
+        SanchrLogger.chat.debug(
+            "Chat Settings: recipient phoneNumber is empty. recipient=\(recipient?.id.prefix(8) ?? "nil"), name=\(recipient?.displayName ?? "nil"), phone='\(recipient?.phoneNumber ?? "nil")'")
+        return "Encrypted conversation"
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
@@ -37,6 +52,13 @@ struct ConversationInfoView: View {
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationBarHidden(true)
+        .onAppear {
+            SanchrLogger.chat.info("Chat Settings opened. Conversation: \(conversation.id.prefix(8)), participants: \(conversation.participants.count)")
+            for p in conversation.participants {
+                SanchrLogger.chat.info("  Participant: id=\(p.id.prefix(8)), name=\(p.displayName), phone='\(p.phoneNumber)', isLocal=\(p.isLocalUser)")
+            }
+            SanchrLogger.chat.info("  Recipient: \(recipient?.id.prefix(8) ?? "nil"), phone='\(recipient?.phoneNumber ?? "nil")'")
+        }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView()
         }
@@ -162,15 +184,13 @@ struct ConversationInfoView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                if let phone = recipient?.phoneNumber, !phone.isEmpty {
-                    Text(phone)
-                        .font(SanchrTypography.messageBubbleText)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                } else {
-                    Text("Encrypted conversation")
-                        .font(SanchrTypography.messageBubbleText)
-                        .foregroundColor(SanchrExportColors.textTertiary)
-                }
+                Text(recipientPhoneDisplay)
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(
+                        recipientHasPhone
+                            ? SanchrExportColors.textSecondary
+                            : SanchrExportColors.textTertiary
+                    )
 
                 Text("End-to-End Encrypted")
                     .font(SanchrTypography.captionSmall)
