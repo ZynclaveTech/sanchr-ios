@@ -318,8 +318,11 @@ struct ChatDetailView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 16)
             }
+            .defaultScrollAnchor(.bottom)
             .background(SanchrExportColors.surfaceSoft)
-            .onChange(of: viewModel.messages.count) { _, _ in
+            .onChange(of: viewModel.messages.count) { oldCount, newCount in
+                // Only auto-scroll for new incoming messages, not initial load
+                guard oldCount > 0, newCount > oldCount else { return }
                 if let lastID = viewModel.messages.last?.id {
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo(lastID, anchor: .bottom)
