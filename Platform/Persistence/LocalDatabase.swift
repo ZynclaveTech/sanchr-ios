@@ -13,6 +13,7 @@ protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
     func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws
+    func searchMessages(conversationId: String, query: String) async throws -> [Message]
 
     // MARK: - Conversations
 
@@ -178,6 +179,19 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                     key: ["conversationId": ack.conversationId, "messageId": ack.messageId]
                 )
             }
+        }
+    }
+
+    func searchMessages(conversationId: String, query: String) async throws -> [Message] {
+        try await dbPool.read { db in
+            let pattern = "%\(query)%"
+            let records = try MessageRecord
+                .filter(Column("conversationId") == conversationId)
+                .filter(Column("contentJSON").like(pattern))
+                .order(Column("timestamp").desc)
+                .limit(50)
+                .fetchAll(db)
+            return records.map { $0.toDomain() }
         }
     }
 
