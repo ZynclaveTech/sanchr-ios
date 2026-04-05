@@ -45,7 +45,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         let users = response.contacts.map { contact in
             User(
                 id: contact.userID,
-                phoneNumber: contact.phoneNumber,
+                phoneNumber: "", // TODO: Use contact.phoneNumber after proto regeneration
                 displayName: contact.displayName,
                 avatarURL: URL(string: contact.avatarURL),
                 bio: contact.statusText.isEmpty ? nil : contact.statusText,
@@ -81,7 +81,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         let matchedUsers = response.matches.map { match in
             User(
                 id: match.userID,
-                phoneNumber: match.phoneNumber,
+                phoneNumber: "", // TODO: Use match.phoneNumber after proto regeneration
                 displayName: match.displayName,
                 avatarURL: URL(string: match.avatarURL),
                 bio: match.statusText.isEmpty ? nil : match.statusText,

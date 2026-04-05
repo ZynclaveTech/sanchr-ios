@@ -113,9 +113,9 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
                 "Identity key changed for \(address.name.prefix(8))... device \(address.deviceId) — auto-accepting new key"
             )
             queue.sync(flags: .barrier) {
-                trustedIdentities[address] = identity
+                self.trustedIdentities[address] = identity
                 // Identity changed — reset verification
-                verifiedUserIds.remove(address.name)
+                _ = self.verifiedUserIds.remove(address.name)
             }
             saveTrustedIdentitiesToDisk()
             saveVerifiedToDisk()
@@ -170,7 +170,7 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     /// Marks a user's identity as verified after safety number comparison.
     func markIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
-            verifiedUserIds.insert(userId)
+            _ = verifiedUserIds.insert(userId)
         }
         saveVerifiedToDisk()
         SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
@@ -179,7 +179,7 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     /// Removes verification for a user (e.g., after unblock or manual reset).
     func unmarkIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
-            verifiedUserIds.remove(userId)
+            _ = verifiedUserIds.remove(userId)
         }
         saveVerifiedToDisk()
     }
