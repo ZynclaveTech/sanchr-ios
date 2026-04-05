@@ -7,6 +7,36 @@
 		<string>com.sanchr.sync.messages</string>
 		<string>com.sanchr.sync.refresh</string>
 	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Sanchr</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Sanchr</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Sanchr needs camera access for video calls and photos.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Sanchr needs access to your contacts to find friends who use the app.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to unlock Sanchr.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Sanchr needs microphone access for voice and video calls.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Sanchr needs photo library access to share photos and videos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -19,5 +49,7 @@
 		<string>processing</string>
 		<string>voip</string>
 	</array>
+	<key>UILaunchStoryboardName</key>
+	<string></string>
 </dict>
 </plist>
