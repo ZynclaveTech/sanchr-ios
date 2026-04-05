@@ -240,6 +240,8 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
 
     func markAsRead(conversationId: String, upToMessageId: String) async throws {}
 
+    func markAsReadLocally(conversationId: String, upToMessageId: String) async throws {}
+
     func deleteMessage(id: String, forEveryone: Bool) async throws {}
 
     func openMessageStream() async throws -> AsyncStream<RealtimeEvent> {

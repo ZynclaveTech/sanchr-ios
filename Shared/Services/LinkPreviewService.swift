@@ -2,12 +2,11 @@ import Foundation
 import LinkPresentation
 
 /// Fetches and caches Open Graph metadata for URLs.
-/// Thread-safe with NSCache for in-memory caching.
-final class LinkPreviewService: @unchecked Sendable {
+/// Actor-based for safe concurrent access.
+actor LinkPreviewService {
     static let shared = LinkPreviewService()
 
     private let cache = NSCache<NSString, LinkPreviewData>()
-    private let inFlight = NSLock()
     private var pending: [URL: [CheckedContinuation<LinkPreviewData?, Never>]] = [:]
 
     private init() {
@@ -24,34 +23,29 @@ final class LinkPreviewService: @unchecked Sendable {
         }
 
         // Coalesce concurrent requests for the same URL
-        return await withCheckedContinuation { continuation in
-            inFlight.lock()
-            if var existing = pending[url] {
-                existing.append(continuation)
-                pending[url] = existing
-                inFlight.unlock()
-                return
-            }
-            pending[url] = [continuation]
-            inFlight.unlock()
-
-            Task.detached(priority: .utility) { [weak self] in
-                let result = await self?.fetchMetadata(for: url)
-                self?.inFlight.lock()
-                let continuations = self?.pending.removeValue(forKey: url) ?? []
-                self?.inFlight.unlock()
-
-                if let result {
-                    self?.cache.setObject(result, forKey: key)
-                }
-                for cont in continuations {
-                    cont.resume(returning: result)
-                }
+        if pending[url] != nil {
+            return await withCheckedContinuation { continuation in
+                pending[url]?.append(continuation)
             }
         }
+
+        pending[url] = []
+
+        let result = await fetchMetadata(for: url)
+
+        if let result {
+            cache.setObject(result, forKey: key)
+        }
+
+        let continuations = pending.removeValue(forKey: url) ?? []
+        for cont in continuations {
+            cont.resume(returning: result)
+        }
+
+        return result
     }
 
-    private func fetchMetadata(for url: URL) async -> LinkPreviewData? {
+    private nonisolated func fetchMetadata(for url: URL) async -> LinkPreviewData? {
         let provider = LPMetadataProvider()
         provider.timeout = 10
 
@@ -85,7 +79,7 @@ final class LinkPreviewService: @unchecked Sendable {
     }
 
     /// Detect first URL in a text string.
-    static func firstURL(in text: String) -> URL? {
+    nonisolated static func firstURL(in text: String) -> URL? {
         guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
             return nil
         }
@@ -99,7 +93,7 @@ final class LinkPreviewService: @unchecked Sendable {
 }
 
 /// Cached link preview data.
-final class LinkPreviewData: NSObject {
+final class LinkPreviewData: NSObject, Sendable {
     let url: URL
     let title: String?
     let domain: String
