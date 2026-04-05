@@ -705,11 +705,11 @@ private struct VerifySecurityCodeView: View {
             verifyFooter
         }
         .navigationBarHidden(true)
-        .task {
-            await loadFingerprint()
+        .onAppear {
             if let recipientId = recipient?.id {
                 isVerified = container.signalProtocol.isIdentityVerified(userId: recipientId)
             }
+            Task { await loadFingerprint() }
         }
         .sheet(isPresented: $showScannerSheet) {
             QRScannerSheet(
