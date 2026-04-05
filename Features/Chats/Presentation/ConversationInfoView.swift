@@ -110,7 +110,7 @@ struct ConversationInfoView: View {
                     .offset(x: 2, y: 2)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(conversation.displayName)
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
@@ -119,17 +119,15 @@ struct ConversationInfoView: View {
                     .font(SanchrTypography.messageBubbleText)
                     .foregroundColor(SanchrExportColors.textSecondary)
 
-                HStack(spacing: 6) {
-                    Text("End-to-End Encrypted")
-                        .font(SanchrTypography.captionSmall)
-                        .fontWeight(.medium)
-                        .foregroundColor(SanchrColors.accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(SanchrColors.accent.opacity(0.1))
-                        .clipShape(Capsule())
-                }
-                .padding(.top, 4)
+                Text("End-to-End Encrypted")
+                    .font(SanchrTypography.captionSmall)
+                    .fontWeight(.medium)
+                    .foregroundColor(SanchrColors.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(SanchrColors.accent.opacity(0.1))
+                    .clipShape(Capsule())
+                    .padding(.top, 6)
             }
 
             Spacer()
