@@ -377,11 +377,15 @@ struct ChatDetailView: View {
                         dateSeparator(section.title)
 
                         ForEach(section.messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
-                                .contextMenu {
-                                    messageContextMenu(message)
-                                }
+                            SwipeToReplyWrapper(message: message) {
+                                viewModel.setReply(to: message)
+                            } content: {
+                                MessageBubble(message: message)
+                            }
+                            .id(message.id)
+                            .contextMenu {
+                                messageContextMenu(message)
+                            }
                         }
                     }
 
@@ -497,6 +501,7 @@ struct ChatDetailView: View {
         }
 
         Button {
+            viewModel.setReply(to: message)
         } label: {
             Label("Reply", systemImage: "arrowshape.turn.up.left")
         }
@@ -539,6 +544,45 @@ struct ChatDetailView: View {
 
     private var composer: some View {
         VStack(spacing: 0) {
+            // Reply banner
+            if let replyMessage = viewModel.replyingToMessage {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(SanchrColors.primary)
+                        .frame(width: 4)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(replyMessage.isOutgoing ? "You" : conversation.displayName)
+                            .font(SanchrTypography.captionSmall)
+                            .fontWeight(.semibold)
+                            .foregroundColor(SanchrColors.primary)
+
+                        Text(replyPreviewText(replyMessage))
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        viewModel.clearReply()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textTertiary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(SanchrExportColors.surface)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+                }
+            }
+
             // Row 1: plus + input + paperclip + camera
             HStack(alignment: .center, spacing: 8) {
                 Button {
@@ -683,6 +727,19 @@ struct ChatDetailView: View {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func replyPreviewText(_ message: Message) -> String {
+        switch message.content {
+        case .text(let text): return text
+        case .image(_): return "Photo"
+        case .video(_): return "Video"
+        case .audio(_): return "Voice message"
+        case .document(_): return "Document"
+        case .location: return "Location"
+        case .contact(let name, _): return "Contact: \(name)"
+        case .system(let event): return event.rawValue
+        }
+    }
+
     private var headerStatusText: String {
         if viewModel.showsTypingIndicators, (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
             return "Typing..."
@@ -760,6 +817,19 @@ struct MessageBubble: View {
                 if message.isOutgoing { Spacer(minLength: 0) }
 
                 VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
+                    if message.replyToMessageId != nil {
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(message.isOutgoing ? Color.white.opacity(0.5) : SanchrColors.primary)
+                                .frame(width: 3)
+
+                            Text("Replied to a message")
+                                .font(SanchrTypography.captionSmall)
+                                .foregroundColor(message.isOutgoing ? Color.white.opacity(0.7) : SanchrExportColors.textSecondary)
+                        }
+                        .padding(.bottom, 4)
+                    }
+
                     messageContent
                         .padding(.horizontal, SanchrSpacing.bubbleHPadding)
                         .padding(.vertical, SanchrSpacing.bubbleVPadding)
@@ -930,5 +1000,53 @@ struct MessageBubble: View {
     /// Whether to show double-check (delivered/read) vs single-check (sent).
     private var isDoubleCheck: Bool {
         message.status == .delivered || message.status == .read
+    }
+}
+
+private struct SwipeToReplyWrapper<Content: View>: View {
+    let message: Message
+    let onReply: () -> Void
+    @ViewBuilder let content: Content
+    @State private var offset: CGFloat = 0
+    private let threshold: CGFloat = 60
+
+    var body: some View {
+        HStack(spacing: 0) {
+            content
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                        .onChanged { value in
+                            // Only allow right swipe (positive X) for received, left for sent
+                            let translation = value.translation.width
+                            if message.isOutgoing {
+                                offset = min(0, translation) * 0.5 // Left swipe, dampened
+                            } else {
+                                offset = max(0, translation) * 0.5 // Right swipe, dampened
+                            }
+                        }
+                        .onEnded { value in
+                            let swipeAmount = abs(value.translation.width)
+                            if swipeAmount > threshold {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                onReply()
+                            }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                offset = 0
+                            }
+                        }
+                )
+
+            Spacer(minLength: 0)
+        }
+        .overlay(alignment: message.isOutgoing ? .leading : .trailing) {
+            if abs(offset) > 10 {
+                Image(systemName: "arrowshape.turn.up.left.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+                    .opacity(min(1, abs(offset) / threshold))
+                    .scaleEffect(min(1, abs(offset) / threshold))
+            }
+        }
     }
 }
