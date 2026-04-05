@@ -160,9 +160,15 @@ struct ConversationInfoView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text(recipient?.phoneNumber ?? "")
-                    .font(SanchrTypography.messageBubbleText)
-                    .foregroundColor(SanchrExportColors.textSecondary)
+                if let phone = recipient?.phoneNumber, !phone.isEmpty {
+                    Text(phone)
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                } else {
+                    Text("Encrypted conversation")
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
 
                 Text("End-to-End Encrypted")
                     .font(SanchrTypography.captionSmall)
@@ -207,7 +213,26 @@ struct ConversationInfoView: View {
                 .buttonStyle(.plain)
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+            // TODO: Replace with actual media count from conversation
+            let mediaCount = 0
+
+            if mediaCount == 0 {
+                VStack(spacing: 12) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 32))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                    Text("No media shared yet")
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                    Text("Photos, videos, and files shared in this conversation will appear here")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(0..<3, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(mediaGradient(for: index))
@@ -224,6 +249,7 @@ struct ConversationInfoView: View {
                             }
                         }
                 }
+            }
             }
         }
         .padding(.horizontal, 16)
@@ -256,13 +282,18 @@ struct ConversationInfoView: View {
             }
             .buttonStyle(.plain)
 
-            settingsRow(
-                icon: "touchid",
-                iconBg: SanchrColors.primary.opacity(0.1),
-                iconColor: SanchrColors.primary,
-                title: "Encryption Keys",
-                subtitle: "View security fingerprint"
-            )
+            NavigationLink {
+                VerifySecurityCodeView(conversation: conversation)
+            } label: {
+                settingsRow(
+                    icon: "touchid",
+                    iconBg: SanchrColors.primary.opacity(0.1),
+                    iconColor: SanchrColors.primary,
+                    title: "Encryption Keys",
+                    subtitle: "View security fingerprint"
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
