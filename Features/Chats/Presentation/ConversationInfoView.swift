@@ -6,16 +6,23 @@ struct ConversationInfoView: View {
     let recipient: User?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var disappearingMessages = true
-    @State private var mediaAutoSave = false
-    @State private var vaultShield = true
+    @State private var notificationsMuted = false
+    @State private var mediaVisibility = true
+    @State private var sanchrModeEnabled = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 settingsHeader
                 profileSection
-                // mediaSection, securitySection, etc. will be added in later tasks
+                mediaSection
+                securitySection
+                chatPreferencesSection
+                sanchrModeSection
+                disappearingMessagesSection
+                chatActionsSection
+                dangerZoneSection
+                Color.clear.frame(height: 32)
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
@@ -138,159 +145,388 @@ struct ConversationInfoView: View {
         )
     }
 
-    private var mediaCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Shared Media")
-                .font(SanchrTypography.bodyBold)
-                .foregroundColor(SanchrExportColors.textPrimary)
+    // MARK: - Section: Media & Links
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
-                ForEach(0..<6, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+    private var mediaSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Media & Links")
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.semibold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Spacer()
+                Button {} label: {
+                    Text("View All")
+                        .font(SanchrTypography.messageBubbleText)
+                        .fontWeight(.medium)
+                        .foregroundColor(SanchrColors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                ForEach(0..<3, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(mediaGradient(for: index))
-                        .frame(height: 92)
-                        .overlay(alignment: .bottomTrailing) {
-                            if index == 0 {
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 24, height: 24)
-                                    .background(Color.black.opacity(0.45))
-                                    .clipShape(Circle())
-                                    .padding(8)
+                        .aspectRatio(1, contentMode: .fit)
+                        .overlay {
+                            if index == 2 {
+                                Color.black.opacity(0.4)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay {
+                                        Text("+24")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
                             }
                         }
                 }
             }
         }
-        .padding(20)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private var controlsCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Privacy Controls")
-                .font(SanchrTypography.sectionLabel)
-                .tracking(1.2)
-                .foregroundColor(SanchrExportColors.textSecondary)
-
-            ConversationToggleRow(
-                icon: "timer",
-                tint: SanchrColors.primary,
-                title: "Disappearing Messages",
-                subtitle: "Automatically remove new messages after the timer ends",
-                isOn: $disappearingMessages
-            )
-
-            Divider()
-
-            ConversationToggleRow(
-                icon: "square.and.arrow.down.fill",
-                tint: SanchrColors.accent,
-                title: "Auto-save Media",
-                subtitle: "Keep received photos and videos available offline",
-                isOn: $mediaAutoSave
-            )
-
-            Divider()
-
-            ConversationToggleRow(
-                icon: "lock.doc.fill",
-                tint: Color(hex: 0x7C3AED),
-                title: "Vault Shield",
-                subtitle: "Default incoming media into Vault protections",
-                isOn: $vaultShield
-            )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
-        .padding(20)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    private var securityCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Encryption & Security")
-                .font(SanchrTypography.sectionLabel)
-                .tracking(1.2)
-                .foregroundColor(SanchrExportColors.textSecondary)
+    // MARK: - Section: Security & Privacy
 
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 92)
-                .overlay(alignment: .leading) {
-                    HStack(spacing: 14) {
-                        Circle()
-                            .fill(Color.white.opacity(0.18))
-                            .frame(width: 44, height: 44)
-                            .overlay {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("End-to-End Encryption")
-                                .font(SanchrTypography.bodyBold)
-                                .foregroundColor(.white)
-                            Text("Only you and this contact can read the contents of this chat.")
-                                .font(SanchrTypography.caption)
-                                .foregroundColor(.white.opacity(0.86))
-                        }
-                    }
-                    .padding(.horizontal, 18)
-                }
+    private var securitySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Security & Privacy")
+                .font(SanchrTypography.messageBubbleText)
+                .fontWeight(.semibold)
+                .foregroundColor(SanchrExportColors.textPrimary)
+                .padding(.bottom, 16)
 
             NavigationLink {
                 VerifySecurityCodeView(conversation: conversation)
             } label: {
-                ConversationChevronRow(
-                    icon: "number.square.fill",
-                    tint: SanchrColors.accent,
-                    title: "Security Code",
-                    subtitle: "Compare QR or fingerprint values"
+                settingsRow(
+                    icon: "qrcode",
+                    iconBg: SanchrColors.accent.opacity(0.1),
+                    iconColor: SanchrColors.accent,
+                    title: "Verify Security Code",
+                    subtitle: "Confirm end-to-end encryption"
                 )
             }
             .buttonStyle(.plain)
+
+            settingsRow(
+                icon: "touchid",
+                iconBg: SanchrColors.primary.opacity(0.1),
+                iconColor: SanchrColors.primary,
+                title: "Encryption Keys",
+                subtitle: "View security fingerprint"
+            )
+            .padding(.top, 8)
         }
-        .padding(20)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
     }
 
-    private var storageCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Backup & Storage")
-                .font(SanchrTypography.sectionLabel)
-                .tracking(1.2)
-                .foregroundColor(SanchrExportColors.textSecondary)
+    // MARK: - Section: Chat Preferences
 
-            ConversationChevronRow(
-                icon: "lock.doc.fill",
-                tint: Color(hex: 0x7C3AED),
-                title: "Vault Settings",
-                subtitle: "Expiration defaults and secure media rules"
+    private var chatPreferencesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Chat Preferences")
+                .font(SanchrTypography.messageBubbleText)
+                .fontWeight(.semibold)
+                .foregroundColor(SanchrExportColors.textPrimary)
+                .padding(.bottom, 16)
+
+            settingsToggleRow(
+                icon: "bell.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Notifications",
+                subtitle: "Mute this conversation",
+                isOn: $notificationsMuted
             )
 
-            Divider()
-
-            ConversationChevronRow(
-                icon: "internaldrive.fill",
-                tint: SanchrColors.primary,
-                title: "Storage Usage",
-                subtitle: "1.2 GB of media cached in this conversation"
+            settingsToggleRow(
+                icon: "photo.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Media Visibility",
+                subtitle: "Show in gallery",
+                isOn: $mediaVisibility
             )
+
+            settingsRow(
+                icon: "paintpalette.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Wallpaper & Theme",
+                subtitle: "Customize chat appearance"
+            )
+            .padding(.top, 8)
         }
-        .padding(20)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
     }
+
+    // MARK: - Section: Sanchr Mode
+
+    private var sanchrModeSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [SanchrColors.primaryDark, SanchrColors.primary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: "eye.slash.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sanchr Mode")
+                        .font(SanchrTypography.messageBubbleText)
+                        .fontWeight(.bold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                    Text("Enhanced privacy & incognito")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $sanchrModeEnabled)
+                    .labelsHidden()
+                    .tint(.sanchrPrimary)
+            }
+            .padding(.vertical, 12)
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(SanchrColors.primary)
+                    .padding(.top, 1)
+                Text("Sanchr Mode hides notification previews, disables screenshots, and uses darker theme for maximum privacy.")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+            .padding(.top, 12)
+            .padding(.horizontal, 8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .background(
+            LinearGradient(
+                colors: [SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    // MARK: - Section: Disappearing Messages
+
+    private var disappearingMessagesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            settingsRow(
+                icon: "clock.arrow.circlepath",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Disappearing Messages",
+                subtitle: "Off"
+            )
+
+            settingsRow(
+                icon: "lock.shield.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Vault Media",
+                subtitle: "Self-destructing photos & videos"
+            )
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    // MARK: - Section: Chat Actions
+
+    private var chatActionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            settingsRow(
+                icon: "magnifyingglass",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Search in Conversation"
+            )
+
+            settingsRow(
+                icon: "square.and.arrow.down.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Export Chat",
+                subtitle: "Save conversation backup"
+            )
+            .padding(.top, 8)
+
+            settingsRow(
+                icon: "trash.fill",
+                iconBg: SanchrExportColors.surfaceSoft,
+                iconColor: SanchrExportColors.textSecondary,
+                title: "Clear Chat",
+                subtitle: "Delete all messages"
+            )
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    // MARK: - Section: Danger Zone
+
+    private var dangerZoneSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {} label: {
+                dangerRow(icon: "person.fill.xmark", title: "Block Contact")
+            }
+            .buttonStyle(.plain)
+
+            Button {} label: {
+                dangerRow(icon: "flag.fill", title: "Report Contact")
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+    }
+
+    // MARK: - Reusable Helper Functions
+
+    private func settingsRow(
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        title: String,
+        subtitle: String? = nil
+    ) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(iconBg)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(iconColor)
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.medium)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(SanchrExportColors.textTertiary)
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    private func settingsToggleRow(
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        title: String,
+        subtitle: String? = nil,
+        isOn: Binding<Bool>
+    ) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(iconBg)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(iconColor)
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.medium)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(.sanchrPrimary)
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func dangerRow(icon: String, title: String) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color(hex: 0xFEF2F2))
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.sanchrError)
+                }
+
+            Text(title)
+                .font(SanchrTypography.messageBubbleText)
+                .fontWeight(.medium)
+                .foregroundColor(.sanchrError)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(SanchrColors.error.opacity(0.6))
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Media Gradient Helper
 
     private func mediaGradient(for index: Int) -> LinearGradient {
         let gradients: [[Color]] = [
@@ -303,77 +539,6 @@ struct ConversationInfoView: View {
         ]
         let pair = gradients[index % gradients.count]
         return LinearGradient(colors: pair, startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-}
-
-private struct ConversationToggleRow: View {
-    let icon: String
-    let tint: Color
-    let title: String
-    let subtitle: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(SanchrExportColors.surfaceMuted)
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.sanchrPrimary)
-                }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(SanchrExportColors.textPrimary)
-                Text(subtitle)
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-            }
-
-            Spacer()
-
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
-                .tint(.sanchrPrimary)
-        }
-    }
-}
-
-private struct ConversationChevronRow: View {
-    let icon: String
-    let tint: Color
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(SanchrExportColors.surfaceMuted)
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.sanchrPrimary)
-                }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(SanchrExportColors.textPrimary)
-                Text(subtitle)
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(SanchrExportColors.textTertiary)
-        }
     }
 }
 
