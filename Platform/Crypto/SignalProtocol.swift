@@ -43,6 +43,15 @@ protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
 
     /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
+
+    /// Returns the serialized local identity public key.
+    func localIdentityKeyData() throws -> Data
+
+    /// Returns the serialized remote identity public key for a user.
+    func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data
+
+    /// The local user's stable identifier.
+    var localUserId: String { get }
 }
 
 /// Signal Protocol session management and message encryption/decryption engine.
@@ -307,6 +316,23 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         )
 
         return try fingerprint.scannable.compare(againstEncoding: scannedData)
+    }
+
+    func localIdentityKeyData() throws -> Data {
+        let keyPair = try store.identityStore.identityKeyPair(context: NullContext())
+        return Data(keyPair.identityKey.publicKey.serialize())
+    }
+
+    func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        guard let remoteIdentity = try store.identityStore.identity(for: address, context: NullContext()) else {
+            throw AppError.sessionNotEstablished
+        }
+        return Data(remoteIdentity.publicKey.serialize())
+    }
+
+    var localUserId: String {
+        store.userId
     }
 
     func markIdentityVerified(userId: String) {

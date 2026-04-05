@@ -718,15 +718,25 @@ private struct VerifySecurityCodeView: View {
                     guard let recipientId = recipient?.id else { return }
 
                     do {
-                        // Use Signal's ScannableFingerprint comparison
-                        let matches = try container.signalProtocol.compareFingerprint(
-                            scannedData, for: recipientId, deviceId: 1
+                        let myKey = try container.signalProtocol.localIdentityKeyData()
+                        let theirKey = try container.signalProtocol.remoteIdentityKeyData(for: recipientId, deviceId: 1)
+                        let localUserId = container.signalProtocol.localUserId
+
+                        let fpQR = SanchrFingerprintQR.create(
+                            myId: localUserId,
+                            myIdentityKey: myKey,
+                            theirId: recipientId,
+                            theirIdentityKey: theirKey
                         )
-                        if matches {
+
+                        let result = fpQR.matches(scannedData: scannedData)
+                        switch result {
+                        case .match:
                             container.signalProtocol.markIdentityVerified(userId: recipientId)
                             isVerified = true
                             scanResult = .match
-                        } else {
+                        case .noMatch(let reason):
+                            SanchrLogger.crypto.warning("QR verification failed: \(reason)")
                             scanResult = .mismatch
                         }
                     } catch {
@@ -780,7 +790,6 @@ private struct VerifySecurityCodeView: View {
         let result: (String, [[String]], Data?, UIImage?) = await Task.detached {
             do {
                 let safetyNumber = try signalProtocol.safetyNumber(for: recipientId, deviceId: 1)
-                let scannable = try? signalProtocol.scannableFingerprint(for: recipientId, deviceId: 1)
 
                 let digits = stride(from: 0, to: safetyNumber.count, by: 5).map { i in
                     let start = safetyNumber.index(safetyNumber.startIndex, offsetBy: i)
@@ -791,15 +800,21 @@ private struct VerifySecurityCodeView: View {
                     Array(digits[i..<min(i + 5, digits.count)])
                 }
 
-                // QR encodes scannable fingerprint binary for proper Signal verification
-                let qr: UIImage?
-                if let scannable {
-                    qr = makeQRCodeFromBinary(scannable)
-                } else {
-                    qr = makeQRCodeImage(from: safetyNumber)
-                }
+                // Generate Signal-compatible QR fingerprint
+                let myKey = try signalProtocol.localIdentityKeyData()
+                let theirKey = try signalProtocol.remoteIdentityKeyData(for: recipientId, deviceId: 1)
+                let localUserId = signalProtocol.localUserId
 
-                return (safetyNumber, rows, scannable, qr)
+                let fpQR = SanchrFingerprintQR.create(
+                    myId: localUserId,
+                    myIdentityKey: myKey,
+                    theirId: recipientId,
+                    theirIdentityKey: theirKey
+                )
+                let qrData = fpQR.serialize()
+                let qr = makeQRCodeFromBinary(qrData)
+
+                return (safetyNumber, rows, qrData, qr)
             } catch {
                 let fallbackDigits = [
                     ["28394", "75621", "94857", "63294", "12847"],
@@ -1530,6 +1545,128 @@ private struct SearchConversationView: View {
         }
         .background(SanchrExportColors.background)
         .onAppear { isFocused = true }
+    }
+}
+
+// MARK: - Signal-Compatible Fingerprint (QR Verification)
+
+import CryptoKit
+
+private struct SanchrFingerprintQR {
+    let myHash: Data      // 32 bytes
+    let theirHash: Data   // 32 bytes
+    let version: UInt32 = 2
+
+    /// Generates fingerprint hash data using Signal's algorithm:
+    /// SHA-512(version || publicKey || stableId), iterated 5200 times, take first 32 bytes.
+    static func create(
+        myId: String,
+        myIdentityKey: Data,
+        theirId: String,
+        theirIdentityKey: Data
+    ) -> SanchrFingerprintQR {
+        let myHash = computeHash(stableId: Data(myId.utf8), publicKey: myIdentityKey)
+        let theirHash = computeHash(stableId: Data(theirId.utf8), publicKey: theirIdentityKey)
+        return SanchrFingerprintQR(myHash: myHash, theirHash: theirHash)
+    }
+
+    private static func computeHash(stableId: Data, publicKey: Data, iterations: UInt32 = 5200) -> Data {
+        // Signal: hash = SHA512(version(2 bytes BE) || publicKey || stableId)
+        // Then iterate: hash = SHA512(hash || publicKey) × 5200
+        // Take first 32 bytes
+        let versionBytes = UInt16(0).bigEndianData
+
+        var hash = Data()
+        hash.append(versionBytes)
+        hash.append(publicKey)
+        hash.append(stableId)
+
+        for _ in 0..<iterations {
+            hash.append(publicKey)
+            let digest = SHA512.hash(data: hash)
+            hash = Data(digest)
+        }
+
+        return hash.prefix(32)
+    }
+
+    /// Serialize to protobuf-like binary format for QR encoding.
+    /// Format: [version: 4 bytes LE] [local length: 4 bytes LE] [local hash: 32 bytes] [remote length: 4 bytes LE] [remote hash: 32 bytes]
+    func serialize() -> Data {
+        var data = Data()
+        // Version
+        var v = version.littleEndian
+        data.append(Data(bytes: &v, count: 4))
+        // Local fingerprint (my hash)
+        var localLen = UInt32(myHash.count).littleEndian
+        data.append(Data(bytes: &localLen, count: 4))
+        data.append(myHash)
+        // Remote fingerprint (their hash)
+        var remoteLen = UInt32(theirHash.count).littleEndian
+        data.append(Data(bytes: &remoteLen, count: 4))
+        data.append(theirHash)
+        return data
+    }
+
+    /// Deserialize scanned data and compare.
+    /// Their local = our remote (swap perspective).
+    func matches(scannedData: Data) -> VerifyResult {
+        guard scannedData.count >= 72 else { // 4 + 4 + 32 + 4 + 32 = 76 min
+            return .noMatch("Invalid QR code data")
+        }
+
+        var offset = 0
+
+        // Read version
+        let scannedVersion = scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian
+        offset += 4
+
+        if scannedVersion > version {
+            return .noMatch("They have a newer app version")
+        }
+        if scannedVersion < version {
+            return .noMatch("They have an older app version")
+        }
+
+        // Read their local hash (which should match our remote = theirHash)
+        let theirLocalLen = Int(scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian)
+        offset += 4
+        guard offset + theirLocalLen <= scannedData.count else { return .noMatch("Invalid QR data") }
+        let theirLocalHash = scannedData.subdata(in: offset..<offset+theirLocalLen)
+        offset += theirLocalLen
+
+        // Read their remote hash (which should match our local = myHash)
+        guard offset + 4 <= scannedData.count else { return .noMatch("Invalid QR data") }
+        let theirRemoteLen = Int(scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian)
+        offset += 4
+        guard offset + theirRemoteLen <= scannedData.count else { return .noMatch("Invalid QR data") }
+        let theirRemoteHash = scannedData.subdata(in: offset..<offset+theirRemoteLen)
+
+        // Their local is our remote (they stored their identity as "local")
+        // Their remote is our local (they stored our identity as "remote")
+        // So: theirLocalHash should == our theirHash (both are the hash of THEIR identity)
+        //     theirRemoteHash should == our myHash (both are the hash of OUR identity)
+
+        if theirLocalHash != theirHash {
+            return .noMatch("Wrong identity key for them")
+        }
+        if theirRemoteHash != myHash {
+            return .noMatch("They have wrong key for us")
+        }
+
+        return .match
+    }
+
+    enum VerifyResult {
+        case match
+        case noMatch(String)
+    }
+}
+
+private extension UInt16 {
+    var bigEndianData: Data {
+        var value = self.bigEndian
+        return Data(bytes: &value, count: 2)
     }
 }
 
