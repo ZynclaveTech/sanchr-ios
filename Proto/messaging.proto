@@ -10,6 +10,7 @@ service MessagingService {
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
   rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
+  rpc GetPresenceSnapshot(GetPresenceSnapshotRequest) returns (GetPresenceSnapshotResponse);
 }
 
 message StartDirectConversationRequest {
@@ -101,12 +102,30 @@ message ReceiptUpdate {
   int64 timestamp = 5;
 }
 
-message PresenceHeartbeat {}
+enum PresenceStatus {
+  PRESENCE_STATUS_UNSPECIFIED = 0;
+  ONLINE = 1;
+  OFFLINE = 2;
+  HIDDEN = 3;
+}
+
+enum DevicePresenceState {
+  DEVICE_STATE_UNSPECIFIED = 0;
+  FOREGROUND = 1;
+  BACKGROUND = 2;
+  OFFLINE_DEVICE = 3;
+}
+
+message PresenceHeartbeat {
+  DevicePresenceState device_state = 1;
+  int64 sent_at_ms = 2;
+}
 
 message PresenceUpdate {
   string user_id = 1;
   string status = 2;
   int64 last_seen = 3;
+  PresenceStatus status_code = 4;
 }
 
 message PreKeyCountLow {
@@ -142,9 +161,24 @@ message GetConversationsResponse {
   repeated Conversation conversations = 1;
 }
 
+message GetPresenceSnapshotRequest {
+  repeated string user_ids = 1;
+}
+
+message GetPresenceSnapshotResponse {
+  repeated PresenceUpdate users = 1;
+}
+
 message Conversation {
   string id = 1;
   string type = 2;
   repeated string participant_ids = 3;
   int32 unread_count = 4;
+  repeated Participant participants = 5;
+}
+
+message Participant {
+  string user_id = 1;
+  string display_name = 2;
+  string avatar_url = 3;
 }

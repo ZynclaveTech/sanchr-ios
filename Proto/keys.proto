@@ -13,6 +13,7 @@ message SignedPreKey {
   int32 key_id = 1;
   bytes public_key = 2;
   bytes signature = 3;
+  int64 timestamp = 4;
 }
 
 message OneTimePreKey {
@@ -20,10 +21,20 @@ message OneTimePreKey {
   bytes public_key = 2;
 }
 
+message KyberPreKey {
+  int32 key_id = 1;
+  bytes public_key = 2;
+  bytes signature = 3;
+  int64 timestamp = 4;
+}
+
 message KeyBundle {
   bytes identity_public_key = 1;
   SignedPreKey signed_pre_key = 2;
   repeated OneTimePreKey one_time_pre_keys = 3;
+  int32 registration_id = 4;
+  int32 device_id = 5;
+  KyberPreKey kyber_pre_key = 6;
 }
 
 message UploadKeyBundleResponse {}
@@ -38,6 +49,8 @@ message PreKeyBundleResponse {
   SignedPreKey signed_pre_key = 2;
   OneTimePreKey one_time_pre_key = 3;
   int32 device_id = 4;
+  int32 registration_id = 5;
+  KyberPreKey kyber_pre_key = 6;
 }
 
 message UploadOneTimePreKeysRequest {
@@ -55,5 +68,13 @@ message GetUserDevicesRequest {
 }
 
 message GetUserDevicesResponse {
-  repeated int32 device_ids = 1;
+  repeated DeviceInfo devices = 1;
+}
+
+message DeviceInfo {
+  int32 device_id = 1;
+  string platform = 2;
+  bool supports_delivery_ack = 3;
+  bool key_capable = 4;
+  int64 last_active_at = 5;
 }

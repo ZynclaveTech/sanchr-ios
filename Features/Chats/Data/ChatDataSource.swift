@@ -164,19 +164,43 @@ final class ChatDataSource: @unchecked Sendable {
     ) -> Conversation {
         let conversationType: Conversation.ConversationType =
             proto.type == "group" ? .group : .oneToOne
+        let serverParticipants = Dictionary(
+            uniqueKeysWithValues: proto.participants.map { ($0.userID, $0) }
+        )
 
-        return Conversation(
-            id: proto.id,
-            participants: proto.participantIds.map { participantID in
-                if let cached = contactsLookup[participantID] {
-                    return cached
+        let participants = proto.participantIds.map { participantID -> User in
+            let isLocal = participantID == localUserId
+
+            if var cached = contactsLookup[participantID] {
+                cached.isLocalUser = isLocal
+                if cached.displayName.isEmpty,
+                   let serverParticipant = serverParticipants[participantID],
+                   !serverParticipant.displayName.isEmpty
+                {
+                    cached.displayName = serverParticipant.displayName
                 }
-                let isLocal = participantID == localUserId
+                if cached.avatarURL == nil,
+                   let serverParticipant = serverParticipants[participantID],
+                   !serverParticipant.avatarURL.isEmpty
+                {
+                    cached.avatarURL = URL(string: serverParticipant.avatarURL)
+                }
+                return cached
+            }
+
+            if let serverParticipant = serverParticipants[participantID] {
+                let displayName =
+                    serverParticipant.displayName.isEmpty
+                    ? (isLocal ? "You" : participantID)
+                    : serverParticipant.displayName
+
                 return User(
                     id: participantID,
                     phoneNumber: "",
-                    displayName: isLocal ? "You" : participantID,
-                    avatarURL: nil,
+                    displayName: displayName,
+                    avatarURL: serverParticipant.avatarURL.isEmpty
+                        ? nil
+                        : URL(string: serverParticipant.avatarURL),
                     bio: nil,
                     isVerified: false,
                     lastSeen: nil,
@@ -184,7 +208,25 @@ final class ChatDataSource: @unchecked Sendable {
                     status: .offline,
                     isLocalUser: isLocal
                 )
-            },
+            }
+
+            return User(
+                id: participantID,
+                phoneNumber: "",
+                displayName: isLocal ? "You" : participantID,
+                avatarURL: nil,
+                bio: nil,
+                isVerified: false,
+                lastSeen: nil,
+                identityKeyFingerprint: nil,
+                status: .offline,
+                isLocalUser: isLocal
+            )
+        }
+
+        return Conversation(
+            id: proto.id,
+            participants: participants,
             lastMessage: nil,
             unreadCount: Int(proto.unreadCount),
             isPinned: false,

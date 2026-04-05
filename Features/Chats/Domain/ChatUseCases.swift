@@ -61,20 +61,20 @@ enum ChatUseCases {
     /// Handles Signal Protocol session establishment, per-device encryption,
     /// optimistic UI, and server confirmation.
     struct SendMessageUseCase: Sendable {
-        private let messageRepository: MessageRepositoryProtocol
         private let signalSessionManager: SignalProtocolManagerProtocol
         private let chatDataSource: ChatDataSource
+        private let localDatabase: LocalDatabaseProtocol
         private let localUserId: String
 
         init(
-            messageRepository: MessageRepositoryProtocol,
             signalSessionManager: SignalProtocolManagerProtocol,
             chatDataSource: ChatDataSource,
+            localDatabase: LocalDatabaseProtocol,
             localUserId: String
         ) {
-            self.messageRepository = messageRepository
             self.signalSessionManager = signalSessionManager
             self.chatDataSource = chatDataSource
+            self.localDatabase = localDatabase
             self.localUserId = localUserId
         }
 
@@ -87,7 +87,9 @@ enum ChatUseCases {
                 throw AppError.unknown(underlying: "Cannot send an empty message.")
             }
 
-            SanchrLogger.chat.info("SendMessageUseCase: sending to \(conversationId.prefix(8))...")
+            SanchrLogger.chat.info(
+                "SendMessageUseCase: conversation=\(conversationId.prefix(8))... recipient=\(recipientId.prefix(8))..."
+            )
 
             // 1. Encode plaintext
             guard let plaintext = trimmedText.data(using: .utf8) else {
@@ -125,6 +127,11 @@ enum ChatUseCases {
                 status: .sent,
                 isOutgoing: true
             )
+
+            try await localDatabase.saveMessage(confirmedMessage)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            }
 
             SanchrLogger.chat.info("Message sent: \(response.messageID)")
             return confirmedMessage

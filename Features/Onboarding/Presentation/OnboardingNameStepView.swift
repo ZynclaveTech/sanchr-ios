@@ -2,43 +2,53 @@ import SwiftUI
 
 struct OnboardingNameStepView: View {
     @Bindable var viewModel: OnboardingViewModel
-    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
+            Spacer(minLength: 44)
 
-            // Step indicator
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 108, height: 108)
+                .overlay {
+                    Image("SanchrLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                }
+                .padding(.bottom, 28)
+
             Text("STEP 1 OF 3")
                 .font(SanchrTypography.micro)
                 .foregroundColor(.sanchrPrimary)
                 .kerning(2.5)
-                .padding(.bottom, SanchrSpacing.sm)
+                .padding(.bottom, 12)
 
-            // Title
             Text("What's your name?")
-                .font(SanchrTypography.screenTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                .padding(.bottom, SanchrSpacing.xs)
+                .font(SanchrTypography.displayTitle)
+                .foregroundColor(SanchrExportColors.textPrimary)
+                .padding(.bottom, 8)
 
-            // Subtitle
-            Text("This is how others will see you on Sanchr")
-                .font(SanchrTypography.caption)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                .padding(.bottom, SanchrSpacing.xxxl)
+            Text("This is how people will see you on Sanchr.")
+                .font(SanchrTypography.body)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 30)
 
-            // Name input
             TextField("Enter your name", text: $viewModel.displayName)
                 .font(SanchrTypography.body)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                .padding(SanchrSpacing.md)
-                .background(Color.sanchrSurface(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SanchrRadius.button)
-                        .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
-                )
+                .padding(.horizontal, 18)
+                .frame(height: 56)
+                .background(SanchrExportColors.surfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .focused($isNameFocused)
                 .textInputAutocapitalization(.words)
                 .submitLabel(.continue)
@@ -52,32 +62,26 @@ struct OnboardingNameStepView: View {
                         viewModel.goToNextStep()
                     }
                 }
-                .padding(.horizontal, SanchrSpacing.xxl)
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
 
             Spacer()
 
-            // Progress + Continue
-            VStack(spacing: SanchrSpacing.xl) {
+            VStack(spacing: 18) {
                 OnboardingProgressIndicator(currentStep: 1)
 
                 Button {
                     viewModel.goToNextStep()
                 } label: {
-                    Text("Continue")
-                        .font(SanchrTypography.button)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SanchrSpacing.md)
-                        .background(SanchrGradients.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                        .opacity(viewModel.isNameValid ? 1.0 : 0.4)
+                    SanchrGradientButtonLabel(title: "Continue", systemName: nil)
                 }
+                .buttonStyle(SanchrPrimaryCTA())
                 .disabled(!viewModel.isNameValid)
-                .padding(.horizontal, SanchrSpacing.xxl)
+                .opacity(viewModel.isNameValid ? 1 : 0.5)
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             }
-            .padding(.bottom, SanchrSpacing.xxxxl)
+            .padding(.bottom, 36)
         }
-        .sanchrScreenBackground()
+        .background(SanchrExportColors.background.ignoresSafeArea())
         .onAppear { isNameFocused = true }
     }
 }

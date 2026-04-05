@@ -42,6 +42,9 @@ final class AppRouter {
     var pendingConversationId: String?
     var pendingCallId: String?
 
+    /// Total unread message count across all conversations (drives tab badge).
+    var chatUnreadCount: Int = 0
+
     /// Resets all navigation stacks to their root views.
     func resetAllNavigation() {
         chatsPath = NavigationPath()
@@ -92,9 +95,11 @@ final class AppRouter {
 // MARK: - Main Tab View
 
 /// Root tabbed interface with four primary sections.
+/// Configures native tab bar appearance with Figma design tokens.
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(DependencyContainer.self) private var container
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         @Bindable var router = router
@@ -107,6 +112,7 @@ struct MainTabView: View {
                 Label(AppRouter.Tab.chats.title, systemImage: AppRouter.Tab.chats.systemImage)
             }
             .tag(AppRouter.Tab.chats)
+            .badge(router.chatUnreadCount > 0 ? router.chatUnreadCount : 0)
 
             NavigationStack(path: $router.callsPath) {
                 CallsListView()
@@ -120,7 +126,8 @@ struct MainTabView: View {
                 ContactsView()
             }
             .tabItem {
-                Label(AppRouter.Tab.contacts.title, systemImage: AppRouter.Tab.contacts.systemImage)
+                Label(
+                    AppRouter.Tab.contacts.title, systemImage: AppRouter.Tab.contacts.systemImage)
             }
             .tag(AppRouter.Tab.contacts)
 
@@ -128,11 +135,14 @@ struct MainTabView: View {
                 SettingsView()
             }
             .tabItem {
-                Label(AppRouter.Tab.settings.title, systemImage: AppRouter.Tab.settings.systemImage)
+                Label(
+                    AppRouter.Tab.settings.title, systemImage: AppRouter.Tab.settings.systemImage)
             }
             .tag(AppRouter.Tab.settings)
         }
         .tint(Color.sanchrPrimary)
+        .onAppear { configureTabBarAppearance() }
+        .onChange(of: colorScheme) { _, _ in configureTabBarAppearance() }
         .fullScreenCover(
             isPresented: Binding(
                 get: { container.callManager.callState != .idle },
@@ -145,5 +155,61 @@ struct MainTabView: View {
         ) {
             ActiveCallView()
         }
+    }
+
+    /// Configures the UITabBar appearance to match Figma design tokens.
+    private func configureTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+
+        // Background
+        let bgColor =
+            colorScheme == .dark
+            ? UIColor(SanchrColors.backgroundDark)
+            : UIColor(SanchrColors.backgroundLight)
+        appearance.backgroundColor = bgColor
+
+        // Top separator — subtle border
+        let borderColor =
+            colorScheme == .dark
+            ? UIColor(SanchrColors.borderDark)
+            : UIColor(SanchrColors.borderLight)
+        appearance.shadowColor = borderColor
+
+        // Active tab item (primary indigo)
+        let activeColor = UIColor(SanchrColors.primary)
+        appearance.stackedLayoutAppearance.selected.iconColor = activeColor
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: activeColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold),
+        ]
+
+        // Inactive tab item
+        let inactiveColor =
+            colorScheme == .dark
+            ? UIColor(SanchrColors.textTertiaryDark)
+            : UIColor(SanchrColors.textTertiaryLight)
+        appearance.stackedLayoutAppearance.normal.iconColor = inactiveColor
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: inactiveColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .medium),
+        ]
+
+        // Badge (indigo background, white text)
+        appearance.stackedLayoutAppearance.selected.badgeBackgroundColor = UIColor(
+            SanchrColors.primary)
+        appearance.stackedLayoutAppearance.normal.badgeBackgroundColor = UIColor(
+            SanchrColors.primary)
+        appearance.stackedLayoutAppearance.selected.badgeTextAttributes = [
+            .foregroundColor: UIColor.white,
+            .font: UIFont.systemFont(ofSize: 11, weight: .bold),
+        ]
+        appearance.stackedLayoutAppearance.normal.badgeTextAttributes = [
+            .foregroundColor: UIColor.white,
+            .font: UIFont.systemFont(ofSize: 11, weight: .bold),
+        ]
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }

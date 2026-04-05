@@ -1,95 +1,134 @@
 import SwiftUI
 
-/// Phone number input screen for authentication.
-/// Matches Figma: login-screen with VyncChat branding.
 struct LoginView: View {
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = AuthViewModel()
-    /// Common country codes for the selector.
+
     private let countryCodes = [
-        ("+1", "US"), ("+44", "UK"), ("+91", "IN"), ("+61", "AU"),
-        ("+81", "JP"), ("+49", "DE"), ("+33", "FR"), ("+86", "CN"),
-        ("+55", "BR"), ("+234", "NG"),
+        ("+1", "US"),
+        ("+44", "UK"),
+        ("+91", "IN"),
+        ("+61", "AU"),
+        ("+81", "JP"),
+        ("+49", "DE"),
+        ("+33", "FR"),
+        ("+86", "CN"),
+        ("+55", "BR"),
+        ("+234", "NG"),
     ]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: SanchrSpacing.xxl) {
-                    Spacer().frame(height: SanchrSpacing.xxxxl)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: 54)
 
-                    // MARK: - Logo & Title
-                    logoSection
+                    heroSection
 
-                    // MARK: - Phone Input
-                    phoneInputSection
+                    Spacer()
+                        .frame(height: 44)
 
-                    // MARK: - Helper Text
-                    Text("We'll send you a verification code")
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                    phoneSection
 
-                    // MARK: - E2EE Info Card
-                    e2eeInfoCard
+                    Spacer()
+                        .frame(height: 18)
 
-                    // MARK: - Continue Button
+                    securityCard
+
+                    Spacer()
+                        .frame(height: 28)
+
                     continueButton
 
-                    Spacer().frame(height: SanchrSpacing.md)
+                    Spacer()
+                        .frame(height: 24)
 
-                    // MARK: - Privacy & Terms
                     privacyLinks
+
+                    #if DEBUG
+                    Spacer()
+                        .frame(height: 28)
+
+                    debugResetSection
+                    #endif
                 }
-                .padding(.horizontal, SanchrSpacing.xl)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 24)
             }
             .scrollDismissesKeyboard(.interactively)
-            .sanchrScreenBackground()
+            .background(SanchrExportColors.background.ignoresSafeArea())
+            .navigationBarHidden(true)
             .navigationDestination(isPresented: $viewModel.showOTPView) {
                 OTPView(viewModel: viewModel)
             }
         }
     }
 
-    // MARK: - Logo Section
+    private var heroSection: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottomTrailing) {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 112, height: 112)
 
-    private var logoSection: some View {
-        VStack(spacing: SanchrSpacing.sm) {
-            // Shield icon with gradient
-            ZStack {
-                Circle()
-                    .fill(SanchrColors.primary.opacity(0.1))
-                    .frame(width: 88, height: 88)
+                Image(systemName: "bubble.left.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundColor(.white)
 
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(SanchrGradients.primaryDark)
+                ZStack {
+                    Circle()
+                        .fill(SanchrColors.accent)
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 28, height: 28)
+                .offset(x: 6, y: 6)
             }
 
-            Text("Welcome to VyncChat")
-                .font(SanchrTypography.screenTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+            Spacer()
+                .frame(height: 40)
+
+            Text("Welcome to Sanchr")
+                .font(SanchrTypography.displayTitle)
+                .foregroundColor(SanchrExportColors.textPrimary)
                 .multilineTextAlignment(.center)
+
+            Spacer()
+                .frame(height: 14)
 
             Text("Encrypted. Synced. Secure.")
                 .font(SanchrTypography.body)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Phone Input Section
+    private var phoneSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Phone Number")
+                .font(SanchrTypography.bodyBold)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
-    private var phoneInputSection: some View {
-        VStack(spacing: SanchrSpacing.xs) {
-            HStack(spacing: SanchrSpacing.xs) {
-                // Country code selector
+            Spacer()
+                .frame(height: 14)
+
+            HStack(spacing: 0) {
                 Menu {
-                    ForEach(countryCodes, id: \.0) { code, label in
+                    ForEach(countryCodes, id: \.0) { code, region in
                         Button {
                             viewModel.countryCode = code
                         } label: {
                             HStack {
-                                Text("\(code) \(label)")
+                                Text("\(code) \(region)")
                                 if viewModel.countryCode == code {
                                     Image(systemName: "checkmark")
                                 }
@@ -97,150 +136,166 @@ struct LoginView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: SanchrSpacing.xxs) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe.europe.africa.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(SanchrColors.primary)
+
                         Text(viewModel.countryCode)
                             .font(SanchrTypography.body)
-                            .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                            .foregroundColor(SanchrExportColors.textPrimary)
                     }
-                    .padding(.horizontal, SanchrSpacing.sm)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .background(Color.sanchrSurface(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.input))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SanchrRadius.input)
-                            .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
-                    )
+                    .frame(width: 88, height: 60)
+                    .overlay(alignment: .trailing) {
+                        Rectangle()
+                            .fill(Color(hex: 0xE5E7EB))
+                            .frame(width: 1, height: 28)
+                            .padding(.trailing, 1)
+                    }
                 }
+                .buttonStyle(.plain)
 
-                // Phone number text field
-                TextField("Phone number", text: $viewModel.phoneNumber)
-                    .font(SanchrTypography.body)
+                TextField("(555) 123-4567", text: $viewModel.phoneNumber)
+                    .font(SanchrTypography.bodyBold)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
-                    .padding(.horizontal, SanchrSpacing.sm)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .background(Color.sanchrSurface(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.input))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SanchrRadius.input)
-                            .stroke(Color.sanchrBorder(colorScheme), lineWidth: 1)
+                    .padding(.horizontal, 18)
+                    .frame(height: 60)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(
+                        viewModel.errorMessage == nil ? Color(hex: 0xEDF2F7) : SanchrColors.error.opacity(0.35),
+                        lineWidth: 1.2
                     )
             }
+            .shadow(color: Color.black.opacity(0.02), radius: 18, x: 0, y: 10)
 
-            // Error message
+            Spacer()
+                .frame(height: 14)
+
+            Text("We'll send you a verification code")
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+
             if let error = viewModel.errorMessage {
-                HStack(spacing: SanchrSpacing.xxs) {
+                Spacer()
+                    .frame(height: 10)
+
+                HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.caption)
+                        .font(.system(size: 13, weight: .bold))
                     Text(error)
                         .font(SanchrTypography.caption)
                 }
-                .foregroundColor(.sanchrError)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .foregroundColor(SanchrColors.error)
             }
         }
     }
 
-    // MARK: - E2EE Info Card
+    private var securityCard: some View {
+        HStack(alignment: .top, spacing: 16) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(hex: 0xEEF2FF))
+                .frame(width: 52, height: 52)
+                .overlay {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrColors.primary)
+                }
 
-    private var e2eeInfoCard: some View {
-        HStack(spacing: SanchrSpacing.sm) {
-            ZStack {
-                Circle()
-                    .fill(SanchrColors.primary.opacity(0.15))
-                    .frame(width: 36, height: 36)
-
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
-
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("End-to-End Encrypted")
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text("Your messages are secured with the Signal Protocol")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                Text("Your messages are secured with military-grade encryption. Only you and your contacts can read them.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(SanchrSpacing.md)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 20)
         .background(
-            RoundedRectangle(cornerRadius: SanchrRadius.card)
-                .fill(SanchrColors.primary.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SanchrRadius.card)
-                        .stroke(SanchrColors.primary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xF8FAFF), Color(hex: 0xF3F8FF)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
         )
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color(hex: 0xDDE6FF), lineWidth: 1)
+        }
     }
-
-    // MARK: - Continue Button
 
     private var continueButton: some View {
         Button {
-            Task { @MainActor in await viewModel.requestOTP(authService: container.authService) }
+            Task { @MainActor in
+                await viewModel.requestOTP(authService: container.authService)
+            }
         } label: {
-            HStack(spacing: SanchrSpacing.xs) {
+            HStack(spacing: 12) {
                 if viewModel.isLoading {
                     ProgressView()
                         .tint(.white)
                 } else {
                     Text("Continue")
-                        .font(SanchrTypography.button)
+                        .font(SanchrTypography.cardTitle)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 18, weight: .bold))
                 }
             }
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, SanchrSpacing.md)
+            .frame(height: 64)
             .background(
                 LinearGradient(
-                    colors: [Color(hex: 0x6366F1), Color(hex: 0x4C1D95)],
+                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             )
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+            .clipShape(Capsule())
+            .shadow(color: SanchrColors.primary.opacity(0.22), radius: 20, x: 0, y: 10)
         }
+        .buttonStyle(SanchrPrimaryCTA())
         .disabled(!viewModel.isPhoneValid || viewModel.isLoading)
-        .opacity(viewModel.isPhoneValid ? 1.0 : 0.5)
-        .sanchrPrimaryGlow()
+        .opacity(viewModel.isPhoneValid ? 1 : 0.58)
     }
-
-    // MARK: - Privacy Links
 
     private var privacyLinks: some View {
-        HStack(spacing: SanchrSpacing.xxs) {
-            Text("By continuing, you agree to our")
-                .font(SanchrTypography.micro)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-
-            Button("Privacy Policy") {
-                // TODO: Open privacy policy URL
-            }
-            .font(SanchrTypography.micro)
-            .foregroundColor(.sanchrPrimary)
-
-            Text("and")
-                .font(SanchrTypography.micro)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-
-            Button("Terms of Service") {
-                // TODO: Open terms URL
-            }
-            .font(SanchrTypography.micro)
-            .foregroundColor(.sanchrPrimary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.bottom, SanchrSpacing.md)
+        Text("By continuing, you agree to our Privacy Policy and Terms of Service")
+            .font(SanchrTypography.captionSmall)
+            .foregroundColor(SanchrExportColors.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
     }
+
+    #if DEBUG
+    private var debugResetSection: some View {
+        Button {
+            Task { await container.resetLocalSecretsForDebug() }
+        } label: {
+            Text("Reset Local Secrets")
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrColors.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(hex: 0xEEF2FF))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+    #endif
 
 }

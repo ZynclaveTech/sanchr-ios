@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreImage.CIFilterBuiltins
 import Kingfisher
 import SwiftUI
@@ -645,6 +646,16 @@ private struct VerifySecurityCodeView: View {
     @State private var fingerprintRaw: String = ""
     @State private var qrImage: UIImage?
     @State private var loadError: String?
+    @State private var isVerified = false
+    @State private var showVerifiedAlert = false
+    @State private var showScannerSheet = false
+    @State private var scanResult: ScanResultType?
+
+    enum ScanResultType {
+        case match
+        case mismatch
+        case error(String)
+    }
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -663,7 +674,66 @@ private struct VerifySecurityCodeView: View {
             verifyFooter
         }
         .navigationBarHidden(true)
-        .task { await loadFingerprint() }
+        .task {
+            await loadFingerprint()
+            if let recipientId = recipient?.id {
+                isVerified = container.signalProtocol.isIdentityVerified(userId: recipientId)
+            }
+        }
+        .sheet(isPresented: $showScannerSheet) {
+            QRScannerSheet(
+                onScanned: { scannedData in
+                    showScannerSheet = false
+                    guard let recipientId = recipient?.id else { return }
+                    do {
+                        let matches = try container.signalProtocol.compareFingerprint(
+                            scannedData, for: recipientId, deviceId: 1
+                        )
+                        if matches {
+                            container.signalProtocol.markIdentityVerified(userId: recipientId)
+                            isVerified = true
+                            scanResult = .match
+                        } else {
+                            scanResult = .mismatch
+                        }
+                    } catch {
+                        scanResult = .error(error.localizedDescription)
+                    }
+                },
+                onCancel: { showScannerSheet = false }
+            )
+        }
+        .alert(
+            scanResultTitle,
+            isPresented: Binding(
+                get: { scanResult != nil },
+                set: { if !$0 { scanResult = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { scanResult = nil }
+        } message: {
+            Text(scanResultMessage)
+        }
+        .alert(
+            isVerified ? "Already Verified" : "Mark as Verified",
+            isPresented: $showVerifiedAlert
+        ) {
+            if !isVerified {
+                Button("Verify") {
+                    if let recipientId = recipient?.id {
+                        container.signalProtocol.markIdentityVerified(userId: recipientId)
+                        isVerified = true
+                    }
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            if isVerified {
+                Text("This contact's identity has already been verified.")
+            } else {
+                Text("Have you compared security codes with your contact and confirmed they match?")
+            }
+        }
     }
 
     private func loadFingerprint() async {
@@ -716,6 +786,24 @@ private struct VerifySecurityCodeView: View {
         let context = CIContext()
         guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
         return UIImage(cgImage: cgImage)
+    }
+
+    private var scanResultTitle: String {
+        switch scanResult {
+        case .match: return "Verified"
+        case .mismatch: return "Not Matched"
+        case .error: return "Error"
+        case nil: return ""
+        }
+    }
+
+    private var scanResultMessage: String {
+        switch scanResult {
+        case .match: return "Security codes match. This conversation is verified and secure."
+        case .mismatch: return "Security codes do not match. This may indicate a security issue."
+        case .error(let msg): return "Could not verify: \(msg)"
+        case nil: return ""
+        }
     }
 
     // MARK: - Gradient Header
@@ -850,7 +938,9 @@ private struct VerifySecurityCodeView: View {
                         }
                 }
 
-            Button {} label: {
+            Button {
+                showScannerSheet = true
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "qrcode.viewfinder")
                         .font(.system(size: 16, weight: .semibold))
@@ -1056,10 +1146,16 @@ private struct VerifySecurityCodeView: View {
 
     private var verifyFooter: some View {
         VStack(spacing: 0) {
-            Button {} label: {
-                SanchrGradientButtonLabel(title: "Mark as Verified", systemName: "checkmark.shield.fill")
+            Button {
+                showVerifiedAlert = true
+            } label: {
+                SanchrGradientButtonLabel(
+                    title: isVerified ? "Verified" : "Mark as Verified",
+                    systemName: isVerified ? "checkmark.seal.fill" : "checkmark.shield.fill"
+                )
             }
             .buttonStyle(SanchrPrimaryCTA())
+            .opacity(isVerified ? 0.7 : 1.0)
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
@@ -1472,5 +1568,125 @@ private struct SearchConversationView: View {
         }
         .background(SanchrExportColors.background)
         .onAppear { isFocused = true }
+    }
+}
+
+// MARK: - QR Code Scanner
+
+private struct QRScannerSheet: View {
+    let onScanned: (Data) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                QRScannerRepresentable(onScanned: onScanned)
+                    .ignoresSafeArea()
+
+                VStack {
+                    Spacer()
+                    Text("Point your camera at the QR code on your contact's device")
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 16)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .padding(.bottom, 60)
+                }
+            }
+            .navigationTitle("Scan QR Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                }
+            }
+        }
+    }
+}
+
+private struct QRScannerRepresentable: UIViewControllerRepresentable {
+    let onScanned: (Data) -> Void
+
+    func makeUIViewController(context: Context) -> QRScannerViewController {
+        QRScannerViewController(onScanned: onScanned)
+    }
+
+    func updateUIViewController(_ uiViewController: QRScannerViewController, context: Context) {}
+}
+
+private class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    private let onScanned: (Data) -> Void
+    private let captureSession = AVCaptureSession()
+    private var hasScanned = false
+
+    init(onScanned: @escaping (Data) -> Void) {
+        self.onScanned = onScanned
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupCamera()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if let previewLayer = view.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
+            previewLayer.frame = view.bounds
+        }
+    }
+
+    private func setupCamera() {
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device) else { return }
+
+        if captureSession.canAddInput(input) {
+            captureSession.addInput(input)
+        }
+
+        let output = AVCaptureMetadataOutput()
+        if captureSession.canAddOutput(output) {
+            captureSession.addOutput(output)
+            output.setMetadataObjectsDelegate(self, queue: .main)
+            output.metadataObjectTypes = [.qr]
+        }
+
+        let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer.frame = view.bounds
+        previewLayer.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(previewLayer)
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.captureSession.startRunning()
+        }
+    }
+
+    func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
+        guard !hasScanned,
+              let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let stringValue = object.stringValue,
+              let data = stringValue.data(using: .utf8) else { return }
+
+        hasScanned = true
+        captureSession.stopRunning()
+
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        onScanned(data)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if captureSession.isRunning {
+            captureSession.stopRunning()
+        }
     }
 }

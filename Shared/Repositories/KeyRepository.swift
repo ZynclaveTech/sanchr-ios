@@ -74,6 +74,6 @@ final class KeyRepositoryImpl: KeyRepositoryProtocol, @unchecked Sendable {
 
         let response = try await grpcClient.keyService.getUserDevices(request)
 
-        return response.deviceIds
+        return response.devices.filter(\.keyCapable).map(\.deviceID)
     }
 }

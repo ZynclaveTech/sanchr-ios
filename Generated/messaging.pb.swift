@@ -25,6 +25,90 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+enum Vync_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+  typealias RawValue = Int
+  case unspecified // = 0
+  case online // = 1
+  case offline // = 2
+  case hidden // = 3
+  case UNRECOGNIZED(Int)
+
+  init() {
+    self = .unspecified
+  }
+
+  init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .online
+    case 2: self = .offline
+    case 3: self = .hidden
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .online: return 1
+    case .offline: return 2
+    case .hidden: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  static let allCases: [Vync_Messaging_PresenceStatus] = [
+    .unspecified,
+    .online,
+    .offline,
+    .hidden,
+  ]
+
+}
+
+enum Vync_Messaging_DevicePresenceState: SwiftProtobuf.Enum, Swift.CaseIterable {
+  typealias RawValue = Int
+  case deviceStateUnspecified // = 0
+  case foreground // = 1
+  case background // = 2
+  case offlineDevice // = 3
+  case UNRECOGNIZED(Int)
+
+  init() {
+    self = .deviceStateUnspecified
+  }
+
+  init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .deviceStateUnspecified
+    case 1: self = .foreground
+    case 2: self = .background
+    case 3: self = .offlineDevice
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  var rawValue: Int {
+    switch self {
+    case .deviceStateUnspecified: return 0
+    case .foreground: return 1
+    case .background: return 2
+    case .offlineDevice: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  static let allCases: [Vync_Messaging_DevicePresenceState] = [
+    .deviceStateUnspecified,
+    .foreground,
+    .background,
+    .offlineDevice,
+  ]
+
+}
+
 struct Vync_Messaging_StartDirectConversationRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -336,6 +420,10 @@ struct Vync_Messaging_PresenceHeartbeat: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  var deviceState: Vync_Messaging_DevicePresenceState = .deviceStateUnspecified
+
+  var sentAtMs: Int64 = 0
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -351,6 +439,8 @@ struct Vync_Messaging_PresenceUpdate: Sendable {
   var status: String = String()
 
   var lastSeen: Int64 = 0
+
+  var statusCode: Vync_Messaging_PresenceStatus = .unspecified
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -465,6 +555,30 @@ struct Vync_Messaging_GetConversationsResponse: Sendable {
   init() {}
 }
 
+struct Vync_Messaging_GetPresenceSnapshotRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var userIds: [String] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Vync_Messaging_GetPresenceSnapshotResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var users: [Vync_Messaging_PresenceUpdate] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
 struct Vync_Messaging_Conversation: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -478,6 +592,24 @@ struct Vync_Messaging_Conversation: Sendable {
 
   var unreadCount: Int32 = 0
 
+  var participants: [Vync_Messaging_Participant] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Vync_Messaging_Participant: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var userID: String = String()
+
+  var displayName: String = String()
+
+  var avatarURL: String = String()
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -486,6 +618,14 @@ struct Vync_Messaging_Conversation: Sendable {
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "vync.messaging"
+
+extension Vync_Messaging_PresenceStatus: SwiftProtobuf._ProtoNameProviding {
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0PRESENCE_STATUS_UNSPECIFIED\0\u{1}ONLINE\0\u{1}OFFLINE\0\u{1}HIDDEN\0")
+}
+
+extension Vync_Messaging_DevicePresenceState: SwiftProtobuf._ProtoNameProviding {
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DEVICE_STATE_UNSPECIFIED\0\u{1}FOREGROUND\0\u{1}BACKGROUND\0\u{1}OFFLINE_DEVICE\0")
+}
 
 extension Vync_Messaging_StartDirectConversationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".StartDirectConversationRequest"
@@ -1179,18 +1319,34 @@ extension Vync_Messaging_ReceiptUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Vync_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".PresenceHeartbeat"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_state\0\u{3}sent_at_ms\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.deviceState) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.sentAtMs) }()
+      default: break
+      }
+    }
   }
 
   func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.deviceState != .deviceStateUnspecified {
+      try visitor.visitSingularEnumField(value: self.deviceState, fieldNumber: 1)
+    }
+    if self.sentAtMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.sentAtMs, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   static func ==(lhs: Vync_Messaging_PresenceHeartbeat, rhs: Vync_Messaging_PresenceHeartbeat) -> Bool {
+    if lhs.deviceState != rhs.deviceState {return false}
+    if lhs.sentAtMs != rhs.sentAtMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1198,7 +1354,7 @@ extension Vync_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".PresenceUpdate"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}status\0\u{3}last_seen\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}status\0\u{3}last_seen\0\u{3}status_code\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1209,6 +1365,7 @@ extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularStringField(value: &self.userID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.status) }()
       case 3: try { try decoder.decodeSingularInt64Field(value: &self.lastSeen) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.statusCode) }()
       default: break
       }
     }
@@ -1224,6 +1381,9 @@ extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.lastSeen != 0 {
       try visitor.visitSingularInt64Field(value: self.lastSeen, fieldNumber: 3)
     }
+    if self.statusCode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.statusCode, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1231,6 +1391,7 @@ extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.userID != rhs.userID {return false}
     if lhs.status != rhs.status {return false}
     if lhs.lastSeen != rhs.lastSeen {return false}
+    if lhs.statusCode != rhs.statusCode {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1488,9 +1649,69 @@ extension Vync_Messaging_GetConversationsResponse: SwiftProtobuf.Message, SwiftP
   }
 }
 
+extension Vync_Messaging_GetPresenceSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".GetPresenceSnapshotRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_ids\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.userIds) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.userIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.userIds, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_GetPresenceSnapshotRequest, rhs: Vync_Messaging_GetPresenceSnapshotRequest) -> Bool {
+    if lhs.userIds != rhs.userIds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_GetPresenceSnapshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".GetPresenceSnapshotResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.users) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.users.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.users, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_GetPresenceSnapshotResponse, rhs: Vync_Messaging_GetPresenceSnapshotResponse) -> Bool {
+    if lhs.users != rhs.users {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Conversation"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{3}participant_ids\0\u{3}unread_count\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{3}participant_ids\0\u{3}unread_count\0\u{1}participants\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1502,6 +1723,7 @@ extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 2: try { try decoder.decodeSingularStringField(value: &self.type) }()
       case 3: try { try decoder.decodeRepeatedStringField(value: &self.participantIds) }()
       case 4: try { try decoder.decodeSingularInt32Field(value: &self.unreadCount) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.participants) }()
       default: break
       }
     }
@@ -1520,6 +1742,9 @@ extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if self.unreadCount != 0 {
       try visitor.visitSingularInt32Field(value: self.unreadCount, fieldNumber: 4)
     }
+    if !self.participants.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.participants, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1528,6 +1753,47 @@ extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.type != rhs.type {return false}
     if lhs.participantIds != rhs.participantIds {return false}
     if lhs.unreadCount != rhs.unreadCount {return false}
+    if lhs.participants != rhs.participants {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".Participant"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.userID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.userID.isEmpty {
+      try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 2)
+    }
+    if !self.avatarURL.isEmpty {
+      try visitor.visitSingularStringField(value: self.avatarURL, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Messaging_Participant, rhs: Vync_Messaging_Participant) -> Bool {
+    if lhs.userID != rhs.userID {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

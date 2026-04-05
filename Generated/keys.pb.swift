@@ -36,6 +36,8 @@ struct Vync_Keys_SignedPreKey: Sendable {
 
   var signature: Data = Data()
 
+  var timestamp: Int64 = 0
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -49,6 +51,24 @@ struct Vync_Keys_OneTimePreKey: Sendable {
   var keyID: Int32 = 0
 
   var publicKey: Data = Data()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Vync_Keys_KyberPreKey: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var keyID: Int32 = 0
+
+  var publicKey: Data = Data()
+
+  var signature: Data = Data()
+
+  var timestamp: Int64 = 0
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -73,11 +93,25 @@ struct Vync_Keys_KeyBundle: Sendable {
 
   var oneTimePreKeys: [Vync_Keys_OneTimePreKey] = []
 
+  var registrationID: Int32 = 0
+
+  var deviceID: Int32 = 0
+
+  var kyberPreKey: Vync_Keys_KyberPreKey {
+    get {_kyberPreKey ?? Vync_Keys_KyberPreKey()}
+    set {_kyberPreKey = newValue}
+  }
+  /// Returns true if `kyberPreKey` has been explicitly set.
+  var hasKyberPreKey: Bool {self._kyberPreKey != nil}
+  /// Clears the value of `kyberPreKey`. Subsequent reads from it will return its default value.
+  mutating func clearKyberPreKey() {self._kyberPreKey = nil}
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 
   fileprivate var _signedPreKey: Vync_Keys_SignedPreKey? = nil
+  fileprivate var _kyberPreKey: Vync_Keys_KyberPreKey? = nil
 }
 
 struct Vync_Keys_UploadKeyBundleResponse: Sendable {
@@ -131,12 +165,24 @@ struct Vync_Keys_PreKeyBundleResponse: Sendable {
 
   var deviceID: Int32 = 0
 
+  var registrationID: Int32 = 0
+
+  var kyberPreKey: Vync_Keys_KyberPreKey {
+    get {_kyberPreKey ?? Vync_Keys_KyberPreKey()}
+    set {_kyberPreKey = newValue}
+  }
+  /// Returns true if `kyberPreKey` has been explicitly set.
+  var hasKyberPreKey: Bool {self._kyberPreKey != nil}
+  /// Clears the value of `kyberPreKey`. Subsequent reads from it will return its default value.
+  mutating func clearKyberPreKey() {self._kyberPreKey = nil}
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 
   fileprivate var _signedPreKey: Vync_Keys_SignedPreKey? = nil
   fileprivate var _oneTimePreKey: Vync_Keys_OneTimePreKey? = nil
+  fileprivate var _kyberPreKey: Vync_Keys_KyberPreKey? = nil
 }
 
 struct Vync_Keys_UploadOneTimePreKeysRequest: Sendable {
@@ -190,7 +236,27 @@ struct Vync_Keys_GetUserDevicesResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var deviceIds: [Int32] = []
+  var devices: [Vync_Keys_DeviceInfo] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Vync_Keys_DeviceInfo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var deviceID: Int32 = 0
+
+  var platform: String = String()
+
+  var supportsDeliveryAck: Bool = false
+
+  var keyCapable: Bool = false
+
+  var lastActiveAt: Int64 = 0
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -203,7 +269,7 @@ fileprivate let _protobuf_package = "vync.keys"
 
 extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".SignedPreKey"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -214,6 +280,7 @@ extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       case 1: try { try decoder.decodeSingularInt32Field(value: &self.keyID) }()
       case 2: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self.signature) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.timestamp) }()
       default: break
       }
     }
@@ -229,6 +296,9 @@ extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if !self.signature.isEmpty {
       try visitor.visitSingularBytesField(value: self.signature, fieldNumber: 3)
     }
+    if self.timestamp != 0 {
+      try visitor.visitSingularInt64Field(value: self.timestamp, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -236,6 +306,7 @@ extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.signature != rhs.signature {return false}
+    if lhs.timestamp != rhs.timestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -276,9 +347,54 @@ extension Vync_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
+extension Vync_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".KyberPreKey"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.keyID) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.signature) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.timestamp) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.keyID != 0 {
+      try visitor.visitSingularInt32Field(value: self.keyID, fieldNumber: 1)
+    }
+    if !self.publicKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.publicKey, fieldNumber: 2)
+    }
+    if !self.signature.isEmpty {
+      try visitor.visitSingularBytesField(value: self.signature, fieldNumber: 3)
+    }
+    if self.timestamp != 0 {
+      try visitor.visitSingularInt64Field(value: self.timestamp, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Keys_KyberPreKey, rhs: Vync_Keys_KyberPreKey) -> Bool {
+    if lhs.keyID != rhs.keyID {return false}
+    if lhs.publicKey != rhs.publicKey {return false}
+    if lhs.signature != rhs.signature {return false}
+    if lhs.timestamp != rhs.timestamp {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".KeyBundle"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_keys\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_keys\0\u{3}registration_id\0\u{3}device_id\0\u{3}kyber_pre_key\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -289,6 +405,9 @@ extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
       case 1: try { try decoder.decodeSingularBytesField(value: &self.identityPublicKey) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signedPreKey) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.oneTimePreKeys) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.registrationID) }()
+      case 5: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._kyberPreKey) }()
       default: break
       }
     }
@@ -308,6 +427,15 @@ extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     if !self.oneTimePreKeys.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.oneTimePreKeys, fieldNumber: 3)
     }
+    if self.registrationID != 0 {
+      try visitor.visitSingularInt32Field(value: self.registrationID, fieldNumber: 4)
+    }
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 5)
+    }
+    try { if let v = self._kyberPreKey {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -315,6 +443,9 @@ extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     if lhs.identityPublicKey != rhs.identityPublicKey {return false}
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs.oneTimePreKeys != rhs.oneTimePreKeys {return false}
+    if lhs.registrationID != rhs.registrationID {return false}
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs._kyberPreKey != rhs._kyberPreKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -376,7 +507,7 @@ extension Vync_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".PreKeyBundleResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_key\0\u{3}device_id\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_key\0\u{3}device_id\0\u{3}registration_id\0\u{3}kyber_pre_key\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -388,6 +519,8 @@ extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signedPreKey) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._oneTimePreKey) }()
       case 4: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 5: try { try decoder.decodeSingularInt32Field(value: &self.registrationID) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._kyberPreKey) }()
       default: break
       }
     }
@@ -410,6 +543,12 @@ extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._
     if self.deviceID != 0 {
       try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 4)
     }
+    if self.registrationID != 0 {
+      try visitor.visitSingularInt32Field(value: self.registrationID, fieldNumber: 5)
+    }
+    try { if let v = self._kyberPreKey {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -418,6 +557,8 @@ extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs._oneTimePreKey != rhs._oneTimePreKey {return false}
     if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.registrationID != rhs.registrationID {return false}
+    if lhs._kyberPreKey != rhs._kyberPreKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -534,7 +675,7 @@ extension Vync_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobuf.
 
 extension Vync_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".GetUserDevicesResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_ids\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -542,21 +683,71 @@ extension Vync_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedInt32Field(value: &self.deviceIds) }()
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.devices) }()
       default: break
       }
     }
   }
 
   func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.deviceIds.isEmpty {
-      try visitor.visitPackedInt32Field(value: self.deviceIds, fieldNumber: 1)
+    if !self.devices.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.devices, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   static func ==(lhs: Vync_Keys_GetUserDevicesResponse, rhs: Vync_Keys_GetUserDevicesResponse) -> Bool {
-    if lhs.deviceIds != rhs.deviceIds {return false}
+    if lhs.devices != rhs.devices {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{1}platform\0\u{3}supports_delivery_ack\0\u{3}key_capable\0\u{3}last_active_at\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.platform) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.supportsDeliveryAck) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.keyCapable) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.lastActiveAt) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 1)
+    }
+    if !self.platform.isEmpty {
+      try visitor.visitSingularStringField(value: self.platform, fieldNumber: 2)
+    }
+    if self.supportsDeliveryAck != false {
+      try visitor.visitSingularBoolField(value: self.supportsDeliveryAck, fieldNumber: 3)
+    }
+    if self.keyCapable != false {
+      try visitor.visitSingularBoolField(value: self.keyCapable, fieldNumber: 4)
+    }
+    if self.lastActiveAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.lastActiveAt, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Vync_Keys_DeviceInfo, rhs: Vync_Keys_DeviceInfo) -> Bool {
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.platform != rhs.platform {return false}
+    if lhs.supportsDeliveryAck != rhs.supportsDeliveryAck {return false}
+    if lhs.keyCapable != rhs.keyCapable {return false}
+    if lhs.lastActiveAt != rhs.lastActiveAt {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

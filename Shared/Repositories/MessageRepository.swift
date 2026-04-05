@@ -21,11 +21,23 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Opens a bidirectional message stream for real-time delivery.
     func openMessageStream() async throws -> AsyncStream<RealtimeEvent>
 
+    /// Closes the shared bidirectional message stream.
+    func closeMessageStream() async
+
     /// Sends a typing indicator to a conversation.
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws
 
+    /// Sends a device presence heartbeat through the live realtime stream.
+    func sendPresenceHeartbeat(
+        deviceState: Vync_Messaging_DevicePresenceState,
+        sentAtMs: Int64
+    ) async throws
+
     /// Fetches the pre-key bundle for a user to establish an encrypted session.
     func fetchPreKeyBundle(userId: String) async throws -> Data
+
+    /// Fetches current presence state for authorized peers.
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate]
 
     /// Drains pending messages from the server, decrypts, and saves locally.
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult
@@ -39,6 +51,40 @@ struct MessageSyncResult: Sendable {
     let latestTimestamp: Int64
 }
 
+private actor MessageStreamController {
+    private var continuation: AsyncStream<Vync_Messaging_ClientEvent>.Continuation?
+    private var pendingEvents: [Vync_Messaging_ClientEvent] = []
+
+    func begin() -> AsyncStream<Vync_Messaging_ClientEvent> {
+        continuation?.finish()
+        return AsyncStream(bufferingPolicy: .bufferingNewest(64)) { continuation in
+            Task {
+                self.setContinuation(continuation)
+            }
+        }
+    }
+
+    func send(_ event: Vync_Messaging_ClientEvent) {
+        if let continuation {
+            continuation.yield(event)
+        } else {
+            pendingEvents.append(event)
+        }
+    }
+
+    func finish() {
+        continuation?.finish()
+        continuation = nil
+        pendingEvents.removeAll(keepingCapacity: false)
+    }
+
+    private func setContinuation(_ continuation: AsyncStream<Vync_Messaging_ClientEvent>.Continuation) {
+        self.continuation = continuation
+        pendingEvents.forEach { continuation.yield($0) }
+        pendingEvents.removeAll(keepingCapacity: false)
+    }
+}
+
 // MARK: - Implementation
 
 final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendable {
@@ -47,15 +93,19 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
+    private let currentUserIdProvider: @Sendable () -> String?
+    private let streamController = MessageStreamController()
 
     init(
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
-        signalProtocol: SignalProtocolManagerProtocol
+        signalProtocol: SignalProtocolManagerProtocol,
+        currentUserIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
         self.signalProtocol = signalProtocol
+        self.currentUserIdProvider = currentUserIdProvider
     }
 
     func sendMessage(_ message: Message) async throws -> Message {
@@ -110,6 +160,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         )
 
         try await localDatabase.saveMessage(updatedMessage)
+        await MainActor.run {
+            NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+        }
 
         SanchrLogger.chat.info("Message sent successfully: \(updatedMessage.id)")
         return updatedMessage
@@ -130,31 +183,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let response = try await grpcClient.messagingService.getConversations(request)
             let cachedConversations = (try? await localDatabase.fetchConversations()) ?? []
             let cachedLookup = Dictionary(uniqueKeysWithValues: cachedConversations.map { ($0.id, $0) })
-
-            // Build a contacts lookup to resolve participant names
-            let contacts = (try? await localDatabase.fetchContacts()) ?? []
-            let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+            let currentUserId = self.currentUserIdProvider()
 
             let conversations = response.conversations.map { conv -> Conversation in
                 let convType: Conversation.ConversationType = conv.type == "group" ? .group : .oneToOne
                 let cachedConversation = cachedLookup[conv.id]
-
-                let participants = conv.participantIds.map { participantId -> User in
-                    if let cached = contactsLookup[participantId] {
-                        return cached
-                    }
-                    return User(
-                        id: participantId,
-                        phoneNumber: "",
-                        displayName: participantId,
-                        avatarURL: nil,
-                        bio: nil,
-                        isVerified: false,
-                        lastSeen: nil,
-                        identityKeyFingerprint: nil,
-                        status: .offline
-                    )
-                }
 
                 let updatedAt = cachedConversation?.updatedAt
                     ?? cachedConversation?.lastMessage?.timestamp
@@ -163,8 +196,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
                 return Conversation(
                     id: conv.id,
-                    participants: participants,
-                    lastMessage: cachedConversation?.lastMessage,
+                    participants: ChatDataSource.mapToDomainConversation(
+                        conv,
+                        localUserId: currentUserId
+                    ).participants,
+                    lastMessage: nil,
                     unreadCount: Int(conv.unreadCount),
                     isPinned: cachedConversation?.isPinned ?? false,
                     isMuted: cachedConversation?.isMuted ?? false,
@@ -180,12 +216,12 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 try? await localDatabase.saveConversation(conversation)
             }
 
-            return conversations
+            return try await normalizedLocalConversations(currentUserId: currentUserId)
         } catch {
             SanchrLogger.chat.warning(
                 "Fetching conversations from server failed, using local cache: \(error.localizedDescription)"
             )
-            return try await localDatabase.fetchConversations()
+            return try await normalizedLocalConversations(currentUserId: currentUserIdProvider())
         }
     }
 
@@ -222,10 +258,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     func openMessageStream() async throws -> AsyncStream<RealtimeEvent> {
         SanchrLogger.chat.info("Opening bidirectional message stream")
 
-        // Use the async bidirectional stream API.
-        // We send an initial empty sequence and listen for server events.
-        let emptyRequests: [Vync_Messaging_ClientEvent] = []
-        let responseStream = grpcClient.messagingService.messageStream(emptyRequests)
+        let requestStream = await streamController.begin()
+        let responseStream = grpcClient.messagingService.messageStream(requestStream)
 
         return AsyncStream { continuation in
             let task = Task {
@@ -236,7 +270,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         switch event {
                         case .message(let envelope):
                             if let message = await self.decodeMessage(from: envelope) {
-                                try? await self.flushPendingAcks()
+                                _ = try? await self.flushPendingAcks()
                                 continuation.yield(.message(message))
                             }
                         case .typing(let indicator):
@@ -264,31 +298,47 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     SanchrLogger.chat.error("Message stream error: \(error)")
                     continuation.finish()
                 }
+                await self.streamController.finish()
             }
 
             continuation.onTermination = { _ in
                 task.cancel()
+                Task {
+                    await self.streamController.finish()
+                }
                 SanchrLogger.chat.info("Message stream terminated")
             }
         }
     }
 
+    func closeMessageStream() async {
+        await streamController.finish()
+    }
+
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {
         SanchrLogger.chat.info("Sending typing indicator: \(isTyping) for \(conversationId)")
 
-        // Send typing indicator via the message stream as a client event.
-        // Since we use unary-style for simplicity (the stream may not be open),
-        // we create a fresh short-lived bidi call to send the typing event.
         var typingIndicator = Vync_Messaging_TypingIndicator()
         typingIndicator.conversationID = conversationId
+        typingIndicator.userID = currentUserIdProvider() ?? ""
         typingIndicator.isTyping = isTyping
 
         var clientEvent = Vync_Messaging_ClientEvent()
         clientEvent.typing = typingIndicator
+        await streamController.send(clientEvent)
+    }
 
-        // Send as a single-element sequence
-        let requests = [clientEvent]
-        _ = grpcClient.messagingService.messageStream(requests)
+    func sendPresenceHeartbeat(
+        deviceState: Vync_Messaging_DevicePresenceState,
+        sentAtMs: Int64
+    ) async throws {
+        var heartbeat = Vync_Messaging_PresenceHeartbeat()
+        heartbeat.deviceState = deviceState
+        heartbeat.sentAtMs = sentAtMs
+
+        var clientEvent = Vync_Messaging_ClientEvent()
+        clientEvent.heartbeat = heartbeat
+        await streamController.send(clientEvent)
     }
 
     func fetchPreKeyBundle(userId: String) async throws -> Data {
@@ -302,6 +352,16 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         // Serialize the pre-key bundle response to Data for the caller
         return try response.serializedData()
+    }
+
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate] {
+        guard !userIds.isEmpty else { return [] }
+
+        var request = Vync_Messaging_GetPresenceSnapshotRequest()
+        request.userIds = userIds
+
+        let response = try await grpcClient.messagingService.getPresenceSnapshot(request)
+        return response.users
     }
 
     // MARK: - Sync
@@ -366,6 +426,18 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         }
     }
 
+    private static func detailedError(_ error: Error) -> String {
+        if let status = error as? GRPCStatus {
+            return "gRPC \(status.code) (\(status.code.rawValue)): \(status.message ?? "no message")"
+        }
+        let nsError = error as NSError
+        if nsError.domain == "io.grpc",
+           let statusCode = GRPCStatus.Code(rawValue: nsError.code) {
+            return "gRPC \(statusCode) (\(nsError.code)): \(nsError.localizedDescription)"
+        }
+        return "\(type(of: error)): \(error.localizedDescription)"
+    }
+
     private func decodeMessage(from envelope: Vync_Messaging_EncryptedEnvelope) async -> Message? {
         do {
             let plaintext = try await signalProtocol.decryptEnvelope(envelope)
@@ -388,11 +460,128 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 isOutgoing: false
             )
 
+            try? await ensureConversationShellExists(
+                conversationId: envelope.conversationID,
+                senderId: envelope.senderID,
+                serverTimestamp: serverTimestamp
+            )
             try? await localDatabase.saveIncomingMessageAndQueueAck(message)
             return message
         } catch {
             SanchrLogger.chat.error("Failed to decrypt message: \(error)")
             return nil
+        }
+    }
+
+    private func ensureConversationShellExists(
+        conversationId: String,
+        senderId: String,
+        serverTimestamp: Date
+    ) async throws {
+        if try await localDatabase.fetchConversation(id: conversationId) != nil {
+            return
+        }
+
+        SanchrLogger.chat.info(
+            "Conversation \(conversationId.prefix(8)) missing locally, hydrating shell before saving incoming message"
+        )
+
+        if let remoteConversation = try? await fetchRemoteConversation(id: conversationId) {
+            try await localDatabase.saveConversation(remoteConversation)
+            return
+        }
+
+        let localUserId = currentUserIdProvider()
+        var participants: [User] = []
+
+        if let localUserId {
+            participants.append(
+                User(
+                    id: localUserId,
+                    phoneNumber: "",
+                    displayName: "You",
+                    avatarURL: nil,
+                    bio: nil,
+                    isVerified: true,
+                    lastSeen: nil,
+                    identityKeyFingerprint: nil,
+                    status: .online,
+                    isLocalUser: true
+                )
+            )
+        }
+
+        participants.append(
+            User(
+                id: senderId,
+                phoneNumber: "",
+                displayName: senderId,
+                avatarURL: nil,
+                bio: nil,
+                isVerified: false,
+                lastSeen: nil,
+                identityKeyFingerprint: nil,
+                status: .offline,
+                isLocalUser: false
+            )
+        )
+
+        let placeholderConversation = Conversation(
+            id: conversationId,
+            participants: participants,
+            lastMessage: nil,
+            unreadCount: 0,
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: .oneToOne,
+            disappearingMessagesDuration: nil,
+            createdAt: serverTimestamp,
+            updatedAt: serverTimestamp
+        )
+
+        try await localDatabase.saveConversation(placeholderConversation)
+        SanchrLogger.chat.warning(
+            "Saved placeholder conversation shell for \(conversationId.prefix(8)) because server hydration was unavailable"
+        )
+    }
+
+    private func fetchRemoteConversation(id conversationId: String) async throws -> Conversation? {
+        let request = Vync_Messaging_GetConversationsRequest()
+        let response = try await grpcClient.messagingService.getConversations(request)
+        guard let protoConversation = response.conversations.first(where: { $0.id == conversationId }) else {
+            return nil
+        }
+
+        let contacts = (try? await localDatabase.fetchContacts()) ?? []
+        let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+        return ChatDataSource.mapToDomainConversation(
+            protoConversation,
+            contactsLookup: contactsLookup,
+            localUserId: currentUserIdProvider()
+        )
+    }
+
+    private func normalizedLocalConversations(currentUserId: String?) async throws -> [Conversation] {
+        let contacts = (try? await localDatabase.fetchContacts()) ?? []
+        let contactsLookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+        return try await localDatabase.fetchConversations().map { conversation in
+            var normalizedConversation = conversation
+            normalizedConversation.participants = conversation.participants.map { participant in
+                var normalizedParticipant = participant
+                let isLocal = participant.id == currentUserId
+                normalizedParticipant.isLocalUser = isLocal
+                if !isLocal, let contact = contactsLookup[participant.id] {
+                    if normalizedParticipant.displayName.isEmpty || normalizedParticipant.displayName == participant.id {
+                        normalizedParticipant.displayName = contact.displayName
+                    }
+                    if normalizedParticipant.avatarURL == nil {
+                        normalizedParticipant.avatarURL = contact.avatarURL
+                    }
+                }
+                return normalizedParticipant
+            }
+            return normalizedConversation
         }
     }
 

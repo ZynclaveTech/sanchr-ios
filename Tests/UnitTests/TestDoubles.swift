@@ -36,6 +36,9 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
     var installationId: String?
     var sessionSnapshot: SessionSnapshot?
     var databaseKey: String?
+    var deviceMasterSecret: Data?
+    var recoveryKey: String?
+    var backupConfiguration: BackupConfiguration?
 
     private(set) var deleteAllTokensCallCount = 0
     private(set) var deleteSessionDataCallCount = 0
@@ -107,6 +110,14 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         sessionSnapshot
     }
 
+    func saveDeviceMasterSecret(_ secret: Data) throws {
+        deviceMasterSecret = secret
+    }
+
+    func readDeviceMasterSecret() throws -> Data? {
+        deviceMasterSecret
+    }
+
     func saveDatabaseKey(_ key: String) throws {
         databaseKey = key
     }
@@ -125,6 +136,26 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         return generated
     }
 
+    func saveRecoveryKey(_ key: String) throws {
+        recoveryKey = key
+    }
+
+    func readRecoveryKey() throws -> String? {
+        recoveryKey
+    }
+
+    func saveBackupConfiguration(_ configuration: BackupConfiguration) throws {
+        backupConfiguration = configuration
+    }
+
+    func readBackupConfiguration() throws -> BackupConfiguration? {
+        backupConfiguration
+    }
+
+    func deleteBackupConfiguration() throws {
+        backupConfiguration = nil
+    }
+
     func deleteAllTokens() throws {
         deleteAllTokensCallCount += 1
         accessToken = nil
@@ -137,13 +168,22 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         deviceId = nil
         installationId = nil
         sessionSnapshot = nil
-        databaseKey = nil
     }
 
     func deleteAllKeys() throws {
         deleteAllKeysCallCount += 1
         identityKey = nil
         preKeys = []
+    }
+
+    func deleteDeviceSecrets() throws {
+        deviceMasterSecret = nil
+        databaseKey = nil
+    }
+
+    func deleteBackupMaterial() throws {
+        recoveryKey = nil
+        try deleteBackupConfiguration()
     }
 }
 
@@ -173,12 +213,6 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
 
     func changePassword(currentPassword: String, newPassword: String) async throws {}
 
-    func uploadPreKeyBundle(
-        identityKey: Data,
-        signedPreKey: Data,
-        signedPreKeySignature: Data,
-        oneTimePreKeys: [Data]
-    ) async throws {}
 }
 
 final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendable {
@@ -186,6 +220,9 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     private(set) var syncedTimestamps: [Int64] = []
     private(set) var openStreamCallCount = 0
     private(set) var flushPendingAcksCallCount = 0
+    private(set) var closeStreamCallCount = 0
+    private(set) var presenceHeartbeats: [Vync_Messaging_DevicePresenceState] = []
+    var presenceSnapshot: [Vync_Messaging_PresenceUpdate] = []
     var flushPendingAcksResult = 0
     private(set) var streamContinuation: AsyncStream<RealtimeEvent>.Continuation?
 
@@ -212,10 +249,27 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         }
     }
 
+    func closeMessageStream() async {
+        closeStreamCallCount += 1
+        streamContinuation?.finish()
+        streamContinuation = nil
+    }
+
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {}
+
+    func sendPresenceHeartbeat(
+        deviceState: Vync_Messaging_DevicePresenceState,
+        sentAtMs: Int64
+    ) async throws {
+        presenceHeartbeats.append(deviceState)
+    }
 
     func fetchPreKeyBundle(userId: String) async throws -> Data {
         Data()
+    }
+
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate] {
+        presenceSnapshot.filter { userIds.contains($0.userID) }
     }
 
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult {

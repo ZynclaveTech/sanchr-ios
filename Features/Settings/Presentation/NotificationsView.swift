@@ -5,139 +5,259 @@ import UserNotifications
 /// Matches Figma: notifications-screen.
 /// All toggles persist to the backend via the UpdateNotificationPrefs gRPC endpoint.
 struct NotificationsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
 
     @State private var viewModel = NotificationsViewModel()
 
     var body: some View {
-        List {
-            // MARK: - System Permission Banner
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                header
 
-            if !viewModel.systemPermissionGranted {
-                Section {
-                    HStack(spacing: SanchrSpacing.md) {
-                        Image(systemName: "bell.slash.fill")
-                            .foregroundColor(.sanchrWarning)
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: SanchrSpacing.xs) {
-                            Text("Notifications Disabled")
-                                .font(SanchrTypography.bodyBold)
-                            Text("Enable notifications in Settings to receive messages and calls.")
-                                .font(SanchrTypography.caption)
-                                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                        }
-                        Spacer()
-                        Button("Settings") {
-                            viewModel.openSystemSettings()
-                        }
-                        .font(SanchrTypography.caption.bold())
-                        .foregroundColor(.sanchrPrimary)
-                    }
-                    .padding(.vertical, SanchrSpacing.xs)
+                if !viewModel.systemPermissionGranted {
+                    permissionBanner
                 }
-                .listRowBackground(Color.sanchrSurface(colorScheme))
-            }
 
-            // MARK: - Messages
+                settingsSection(
+                    title: "Messages",
+                    rows: [
+                        AnyView(toggleRow(
+                            icon: "message.fill",
+                            tint: SanchrColors.primary,
+                            background: Color(hex: 0xEEF2FF),
+                            title: "Message notifications",
+                            subtitle: "Receive alerts for new direct messages",
+                            isOn: $viewModel.messageNotifications
+                        )),
+                        AnyView(toggleRow(
+                            icon: "text.bubble.fill",
+                            tint: SanchrColors.accent,
+                            background: Color(hex: 0xECFEFF),
+                            title: "Show previews",
+                            subtitle: "Display message content in notifications",
+                            isOn: $viewModel.showPreviews
+                        )),
+                        AnyView(toggleRow(
+                            icon: "speaker.wave.2.fill",
+                            tint: Color(hex: 0x7C3AED),
+                            background: Color(hex: 0xF5F3FF),
+                            title: "Sound",
+                            subtitle: "Play a sound when alerts arrive",
+                            isOn: $viewModel.soundEnabled
+                        )),
+                    ]
+                )
 
-            Section("Messages") {
-                Toggle("Message notifications", isOn: $viewModel.messageNotifications)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.messageNotifications) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
+                settingsSection(
+                    title: "Calls & Groups",
+                    rows: [
+                        AnyView(toggleRow(
+                            icon: "phone.fill",
+                            tint: Color(hex: 0x16A34A),
+                            background: Color(hex: 0xF0FDF4),
+                            title: "Call notifications",
+                            subtitle: "Ring for incoming voice and video calls",
+                            isOn: $viewModel.callNotifications
+                        )),
+                        AnyView(toggleRow(
+                            icon: "person.3.fill",
+                            tint: Color(hex: 0xCA8A04),
+                            background: Color(hex: 0xFEFCE8),
+                            title: "Group notifications",
+                            subtitle: "Get updates from group conversations",
+                            isOn: $viewModel.groupNotifications
+                        )),
+                        AnyView(toggleRow(
+                            icon: "iphone.radiowaves.left.and.right",
+                            tint: Color(hex: 0xDC2626),
+                            background: Color(hex: 0xFEF2F2),
+                            title: "Vibrate",
+                            subtitle: "Use haptics for important alerts",
+                            isOn: $viewModel.vibrateEnabled
+                        )),
+                    ]
+                )
 
-                Toggle("Show previews", isOn: $viewModel.showPreviews)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.showPreviews) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Delivery")
+                        .font(SanchrTypography.sectionLabel)
+                        .tracking(1.2)
+                        .foregroundColor(SanchrExportColors.textSecondary)
 
-                Toggle("Sound", isOn: $viewModel.soundEnabled)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.soundEnabled) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
-
-            // MARK: - Calls
-
-            Section("Calls") {
-                Toggle("Call notifications", isOn: $viewModel.callNotifications)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.callNotifications) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
-
-            // MARK: - Groups
-
-            Section("Groups") {
-                Toggle("Group notifications", isOn: $viewModel.groupNotifications)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.groupNotifications) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
-
-            // MARK: - Vibration
-
-            Section {
-                Toggle("Vibrate", isOn: $viewModel.vibrateEnabled)
-                    .tint(.sanchrPrimary)
-                    .onChange(of: viewModel.vibrateEnabled) { _, _ in
-                        viewModel.syncPreferences(using: container.notificationServiceClient)
-                    }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
-
-            // MARK: - Notification Tone
-
-            Section {
-                NavigationLink {
-                    NotificationSoundPicker(
-                        selectedSound: $viewModel.notificationSound,
-                        onSelect: {
-                            viewModel.syncPreferences(using: container.notificationServiceClient)
-                        }
-                    )
-                } label: {
-                    HStack {
-                        Text("Notification tone")
-                            .font(SanchrTypography.body)
-                        Spacer()
-                        Text(
-                            viewModel.notificationSound.isEmpty
-                                ? "Default" : viewModel.notificationSound
+                    NavigationLink {
+                        NotificationSoundPicker(
+                            selectedSound: $viewModel.notificationSound,
+                            onSelect: {
+                                viewModel.syncPreferences(using: container.notificationServiceClient)
+                            }
                         )
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                    } label: {
+                        HStack(spacing: 14) {
+                            iconTile(
+                                systemName: "music.note",
+                                tint: Color(hex: 0x2563EB),
+                                background: Color(hex: 0xEFF6FF)
+                            )
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Notification tone")
+                                    .font(SanchrTypography.bodyBold)
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                Text(viewModel.notificationSound.isEmpty ? "Default sound" : viewModel.notificationSound.capitalized)
+                                    .font(SanchrTypography.caption)
+                                    .foregroundColor(SanchrExportColors.textSecondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(SanchrExportColors.textTertiary)
+                        }
+                        .padding(16)
+                        .background(SanchrExportColors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
 
-            // MARK: - Error
-
-            if let error = viewModel.errorMessage {
-                Section {
+                if let error = viewModel.errorMessage {
                     Text(error)
                         .font(SanchrTypography.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(.sanchrError)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
                 }
-                .listRowBackground(Color.sanchrSurface(colorScheme))
             }
+            .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+            .padding(.bottom, 28)
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Notifications")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .navigationBarHidden(true)
         .task { @MainActor in
             await viewModel.checkSystemPermission()
         }
+    }
+
+    private var header: some View {
+        SanchrCenteredHeader(title: "Notification Preferences") {
+            SanchrIconButton(systemName: "chevron.left") {
+                dismiss()
+            }
+        } trailing: {
+            Color.clear
+        }
+    }
+
+    private var permissionBanner: some View {
+        HStack(spacing: 14) {
+            iconTile(
+                systemName: "bell.slash.fill",
+                tint: .sanchrWarning,
+                background: Color(hex: 0xFEF3C7)
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Notifications Disabled")
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text("Enable notifications in system settings to receive messages and calls.")
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+
+            Spacer()
+
+            Button("Settings") {
+                viewModel.openSystemSettings()
+            }
+            .font(SanchrTypography.caption)
+            .foregroundColor(.sanchrPrimary)
+        }
+        .padding(18)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color(hex: 0xFDE68A), lineWidth: 1)
+        }
+    }
+
+    private func settingsSection(title: String, rows: [AnyView]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(SanchrTypography.sectionLabel)
+                .tracking(1.2)
+                .foregroundColor(SanchrExportColors.textSecondary)
+
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    row
+
+                    if index < rows.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .background(SanchrExportColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+            }
+        }
+    }
+
+    private func toggleRow(
+        icon: String,
+        tint: Color,
+        background: Color,
+        title: String,
+        subtitle: String,
+        isOn: Binding<Bool>
+    ) -> some View {
+        HStack(spacing: 14) {
+            iconTile(systemName: icon, tint: tint, background: background)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text(subtitle)
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(.sanchrPrimary)
+                .onChange(of: isOn.wrappedValue) { _, _ in
+                    viewModel.syncPreferences(using: container.notificationServiceClient)
+                }
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(SanchrExportColors.surfaceMuted)
+            .frame(width: 42, height: 42)
+            .overlay {
+                Image(systemName: systemName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.sanchrPrimary)
+            }
     }
 }
 
@@ -145,6 +265,7 @@ struct NotificationsView: View {
 
 /// Simple picker view for selecting a notification sound.
 struct NotificationSoundPicker: View {
+    @Environment(\.dismiss) private var dismiss
     @Binding var selectedSound: String
     var onSelect: () -> Void
 
@@ -158,27 +279,61 @@ struct NotificationSoundPicker: View {
     ]
 
     var body: some View {
-        List {
-            ForEach(sounds, id: \.1) { name, value in
-                HStack {
-                    Text(name)
-                        .font(SanchrTypography.body)
-                    Spacer()
-                    if selectedSound == value {
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.sanchrPrimary)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                SanchrCenteredHeader(title: "Notification Tone") {
+                    SanchrIconButton(systemName: "chevron.left") {
+                        dismiss()
+                    }
+                } trailing: {
+                    Color.clear
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(Array(sounds.enumerated()), id: \.offset) { index, sound in
+                        let name = sound.0
+                        let value = sound.1
+
+                        Button {
+                            selectedSound = value
+                            onSelect()
+                        } label: {
+                            HStack {
+                                Text(name)
+                                    .font(SanchrTypography.bodyBold)
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+
+                                Spacer()
+
+                                if selectedSound == value {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.sanchrPrimary)
+                                }
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 16)
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < sounds.count - 1 {
+                            Divider()
+                                .padding(.leading, 18)
+                        }
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedSound = value
-                    onSelect()
+                .background(SanchrExportColors.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
                 }
+                .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+                .padding(.bottom, 28)
             }
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Notification Tone")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .navigationBarHidden(true)
     }
 }
 

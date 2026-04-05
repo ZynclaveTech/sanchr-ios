@@ -27,12 +27,19 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     /// Maps a remote `ProtocolAddress` (userId.deviceId) to the identity key we trust for them.
     private var trustedIdentities: [ProtocolAddress: IdentityKey] = [:]
 
+    /// Set of user IDs whose identity has been manually verified by the local user
+    /// (safety number comparison completed).
+    private var verifiedUserIds: Set<String> = []
+
     /// Serialisation queue to make trust store mutations thread-safe.
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.identity-store", attributes: .concurrent)
 
     /// File URL where the trusted identities dictionary is persisted.
     private let persistenceURL: URL
+
+    /// File URL where verified user IDs are persisted.
+    private let verifiedURL: URL
 
     // MARK: - Init
 
@@ -45,8 +52,10 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
         let dir = base.appendingPathComponent("SignalStore/\(userId)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         self.persistenceURL = dir.appendingPathComponent("trusted_identities.bin")
+        self.verifiedURL = dir.appendingPathComponent("verified_identities.bin")
 
         loadTrustedIdentitiesFromDisk()
+        loadVerifiedFromDisk()
     }
 
     // MARK: - IdentityKeyStore Protocol
@@ -105,8 +114,11 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
             )
             queue.sync(flags: .barrier) {
                 trustedIdentities[address] = identity
+                // Identity changed — reset verification
+                verifiedUserIds.remove(address.name)
             }
             saveTrustedIdentitiesToDisk()
+            saveVerifiedToDisk()
         }
 
         return true
@@ -146,6 +158,30 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
     var hasIdentityKeys: Bool {
         let key = KeychainKeys.identityKeyPair(userId: userId)
         return (try? keychain.read(forKey: key)) != nil
+    }
+
+    // MARK: - Identity Verification
+
+    /// Returns whether the given user has been manually verified (safety number confirmed).
+    func isIdentityVerified(userId: String) -> Bool {
+        queue.sync { verifiedUserIds.contains(userId) }
+    }
+
+    /// Marks a user's identity as verified after safety number comparison.
+    func markIdentityVerified(userId: String) {
+        queue.sync(flags: .barrier) {
+            verifiedUserIds.insert(userId)
+        }
+        saveVerifiedToDisk()
+        SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
+    }
+
+    /// Removes verification for a user (e.g., after unblock or manual reset).
+    func unmarkIdentityVerified(userId: String) {
+        queue.sync(flags: .barrier) {
+            verifiedUserIds.remove(userId)
+        }
+        saveVerifiedToDisk()
     }
 
     // MARK: - Persistence Helpers
@@ -195,6 +231,30 @@ final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable {
         } catch {
             SanchrLogger.crypto.error(
                 "Failed to load trusted identities: \(error.localizedDescription)")
+        }
+    }
+
+    private func saveVerifiedToDisk() {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self else { return }
+            do {
+                let data = try JSONEncoder().encode(Array(self.verifiedUserIds))
+                try data.write(to: self.verifiedURL, options: .atomic)
+            } catch {
+                SanchrLogger.crypto.error("Failed to persist verified identities: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func loadVerifiedFromDisk() {
+        guard FileManager.default.fileExists(atPath: verifiedURL.path) else { return }
+        do {
+            let data = try Data(contentsOf: verifiedURL)
+            let ids = try JSONDecoder().decode([String].self, from: data)
+            verifiedUserIds = Set(ids)
+            SanchrLogger.crypto.info("Loaded \(verifiedUserIds.count) verified identities from disk")
+        } catch {
+            SanchrLogger.crypto.error("Failed to load verified identities: \(error.localizedDescription)")
         }
     }
 }

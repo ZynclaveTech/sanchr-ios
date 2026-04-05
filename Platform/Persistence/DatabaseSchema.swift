@@ -10,12 +10,6 @@ enum DatabaseSchema {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
-        // In DEBUG, wipe DB on schema change for faster iteration.
-        // In RELEASE, this is a no-op (migrations are incremental).
-        #if DEBUG
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
-
         migrator.registerMigration("v1_initial") { db in
             // ── Users / Contacts ──────────────────────────────────────
             try db.create(table: "user") { t in

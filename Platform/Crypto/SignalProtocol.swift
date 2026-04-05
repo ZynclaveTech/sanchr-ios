@@ -29,6 +29,18 @@ protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Generates a displayable safety number for identity verification.
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String
 
+    /// Generates the scannable fingerprint data for QR code comparison.
+    func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data
+
+    /// Compares a scanned fingerprint with the local one. Returns true if they match.
+    func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool
+
+    /// Marks a contact's identity as manually verified.
+    func markIdentityVerified(userId: String)
+
+    /// Returns whether a contact's identity has been manually verified.
+    func isIdentityVerified(userId: String) -> Bool
+
     /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
 }
@@ -251,6 +263,42 @@ final class SignalSessionManager: SignalProtocolManagerProtocol, @unchecked Send
         )
 
         return fingerprint.displayable.formatted
+    }
+
+    func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data {
+        let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+        let localIdentity = try store.identityStore.identityKeyPair(context: NullContext())
+            .identityKey
+        guard
+            let remoteIdentity = try store.identityStore.identity(
+                for: address, context: NullContext())
+        else {
+            throw AppError.sessionNotEstablished
+        }
+
+        let fingerprint = try NumericFingerprintGenerator(iterations: 5200).create(
+            version: 2,
+            localIdentifier: Data(store.userId.utf8),
+            localKey: localIdentity.publicKey,
+            remoteIdentifier: Data(userId.utf8),
+            remoteKey: remoteIdentity.publicKey
+        )
+
+        return fingerprint.scannable.encoding
+    }
+
+    func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool {
+        let localScannable = try scannableFingerprint(for: userId, deviceId: deviceId)
+        let localFingerprint = ScannableFingerprint(encoding: localScannable)
+        return try localFingerprint.compare(againstEncoding: scannedData)
+    }
+
+    func markIdentityVerified(userId: String) {
+        store.identityStore.markIdentityVerified(userId: userId)
+    }
+
+    func isIdentityVerified(userId: String) -> Bool {
+        store.identityStore.isIdentityVerified(userId: userId)
     }
 
     // MARK: - Diagnostics

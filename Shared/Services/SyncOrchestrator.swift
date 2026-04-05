@@ -40,6 +40,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     private let networkMonitor: NetworkMonitorProtocol
     private let localDatabase: LocalDatabaseProtocol
     private let realtimeService: RealtimeService
+    private let backupCoordinator: BackupCoordinator
     let syncState: SyncState
 
     private var syncTask: Task<Void, Never>?
@@ -59,6 +60,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         networkMonitor: NetworkMonitorProtocol,
         localDatabase: LocalDatabaseProtocol,
         realtimeService: RealtimeService,
+        backupCoordinator: BackupCoordinator,
         syncState: SyncState
     ) {
         self.messageRepository = messageRepository
@@ -69,6 +71,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
         self.networkMonitor = networkMonitor
         self.localDatabase = localDatabase
         self.realtimeService = realtimeService
+        self.backupCoordinator = backupCoordinator
         self.syncState = syncState
     }
 
@@ -184,6 +187,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             try await refreshConversations()
             try await replenishPreKeysIfNeeded()
             try await cleanExpiredVaultItems()
+            await backupCoordinator.performScheduledBackupIfNeeded()
             await updateBadgeCount()
 
             syncState.markSyncCompleted(messageCount: messageCount)
@@ -235,7 +239,10 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 // Phase 5: Clean expired vault items locally
                 try await orchestrator.cleanExpiredVaultItems()
 
-                // Phase 6: Update badge count
+                // Phase 6: Opportunistic encrypted backup when due
+                await orchestrator.backupCoordinator.performScheduledBackupIfNeeded()
+
+                // Phase 7: Update badge count
                 await orchestrator.updateBadgeCount()
 
                 orchestrator.syncState.markSyncCompleted(messageCount: messageCount)

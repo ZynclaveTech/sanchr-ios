@@ -25,6 +25,7 @@ protocol GRPCClientProtocol: Sendable {
     var settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol { get }
     var notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol { get }
     var vaultService: Vync_Vault_VaultServiceAsyncClientProtocol { get }
+    var backupService: Vync_Backup_BackupServiceAsyncClientProtocol { get }
 
     // MARK: - Call Service Client (separate channel)
 
@@ -60,6 +61,7 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
     let settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol
     let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
     let vaultService: Vync_Vault_VaultServiceAsyncClientProtocol
+    let backupService: Vync_Backup_BackupServiceAsyncClientProtocol
     let callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
 
     // MARK: - Init
@@ -113,6 +115,9 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
             channel: coreConn, interceptors: authInterceptors
         )
         vaultService = Vync_Vault_VaultServiceAsyncClient(
+            channel: coreConn, interceptors: authInterceptors
+        )
+        backupService = Vync_Backup_BackupServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
 

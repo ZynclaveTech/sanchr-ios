@@ -119,6 +119,7 @@ extension AuthInterceptorFactory: Vync_Messaging_MessagingServiceClientIntercept
     func makeDeleteMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_DeleteMessageRequest, Vync_Messaging_DeleteMessageResponse>] { makeInterceptors() }
     func makeSendReceiptInterceptors() -> [ClientInterceptor<Vync_Messaging_ReceiptRequest, Vync_Messaging_ReceiptResponse>] { makeInterceptors() }
     func makeGetConversationsInterceptors() -> [ClientInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>] { makeInterceptors() }
+    func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>] { makeInterceptors() }
 }
 
 // MARK: - ContactService Interceptors
@@ -173,6 +174,16 @@ extension AuthInterceptorFactory: Vync_Vault_VaultServiceClientInterceptorFactor
     func makeCreateVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>] { makeInterceptors() }
     func makeDeleteVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>] { makeInterceptors() }
     func makeShareVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>] { makeInterceptors() }
+}
+
+// MARK: - BackupService Interceptors
+
+extension AuthInterceptorFactory: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol {
+    func makeCreateBackupUploadInterceptors() -> [ClientInterceptor<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>] { makeInterceptors() }
+    func makeCommitBackupInterceptors() -> [ClientInterceptor<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>] { makeInterceptors() }
+    func makeListBackupsInterceptors() -> [ClientInterceptor<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>] { makeInterceptors() }
+    func makeGetBackupDownloadInterceptors() -> [ClientInterceptor<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>] { makeInterceptors() }
+    func makeDeleteBackupInterceptors() -> [ClientInterceptor<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>] { makeInterceptors() }
 }
 
 // MARK: - CallSignalingService Interceptors

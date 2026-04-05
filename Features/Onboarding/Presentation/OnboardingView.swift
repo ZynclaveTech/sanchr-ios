@@ -9,9 +9,9 @@ struct OnboardingProgressIndicator: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(1...totalSteps, id: \.self) { step in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(step <= currentStep ? Color.sanchrPrimary : Color(hex: 0x27272A))
-                    .frame(width: 28, height: 4)
+                Capsule()
+                    .fill(step <= currentStep ? Color.sanchrPrimary : Color(hex: 0xE5E7EB))
+                    .frame(width: 34, height: 6)
             }
         }
     }
@@ -22,6 +22,7 @@ struct OnboardingProgressIndicator: View {
 struct OnboardingView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = OnboardingViewModel()
+    let onFinish: () -> Void
 
     private var profileDataSource: ProfileDataSource {
         ProfileDataSource(grpcClient: container.grpcClient)
@@ -34,15 +35,18 @@ struct OnboardingView: View {
                 OnboardingNameStepView(viewModel: viewModel)
                     .transition(stepTransition)
             case 2:
-                OnboardingAvatarStepView(viewModel: viewModel)
-                    .transition(stepTransition)
-            case 3:
-                OnboardingWelcomeStepView(
+                OnboardingAvatarStepView(
                     viewModel: viewModel,
-                    pushManager: container.pushManager,
                     profileDataSource: profileDataSource,
                     mediaManager: container.mediaManager,
                     sessionService: container.sessionService
+                )
+                .transition(stepTransition)
+            case 3:
+                OnboardingContactSyncStepView(
+                    viewModel: viewModel,
+                    pushManager: container.pushManager,
+                    onFinish: onFinish
                 )
                 .transition(stepTransition)
             default:

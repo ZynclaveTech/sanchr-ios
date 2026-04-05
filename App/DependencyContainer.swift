@@ -4,6 +4,7 @@ import SwiftUI
 /// All services are lazily initialized and shared across the app.
 @Observable
 final class DependencyContainer: @unchecked Sendable {
+    var localDataIssue: AppError?
 
     // MARK: - Platform Services
 
@@ -12,6 +13,15 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var secureStorage: SecureStorageProtocol = SecureStorage(
         keychain: keychainService
     )
+
+    @ObservationIgnored lazy var deviceSecretProvider: DeviceSecretProviderProtocol =
+        DeviceSecretProvider(secureStorage: secureStorage)
+
+    @ObservationIgnored lazy var localDatabaseKeyProvider: LocalDatabaseKeyProviderProtocol =
+        LocalDatabaseKeyProvider(
+            secureStorage: secureStorage,
+            deviceSecrets: deviceSecretProvider
+        )
 
     @ObservationIgnored lazy var networkMonitor: NetworkMonitorProtocol = NetworkMonitor()
 
@@ -32,11 +42,7 @@ final class DependencyContainer: @unchecked Sendable {
         authInterceptors: authInterceptorFactory
     )
 
-    @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = LocalDatabase(
-        passphraseProvider: { [secureStorage] in
-            try secureStorage.readOrCreateDatabaseKey()
-        }
-    )
+    @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = makeLocalDatabase()
 
     // MARK: - Signal Protocol (E2EE)
 
@@ -77,12 +83,15 @@ final class DependencyContainer: @unchecked Sendable {
         secureStorage: secureStorage
     )
 
-    @ObservationIgnored lazy var messageRepository: MessageRepositoryProtocol =
-        MessageRepositoryImpl(
+    @ObservationIgnored lazy var messageRepository: MessageRepositoryProtocol = {
+        nonisolated(unsafe) weak var weakSelf = self
+        return MessageRepositoryImpl(
             grpcClient: grpcClient,
             localDatabase: localDatabase,
-            signalProtocol: signalSessionManager
+            signalProtocol: signalSessionManager,
+            currentUserIdProvider: { weakSelf?.sessionService.currentUserId }
         )
+    }()
 
     @ObservationIgnored lazy var contactRepository: ContactRepositoryProtocol =
         ContactRepositoryImpl(
@@ -116,6 +125,27 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var appLockManager: AppLockManager = AppLockManager()
 
+    @ObservationIgnored lazy var recoveryKeyManager: RecoveryKeyManagerProtocol = RecoveryKeyManager(
+        secureStorage: secureStorage
+    )
+
+    @ObservationIgnored lazy var backupKeyDeriver: BackupKeyDeriverProtocol = SignalBackupKeyDeriver()
+
+    @ObservationIgnored lazy var backupArchiveService: BackupArchiveServiceProtocol = BackupArchiveService(
+        grpcClient: grpcClient,
+        localDatabase: localDatabase
+    )
+
+    @ObservationIgnored lazy var backupCoordinator: BackupCoordinator = BackupCoordinator(
+        backupService: backupArchiveService,
+        recoveryKeyManager: recoveryKeyManager,
+        backupKeyDeriver: backupKeyDeriver,
+        currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId },
+        postRestore: { [weak self] in
+            await self?.rebootstrapSignalStateAfterRestore()
+        }
+    )
+
     // MARK: - Sync
 
     /// Tracks sync state across the app (last sync time, syncing indicator, errors).
@@ -131,6 +161,7 @@ final class DependencyContainer: @unchecked Sendable {
         networkMonitor: networkMonitor,
         localDatabase: localDatabase,
         realtimeService: realtimeService,
+        backupCoordinator: backupCoordinator,
         syncState: syncState
     )
 
@@ -222,6 +253,20 @@ final class DependencyContainer: @unchecked Sendable {
         // Eagerly start network monitoring if needed.
     }
 
+    private func makeLocalDatabase() -> LocalDatabaseProtocol {
+        do {
+            localDataIssue = nil
+            return try LocalDatabase(keyProvider: localDatabaseKeyProvider)
+        } catch let error as AppError {
+            localDataIssue = error
+            return UnavailableLocalDatabase(error: error)
+        } catch {
+            let wrapped = AppError.databaseError(reason: error.localizedDescription)
+            localDataIssue = wrapped
+            return UnavailableLocalDatabase(error: wrapped)
+        }
+    }
+
     // MARK: - gRPC Connection
 
     /// Establishes gRPC channels. Call this at app startup before making any service calls.
@@ -235,12 +280,31 @@ final class DependencyContainer: @unchecked Sendable {
         try await grpcClient.disconnect()
     }
 
+    func resetLocalDataAfterBootstrapFailure() async {
+        await resetLocalSecrets()
+    }
+
+    func resetLocalSecretsForDebug() async {
+        await resetLocalSecrets()
+    }
+
+    private func resetLocalSecrets() async {
+        realtimeService.stop()
+        callManager.resetState()
+        try? localDatabaseKeyProvider.resetDatabaseSecrets()
+        try? LocalDatabase.destroyDatabaseFiles()
+        localDatabase = makeLocalDatabase()
+    }
+
     // MARK: - Post-Auth Signal Store Configuration
 
     /// Re-initializes the Signal Protocol store with the authenticated user's ID.
     /// Call this after successful login/registration when `SessionService.currentUserId` is set.
     /// Migrates any keys stored under the "pending" placeholder to the real userId.
     func configureSignalStore(userId: String) {
+        realtimeService.stop()
+        syncOrchestrator.stopSync()
+
         // Migrate keys from "pending" placeholder to real userId if needed
         migrateSignalKeysIfNeeded(from: "pending", to: userId)
 
@@ -248,7 +312,33 @@ final class DependencyContainer: @unchecked Sendable {
         self.signalStore = store
         self.signalKeyManager = SignalKeyManager(store: store, keyService: grpcClient.keyService)
         self.signalSessionManager = SignalSessionManager(store: store, keyManager: signalKeyManager)
+        self.messageRepository = MessageRepositoryImpl(
+            grpcClient: grpcClient,
+            localDatabase: localDatabase,
+            signalProtocol: signalSessionManager,
+            currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId }
+        )
+        self.realtimeService = RealtimeService(
+            messageRepository: messageRepository,
+            signalKeyManager: signalKeyManager,
+            sessionService: sessionService,
+            callManager: callManager
+        )
+        self.syncOrchestrator = SyncOrchestrator(
+            messageRepository: messageRepository,
+            contactRepository: contactRepository,
+            vaultRepository: vaultRepository,
+            signalKeyManager: signalKeyManager,
+            sessionService: sessionService,
+            networkMonitor: networkMonitor,
+            localDatabase: localDatabase,
+            realtimeService: realtimeService,
+            backupCoordinator: backupCoordinator,
+            syncState: syncState
+        )
+        self.syncOrchestrator.registerHandlers()
         SanchrLogger.crypto.info("Signal Protocol store configured for user \(userId.prefix(8))...")
+        SanchrLogger.crypto.info("Rebuilt crypto-bound repositories and realtime services for authenticated user")
     }
 
     /// Migrates Signal Protocol Keychain entries and file-based stores from one userId to another.
@@ -290,9 +380,9 @@ final class DependencyContainer: @unchecked Sendable {
     private func wipeLocalSessionArtifacts() async {
         realtimeService.stop()
         callManager.resetState()
+        try? secureStorage.deleteAllKeys()
         try? await localDatabase.purgeAllData()
         try? await mediaManager.clearCache()
-        try? keychainService.deleteAll()
         removeSignalStoreDirectory()
         pushManager.resetUploadState()
         SanchrNotificationService.clearAllNotifications()
@@ -306,6 +396,25 @@ final class DependencyContainer: @unchecked Sendable {
         let signalStoreDir = base.appendingPathComponent("SignalStore", isDirectory: true)
         if FileManager.default.fileExists(atPath: signalStoreDir.path) {
             try? FileManager.default.removeItem(at: signalStoreDir)
+        }
+    }
+
+    private func rebootstrapSignalStateAfterRestore() async {
+        realtimeService.stop()
+        callManager.resetState()
+        try? secureStorage.deleteAllKeys()
+        removeSignalStoreDirectory()
+
+        guard let userId = sessionService.currentUserId else { return }
+
+        configureSignalStore(userId: userId)
+        do {
+            _ = try signalKeyManager.generateIdentityIfNeeded()
+            try await signalKeyManager.uploadInitialKeyBundle()
+        } catch {
+            SanchrLogger.crypto.error(
+                "Signal state rebootstrap after restore failed: \(error.localizedDescription)"
+            )
         }
     }
 }

@@ -7,6 +7,16 @@ import Foundation
 @Observable
 final class ChatsListViewModel {
 
+    // MARK: - Filter
+
+    enum ChatFilter: String, CaseIterable, Identifiable {
+        case all = "All"
+        case unread = "Unread"
+        case groups = "Groups"
+
+        var id: String { rawValue }
+    }
+
     // MARK: - State
 
     var conversations: [Conversation] = []
@@ -14,6 +24,7 @@ final class ChatsListViewModel {
     var isRefreshing: Bool = false
     var errorMessage: String?
     var showEncryptionBanner: Bool = true
+    var selectedFilter: ChatFilter = .all
 
     /// Total unread count across all conversations for badge display.
     var totalUnreadCount: Int {
@@ -69,15 +80,37 @@ final class ChatsListViewModel {
 
     // MARK: - Filtering & Sorting
 
-    /// Returns conversations filtered by search text.
+    /// Returns conversations filtered by search text and active filter tab.
     func filteredConversations(searchText: String) -> [Conversation] {
-        guard !searchText.isEmpty else {
-            return sortedConversations
+        var result = sortedConversations
+
+        // Apply filter tab
+        switch selectedFilter {
+        case .all:
+            break
+        case .unread:
+            result = result.filter { $0.unreadCount > 0 }
+        case .groups:
+            result = result.filter { $0.type == .group }
         }
-        let lowercased = searchText.lowercased()
-        return sortedConversations.filter { conversation in
-            conversation.displayName.lowercased().contains(lowercased)
+
+        // Apply search text
+        if !searchText.isEmpty {
+            let lowercased = searchText.lowercased()
+            result = result.filter { $0.displayName.lowercased().contains(lowercased) }
         }
+
+        return result
+    }
+
+    /// Conversations that are pinned (for the pinned section).
+    func pinnedConversations(searchText: String) -> [Conversation] {
+        filteredConversations(searchText: searchText).filter(\.isPinned)
+    }
+
+    /// Conversations that are not pinned (for the recent section).
+    func recentConversations(searchText: String) -> [Conversation] {
+        filteredConversations(searchText: searchText).filter { !$0.isPinned }
     }
 
     /// Conversations sorted by pinned status and last activity.
@@ -106,6 +139,18 @@ final class ChatsListViewModel {
         } catch {
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Failed to load conversations: \(error.localizedDescription)")
+        }
+    }
+
+    /// Fast local refresh used after realtime/local persistence updates so the list
+    /// reflects new previews immediately without waiting on a server roundtrip.
+    func loadCachedConversations(localDatabase: LocalDatabaseProtocol) async {
+        do {
+            conversations = try await localDatabase.fetchConversations()
+            errorMessage = nil
+            SanchrLogger.chat.info("Loaded \(self.conversations.count) cached conversations")
+        } catch {
+            SanchrLogger.chat.warning("Cached conversation refresh failed: \(error.localizedDescription)")
         }
     }
 
@@ -183,7 +228,19 @@ final class ChatsListViewModel {
             return
         }
         conversations[index].isArchived = true
-        // TODO: Persist archive state
+        conversations.removeAll { $0.id == conversation.id }
+        SanchrLogger.chat.info("Archived conversation \(conversation.id.prefix(8))")
+        // TODO: Persist archive state via repository/server
+    }
+
+    /// Marks a conversation as read (resets unread count).
+    func markAsRead(_ conversation: Conversation) async {
+        guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
+            return
+        }
+        conversations[index].unreadCount = 0
+        SanchrLogger.chat.info("Marked conversation \(conversation.id.prefix(8)) as read")
+        // TODO: Send read receipts via repository/server
     }
 
     // MARK: - Dismiss Banner

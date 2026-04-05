@@ -3,103 +3,139 @@ import SwiftUI
 
 struct OnboardingAvatarStepView: View {
     @Bindable var viewModel: OnboardingViewModel
-    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedPhotoItem: PhotosPickerItem?
+    let profileDataSource: ProfileDataSource
+    let mediaManager: MediaManagerProtocol
+    let sessionService: SessionService
 
     var body: some View {
+        let selectedImage = viewModel.selectedImage
+
         VStack(spacing: 0) {
-            // Back button
             HStack {
-                Button {
+                SanchrIconButton(systemName: "chevron.left") {
                     viewModel.goToPreviousStep()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                        .padding(SanchrSpacing.xs)
                 }
                 Spacer()
             }
-            .padding(.horizontal, SanchrSpacing.md)
+            .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+            .padding(.top, 12)
 
-            Spacer()
+            Spacer(minLength: 28)
 
-            // Step indicator
             Text("STEP 2 OF 3")
                 .font(SanchrTypography.micro)
                 .foregroundColor(.sanchrPrimary)
                 .kerning(2.5)
-                .padding(.bottom, SanchrSpacing.sm)
+                .padding(.bottom, 12)
 
-            // Title
             Text("Add a photo")
-                .font(SanchrTypography.screenTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                .padding(.bottom, SanchrSpacing.xs)
+                .font(SanchrTypography.displayTitle)
+                .foregroundColor(SanchrExportColors.textPrimary)
+                .padding(.bottom, 8)
 
-            // Subtitle
-            Text("Help your friends recognize you")
-                .font(SanchrTypography.caption)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                .padding(.bottom, SanchrSpacing.xxl)
+            Text("Help your contacts recognize you instantly.")
+                .font(SanchrTypography.body)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .padding(.bottom, 30)
 
-            // Avatar circle
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                if let image = viewModel.selectedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 120, height: 120)
-                        .clipShape(Circle())
-                        .overlay(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.sanchrPrimary)
-                                .frame(width: 32, height: 32)
-                                .overlay {
-                                    Image(systemName: "pencil")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundColor(.white)
-                                }
-                        }
-                } else {
+                ZStack(alignment: .bottomTrailing) {
+                    if let image = selectedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 148, height: 148)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .strokeBorder(
+                                SanchrColors.primary,
+                                style: StrokeStyle(lineWidth: 2, dash: [8, 6])
+                            )
+                            .frame(width: 148, height: 148)
+                            .background(
+                                Circle()
+                                    .fill(SanchrExportColors.surfaceSoft)
+                            )
+                            .overlay {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 40, weight: .light))
+                                    .foregroundColor(.sanchrPrimary)
+                            }
+                    }
+
                     Circle()
-                        .strokeBorder(Color.sanchrPrimary, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                        .frame(width: 120, height: 120)
+                        .fill(
+                            LinearGradient(
+                                colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: 38, height: 38)
                         .overlay {
-                            Image(systemName: "plus")
-                                .font(.system(size: 36, weight: .light))
-                                .foregroundColor(.sanchrPrimary)
+                            Image(systemName: selectedImage == nil ? "camera.fill" : "pencil")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
                         }
                 }
             }
 
-            Text(viewModel.selectedImage == nil ? "Tap to choose photo" : "Tap to change")
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                .padding(.top, SanchrSpacing.sm)
+            Text(selectedImage == nil ? "Tap to choose photo" : "Tap to change photo")
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .padding(.top, 14)
 
             Spacer()
 
-            // Progress + Continue
-            VStack(spacing: SanchrSpacing.xl) {
+            VStack(spacing: 18) {
                 OnboardingProgressIndicator(currentStep: 2)
 
-                Button {
-                    viewModel.goToNextStep()
-                } label: {
-                    Text("Continue")
-                        .font(SanchrTypography.button)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SanchrSpacing.md)
-                        .background(SanchrGradients.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(.sanchrError)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
                 }
-                .padding(.horizontal, SanchrSpacing.xxl)
+
+                Button {
+                    Task {
+                        let saved = await viewModel.saveProfile(
+                            profileDataSource: profileDataSource,
+                            mediaManager: mediaManager,
+                            sessionService: sessionService
+                        )
+                        if saved {
+                            viewModel.goToNextStep()
+                        }
+                    }
+                } label: {
+                    if viewModel.isSaving {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                LinearGradient(
+                                    colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                    } else {
+                        SanchrGradientButtonLabel(title: "Continue", systemName: nil)
+                    }
+                }
+                .buttonStyle(SanchrPrimaryCTA())
+                .disabled(viewModel.isSaving)
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             }
-            .padding(.bottom, SanchrSpacing.xxxxl)
+            .padding(.bottom, 36)
         }
-        .sanchrScreenBackground()
+        .background(SanchrExportColors.background.ignoresSafeArea())
         .onChange(of: selectedPhotoItem) { _, newValue in
             guard let newValue else { return }
             Task {

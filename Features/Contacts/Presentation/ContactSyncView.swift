@@ -4,230 +4,238 @@ import SwiftUI
 /// Matches Figma: contact-sync-screen.
 struct ContactSyncView: View {
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var isSyncing = false
     @State private var syncComplete = false
     @State private var foundContacts: [User] = []
     @State private var errorMessage: String?
-    @State private var syncProgress: Double = 0.0
+    let onBack: (() -> Void)?
+    let onFinish: (() -> Void)?
+
+    init(onBack: (() -> Void)? = nil, onFinish: (() -> Void)? = nil) {
+        self.onBack = onBack
+        self.onFinish = onFinish
+    }
 
     var body: some View {
-        VStack(spacing: SanchrSpacing.xxl) {
-            Spacer()
-
-            if syncComplete {
-                syncResultsView
-            } else if isSyncing {
-                syncProgressView
-            } else {
-                permissionRequestView
-            }
-
-            Spacer()
-
-            // Error message
-            if let error = errorMessage {
-                Text(error)
-                    .font(SanchrTypography.caption)
-                    .foregroundColor(.sanchrError)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, SanchrSpacing.xl)
-            }
-
-            // Action buttons
-            if !syncComplete {
-                VStack(spacing: SanchrSpacing.md) {
-                    // Sync Contacts gradient button
-                    Button {
-                        Task { await syncContacts() }
-                    } label: {
-                        Group {
-                            if isSyncing {
-                                HStack(spacing: SanchrSpacing.xs) {
-                                    ProgressView()
-                                        .tint(.white)
-                                    Text("Syncing...")
-                                }
-                            } else {
-                                Text("Sync Contacts")
-                            }
+        VStack(spacing: 0) {
+            SanchrCenteredHeader(
+                title: "Sync Contacts",
+                leading: {
+                    SanchrIconButton(systemName: "arrow.left", foreground: SanchrExportColors.textSecondary) {
+                        if let onBack {
+                            onBack()
+                        } else {
+                            dismiss()
                         }
-                        .font(SanchrTypography.button)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SanchrSpacing.sm)
-                        .background(SanchrGradients.primary)
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                        .sanchrPrimaryGlow()
                     }
-                    .disabled(isSyncing)
+                },
+                trailing: {
+                    if syncComplete || isSyncing {
+                        Color.clear
+                    } else {
+                        Button("Skip") {
+                            finishFlow()
+                        }
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(.sanchrPrimary)
+                    }
+                }
+            )
 
-                    // Skip link
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text("Skip")
-                            .font(SanchrTypography.body)
-                            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    if syncComplete {
+                        syncResultsView
+                    } else if isSyncing {
+                        syncProgressView
+                    } else {
+                        permissionRequestView
                     }
-                    .disabled(isSyncing)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(.sanchrError)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                .padding(.horizontal, SanchrSpacing.xl)
-                .padding(.bottom, SanchrSpacing.xl)
-            } else {
-                Button {
-                    dismiss()
-                } label: {
-                    Text("Continue")
-                        .font(SanchrTypography.button)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SanchrSpacing.sm)
-                        .background(SanchrGradients.primary)
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
-                        .sanchrPrimaryGlow()
-                }
-                .padding(.horizontal, SanchrSpacing.xl)
-                .padding(.bottom, SanchrSpacing.xl)
+                .padding(.horizontal, 28)
+                .padding(.top, 24)
+                .padding(.bottom, 24)
             }
+
+            footerActions
         }
-        .sanchrScreenBackground()
-        .navigationBarTitleDisplayMode(.inline)
+        .sanchrExportBackground()
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Permission Request View
 
     private var permissionRequestView: some View {
-        VStack(spacing: SanchrSpacing.lg) {
-            // Illustration: contacts icon with shield
-            ZStack {
-                Circle()
-                    .fill(Color.sanchrPrimary.opacity(0.1))
-                    .frame(width: 120, height: 120)
+        VStack(spacing: 28) {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: SanchrExportMetrics.largeRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 184, height: 184)
 
-                Image(systemName: "person.2.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(SanchrGradients.primary)
-
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 24))
-                    .foregroundColor(.sanchrSuccess)
-                    .offset(x: 36, y: 36)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 96, height: 96)
+                    .overlay {
+                        Image(systemName: "person.crop.square.fill")
+                            .font(.system(size: 38, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        Circle()
+                            .fill(SanchrColors.accent)
+                            .frame(width: 44, height: 44)
+                            .overlay {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .offset(x: 14, y: -14)
+                    }
             }
+            .padding(.top, 8)
 
-            // Title
             Text("Find Your Friends")
-                .font(SanchrTypography.screenTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                .font(SanchrTypography.displayTitle)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
-            // Description
             Text(
-                "Sanchr uses secure contact discovery to find your friends. Your contacts are hashed locally and never stored on our servers."
+                "Sync your contacts to see who's already on Sanchr and start secure conversations"
             )
             .font(SanchrTypography.body)
-            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+            .foregroundColor(SanchrExportColors.textSecondary)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, SanchrSpacing.lg)
+            .padding(.horizontal, 8)
 
-            // Permission cards
             VStack(spacing: SanchrSpacing.sm) {
                 permissionCard(
-                    icon: "lock.fill",
+                    icon: "shield.fill",
                     title: "Private & Secure",
-                    subtitle: "Your contacts never leave your device in plain text"
+                    subtitle: "Your contacts are encrypted and never shared with third parties",
+                    tint: SanchrColors.primary
                 )
 
                 permissionCard(
-                    icon: "number",
-                    title: "Hash Only",
-                    subtitle: "Phone numbers are SHA-256 hashed before transmission"
+                    icon: "person.badge.shield.checkmark.fill",
+                    title: "Instant Matching",
+                    subtitle: "Automatically find friends who are already using Sanchr",
+                    tint: SanchrColors.accent
                 )
 
                 permissionCard(
-                    icon: "cpu",
-                    title: "Local Processing",
-                    subtitle: "All hashing happens on your device, not our servers"
+                    icon: "hand.raised.fill",
+                    title: "No Spam, Ever",
+                    subtitle: "We won't send notifications to your contacts without your permission",
+                    tint: Color(hex: 0x64748B)
                 )
             }
-            .padding(.horizontal, SanchrSpacing.xl)
         }
-        .padding(.horizontal, SanchrSpacing.md)
     }
 
     // MARK: - Permission Card
 
-    private func permissionCard(icon: String, title: String, subtitle: String) -> some View {
+    private func permissionCard(icon: String, title: String, subtitle: String, tint: Color) -> some View {
         HStack(spacing: SanchrSpacing.sm) {
             Image(systemName: icon)
-                .font(.body)
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.sanchrPrimary)
-                .frame(width: 32, height: 32)
-                .background(Color.sanchrPrimary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
+                .frame(width: 44, height: 44)
+                .background(SanchrExportColors.surfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
                 Text(title)
                     .font(SanchrTypography.bodyBold)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    .foregroundColor(SanchrExportColors.textPrimary)
                 Text(subtitle)
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(SanchrExportColors.textSecondary)
             }
 
             Spacer()
         }
-        .padding(SanchrSpacing.sm)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color.white, Color(hex: 0xF8FBFF)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous)
+                .stroke(tint.opacity(0.14), lineWidth: 1)
+        )
     }
 
     // MARK: - Sync Progress View
 
     private var syncProgressView: some View {
-        VStack(spacing: SanchrSpacing.lg) {
+        VStack(spacing: 24) {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(.sanchrPrimary)
 
             Text("Syncing Contacts...")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                .font(SanchrTypography.sectionHeader)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
-            Text("Finding your friends on Sanchr")
+            Text("Securely encrypting and matching your contacts...")
                 .font(SanchrTypography.body)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                .foregroundColor(SanchrExportColors.textSecondary)
 
-            // Privacy badge
-            HStack(spacing: SanchrSpacing.xxs) {
+            HStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.caption2)
                 Text("Privacy-first contact discovery")
-                    .font(SanchrTypography.captionSmall)
+                    .font(SanchrTypography.caption)
             }
             .foregroundColor(SanchrColors.encryptionBadgeText)
-            .padding(.horizontal, SanchrSpacing.sm)
-            .padding(.vertical, SanchrSpacing.xxs)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(SanchrColors.encryptionBadge)
             .clipShape(Capsule())
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 80)
     }
 
     // MARK: - Sync Results View
 
     private var syncResultsView: some View {
-        VStack(spacing: SanchrSpacing.md) {
+        VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundColor(.sanchrSuccess)
 
             Text("Contacts Synced!")
                 .font(SanchrTypography.screenTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                .foregroundColor(SanchrExportColors.textPrimary)
 
-            Text("\(foundContacts.count) friends found on Sanchr")
+            Text("Found \(foundContacts.count) friends on Sanchr")
                 .font(SanchrTypography.bodyLarge)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                .foregroundColor(SanchrExportColors.textSecondary)
 
             // Show matched contacts preview
             if !foundContacts.isEmpty {
@@ -245,7 +253,7 @@ struct ContactSyncView: View {
 
                             Text(contact.displayName)
                                 .font(SanchrTypography.body)
-                                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                                .foregroundColor(SanchrExportColors.textPrimary)
 
                             Spacer()
 
@@ -258,15 +266,48 @@ struct ContactSyncView: View {
                     if foundContacts.count > 5 {
                         Text("and \(foundContacts.count - 5) more...")
                             .font(SanchrTypography.caption)
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                            .foregroundColor(SanchrExportColors.textTertiary)
                     }
                 }
-                .padding(SanchrSpacing.md)
-                .background(Color.sanchrSurfaceElevated(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
-                .padding(.horizontal, SanchrSpacing.xl)
+                .padding(18)
+                .background(SanchrExportColors.surface)
+                .clipShape(RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SanchrExportMetrics.cardRadius, style: .continuous)
+                        .stroke(SanchrExportColors.line, lineWidth: 1)
+                )
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    // MARK: - Footer Actions
+
+    private var footerActions: some View {
+        VStack(spacing: 12) {
+            if syncComplete {
+                Button(action: finishFlow) {
+                    SanchrGradientButtonLabel(title: "Continue to Sanchr", systemName: nil)
+                }
+                .buttonStyle(SanchrPrimaryCTA())
+            } else {
+                Button {
+                    Task { await syncContacts() }
+                } label: {
+                    SanchrGradientButtonLabel(
+                        title: isSyncing ? "Syncing..." : "Sync All Contacts",
+                        systemName: nil
+                    )
+                }
+                .buttonStyle(SanchrPrimaryCTA())
+                .disabled(isSyncing)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 8)
+        .padding(.bottom, 28)
+        .background(SanchrExportColors.background)
     }
 
     // MARK: - Sync Action
@@ -289,5 +330,13 @@ struct ContactSyncView: View {
         }
 
         isSyncing = false
+    }
+
+    private func finishFlow() {
+        if let onFinish {
+            onFinish()
+        } else {
+            dismiss()
+        }
     }
 }

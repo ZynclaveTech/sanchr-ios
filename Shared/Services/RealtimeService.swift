@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 
 extension Notification.Name {
     static let sanchrConversationStateDidChange = Notification.Name("io.sanchr.realtime.conversationStateDidChange")
@@ -24,7 +25,10 @@ final class RealtimeService: @unchecked Sendable {
     private let callManager: CallEventRouting
 
     private var streamTask: Task<Void, Never>?
+    private var heartbeatTask: Task<Void, Never>?
     private(set) var isRunning = false
+    private(set) var presenceCache: [String: Vync_Messaging_PresenceUpdate] = [:]
+    private var trackedPeerIds: Set<String> = []
 
     init(
         messageRepository: MessageRepositoryProtocol,
@@ -43,27 +47,100 @@ final class RealtimeService: @unchecked Sendable {
 
         streamTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                isRunning = true
-                _ = try await messageRepository.flushPendingAcks()
-                let stream = try await messageRepository.openMessageStream()
-                for await event in stream {
+            while !Task.isCancelled, sessionService.isAuthenticated {
+                do {
+                    await MainActor.run {
+                        self.isRunning = true
+                    }
+                    SanchrLogger.chat.info("Starting realtime message stream")
+                    _ = try await messageRepository.flushPendingAcks()
+                    let stream = try await messageRepository.openMessageStream()
+                    SanchrLogger.chat.info("Realtime message stream opened")
+                    for await event in stream {
+                        guard !Task.isCancelled else { break }
+                        await handle(event)
+                    }
+
+                    guard !Task.isCancelled, sessionService.isAuthenticated else {
+                        break
+                    }
+
+                    SanchrLogger.chat.warning("Realtime message stream ended, retrying")
+                } catch {
                     guard !Task.isCancelled else { break }
-                    await handle(event)
+                    SanchrLogger.chat.error("Realtime stream failed: \(Self.detailedError(error))")
                 }
-            } catch {
-                SanchrLogger.chat.error("Realtime stream failed: \(error.localizedDescription)")
+
+                await MainActor.run {
+                    self.isRunning = false
+                }
+
+                guard !Task.isCancelled, sessionService.isAuthenticated else {
+                    break
+                }
+
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
 
-            isRunning = false
-            streamTask = nil
+            await MainActor.run {
+                self.isRunning = false
+                self.streamTask = nil
+            }
         }
     }
 
     func stop() {
         streamTask?.cancel()
         streamTask = nil
-        isRunning = false
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+        Task { @MainActor in
+            self.isRunning = false
+        }
+        Task {
+            await messageRepository.closeMessageStream()
+        }
+    }
+
+    func enterForeground() {
+        guard sessionService.isAuthenticated else { return }
+        start()
+        startHeartbeatLoop()
+        Task {
+            try? await sendPresenceHeartbeat(.foreground)
+            await refreshPresenceSnapshot(for: Array(trackedPeerIds))
+        }
+    }
+
+    func enterBackground() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+        guard sessionService.isAuthenticated else {
+            stop()
+            return
+        }
+
+        Task {
+            try? await sendPresenceHeartbeat(.background)
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            stop()
+        }
+    }
+
+    func trackPresencePeer(_ userId: String) {
+        guard !userId.isEmpty else { return }
+        trackedPeerIds.insert(userId)
+        Task {
+            await refreshPresenceSnapshot(for: [userId])
+        }
+    }
+
+    func untrackPresencePeer(_ userId: String) {
+        trackedPeerIds.remove(userId)
+    }
+
+    func cachedPresence(for userId: String) -> Vync_Messaging_PresenceUpdate? {
+        presenceCache[userId]
     }
 
     @discardableResult
@@ -79,7 +156,9 @@ final class RealtimeService: @unchecked Sendable {
                 sessionService.setLastMessageSyncTimestamp(result.latestTimestamp)
             }
             if result.appliedCount > 0 {
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                }
             }
             return result.appliedCount
         } catch {
@@ -94,43 +173,52 @@ final class RealtimeService: @unchecked Sendable {
             sessionService.setLastMessageSyncTimestamp(
                 Int64(message.timestamp.timeIntervalSince1970 * 1000)
             )
-            NotificationCenter.default.post(
-                name: .sanchrRealtimeMessageReceived,
-                object: nil,
-                userInfo: [
-                    RealtimeNotificationKey.conversationId: message.conversationId,
-                    RealtimeNotificationKey.message: message,
-                ]
-            )
-            NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .sanchrRealtimeMessageReceived,
+                    object: nil,
+                    userInfo: [
+                        RealtimeNotificationKey.conversationId: message.conversationId,
+                        RealtimeNotificationKey.message: message,
+                    ]
+                )
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            }
 
         case .typing(let indicator):
-            NotificationCenter.default.post(
-                name: .sanchrRealtimeTypingChanged,
-                object: nil,
-                userInfo: [
-                    RealtimeNotificationKey.conversationId: indicator.conversationID,
-                    RealtimeNotificationKey.typing: indicator,
-                ]
-            )
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .sanchrRealtimeTypingChanged,
+                    object: nil,
+                    userInfo: [
+                        RealtimeNotificationKey.conversationId: indicator.conversationID,
+                        RealtimeNotificationKey.typing: indicator,
+                    ]
+                )
+            }
 
         case .receipt(let receipt):
-            NotificationCenter.default.post(
-                name: .sanchrRealtimeReceiptUpdated,
-                object: nil,
-                userInfo: [
-                    RealtimeNotificationKey.conversationId: receipt.conversationID,
-                    RealtimeNotificationKey.receipt: receipt,
-                ]
-            )
-            NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .sanchrRealtimeReceiptUpdated,
+                    object: nil,
+                    userInfo: [
+                        RealtimeNotificationKey.conversationId: receipt.conversationID,
+                        RealtimeNotificationKey.receipt: receipt,
+                    ]
+                )
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            }
 
         case .presence(let presence):
-            NotificationCenter.default.post(
-                name: .sanchrRealtimePresenceUpdated,
-                object: nil,
-                userInfo: [RealtimeNotificationKey.presence: presence]
-            )
+            await MainActor.run {
+                self.presenceCache[presence.userID] = presence
+                NotificationCenter.default.post(
+                    name: .sanchrRealtimePresenceUpdated,
+                    object: nil,
+                    userInfo: [RealtimeNotificationKey.presence: presence]
+                )
+            }
 
         case .preKeyCountLow:
             Task {
@@ -143,5 +231,60 @@ final class RealtimeService: @unchecked Sendable {
         case .callLifecycle(let lifecycle):
             callManager.handleCallLifecycleEvent(lifecycle)
         }
+    }
+
+    @discardableResult
+    func refreshPresenceSnapshot(for userIds: [String]) async -> [Vync_Messaging_PresenceUpdate] {
+        let uniqueUserIds = Array(Set(userIds.filter { !$0.isEmpty }))
+        guard sessionService.isAuthenticated, !uniqueUserIds.isEmpty else { return [] }
+
+        do {
+            let updates = try await messageRepository.fetchPresenceSnapshot(userIds: uniqueUserIds)
+            await MainActor.run {
+                for update in updates {
+                    self.presenceCache[update.userID] = update
+                    NotificationCenter.default.post(
+                        name: .sanchrRealtimePresenceUpdated,
+                        object: nil,
+                        userInfo: [RealtimeNotificationKey.presence: update]
+                    )
+                }
+            }
+            return updates
+        } catch {
+            SanchrLogger.chat.warning("Presence snapshot failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    private func startHeartbeatLoop() {
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                guard !Task.isCancelled, sessionService.isAuthenticated else { return }
+                try? await sendPresenceHeartbeat(.foreground)
+            }
+        }
+    }
+
+    private func sendPresenceHeartbeat(_ state: Vync_Messaging_DevicePresenceState) async throws {
+        try await messageRepository.sendPresenceHeartbeat(
+            deviceState: state,
+            sentAtMs: Int64(Date().timeIntervalSince1970 * 1000)
+        )
+    }
+
+    private static func detailedError(_ error: Error) -> String {
+        if let status = error as? GRPCStatus {
+            return "gRPC \(status.code) (\(status.code.rawValue)): \(status.message ?? "no message")"
+        }
+        let nsError = error as NSError
+        if nsError.domain == "io.grpc",
+           let statusCode = GRPCStatus.Code(rawValue: nsError.code) {
+            return "gRPC \(statusCode) (\(nsError.code)): \(nsError.localizedDescription)"
+        }
+        return "\(type(of: error)): \(error.localizedDescription)"
     }
 }

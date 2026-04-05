@@ -15,15 +15,17 @@ struct RegisterView: View {
 
                 // MARK: - Header
                 VStack(spacing: SanchrSpacing.sm) {
-                    Image(systemName: "person.badge.shield.checkmark.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(SanchrGradients.primaryDark)
+                    Image("SanchrLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
                     Text("Create Account")
                         .font(SanchrTypography.screenTitle)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
-                    Text("Set up your VyncChat profile before verification")
+                    Text("Set up your Sanchr profile before verification")
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                 }

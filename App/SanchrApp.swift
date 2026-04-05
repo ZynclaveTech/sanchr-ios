@@ -24,7 +24,9 @@ struct SanchrApp: App {
                 .onAppear {
                     configureFonts()
                     configureAppearance()
-                    configureBackgroundSync()
+                    if container.localDataIssue == nil {
+                        configureBackgroundSync()
+                    }
                 }
                 .task {
                     do {
@@ -86,11 +88,13 @@ struct SanchrApp: App {
             orchestrator.scheduleBackgroundSync()
             orchestrator.scheduleAppRefresh()
             lockManager.appDidEnterBackground()
+            container.realtimeService.enterBackground()
             SanchrLogger.sync.info("App entered background, scheduled background tasks")
 
         case .active:
             // Check app lock
             lockManager.appDidBecomeActive()
+            container.realtimeService.enterForeground()
 
             // Trigger a foreground sync if needed (>5 min since last sync).
             let syncState = container.syncState
@@ -182,44 +186,70 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 struct RootView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
+    @AppStorage("sanchr.activeOnboardingFlow") private var activeOnboardingFlow = false
     @State private var sessionReady = false
+    @State private var showSplash = true
 
-    /// Whether the user still needs to complete onboarding (no display name set).
-    private var needsOnboarding: Bool {
+    private var hasCompletedProfileBasics: Bool {
         let name = container.sessionService.currentDisplayName ?? ""
-        return name.isEmpty || name == "Sanchr User"
+        return !name.isEmpty && name != "Sanchr User"
+    }
+
+    /// Whether the user still needs to complete onboarding.
+    private var needsOnboarding: Bool {
+        activeOnboardingFlow || !hasCompletedProfileBasics
     }
 
     var body: some View {
         ZStack {
-            Group {
-                if container.sessionService.isAuthenticated && sessionReady {
-                    if needsOnboarding {
-                        OnboardingView()
-                    } else {
-                        MainTabView()
-                    }
-                } else if container.sessionService.isAuthenticated && !sessionReady {
-                    // Authenticated but waiting for token refresh
-                    ProgressView()
-                        .tint(.sanchrPrimary)
-                        .task {
-                            await refreshSessionToken()
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+            } else {
+                Group {
+                    if container.sessionService.isAuthenticated && sessionReady {
+                        if needsOnboarding {
+                            OnboardingView {
+                                activeOnboardingFlow = false
+                            }
+                        } else {
+                            MainTabView()
                         }
-                } else {
-                    LoginView()
+                    } else if let localDataIssue = container.localDataIssue {
+                        LocalDataRecoveryView(error: localDataIssue) {
+                            await container.resetLocalDataAfterBootstrapFailure()
+                        }
+                    } else if container.sessionService.isAuthenticated && !sessionReady {
+                        // Authenticated but waiting for token refresh
+                        ProgressView()
+                            .tint(.sanchrPrimary)
+                            .task {
+                                await refreshSessionToken()
+                            }
+                    } else {
+                        LoginView()
+                    }
                 }
-            }
-            .animation(.easeInOut(duration: 0.3), value: container.sessionService.isAuthenticated)
-            .animation(.easeInOut(duration: 0.2), value: sessionReady)
-            .onChange(of: container.sessionService.isAuthenticated) { _, isAuth in
-                if !isAuth {
-                    sessionReady = false
+                .animation(.easeInOut(duration: 0.3), value: container.sessionService.isAuthenticated)
+                .animation(.easeInOut(duration: 0.2), value: sessionReady)
+                .transition(.opacity)
+                .onChange(of: container.sessionService.isAuthenticated) { _, isAuth in
+                    if !isAuth {
+                        sessionReady = false
+                        activeOnboardingFlow = false
+                    } else if !hasCompletedProfileBasics {
+                        activeOnboardingFlow = true
+                    }
+                }
+                .onChange(of: hasCompletedProfileBasics) { _, hasCompletedProfileBasics in
+                    if container.sessionService.isAuthenticated && !hasCompletedProfileBasics {
+                        activeOnboardingFlow = true
+                    }
                 }
             }
 
             // Lock screen overlay
-            if container.appLockManager.isLocked {
+            if container.appLockManager.isLocked && !showSplash {
                 LockScreenView {
                     container.appLockManager.authenticate()
                 }
@@ -228,6 +258,13 @@ struct RootView: View {
             }
         }
         .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
+        .task {
+            guard showSplash else { return }
+            try? await Task.sleep(for: .seconds(1.15))
+            withAnimation(.easeOut(duration: 0.25)) {
+                showSplash = false
+            }
+        }
         .onChange(of: container.pushManager.pendingAction) { _, action in
             guard action != .none else { return }
             router.routeNotificationAction(action)
@@ -263,15 +300,29 @@ struct RootView: View {
                 _ = try container.signalKeyManager.generateIdentityIfNeeded()
                 try await container.signalKeyManager.uploadInitialKeyBundle()
             } else {
-                // Keys exist; just make sure server has enough pre-keys
-                try await container.signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+                let currentDeviceId = Int32(container.sessionService.currentDeviceId ?? "") ?? 0
+                let currentUserId = container.sessionService.currentUserId ?? ""
+                let serverHasBundle = try await container.signalKeyManager.hasCompleteServerBundle(
+                    userId: currentUserId,
+                    deviceId: currentDeviceId
+                )
+
+                if !serverHasBundle {
+                    SanchrLogger.crypto.info(
+                        "Server bundle missing/incomplete for current device, re-uploading full key bundle"
+                    )
+                    try await container.signalKeyManager.uploadInitialKeyBundle()
+                } else {
+                    // Keys exist; just make sure server has enough pre-keys
+                    try await container.signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+                }
             }
         } catch {
             SanchrLogger.crypto.warning("Signal key setup failed on startup: \(error.localizedDescription)")
         }
 
         if container.sessionService.isAuthenticated {
-            container.realtimeService.start()
+            container.realtimeService.enterForeground()
         } else {
             container.realtimeService.stop()
         }

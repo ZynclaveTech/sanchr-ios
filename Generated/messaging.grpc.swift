@@ -37,6 +37,11 @@ internal protocol Vync_Messaging_MessagingServiceClientProtocol: GRPCClient {
     handler: @escaping (Vync_Messaging_EncryptedEnvelope) -> Void
   ) -> ServerStreamingCall<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>
 
+  func ackMessages(
+    _ request: Vync_Messaging_AckMessagesRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>
+
   func deleteMessage(
     _ request: Vync_Messaging_DeleteMessageRequest,
     callOptions: CallOptions?
@@ -51,6 +56,11 @@ internal protocol Vync_Messaging_MessagingServiceClientProtocol: GRPCClient {
     _ request: Vync_Messaging_GetConversationsRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>
+
+  func getPresenceSnapshot(
+    _ request: Vync_Messaging_GetPresenceSnapshotRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>
 }
 
 extension Vync_Messaging_MessagingServiceClientProtocol {
@@ -136,6 +146,19 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
     )
   }
 
+  /// Unary call to AckMessages
+  internal func ackMessages(
+    _ request: Vync_Messaging_AckMessagesRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.ackMessages.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
+    )
+  }
+
   /// Unary call to DeleteMessage
   ///
   /// - Parameters:
@@ -187,6 +210,19 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to GetPresenceSnapshot
+  internal func getPresenceSnapshot(
+    _ request: Vync_Messaging_GetPresenceSnapshotRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
     )
   }
 }
@@ -272,6 +308,11 @@ internal protocol Vync_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     callOptions: CallOptions?
   ) -> GRPCAsyncServerStreamingCall<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>
 
+  func makeAckMessagesCall(
+    _ request: Vync_Messaging_AckMessagesRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>
+
   func makeDeleteMessageCall(
     _ request: Vync_Messaging_DeleteMessageRequest,
     callOptions: CallOptions?
@@ -286,6 +327,11 @@ internal protocol Vync_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     _ request: Vync_Messaging_GetConversationsRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>
+
+  func makeGetPresenceSnapshotCall(
+    _ request: Vync_Messaging_GetPresenceSnapshotRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -344,6 +390,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
     )
   }
 
+  internal func makeAckMessagesCall(
+    _ request: Vync_Messaging_AckMessagesRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.ackMessages.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
+    )
+  }
+
   internal func makeDeleteMessageCall(
     _ request: Vync_Messaging_DeleteMessageRequest,
     callOptions: CallOptions? = nil
@@ -377,6 +435,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? []
+    )
+  }
+
+  internal func makeGetPresenceSnapshotCall(
+    _ request: Vync_Messaging_GetPresenceSnapshotRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
     )
   }
 }
@@ -443,6 +513,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
     )
   }
 
+  internal func ackMessages(
+    _ request: Vync_Messaging_AckMessagesRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_AckMessagesResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.ackMessages.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
+    )
+  }
+
   internal func deleteMessage(
     _ request: Vync_Messaging_DeleteMessageRequest,
     callOptions: CallOptions? = nil
@@ -478,6 +560,18 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? []
     )
   }
+
+  internal func getPresenceSnapshot(
+    _ request: Vync_Messaging_GetPresenceSnapshotRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_GetPresenceSnapshotResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -511,6 +605,9 @@ internal protocol Vync_Messaging_MessagingServiceClientInterceptorFactoryProtoco
   /// - Returns: Interceptors to use when invoking 'syncMessages'.
   func makeSyncMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>]
 
+  /// - Returns: Interceptors to use when invoking 'ackMessages'.
+  func makeAckMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>]
+
   /// - Returns: Interceptors to use when invoking 'deleteMessage'.
   func makeDeleteMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_DeleteMessageRequest, Vync_Messaging_DeleteMessageResponse>]
 
@@ -519,6 +616,9 @@ internal protocol Vync_Messaging_MessagingServiceClientInterceptorFactoryProtoco
 
   /// - Returns: Interceptors to use when invoking 'getConversations'.
   func makeGetConversationsInterceptors() -> [ClientInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getPresenceSnapshot'.
+  func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>]
 }
 
 internal enum Vync_Messaging_MessagingServiceClientMetadata {
@@ -530,9 +630,11 @@ internal enum Vync_Messaging_MessagingServiceClientMetadata {
       Vync_Messaging_MessagingServiceClientMetadata.Methods.startDirectConversation,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.messageStream,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.syncMessages,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.ackMessages,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.deleteMessage,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReceipt,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.getConversations,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot,
     ]
   )
 
@@ -561,6 +663,12 @@ internal enum Vync_Messaging_MessagingServiceClientMetadata {
       type: GRPCCallType.serverStreaming
     )
 
+    internal static let ackMessages = GRPCMethodDescriptor(
+      name: "AckMessages",
+      path: "/vync.messaging.MessagingService/AckMessages",
+      type: GRPCCallType.unary
+    )
+
     internal static let deleteMessage = GRPCMethodDescriptor(
       name: "DeleteMessage",
       path: "/vync.messaging.MessagingService/DeleteMessage",
@@ -576,6 +684,12 @@ internal enum Vync_Messaging_MessagingServiceClientMetadata {
     internal static let getConversations = GRPCMethodDescriptor(
       name: "GetConversations",
       path: "/vync.messaging.MessagingService/GetConversations",
+      type: GRPCCallType.unary
+    )
+
+    internal static let getPresenceSnapshot = GRPCMethodDescriptor(
+      name: "GetPresenceSnapshot",
+      path: "/vync.messaging.MessagingService/GetPresenceSnapshot",
       type: GRPCCallType.unary
     )
   }

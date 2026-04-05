@@ -21,13 +21,6 @@ protocol AuthRepositoryProtocol: AnyObject, Sendable {
     /// Changes the current account password.
     func changePassword(currentPassword: String, newPassword: String) async throws
 
-    /// Uploads pre-key bundle to the server for Signal Protocol.
-    func uploadPreKeyBundle(
-        identityKey: Data,
-        signedPreKey: Data,
-        signedPreKeySignature: Data,
-        oneTimePreKeys: [Data]
-    ) async throws
 }
 
 // MARK: - Supporting Types
@@ -165,32 +158,6 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         request.currentPassword = currentPassword
         request.newPassword = newPassword
         _ = try await authService.changePassword(request)
-    }
-
-    func uploadPreKeyBundle(
-        identityKey: Data,
-        signedPreKey: Data,
-        signedPreKeySignature: Data,
-        oneTimePreKeys: [Data]
-    ) async throws {
-        SanchrLogger.auth.info("Uploading pre-key bundle")
-
-        var bundle = Vync_Keys_KeyBundle()
-        bundle.identityPublicKey = identityKey
-
-        var spk = Vync_Keys_SignedPreKey()
-        spk.publicKey = signedPreKey
-        spk.signature = signedPreKeySignature
-        bundle.signedPreKey = spk
-
-        bundle.oneTimePreKeys = oneTimePreKeys.enumerated().map { index, keyData in
-            var otpk = Vync_Keys_OneTimePreKey()
-            otpk.keyID = Int32(index)
-            otpk.publicKey = keyData
-            return otpk
-        }
-
-        _ = try await grpcClient.keyService.uploadKeyBundle(bundle)
     }
 
     // MARK: - Mapping

@@ -30,9 +30,15 @@ enum AppError: LocalizedError, Equatable {
     // MARK: - Storage
 
     case databaseError(reason: String)
+    case localDataUnavailable(reason: String)
     case keychainReadFailed
     case keychainWriteFailed
     case insufficientStorage
+    case recoveryKeyUnavailable
+    case biometricAuthenticationFailed(reason: String)
+    case backupUnavailable
+    case backupFailed(reason: String)
+    case backupIntegrityCheckFailed(reason: String)
 
     // MARK: - Media
 
@@ -88,12 +94,24 @@ enum AppError: LocalizedError, Equatable {
             return "The identity of this contact has changed. Please verify."
         case .databaseError(let reason):
             return "Database error: \(reason)"
+        case .localDataUnavailable(let reason):
+            return reason
         case .keychainReadFailed:
             return "Unable to read from secure storage."
         case .keychainWriteFailed:
             return "Unable to save to secure storage."
         case .insufficientStorage:
             return "Insufficient storage space on device."
+        case .recoveryKeyUnavailable:
+            return "No recovery key is available on this device."
+        case .biometricAuthenticationFailed(let reason):
+            return "Authentication failed: \(reason)"
+        case .backupUnavailable:
+            return "No encrypted backup is available for this account."
+        case .backupFailed(let reason):
+            return "Backup failed: \(reason)"
+        case .backupIntegrityCheckFailed(let reason):
+            return "Backup verification failed: \(reason)"
         case .mediaCaptureFailed:
             return "Failed to capture media."
         case .mediaCompressionFailed:

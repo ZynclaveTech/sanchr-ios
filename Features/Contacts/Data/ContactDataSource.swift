@@ -109,7 +109,7 @@ final class ContactDataSource: @unchecked Sendable {
     static func mapMatchedContactToUser(_ matched: Vync_Contacts_MatchedContact) -> User {
         User(
             id: matched.userID,
-            phoneNumber: "",
+            phoneNumber: matched.phoneNumber,
             displayName: matched.displayName,
             avatarURL: matched.avatarURL.isEmpty ? nil : URL(string: matched.avatarURL),
             bio: matched.statusText.isEmpty ? nil : matched.statusText,
@@ -124,7 +124,7 @@ final class ContactDataSource: @unchecked Sendable {
     static func mapContactToUser(_ contact: Vync_Contacts_Contact) -> User {
         User(
             id: contact.userID,
-            phoneNumber: "",
+            phoneNumber: contact.phoneNumber,
             displayName: contact.displayName,
             avatarURL: contact.avatarURL.isEmpty ? nil : URL(string: contact.avatarURL),
             bio: contact.statusText.isEmpty ? nil : contact.statusText,

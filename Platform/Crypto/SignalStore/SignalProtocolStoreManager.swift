@@ -18,6 +18,7 @@ final class SanchrSignalStore: IdentityKeyStore, PreKeyStore, SignedPreKeyStore,
     let identityStore: SanchrIdentityKeyStore
     let preKeyStore: SanchrPreKeyStore
     let signedPreKeyStore: SanchrSignedPreKeyStore
+    let kyberPreKeyStore: SanchrKyberPreKeyStore
     let sessionStore: SanchrSessionStore
     let senderKeyStore: SanchrSenderKeyStore
 
@@ -29,6 +30,7 @@ final class SanchrSignalStore: IdentityKeyStore, PreKeyStore, SignedPreKeyStore,
         self.identityStore = SanchrIdentityKeyStore(userId: userId, keychain: keychainService)
         self.preKeyStore = SanchrPreKeyStore(userId: userId)
         self.signedPreKeyStore = SanchrSignedPreKeyStore(userId: userId, keychain: keychainService)
+        self.kyberPreKeyStore = SanchrKyberPreKeyStore(userId: userId, keychain: keychainService)
         self.sessionStore = SanchrSessionStore(userId: userId)
         self.senderKeyStore = SanchrSenderKeyStore(userId: userId)
 
@@ -94,20 +96,25 @@ final class SanchrSignalStore: IdentityKeyStore, PreKeyStore, SignedPreKeyStore,
         try signedPreKeyStore.storeSignedPreKey(record, id: id, context: context)
     }
 
-    // MARK: - KyberPreKeyStore Forwarding (stub – post-quantum keys not yet used)
+    // MARK: - KyberPreKeyStore Forwarding
 
     func loadKyberPreKey(id: UInt32, context: StoreContext) throws -> KyberPreKeyRecord {
-        throw SignalError.invalidKeyIdentifier("Kyber pre-keys are not supported in this build")
+        try kyberPreKeyStore.loadKyberPreKey(id: id, context: context)
     }
 
     func storeKyberPreKey(_ record: KyberPreKeyRecord, id: UInt32, context: StoreContext) throws {
-        throw SignalError.invalidKeyIdentifier("Kyber pre-keys are not supported in this build")
+        try kyberPreKeyStore.storeKyberPreKey(record, id: id, context: context)
     }
 
     func markKyberPreKeyUsed(
         id: UInt32, signedPreKeyId: UInt32, baseKey: PublicKey, context: StoreContext
     ) throws {
-        // No-op: Kyber pre-keys are not used in this build.
+        try kyberPreKeyStore.markKyberPreKeyUsed(
+            id: id,
+            signedPreKeyId: signedPreKeyId,
+            baseKey: baseKey,
+            context: context
+        )
     }
 
     // MARK: - SessionStore Forwarding

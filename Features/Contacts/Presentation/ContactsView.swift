@@ -1,11 +1,8 @@
 import Kingfisher
 import SwiftUI
 
-/// Contact list screen showing Sanchr contacts with alphabetical grouping.
-/// Matches Figma: contact-screen.
 struct ContactsView: View {
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = ContactsViewModel()
     @State private var navigateToConversation: Conversation?
     @State private var isStartingChat = false
@@ -13,26 +10,14 @@ struct ContactsView: View {
     var body: some View {
         Group {
             if viewModel.contacts.isEmpty && viewModel.isLoading {
-                ProgressView()
-                    .tint(.sanchrPrimary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                loadingState
             } else if viewModel.contacts.isEmpty {
                 emptyState
             } else {
                 contactList
             }
         }
-        .navigationTitle("Contacts")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    // Add contact by phone number
-                } label: {
-                    Image(systemName: "person.badge.plus")
-                        .foregroundColor(.sanchrPrimary)
-                }
-            }
-        }
+        .navigationBarHidden(true)
         .refreshable {
             await viewModel.refreshContacts(
                 contactDataSource: contactDataSource,
@@ -51,7 +36,9 @@ struct ContactsView: View {
         }
     }
 
-    // MARK: - Start Chat
+    private var contactDataSource: ContactDataSource {
+        ContactDataSource(grpcClient: container.grpcClient, localDatabase: container.localDatabase)
+    }
 
     private func startChat(with contact: User) {
         guard !isStartingChat else { return }
@@ -59,11 +46,12 @@ struct ContactsView: View {
 
         Task {
             defer { isStartingChat = false }
+
             do {
                 let protoConversation = try await container.chatDataSource.startDirectConversation(
                     recipientID: contact.id
                 )
-                // Build a lookup so the conversation shows real names, not UUIDs
+
                 let localUserId = container.sessionService.currentUserId
                 var contactsLookup: [String: User] = [contact.id: contact]
                 if let localUserId {
@@ -80,11 +68,14 @@ struct ContactsView: View {
                         isLocalUser: true
                     )
                 }
+
                 let conversation = ChatDataSource.mapToDomainConversation(
                     protoConversation,
                     contactsLookup: contactsLookup,
                     localUserId: localUserId
                 )
+                try await container.localDatabase.saveConversation(conversation)
+                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
                 navigateToConversation = conversation
             } catch {
                 viewModel.errorMessage = "Failed to start chat: \(error.localizedDescription)"
@@ -93,261 +84,272 @@ struct ContactsView: View {
         }
     }
 
-    // MARK: - Contact Data Source (computed)
-
-    private var contactDataSource: ContactDataSource {
-        ContactDataSource(grpcClient: container.grpcClient, localDatabase: container.localDatabase)
+    private var loadingState: some View {
+        VStack(spacing: 0) {
+            customHeader
+            Spacer()
+            ProgressView()
+                .tint(.sanchrPrimary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SanchrExportColors.background)
     }
 
-    // MARK: - Contact List
+    private var customHeader: some View {
+        HStack {
+            Text("Contacts")
+                .font(SanchrTypography.sectionHeader)
+                .foregroundColor(SanchrExportColors.textPrimary)
+
+            Spacer()
+
+            SanchrIconButton(systemName: "person.badge.plus") {}
+        }
+        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+        .padding(.top, SanchrExportMetrics.rootTop)
+        .padding(.bottom, 8)
+        .background(SanchrExportColors.background)
+    }
+
+    private var searchBar: some View {
+        SanchrSearchField(placeholder: "Search contacts...", text: $viewModel.searchText) {
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 
     private var contactList: some View {
         List {
-            // Sync prompt
-            if !viewModel.hasCompletedSync {
-                NavigationLink {
-                    ContactSyncView()
-                } label: {
-                    HStack(spacing: SanchrSpacing.sm) {
-                        Image(systemName: "person.crop.circle.badge.plus")
-                            .font(.title2)
-                            .foregroundColor(.sanchrPrimary)
-                        VStack(alignment: .leading) {
-                            Text("Find your contacts")
-                                .font(SanchrTypography.bodyBold)
-                            Text("See who is on Sanchr")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                        }
-                    }
-                }
-                .listRowBackground(Color.sanchrSurface(colorScheme))
-            }
+            Section {
+                customHeader
+                    .listRowInsets(EdgeInsets())
 
-            // Online count header
-            if viewModel.onlineCount > 0 {
-                Section {
-                    HStack(spacing: SanchrSpacing.xxs) {
-                        Circle()
-                            .fill(Color.sanchrSuccess)
-                            .frame(width: 8, height: 8)
-                        Text("\(viewModel.onlineCount) online")
-                            .font(SanchrTypography.captionSmall)
-                            .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                    }
-                }
-                .listRowBackground(Color.clear)
-            }
+                searchBar
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
+                    .listRowInsets(EdgeInsets())
 
-            // Alphabetical sections
+                if viewModel.onlineCount > 0 {
+                    onlineChip
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                        .padding(.top, 2)
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(SanchrExportColors.background)
+
             ForEach(viewModel.groupedContacts, id: \.letter) { group in
                 Section {
                     ForEach(group.contacts) { contact in
                         Button {
                             startChat(with: contact)
                         } label: {
-                            ContactRow(contact: contact, colorScheme: colorScheme)
+                            ContactRow(contact: contact)
                         }
                         .buttonStyle(.plain)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task {
-                                        await viewModel.blockContact(
-                                            userId: contact.id,
-                                            contactDataSource: contactDataSource
-                                        )
-                                    }
-                                } label: {
-                                    Label("Block", systemImage: "hand.raised.fill")
-                                }
-
-                                Button {
-                                    startChat(with: contact)
-                                } label: {
-                                    Label("Message", systemImage: "bubble.left.fill")
-                                }
-                                .tint(.sanchrPrimary)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button {
+                                startChat(with: contact)
+                            } label: {
+                                Label("Message", systemImage: "bubble.left.fill")
                             }
-                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                Button {
-                                    // Initiate call
-                                } label: {
-                                    Label("Call", systemImage: "phone.fill")
+                            .tint(.sanchrPrimary)
+
+                            Button(role: .destructive) {
+                                Task {
+                                    await viewModel.blockContact(
+                                        userId: contact.id,
+                                        contactDataSource: contactDataSource
+                                    )
                                 }
-                                .tint(.sanchrSuccess)
+                            } label: {
+                                Label("Block", systemImage: "hand.raised.fill")
                             }
-                            .contextMenu {
-                                Button {
-                                    // View profile
-                                } label: {
-                                    Label("View Profile", systemImage: "person.circle")
-                                }
-
-                                Button {
-                                    startChat(with: contact)
-                                } label: {
-                                    Label("Message", systemImage: "bubble.left.fill")
-                                }
-
-                                Button {
-                                    // Voice call
-                                } label: {
-                                    Label("Voice Call", systemImage: "phone.fill")
-                                }
-
-                                Button {
-                                    // Video call
-                                } label: {
-                                    Label("Video Call", systemImage: "video.fill")
-                                }
-
-                                Divider()
-
-                                Button(role: .destructive) {
-                                    Task {
-                                        await viewModel.blockContact(
-                                            userId: contact.id,
-                                            contactDataSource: contactDataSource
-                                        )
-                                    }
-                                } label: {
-                                    Label("Block", systemImage: "hand.raised.fill")
-                                }
-                            }
-                            .listRowBackground(Color.sanchrSurface(colorScheme))
+                        }
+                        .listRowInsets(EdgeInsets())
                     }
                 } header: {
-                    Text(group.letter)
-                        .font(SanchrTypography.bodyBold)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                    SanchrSectionEyebrow(title: group.letter)
+                        .textCase(nil)
                 }
+                .listRowSeparator(.hidden)
+                .listRowBackground(SanchrExportColors.background)
             }
+
+            if let error = viewModel.errorMessage {
+                Section {
+                    Text(error)
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(.sanchrError)
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                        .listRowInsets(EdgeInsets())
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
+                Color.clear
+                    .frame(height: 70)
+                    .listRowInsets(EdgeInsets())
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
-        .searchable(text: $viewModel.searchText, prompt: "Search contacts")
+        .scrollContentBackground(.hidden)
+        .background(SanchrExportColors.background)
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    // MARK: - Empty State
+    private var onlineChip: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(SanchrColors.statusOnline)
+                .frame(width: 10, height: 10)
+
+            Text("\(viewModel.onlineCount) online now")
+                .font(SanchrTypography.conversationPreviewBold)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 38)
+        .background(SanchrExportColors.surfaceMuted)
+        .clipShape(Capsule())
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     private var emptyState: some View {
-        VStack(spacing: SanchrSpacing.md) {
-            Image(systemName: "person.2.circle")
-                .font(.system(size: 64))
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+        VStack(spacing: 0) {
+            customHeader
 
-            Text("No contacts yet")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+            Spacer()
 
-            Text("Sync your contacts to find friends on Sanchr")
-                .font(SanchrTypography.caption)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                .multilineTextAlignment(.center)
+            VStack(spacing: 18) {
+                Circle()
+                    .fill(SanchrColors.primary.opacity(0.12))
+                    .frame(width: 104, height: 104)
+                    .overlay {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(SanchrGradients.primaryDark)
+                    }
 
-            NavigationLink {
-                ContactSyncView()
-            } label: {
-                Text("Sync your contacts")
-                    .font(SanchrTypography.button)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, SanchrSpacing.xl)
-                    .padding(.vertical, SanchrSpacing.sm)
-                    .background(SanchrGradients.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                Text("No contacts yet")
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+
+                Text("Your secure Sanchr contacts will appear here after onboarding sync and discovery.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             }
+
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sanchrScreenBackground()
+        .background(SanchrExportColors.background)
     }
 }
 
-// MARK: - Contact Row
-
 struct ContactRow: View {
     let contact: User
-    let colorScheme: ColorScheme
 
     var body: some View {
-        HStack(spacing: SanchrSpacing.sm) {
-            // Avatar (48pt circle)
-            ZStack {
+        HStack(spacing: 12) {
+            avatar
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(contact.displayName)
+                        .font(SanchrTypography.conversationName)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+
+                    if contact.isVerified {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SanchrColors.accent)
+                    }
+                }
+
+                Text(subtitle)
+                    .font(SanchrTypography.conversationPreview)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "bubble.left.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(SanchrColors.primary)
+                .frame(width: 38, height: 38)
+                .background(Color.sanchrPrimary.opacity(0.1))
+                .clipShape(Circle())
+        }
+        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+        .padding(.vertical, 12)
+    }
+
+    private var avatar: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
                 if let avatarURL = contact.avatarURL {
                     KFImage(avatarURL)
                         .resizable()
                         .placeholder { avatarPlaceholder }
                         .fade(duration: 0.2)
                         .scaledToFill()
-                        .frame(width: 48, height: 48)
-                        .clipShape(Circle())
                 } else {
                     avatarPlaceholder
                 }
-
-                // Online indicator (green dot)
-                if contact.status == .online {
-                    Circle()
-                        .fill(Color.sanchrSuccess)
-                        .frame(width: 12, height: 12)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.sanchrSurface(colorScheme), lineWidth: 2)
-                        )
-                        .frame(
-                            maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                }
             }
-            .frame(width: 48, height: 48)
+            .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
+            .clipShape(Circle())
 
-            // Name and status
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
-                HStack(spacing: SanchrSpacing.xxs) {
-                    Text(contact.displayName)
-                        .font(SanchrTypography.bodyBold)
-                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-
-                    if contact.isVerified {
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.caption)
-                            .foregroundColor(.sanchrSuccess)
-                    }
-                }
-
-                if let bio = contact.bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                        .lineLimit(1)
-                } else if !contact.phoneNumber.isEmpty {
-                    Text(contact.phoneNumber)
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                } else {
-                    Text("Sanchr user")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                }
-            }
-
-            Spacer()
-
-            // Online indicator for non-avatar display
             if contact.status == .online {
                 Circle()
-                    .fill(Color.sanchrSuccess)
-                    .frame(width: 8, height: 8)
+                    .fill(SanchrColors.statusOnline)
+                    .frame(width: SanchrSpacing.statusIndicatorSize, height: SanchrSpacing.statusIndicatorSize)
+                    .overlay {
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2.5)
+                    }
+                    .offset(x: 1, y: 1)
             }
         }
-        .padding(.vertical, SanchrSpacing.xxxs)
+        .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
     }
 
     private var avatarPlaceholder: some View {
         Circle()
-            .fill(Color.sanchrPrimary.opacity(0.2))
-            .frame(width: 48, height: 48)
+            .fill(SanchrColors.primary.opacity(0.14))
             .overlay {
                 Text(contact.displayName.prefix(1).uppercased())
-                    .font(SanchrTypography.bodyBold)
+                    .font(SanchrTypography.cardTitle)
                     .foregroundColor(.sanchrPrimary)
             }
+    }
+
+    private var subtitle: String {
+        if let bio = contact.bio, !bio.isEmpty {
+            return bio
+        }
+        if !contact.phoneNumber.isEmpty {
+            return contact.phoneNumber
+        }
+        return "Sanchr contact"
     }
 }

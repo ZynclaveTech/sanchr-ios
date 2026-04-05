@@ -27,7 +27,7 @@ final class SanchrTheme: @unchecked Sendable {
         }
     }
 
-    var mode: Mode = .system
+    var mode: Mode = .light
 
     /// Resolved color scheme based on current mode and system setting.
     func resolvedScheme(system: ColorScheme) -> ColorScheme {

@@ -5,9 +5,30 @@ import XCTest
 @testable import Sanchr
 
 final class LocalDatabaseTests: XCTestCase {
+    private final class PassphraseBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: String
+
+        init(_ value: String) {
+            self.value = value
+        }
+
+        func read() -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            return value
+        }
+
+        func write(_ newValue: String) {
+            lock.lock()
+            value = newValue
+            lock.unlock()
+        }
+    }
+
     func testFetchMessagesHonorsBeforeCursorAndReturnsAscendingOrder() async throws {
         let path = makeTemporaryDatabasePath()
-        let database = LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
         let conversation = makeConversation(id: "conversation-1")
 
         try await database.saveConversation(conversation)
@@ -40,7 +61,7 @@ final class LocalDatabaseTests: XCTestCase {
 
     func testEncryptedDatabaseCannotBeOpenedWithoutPassphrase() async throws {
         let path = makeTemporaryDatabasePath()
-        let database = LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
 
         try await database.saveConversation(makeConversation(id: "conversation-2"))
 
@@ -80,7 +101,7 @@ final class LocalDatabaseTests: XCTestCase {
             try MessageRecord(from: message).insert(db)
         }
 
-        let encryptedDatabase = LocalDatabase(path: path, passphraseProvider: { "migrated-passphrase" })
+        let encryptedDatabase = try LocalDatabase(path: path, passphraseProvider: { "migrated-passphrase" })
         let fetched = try await encryptedDatabase.fetchMessages(
             conversationId: conversation.id,
             before: nil,
@@ -100,9 +121,34 @@ final class LocalDatabaseTests: XCTestCase {
         }
     }
 
+    func testEncryptedDatabaseReopensWithSamePassphraseAcrossLaunches() async throws {
+        let path = makeTemporaryDatabasePath()
+        let conversation = makeConversation(id: "conversation-reopen")
+        let message = makeMessage(
+            id: "message-reopen",
+            conversationId: conversation.id,
+            timestamp: Date(timeIntervalSince1970: 1_750_000_900)
+        )
+
+        do {
+            let database = try LocalDatabase(path: path, passphraseProvider: { "stable-passphrase" })
+            try await database.saveConversation(conversation)
+            try await database.saveMessage(message)
+        }
+
+        let reopened = try LocalDatabase(path: path, passphraseProvider: { "stable-passphrase" })
+        let messages = try await reopened.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 10
+        )
+
+        XCTAssertEqual(messages.map(\.id), ["message-reopen"])
+    }
+
     func testIncomingMessageReplayDoesNotDuplicateUnreadCountOrAckQueue() async throws {
         let path = makeTemporaryDatabasePath()
-        let database = LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
         let conversation = makeConversation(id: "conversation-4")
 
         try await database.saveConversation(conversation)
@@ -132,6 +178,198 @@ final class LocalDatabaseTests: XCTestCase {
         XCTAssertEqual(conversations.first?.unreadCount, 1)
         XCTAssertEqual(pendingAcks.count, 1)
         XCTAssertEqual(pendingAcks.first?.messageId, "incoming-1")
+    }
+
+    func testMetadataOnlyConversationSaveDoesNotWipeLocalPreviewOrUnreadState() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let conversation = makeConversation(id: "conversation-4b")
+
+        try await database.saveConversation(conversation)
+
+        let incomingMessage = Message(
+            id: "incoming-preview-1",
+            conversationId: conversation.id,
+            senderId: "remote-user",
+            timestamp: Date(timeIntervalSince1970: 1_750_001_050),
+            content: .text("preview should survive"),
+            status: .delivered,
+            isOutgoing: false
+        )
+
+        try await database.saveIncomingMessageAndQueueAck(incomingMessage)
+
+        let serverMetadataOnlyConversation = Conversation(
+            id: conversation.id,
+            participants: conversation.participants,
+            lastMessage: nil,
+            unreadCount: 0,
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: .oneToOne,
+            disappearingMessagesDuration: nil,
+            createdAt: conversation.createdAt,
+            updatedAt: conversation.updatedAt
+        )
+
+        try await database.saveConversation(serverMetadataOnlyConversation)
+
+        let fetchedConversation = try await database.fetchConversation(id: conversation.id)
+        let storedConversation = try XCTUnwrap(fetchedConversation)
+        XCTAssertEqual(storedConversation.lastMessage?.id, incomingMessage.id)
+        if case .text(let text)? = storedConversation.lastMessage?.content {
+            XCTAssertEqual(text, "preview should survive")
+        } else {
+            XCTFail("Expected stored preview text to survive metadata-only save")
+        }
+        XCTAssertEqual(storedConversation.unreadCount, 1)
+    }
+
+    func testPurgeAllDataRecreatesEncryptedDatabaseWithUpdatedPassphrase() async throws {
+        let path = makeTemporaryDatabasePath()
+        let passphrase = PassphraseBox("initial-passphrase")
+        let database = try LocalDatabase(path: path, passphraseProvider: { passphrase.read() })
+        let conversation = makeConversation(id: "conversation-5")
+
+        try await database.saveConversation(conversation)
+        try await database.saveMessage(
+            makeMessage(
+                id: "message-before-purge",
+                conversationId: conversation.id,
+                timestamp: Date(timeIntervalSince1970: 1_750_001_500)
+            )
+        )
+
+        passphrase.write("rotated-passphrase")
+        try await database.purgeAllData()
+
+        let conversations = try await database.fetchConversations()
+        let messages = try await database.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 10
+        )
+
+        XCTAssertTrue(conversations.isEmpty)
+        XCTAssertTrue(messages.isEmpty)
+
+        try await database.saveConversation(conversation)
+
+        do {
+            let plainDatabase = try DatabaseQueue(path: path)
+            _ = try await plainDatabase.read { db in
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sqlite_master")
+            }
+            XCTFail("Expected recreated encrypted database to reject plaintext reads")
+        } catch {
+            XCTAssertNotNil(error)
+        }
+    }
+
+    func testExistingDatabaseWithoutStoredSecretReturnsControlledError() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        try await database.saveConversation(makeConversation(id: "conversation-6"))
+
+        let storage = MockSecureStorage()
+        let deviceSecrets = DeviceSecretProvider(secureStorage: storage)
+        let keyProvider = LocalDatabaseKeyProvider(secureStorage: storage, deviceSecrets: deviceSecrets)
+
+        do {
+            _ = try LocalDatabase(path: path, keyProvider: keyProvider)
+            XCTFail("Expected controlled local data unavailable error")
+        } catch let error as AppError {
+            guard case .localDataUnavailable = error else {
+                return XCTFail("Unexpected error \(error)")
+            }
+        }
+    }
+
+    func testExistingEncryptedDatabaseWithWrongPassphraseReturnsControlledError() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "correct-passphrase" })
+        try await database.saveConversation(makeConversation(id: "conversation-7"))
+
+        do {
+            _ = try LocalDatabase(path: path, passphraseProvider: { "wrong-passphrase" })
+            XCTFail("Expected controlled local data unavailable error")
+        } catch let error as AppError {
+            guard case .localDataUnavailable = error else {
+                return XCTFail("Unexpected error \(error)")
+            }
+        }
+    }
+
+    func testPersistedFallbackPassphraseAllowsReopenWhenDeviceSecretIsMissing() async throws {
+        let path = makeTemporaryDatabasePath()
+        let storage = MockSecureStorage()
+        let deviceSecrets = DeviceSecretProvider(secureStorage: storage)
+        let keyProvider = LocalDatabaseKeyProvider(secureStorage: storage, deviceSecrets: deviceSecrets)
+
+        let database = try LocalDatabase(path: path, keyProvider: keyProvider)
+        try await database.saveConversation(makeConversation(id: "conversation-8"))
+
+        let persistedFallback = try XCTUnwrap(storage.databaseKey)
+        XCTAssertFalse(persistedFallback.isEmpty)
+
+        storage.deviceMasterSecret = nil
+
+        let reopened = try LocalDatabase(path: path, keyProvider: keyProvider)
+        let conversations = try await reopened.fetchConversations()
+
+        XCTAssertEqual(conversations.map(\.id), ["conversation-8"])
+    }
+
+    #if targetEnvironment(simulator)
+    func testSimulatorMirrorAllowsReopenWhenAllKeychainSecretsAreMissing() async throws {
+        let path = makeTemporaryDatabasePath()
+        let storage = MockSecureStorage()
+        let deviceSecrets = DeviceSecretProvider(secureStorage: storage)
+        let keyProvider = LocalDatabaseKeyProvider(secureStorage: storage, deviceSecrets: deviceSecrets)
+
+        let database = try LocalDatabase(path: path, keyProvider: keyProvider)
+        try await database.saveConversation(makeConversation(id: "conversation-9"))
+
+        storage.deviceMasterSecret = nil
+        storage.databaseKey = nil
+
+        let reopened = try LocalDatabase(path: path, keyProvider: keyProvider)
+        let conversations = try await reopened.fetchConversations()
+
+        XCTAssertEqual(conversations.map(\.id), ["conversation-9"])
+    }
+    #endif
+
+    func testBackupSnapshotRestoreRoundTripsConversationsAndMessages() async throws {
+        let sourcePath = makeTemporaryDatabasePath()
+        let sourceDatabase = try LocalDatabase(path: sourcePath, passphraseProvider: { "source-passphrase" })
+        let conversation = makeConversation(id: "conversation-backup")
+        let message = makeMessage(
+            id: "message-backup",
+            conversationId: conversation.id,
+            timestamp: Date(timeIntervalSince1970: 1_750_002_000)
+        )
+
+        try await sourceDatabase.saveConversation(conversation)
+        try await sourceDatabase.saveMessage(message)
+
+        let snapshot = try await sourceDatabase.exportBackupSnapshot(currentUserId: "local-user")
+
+        let restorePath = makeTemporaryDatabasePath()
+        let restoredDatabase = try LocalDatabase(path: restorePath, passphraseProvider: { "restore-passphrase" })
+        try await restoredDatabase.restoreBackupSnapshot(snapshot, currentUserId: "local-user")
+
+        let restoredConversations = try await restoredDatabase.fetchConversations()
+        let restoredMessages = try await restoredDatabase.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 10
+        )
+
+        XCTAssertEqual(restoredConversations.map(\.id), ["conversation-backup"])
+        XCTAssertEqual(restoredConversations.first?.lastMessage?.id, "message-backup")
+        XCTAssertEqual(restoredMessages.map(\.id), ["message-backup"])
     }
 
     private func makeTemporaryDatabasePath() -> String {

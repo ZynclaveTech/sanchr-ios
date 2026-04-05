@@ -18,12 +18,21 @@ protocol SecureStorageProtocol: AnyObject, Sendable {
     func readOrCreateInstallationId() throws -> String
     func saveSessionSnapshot(_ snapshot: SessionSnapshot) throws
     func readSessionSnapshot() throws -> SessionSnapshot?
+    func saveDeviceMasterSecret(_ secret: Data) throws
+    func readDeviceMasterSecret() throws -> Data?
     func saveDatabaseKey(_ key: String) throws
     func readDatabaseKey() throws -> String?
     func readOrCreateDatabaseKey() throws -> String
+    func saveRecoveryKey(_ key: String) throws
+    func readRecoveryKey() throws -> String?
+    func saveBackupConfiguration(_ configuration: BackupConfiguration) throws
+    func readBackupConfiguration() throws -> BackupConfiguration?
+    func deleteBackupConfiguration() throws
     func deleteAllTokens() throws
     func deleteSessionData() throws
     func deleteAllKeys() throws
+    func deleteDeviceSecrets() throws
+    func deleteBackupMaterial() throws
 }
 
 /// Keychain-backed secure storage for tokens and encryption keys.
@@ -36,7 +45,10 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         static let deviceId = "io.sanchr.device_id"
         static let installationId = "io.sanchr.installation_id"
         static let sessionSnapshot = "io.sanchr.session_snapshot"
+        static let deviceMasterSecret = "io.sanchr.device_master_secret"
         static let databaseKey = "io.sanchr.database_key"
+        static let recoveryKey = "io.sanchr.recovery_key"
+        static let backupConfiguration = "io.sanchr.backup_configuration"
         static let identityKey = "io.sanchr.identity_key"
         static let preKeys = "io.sanchr.pre_keys"
     }
@@ -123,9 +135,19 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         return try JSONDecoder().decode(SessionSnapshot.self, from: data)
     }
 
+    func saveDeviceMasterSecret(_ secret: Data) throws {
+        try keychain.save(secret, forKey: Keys.deviceMasterSecret)
+        SanchrLogger.crypto.info("Saved device master secret to Keychain (\(secret.count) bytes)")
+    }
+
+    func readDeviceMasterSecret() throws -> Data? {
+        try keychain.read(forKey: Keys.deviceMasterSecret)
+    }
+
     func saveDatabaseKey(_ key: String) throws {
         guard let data = key.data(using: .utf8) else { return }
         try keychain.save(data, forKey: Keys.databaseKey)
+        SanchrLogger.crypto.info("Saved fallback database key to Keychain (\(data.count) bytes)")
     }
 
     func readDatabaseKey() throws -> String? {
@@ -149,6 +171,30 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         return key
     }
 
+    func saveRecoveryKey(_ key: String) throws {
+        guard let data = key.data(using: .utf8) else { return }
+        try keychain.save(data, forKey: Keys.recoveryKey)
+    }
+
+    func readRecoveryKey() throws -> String? {
+        guard let data = try keychain.read(forKey: Keys.recoveryKey) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func saveBackupConfiguration(_ configuration: BackupConfiguration) throws {
+        let encoded = try JSONEncoder().encode(configuration)
+        try keychain.save(encoded, forKey: Keys.backupConfiguration)
+    }
+
+    func readBackupConfiguration() throws -> BackupConfiguration? {
+        guard let data = try keychain.read(forKey: Keys.backupConfiguration) else { return nil }
+        return try JSONDecoder().decode(BackupConfiguration.self, from: data)
+    }
+
+    func deleteBackupConfiguration() throws {
+        try keychain.delete(forKey: Keys.backupConfiguration)
+    }
+
     func deleteAllTokens() throws {
         try keychain.delete(forKey: Keys.accessToken)
         try keychain.delete(forKey: Keys.refreshToken)
@@ -159,11 +205,21 @@ final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         try keychain.delete(forKey: Keys.deviceId)
         try keychain.delete(forKey: Keys.installationId)
         try keychain.delete(forKey: Keys.sessionSnapshot)
-        try keychain.delete(forKey: Keys.databaseKey)
     }
 
     func deleteAllKeys() throws {
         try keychain.delete(forKey: Keys.identityKey)
         try keychain.delete(forKey: Keys.preKeys)
+    }
+
+    func deleteDeviceSecrets() throws {
+        SanchrLogger.crypto.warning("Deleting device-bound database secrets from Keychain")
+        try keychain.delete(forKey: Keys.deviceMasterSecret)
+        try keychain.delete(forKey: Keys.databaseKey)
+    }
+
+    func deleteBackupMaterial() throws {
+        try keychain.delete(forKey: Keys.recoveryKey)
+        try deleteBackupConfiguration()
     }
 }

@@ -29,6 +29,11 @@ final class ChatDetailViewModel {
     /// Whether the peer is typing.
     var peerIsTyping: Bool = false
     var peerTypingName: String = ""
+    var peerPresenceStatus: User.Status = .offline
+    var peerLastSeen: Date?
+    var peerPresenceHidden: Bool = false
+    var showsPresence: Bool = false
+    var showsTypingIndicators: Bool = false
 
     /// Grouped messages by day for stable section headers.
     private(set) var messageSections: [MessageSection] = []
@@ -58,6 +63,24 @@ final class ChatDetailViewModel {
     @MainActor
     func onConversationDisappear(pushManager: PushManager) {
         pushManager.setActiveConversation(nil)
+    }
+
+    func configurePeer(
+        _ peer: User?,
+        showsPresence: Bool? = nil,
+        showsTypingIndicators: Bool? = nil
+    ) {
+        if let showsPresence {
+            self.showsPresence = showsPresence
+        }
+        if let showsTypingIndicators {
+            self.showsTypingIndicators = showsTypingIndicators
+        }
+
+        guard let peer else { return }
+        peerPresenceStatus = peer.status
+        peerLastSeen = peer.lastSeen
+        peerPresenceHidden = false
     }
 
     // MARK: - Load Messages
@@ -98,6 +121,7 @@ final class ChatDetailViewModel {
         messageRepository: MessageRepositoryProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
         chatDataSource: ChatDataSource,
+        localDatabase: LocalDatabaseProtocol,
         sessionService: SessionService
     ) async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,9 +143,9 @@ final class ChatDetailViewModel {
 
         do {
             let useCase = ChatUseCases.SendMessageUseCase(
-                messageRepository: messageRepository,
                 signalSessionManager: signalProtocol,
                 chatDataSource: chatDataSource,
+                localDatabase: localDatabase,
                 localUserId: sessionService.currentUserId ?? "unknown"
             )
             // Wrap in auth retry so UNAUTHENTICATED errors refresh the token and retry
@@ -236,6 +260,7 @@ final class ChatDetailViewModel {
         messageRepository: MessageRepositoryProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
         chatDataSource: ChatDataSource,
+        localDatabase: LocalDatabaseProtocol,
         sessionService: SessionService
     ) async {
         guard message.status == .failed, case .text(let text) = message.content else { return }
@@ -252,6 +277,7 @@ final class ChatDetailViewModel {
             messageRepository: messageRepository,
             signalProtocol: signalProtocol,
             chatDataSource: chatDataSource,
+            localDatabase: localDatabase,
             sessionService: sessionService
         )
     }
@@ -305,8 +331,37 @@ final class ChatDetailViewModel {
     }
 
     func handleTypingIndicator(_ indicator: Vync_Messaging_TypingIndicator) {
+        guard showsTypingIndicators else {
+            peerIsTyping = false
+            peerTypingName = ""
+            return
+        }
+
         peerIsTyping = indicator.isTyping
         peerTypingName = indicator.userID
+    }
+
+    func handlePresenceUpdate(_ update: Vync_Messaging_PresenceUpdate, participantId: String?) {
+        guard let participantId, update.userID == participantId else { return }
+
+        switch update.statusCode {
+        case .online:
+            peerPresenceHidden = false
+            peerPresenceStatus = .online
+            peerLastSeen = nil
+
+        case .hidden:
+            peerPresenceHidden = true
+            peerPresenceStatus = .offline
+            peerLastSeen = nil
+
+        case .offline, .unspecified, .UNRECOGNIZED:
+            peerPresenceHidden = false
+            peerPresenceStatus = .offline
+            peerLastSeen = update.lastSeen > 0
+                ? Date(timeIntervalSince1970: TimeInterval(update.lastSeen) / 1000)
+                : nil
+        }
     }
 
     func handleReceipt(_ receipt: Vync_Messaging_ReceiptUpdate) {

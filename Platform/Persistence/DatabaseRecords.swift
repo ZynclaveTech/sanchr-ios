@@ -32,6 +32,30 @@ struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.isLocalUser = user.isLocalUser
     }
 
+    init(
+        id: String,
+        phoneNumber: String,
+        displayName: String,
+        avatarURL: String?,
+        bio: String?,
+        isVerified: Bool,
+        lastSeen: Date?,
+        identityKeyFingerprint: String?,
+        status: String,
+        isLocalUser: Bool
+    ) {
+        self.id = id
+        self.phoneNumber = phoneNumber
+        self.displayName = displayName
+        self.avatarURL = avatarURL
+        self.bio = bio
+        self.isVerified = isVerified
+        self.lastSeen = lastSeen
+        self.identityKeyFingerprint = identityKeyFingerprint
+        self.status = status
+        self.isLocalUser = isLocalUser
+    }
+
     func toDomain() -> User {
         User(
             id: id,
@@ -87,6 +111,38 @@ struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable
             self.lastMessageSenderId = lastMsg.senderId
             self.lastMessageStatus = lastMsg.status.rawValue
         }
+    }
+
+    init(
+        id: String,
+        type: String,
+        unreadCount: Int,
+        isPinned: Bool,
+        isMuted: Bool,
+        isArchived: Bool,
+        disappearingMessagesDuration: Double?,
+        createdAt: Date,
+        updatedAt: Date,
+        lastMessageId: String?,
+        lastMessageContent: String?,
+        lastMessageTimestamp: Date?,
+        lastMessageSenderId: String?,
+        lastMessageStatus: String?
+    ) {
+        self.id = id
+        self.type = type
+        self.unreadCount = unreadCount
+        self.isPinned = isPinned
+        self.isMuted = isMuted
+        self.isArchived = isArchived
+        self.disappearingMessagesDuration = disappearingMessagesDuration
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.lastMessageId = lastMessageId
+        self.lastMessageContent = lastMessageContent
+        self.lastMessageTimestamp = lastMessageTimestamp
+        self.lastMessageSenderId = lastMessageSenderId
+        self.lastMessageStatus = lastMessageStatus
     }
 
     func toDomain(participants: [User]) -> Conversation {
@@ -171,6 +227,28 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.expiresAt = message.expiresAt
     }
 
+    init(
+        id: String,
+        conversationId: String,
+        senderId: String,
+        timestamp: Date,
+        contentJSON: String,
+        status: String,
+        isOutgoing: Bool,
+        replyToMessageId: String?,
+        expiresAt: Date?
+    ) {
+        self.id = id
+        self.conversationId = conversationId
+        self.senderId = senderId
+        self.timestamp = timestamp
+        self.contentJSON = contentJSON
+        self.status = status
+        self.isOutgoing = isOutgoing
+        self.replyToMessageId = replyToMessageId
+        self.expiresAt = expiresAt
+    }
+
     func toDomain() -> Message {
         Message(
             id: id,
@@ -253,6 +331,36 @@ struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.isCachedLocally = item.isCachedLocally
         self.remoteURL = item.remoteURL?.absoluteString
         self.localURL = item.localURL?.absoluteString
+    }
+
+    init(
+        id: String,
+        name: String,
+        type: String,
+        sizeBytes: Int64,
+        encryptionKey: Data,
+        encryptionIV: Data,
+        thumbnailData: Data?,
+        encryptedThumbnailURL: String?,
+        createdAt: Date,
+        updatedAt: Date,
+        isCachedLocally: Bool,
+        remoteURL: String?,
+        localURL: String?
+    ) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.sizeBytes = sizeBytes
+        self.encryptionKey = encryptionKey
+        self.encryptionIV = encryptionIV
+        self.thumbnailData = thumbnailData
+        self.encryptedThumbnailURL = encryptedThumbnailURL
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isCachedLocally = isCachedLocally
+        self.remoteURL = remoteURL
+        self.localURL = localURL
     }
 
     func toDomain() -> VaultItem {

@@ -13,6 +13,12 @@ final class SecureStorageTests: XCTestCase {
         let databaseKey = try storage.readOrCreateDatabaseKey()
         let secondDatabaseKey = try storage.readOrCreateDatabaseKey()
         XCTAssertEqual(secondDatabaseKey, databaseKey)
+
+        let secretProvider = DeviceSecretProvider(secureStorage: storage)
+        let masterSecret = try secretProvider.readOrCreateDeviceMasterSecret()
+        let secondMasterSecret = try secretProvider.readOrCreateDeviceMasterSecret()
+        XCTAssertEqual(masterSecret, secondMasterSecret)
+        XCTAssertEqual(try secretProvider.localDatabasePassphrase(), try secretProvider.localDatabasePassphrase())
     }
 
     func testSessionSnapshotRoundTripsThroughKeychainStorage() throws {
@@ -31,5 +37,23 @@ final class SecureStorageTests: XCTestCase {
         try storage.saveSessionSnapshot(snapshot)
 
         XCTAssertEqual(try storage.readSessionSnapshot(), snapshot)
+    }
+
+    func testBackupConfigurationRoundTrips() throws {
+        let storage = SecureStorage(keychain: MockKeychainService())
+        let configuration = BackupConfiguration(
+            isEnabled: true,
+            lineageId: UUID().uuidString.lowercased(),
+            formatVersion: 1,
+            recoveryKeyConfirmedAt: Date(timeIntervalSince1970: 1_760_000_000),
+            lastBackupAt: Date(timeIntervalSince1970: 1_760_000_100),
+            lastBackupContentHash: "abc123"
+        )
+
+        try storage.saveBackupConfiguration(configuration)
+        try storage.saveRecoveryKey("abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234")
+
+        XCTAssertEqual(try storage.readBackupConfiguration(), configuration)
+        XCTAssertNotNil(try storage.readRecoveryKey())
     }
 }

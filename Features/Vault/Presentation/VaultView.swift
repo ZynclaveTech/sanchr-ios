@@ -1,13 +1,12 @@
-import SwiftUI
 import PhotosUI
+import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
-/// Encrypted vault screen for secure file storage.
-/// Matches Figma: vault-screen.
 @MainActor
 struct VaultView: View {
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = VaultViewModel()
     @State private var showAddSheet = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -21,382 +20,332 @@ struct VaultView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                ScrollView {
-                    VStack(spacing: SanchrSpacing.md) {
-                        // Secure Storage card
-                        secureStorageCard
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    header
 
-                        // Stats row
+                    VStack(spacing: 22) {
                         statsRow
-
-                        // Filter tabs
                         filterTabs
-
-                        // Content
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .tint(.sanchrPrimary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, SanchrSpacing.mega)
-                        } else if viewModel.items.isEmpty {
-                            emptyState
-                        } else {
-                            itemsGrid
-                        }
-
-                        // Upload progress
-                        if viewModel.isUploading {
-                            uploadProgressView
-                        }
-
-                        // Bottom notice
-                        if !viewModel.items.isEmpty {
-                            bottomNotice
-                        }
-
-                        // Pagination loader
-                        if viewModel.isLoadingMore {
-                            ProgressView()
-                                .tint(.sanchrPrimary)
-                                .padding()
-                        }
+                        content
                     }
-                    .padding(.horizontal, SanchrSpacing.md)
-                    .padding(.bottom, SanchrSpacing.mega)
-                }
-                .refreshable {
-                    await viewModel.loadItems(vaultDataSource: vaultDataSource)
-                }
-
-                // FAB: "+ Add to Vault"
-                addButton
-            }
-            .navigationTitle("Vault")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            // Select multiple items
-                        } label: {
-                            Label("Select", systemImage: "checkmark.circle")
-                        }
-                        Button {
-                            // Sort options
-                        } label: {
-                            Label("Sort", systemImage: "arrow.up.arrow.down")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundColor(.sanchrPrimary)
-                    }
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 24)
+                    .padding(.bottom, 110)
                 }
             }
-            .sheet(isPresented: $showAddSheet) {
-                addToVaultSheet
-            }
-            .fileImporter(
-                isPresented: $showFileImporter,
-                allowedContentTypes: [.pdf, .plainText, .spreadsheet, .presentation,
-                                      .data, .archive, .item],
-                allowsMultipleSelection: false
-            ) { result in
-                guard case .success(let urls) = result, let url = urls.first else { return }
-                Task {
-                    guard url.startAccessingSecurityScopedResource() else { return }
-                    defer { url.stopAccessingSecurityScopedResource() }
-                    if let data = try? Data(contentsOf: url) {
-                        await viewModel.uploadItem(
-                            data: data,
-                            fileName: url.lastPathComponent,
-                            mediaType: "file",
-                            senderID: container.sessionService.currentUserId ?? "",
-                            vaultDataSource: vaultDataSource,
-                            mediaManager: container.mediaManager
-                        )
-                    }
-                }
-            }
-            .task(id: viewModel.activeFilter) {
+            .refreshable {
                 await viewModel.loadItems(vaultDataSource: vaultDataSource)
             }
+            .background(SanchrExportColors.background.ignoresSafeArea())
+
+            addButton
+        }
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showAddSheet) {
+            addToVaultSheet
+        }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.pdf, .plainText, .spreadsheet, .presentation, .data, .archive, .item],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            Task {
+                guard url.startAccessingSecurityScopedResource() else { return }
+                defer { url.stopAccessingSecurityScopedResource() }
+                if let data = try? Data(contentsOf: url) {
+                    await viewModel.uploadItem(
+                        data: data,
+                        fileName: url.lastPathComponent,
+                        mediaType: "file",
+                        senderID: container.sessionService.currentUserId ?? "",
+                        vaultDataSource: vaultDataSource,
+                        mediaManager: container.mediaManager
+                    )
+                }
+            }
+        }
+        .task(id: viewModel.activeFilter) {
+            await viewModel.loadItems(vaultDataSource: vaultDataSource)
         }
     }
 
-    // MARK: - Secure Storage Card
+    private var header: some View {
+        VStack(spacing: 18) {
+            HStack {
+                SanchrIconButton(
+                    systemName: "chevron.left",
+                    foreground: .white,
+                    background: Color.white.opacity(0.12)
+                ) {
+                    dismiss()
+                }
 
-    private var secureStorageCard: some View {
-        HStack(spacing: SanchrSpacing.md) {
-            Image(systemName: "camera.fill")
-                .font(.title2)
-                .foregroundColor(.white)
-                .frame(width: 48, height: 48)
-                .background(SanchrGradients.primary)
-                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
+                Spacer()
 
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
-                Text("Secure Storage")
+                Text("Vault")
                     .font(SanchrTypography.cardTitle)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                Text("Self-destructing media")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-            }
+                    .foregroundColor(.white)
 
-            Spacer()
+                Spacer()
 
-            // Encryption badge
-            HStack(spacing: SanchrSpacing.xxxs) {
-                Image(systemName: "lock.fill")
-                    .font(.caption2)
-                Text("E2EE")
-                    .font(SanchrTypography.micro)
+                Menu {
+                    Button("Select") {}
+                    Button("Sort") {}
+                } label: {
+                    Image(systemName: "ellipsis.vertical")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white.opacity(0.12))
+                        .clipShape(Circle())
+                }
             }
-            .foregroundColor(SanchrColors.encryptionBadgeText)
-            .padding(.horizontal, SanchrSpacing.xs)
-            .padding(.vertical, SanchrSpacing.xxxs)
-            .background(SanchrColors.encryptionBadge)
-            .clipShape(Capsule())
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.top, 52)
+
+            HStack(spacing: 16) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [SanchrColors.accent, SanchrColors.primary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 52, height: 52)
+                    .overlay {
+                        Image(systemName: "lock.doc.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Secure Storage")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(.white)
+                    Text("Self-destructing media")
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(.white.opacity(0.78))
+                }
+
+                Spacer()
+
+                Text("\(viewModel.totalItems)")
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 32)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.bottom, 22)
         }
-        .padding(SanchrSpacing.md)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
-        .sanchrCardShadow()
+        .background(
+            LinearGradient(
+                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
     }
-
-    // MARK: - Stats Row
 
     private var statsRow: some View {
-        HStack(spacing: SanchrSpacing.md) {
-            statItem(icon: "photo.fill", count: viewModel.totalPhotos, label: "Photos")
-            statItem(icon: "video.fill", count: viewModel.totalVideos, label: "Videos")
-            statItem(icon: "doc.fill", count: viewModel.totalFiles, label: "Files")
+        HStack(spacing: 12) {
+            VaultStatCard(
+                icon: "photo.fill",
+                tint: SanchrColors.primary,
+                title: "\(viewModel.totalPhotos)",
+                subtitle: "Photos"
+            )
+            VaultStatCard(
+                icon: "video.fill",
+                tint: SanchrColors.accent,
+                title: "\(viewModel.totalVideos)",
+                subtitle: "Videos"
+            )
+            VaultStatCard(
+                icon: "doc.fill",
+                tint: Color(hex: 0x9333EA),
+                title: "\(viewModel.totalFiles)",
+                subtitle: "Files"
+            )
         }
     }
-
-    private func statItem(icon: String, count: Int32, label: String) -> some View {
-        VStack(spacing: SanchrSpacing.xxs) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(.sanchrPrimary)
-            Text("\(count)")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-            Text(label)
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, SanchrSpacing.sm)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
-    }
-
-    // MARK: - Filter Tabs
 
     private var filterTabs: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: SanchrSpacing.xs) {
+            HStack(spacing: 10) {
                 ForEach(VaultViewModel.Filter.allCases) { filter in
-                    Button {
+                    SanchrFilterChip(
+                        title: filter.displayName,
+                        isSelected: viewModel.activeFilter == filter
+                    ) {
                         viewModel.changeFilter(filter)
-                    } label: {
-                        HStack(spacing: SanchrSpacing.xxs) {
-                            Image(systemName: filter.icon)
-                                .font(.caption)
-                            Text(filter.displayName)
-                                .font(SanchrTypography.caption)
-                        }
-                        .padding(.horizontal, SanchrSpacing.md)
-                        .padding(.vertical, SanchrSpacing.xs)
-                        .background(
-                            viewModel.activeFilter == filter
-                                ? AnyShapeStyle(SanchrGradients.primary)
-                                : AnyShapeStyle(Color.sanchrSurfaceElevated(colorScheme))
-                        )
-                        .foregroundColor(
-                            viewModel.activeFilter == filter
-                                ? .white
-                                : Color.sanchrTextSecondary(colorScheme)
-                        )
-                        .clipShape(Capsule())
                     }
                 }
             }
         }
     }
 
-    // MARK: - Items Grid
+    @ViewBuilder
+    private var content: some View {
+        if viewModel.isLoading {
+            ProgressView()
+                .tint(.sanchrPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 48)
+        } else if viewModel.items.isEmpty {
+            emptyState
+        } else {
+            LazyVStack(spacing: 16) {
+                ForEach(viewModel.items) { item in
+                    VaultItemCard(
+                        item: item,
+                        onDelete: {
+                            Task {
+                                await viewModel.deleteItem(
+                                    item,
+                                    vaultDataSource: vaultDataSource,
+                                    localDatabase: container.localDatabase
+                                )
+                            }
+                        },
+                        onShare: {}
+                    )
+                    .onAppear {
+                        if item.id == viewModel.items.last?.id {
+                            Task {
+                                await viewModel.loadMore(vaultDataSource: vaultDataSource)
+                            }
+                        }
+                    }
+                }
 
-    private var itemsGrid: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: SanchrSpacing.sm),
-                GridItem(.flexible(), spacing: SanchrSpacing.sm),
-            ],
-            spacing: SanchrSpacing.sm
-        ) {
-            ForEach(viewModel.items) { item in
-                VaultItemCard(
-                    item: item,
-                    colorScheme: colorScheme,
-                    onDelete: {
-                        Task {
-                            await viewModel.deleteItem(
-                                item,
-                                vaultDataSource: vaultDataSource,
-                                localDatabase: container.localDatabase
-                            )
-                        }
-                    },
-                    onShare: {
-                        // Share action - would present recipient picker
-                    }
-                )
-                .onAppear {
-                    // Pagination: load more when last item appears
-                    if item.id == viewModel.items.last?.id {
-                        Task {
-                            await viewModel.loadMore(vaultDataSource: vaultDataSource)
-                        }
-                    }
+                if viewModel.isUploading {
+                    uploadProgressView
+                }
+
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .padding(.vertical, 8)
                 }
             }
         }
     }
-
-    // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: SanchrSpacing.md) {
-            Image(systemName: "lock.doc.fill")
-                .font(.system(size: 64))
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-            Text("Your vault is empty")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-            Text("Store photos, documents, and notes with end-to-end encryption")
-                .font(SanchrTypography.caption)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                .multilineTextAlignment(.center)
+        VStack(spacing: 18) {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(height: 220)
+                .overlay {
+                    VStack(spacing: 14) {
+                        Image(systemName: "lock.doc.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(SanchrGradients.primaryDark)
+                        Text("Your vault is empty")
+                            .font(SanchrTypography.cardTitle)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                        Text("Store photos, documents, and notes with end-to-end encryption.")
+                            .font(SanchrTypography.body)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 28)
+                }
         }
-        .padding(.top, SanchrSpacing.mega)
     }
-
-    // MARK: - Upload Progress
 
     private var uploadProgressView: some View {
-        HStack(spacing: SanchrSpacing.sm) {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Uploading to Vault")
+                .font(SanchrTypography.bodyBold)
+                .foregroundColor(SanchrExportColors.textPrimary)
             ProgressView(value: viewModel.uploadProgress)
                 .tint(.sanchrPrimary)
-            Text("\(Int(viewModel.uploadProgress * 100))%")
+            Text("\(Int(viewModel.uploadProgress * 100))% complete")
                 .font(SanchrTypography.captionSmall)
-                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                .foregroundColor(SanchrExportColors.textSecondary)
         }
-        .padding(SanchrSpacing.md)
-        .background(Color.sanchrSurfaceElevated(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
+        .padding(18)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
-
-    // MARK: - Bottom Notice
-
-    private var bottomNotice: some View {
-        HStack(spacing: SanchrSpacing.xs) {
-            Image(systemName: "lock.fill")
-                .font(.caption2)
-                .foregroundColor(SanchrColors.encryptionBadgeText)
-            Text("All vault media is encrypted and will self-destruct after the set timer expires")
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-        }
-        .padding(SanchrSpacing.sm)
-    }
-
-    // MARK: - FAB
 
     private var addButton: some View {
         Button {
             showAddSheet = true
         } label: {
-            HStack(spacing: SanchrSpacing.xs) {
+            HStack(spacing: 10) {
                 Image(systemName: "plus")
-                    .font(.body.bold())
+                    .font(.system(size: 16, weight: .bold))
                 Text("Add to Vault")
-                    .font(SanchrTypography.button)
+                    .font(SanchrTypography.bodyBold)
             }
             .foregroundColor(.white)
-            .padding(.horizontal, SanchrSpacing.lg)
-            .padding(.vertical, SanchrSpacing.sm)
-            .background(SanchrGradients.primary)
+            .padding(.horizontal, 22)
+            .frame(height: 58)
+            .background(
+                LinearGradient(
+                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
             .clipShape(Capsule())
-            .sanchrElevatedShadow()
-            .sanchrPrimaryGlow()
+            .shadow(color: SanchrColors.primary.opacity(0.28), radius: 24, x: 0, y: 14)
         }
-        .padding(SanchrSpacing.md)
+        .padding(.trailing, 20)
+        .padding(.bottom, 20)
     }
-
-    // MARK: - Add Sheet
 
     private var addToVaultSheet: some View {
         NavigationStack {
-            VStack(spacing: SanchrSpacing.lg) {
-                let currentScheme = colorScheme
+            VStack(spacing: 16) {
                 PhotosPicker(
                     selection: $selectedPhotoItem,
                     matching: .any(of: [.images, .videos])
                 ) {
-                    HStack(spacing: SanchrSpacing.sm) {
-                        Image(systemName: "photo.on.rectangle")
-                            .font(.title2)
-                            .foregroundColor(.sanchrPrimary)
-                        VStack(alignment: .leading) {
-                            Text("Photo or Video")
-                                .font(SanchrTypography.bodyBold)
-                                .foregroundColor(Color.sanchrTextPrimary(currentScheme))
-                            Text("Select from your library")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(Color.sanchrTextSecondary(currentScheme))
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Color.sanchrTextTertiary(currentScheme))
-                    }
-                    .padding(SanchrSpacing.md)
-                    .background(Color.sanchrSurfaceElevated(currentScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
+                    VaultSheetRow(
+                        icon: "photo.on.rectangle.fill",
+                        tint: SanchrColors.primary,
+                        title: "Photo or Video",
+                        subtitle: "Select from your library"
+                    )
                 }
 
                 Button {
                     showAddSheet = false
                     showFileImporter = true
                 } label: {
-                    HStack(spacing: SanchrSpacing.sm) {
-                        Image(systemName: "doc.fill")
-                            .font(.title2)
-                            .foregroundColor(.sanchrPrimary)
-                        VStack(alignment: .leading) {
-                            Text("Document")
-                                .font(SanchrTypography.bodyBold)
-                                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                            Text("PDF, DOC, and more")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                    }
-                    .padding(SanchrSpacing.md)
-                    .background(Color.sanchrSurfaceElevated(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
+                    VaultSheetRow(
+                        icon: "doc.fill",
+                        tint: SanchrColors.accent,
+                        title: "Document",
+                        subtitle: "PDF, DOC, and more"
+                    )
                 }
+                .buttonStyle(.plain)
 
                 Spacer()
             }
-            .padding(SanchrSpacing.md)
+            .padding(SanchrExportMetrics.screenHorizontal)
+            .padding(.top, 20)
             .navigationTitle("Add to Vault")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -408,8 +357,8 @@ struct VaultView: View {
         .presentationDetents([.medium])
         .onChange(of: selectedPhotoItem) { _, newValue in
             guard let newValue else { return }
+
             Task {
-                // Detect media type from the picker item's supported types
                 let isVideo = newValue.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
                 let ext = isVideo ? "mp4" : "jpg"
                 let mediaType = isVideo ? "video" : "photo"
@@ -430,153 +379,300 @@ struct VaultView: View {
     }
 }
 
-// MARK: - Vault Item Card
+private struct VaultStatCard: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(SanchrExportColors.surfaceMuted)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.sanchrPrimary)
+                }
+
+            Text(title)
+                .font(SanchrTypography.sectionHeader)
+                .foregroundColor(SanchrExportColors.textPrimary)
+
+            Text(subtitle)
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct VaultSheetRow: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(SanchrExportColors.surfaceMuted)
+                .frame(width: 48, height: 48)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.sanchrPrimary)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text(subtitle)
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(SanchrExportColors.textTertiary)
+        }
+        .padding(16)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
 
 struct VaultItemCard: View {
     let item: VaultItem
-    let colorScheme: ColorScheme
     var onDelete: () -> Void = {}
     var onShare: () -> Void = {}
 
     @State private var thumbnail: UIImage?
 
-    /// Remaining time until expiration (if applicable).
-    private var expiryText: String? {
-        let now = Date()
-        guard item.createdAt > Date.distantPast else { return nil }
-        let secondsSinceCreation = now.timeIntervalSince(item.createdAt)
-        // Default TTL: 30 days (2_592_000 seconds)
-        let ttl: TimeInterval = 30 * 24 * 3600
-        let remaining = ttl - secondsSinceCreation
+    private var expiryText: String {
+        let remaining = (30 * 24 * 3600) - Date().timeIntervalSince(item.createdAt)
         guard remaining > 0 else { return "Expired" }
-
-        let days = Int(remaining / 86400)
-        let hours = Int(remaining.truncatingRemainder(dividingBy: 86400) / 3600)
-
-        if days > 0 {
-            return "Expires in \(days)d"
-        }
+        let hours = Int(remaining / 3600)
         return "Expires in \(hours)h"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SanchrSpacing.xs) {
-            // Thumbnail / Icon area
+        VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: SanchrRadius.sm)
-                    .fill(Color.sanchrSurface(colorScheme))
-                    .frame(height: 140)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(thumbnailGradient)
+                    .frame(height: 192)
                     .overlay {
-                        if let thumbnail {
-                            Image(uiImage: thumbnail)
-                                .resizable()
-                                .scaledToFill()
-                                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
-                        } else {
-                            Image(systemName: item.type.systemImage)
-                                .font(.largeTitle)
-                                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                        ZStack {
+                            if let thumbnail {
+                                Image(uiImage: thumbnail)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                            } else {
+                                Image(systemName: item.type.systemImage)
+                                    .font(.system(size: 52))
+                                    .foregroundColor(iconTint.opacity(0.35))
+                            }
+
+                            if item.type == .video {
+                                Circle()
+                                    .fill(Color.white.opacity(0.92))
+                                    .frame(width: 64, height: 64)
+                                    .overlay {
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 22, weight: .bold))
+                                            .foregroundColor(SanchrColors.primary)
+                                            .offset(x: 2)
+                                    }
+                            }
                         }
                     }
                     .clipped()
 
-                // Type badge
-                HStack(spacing: SanchrSpacing.xxxs) {
-                    Text(item.type.rawValue.capitalized)
-                        .font(SanchrTypography.micro)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, SanchrSpacing.xs)
-                        .padding(.vertical, SanchrSpacing.xxxs)
-                        .background(Color.black.opacity(0.6))
-                        .clipShape(Capsule())
-                }
-                .padding(SanchrSpacing.xs)
-
-                // Video play button overlay
-                if item.type == .video {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.white.opacity(0.9))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(height: 140)
-            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
-
-            // Item info
-            VStack(alignment: .leading, spacing: SanchrSpacing.xxxs) {
-                Text(item.name)
+                Text(typeLabel)
                     .font(SanchrTypography.captionSmall)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
-                    .lineLimit(1)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background(Color.black.opacity(0.55))
+                    .clipShape(Capsule())
+                    .padding(14)
 
-                HStack {
-                    Text(item.formattedSize)
-                        .font(SanchrTypography.micro)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                    Text(ttlText)
+                        .font(SanchrTypography.captionSmall)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(iconTint)
+                .clipShape(Capsule())
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(SanchrExportColors.surfaceMuted)
+                        .frame(width: 32, height: 32)
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(SanchrExportColors.textSecondary)
+                        }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(SanchrTypography.bodyBold)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                            .lineLimit(1)
+                        Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
 
                     Spacer()
 
-                    if let expiry = expiryText {
-                        Text(expiry)
-                            .font(SanchrTypography.micro)
-                            .foregroundColor(.sanchrError)
+                    Menu {
+                        Button("Save") {}
+                        Button("Share", action: onShare)
+                        Button("Delete", role: .destructive, action: onDelete)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: 32, height: 32)
+                            .background(SanchrExportColors.surfaceMuted)
+                            .clipShape(Circle())
                     }
+                }
+
+                HStack {
+                    HStack(spacing: 18) {
+                        VaultActionButton(icon: "square.and.arrow.down", title: "Save", tint: SanchrColors.primary)
+                        VaultActionButton(icon: "square.and.arrow.up", title: "Share", tint: SanchrExportColors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Text(expiryText)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color(hex: 0xEA580C))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Color(hex: 0xFFF7ED))
+                        .clipShape(Capsule())
                 }
             }
-
-            // Action buttons
-            HStack(spacing: SanchrSpacing.xs) {
-                Button {
-                    // Save to device
-                } label: {
-                    HStack(spacing: SanchrSpacing.xxxs) {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.caption2)
-                        Text("Save")
-                            .font(SanchrTypography.micro)
-                    }
-                    .foregroundColor(.sanchrPrimary)
-                    .padding(.horizontal, SanchrSpacing.xs)
-                    .padding(.vertical, SanchrSpacing.xxs)
-                    .background(Color.sanchrPrimary.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-
-                Button(action: onShare) {
-                    HStack(spacing: SanchrSpacing.xxxs) {
-                        Image(systemName: "arrowshape.turn.up.right")
-                            .font(.caption2)
-                        Text("Share")
-                            .font(SanchrTypography.micro)
-                    }
-                    .foregroundColor(.sanchrPrimary)
-                    .padding(.horizontal, SanchrSpacing.xs)
-                    .padding(.vertical, SanchrSpacing.xxs)
-                    .background(Color.sanchrPrimary.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-
-                Spacer()
-            }
+            .padding(16)
         }
-        .sanchrCard()
-        .contextMenu {
-            Button(action: onShare) {
-                Label("Share", systemImage: "arrowshape.turn.up.right")
-            }
-            Button {
-                // Save to device
-            } label: {
-                Label("Save to Device", systemImage: "square.and.arrow.down")
-            }
-            Divider()
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .background(
+            LinearGradient(
+                colors: [SanchrExportColors.surface, SanchrExportColors.surfaceMuted],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .task {
             thumbnail = await ThumbnailCache.shared.thumbnail(for: item)
+        }
+    }
+
+    private var typeLabel: String {
+        switch item.type {
+        case .photo:
+            return "Photo"
+        case .video:
+            return "Video"
+        case .document:
+            return "File"
+        case .audio:
+            return "Audio"
+        case .note:
+            return "Note"
+        }
+    }
+
+    private var ttlText: String {
+        switch item.type {
+        case .photo:
+            return "24h"
+        case .video:
+            return "48h"
+        case .document:
+            return "72h"
+        case .audio:
+            return "24h"
+        case .note:
+            return "12h"
+        }
+    }
+
+    private var thumbnailGradient: LinearGradient {
+        LinearGradient(
+            colors: gradientColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var gradientColors: [Color] {
+        switch item.type {
+        case .photo:
+            return [SanchrColors.primary.opacity(0.18), SanchrColors.accent.opacity(0.18)]
+        case .video:
+            return [SanchrColors.accent.opacity(0.2), SanchrColors.primary.opacity(0.18)]
+        case .document:
+            return [Color(hex: 0xF3E8FF), Color(hex: 0xFCE7F3)]
+        case .audio:
+            return [Color(hex: 0xDBEAFE), Color(hex: 0xE0F2FE)]
+        case .note:
+            return [Color(hex: 0xFEF3C7), Color(hex: 0xFDE68A)]
+        }
+    }
+
+    private var iconTint: Color {
+        switch item.type {
+        case .photo:
+            return SanchrColors.primary
+        case .video:
+            return SanchrColors.accent
+        case .document:
+            return Color(hex: 0x7C3AED)
+        case .audio:
+            return Color(hex: 0x2563EB)
+        case .note:
+            return Color(hex: 0xD97706)
+        }
+    }
+}
+
+private struct VaultActionButton: View {
+    let icon: String
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.sanchrPrimary)
+            Text(title)
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
         }
     }
 }

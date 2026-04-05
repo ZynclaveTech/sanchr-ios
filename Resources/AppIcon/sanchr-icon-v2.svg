@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep indigo to violet gradient -->
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1147"/>
+      <stop offset="40%" stop-color="#3B1D8E"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+
+    <!-- Warm accent gradient for the interlock -->
+    <linearGradient id="warm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+
+    <!-- White to light purple -->
+    <linearGradient id="cool" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C4B5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg2)"/>
+
+  <!-- Two interlocking chain links forming an abstract S -->
+  <g transform="translate(512, 512)">
+
+    <!-- Upper link (rotated oval/rounded-rect) — represents sender -->
+    <rect x="-180" y="-280" width="260" height="160" rx="80" ry="80"
+          fill="none" stroke="url(#cool)" stroke-width="48"
+          transform="rotate(-30, -50, -200)"/>
+
+    <!-- Lower link (rotated oval/rounded-rect) — represents receiver -->
+    <rect x="-80" y="120" width="260" height="160" rx="80" ry="80"
+          fill="none" stroke="url(#cool)" stroke-width="48"
+          transform="rotate(-30, 50, 200)"/>
+
+    <!-- Warm accent connection point where links interlock -->
+    <circle cx="0" cy="0" r="24" fill="url(#warm)"/>
+    <circle cx="0" cy="0" r="40" fill="none" stroke="#F59E0B" stroke-width="4" opacity="0.5"/>
+    <circle cx="0" cy="0" r="56" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.25"/>
+  </g>
+</svg>

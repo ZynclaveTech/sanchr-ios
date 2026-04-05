@@ -118,18 +118,29 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     func uploadInitialKeyBundle() async throws {
         let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
+        let registrationId = try store.identityStore.localRegistrationId(context: NullContext())
         let signedPreKey = try generateSignedPreKey()
+        let kyberPreKey = try generateKyberPreKey(identityKeyPair: identityKeyPair)
         let oneTimePreKeys = try generateOneTimePreKeys(count: Self.defaultPreKeyBatchSize)
 
         // Build the proto key bundle
         var bundle = Vync_Keys_KeyBundle()
         bundle.identityPublicKey = Data(identityKeyPair.identityKey.serialize())
+        bundle.registrationID = Int32(registrationId)
 
         var signedPreKeyProto = Vync_Keys_SignedPreKey()
         signedPreKeyProto.keyID = Int32(signedPreKey.id)
         signedPreKeyProto.publicKey = Data(try signedPreKey.publicKey().serialize())
         signedPreKeyProto.signature = Data(signedPreKey.signature)
+        signedPreKeyProto.timestamp = Int64(signedPreKey.timestamp)
         bundle.signedPreKey = signedPreKeyProto
+
+        var kyberPreKeyProto = Vync_Keys_KyberPreKey()
+        kyberPreKeyProto.keyID = Int32(kyberPreKey.id)
+        kyberPreKeyProto.publicKey = Data(try kyberPreKey.publicKey().serialize())
+        kyberPreKeyProto.signature = Data(kyberPreKey.signature)
+        kyberPreKeyProto.timestamp = Int64(kyberPreKey.timestamp)
+        bundle.kyberPreKey = kyberPreKeyProto
 
         bundle.oneTimePreKeys = try oneTimePreKeys.map { preKey in
             var otpk = Vync_Keys_OneTimePreKey()
@@ -187,19 +198,14 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
             throw AppError.encryptionFailed(reason: "Server response missing signed pre-key.")
         }
         let signedPreKeyProto = response.signedPreKey
+        guard response.hasKyberPreKey else {
+            throw AppError.encryptionFailed(reason: "Server response missing kyber pre-key.")
+        }
 
         let signedPreKeyPublic = try PublicKey(signedPreKeyProto.publicKey)
-
-        // Registration ID is not returned by our server; use 0 as placeholder.
-        let registrationId: UInt32 = 0
-
-        // Generate an ephemeral Kyber key pair for PQXDH (required by libsignal v0.88.1+)
-        let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
-        let kyberKeyPair = KEMKeyPair.generate()
-        let kyberPrekeyId: UInt32 = UInt32(Date().timeIntervalSince1970) & 0x00FF_FFFF
-        let kyberPrekeySignature = identityKeyPair.privateKey.generateSignature(
-            message: kyberKeyPair.publicKey.serialize()
-        )
+        let kyberPreKeyProto = response.kyberPreKey
+        let kyberPreKeyPublic = try KEMPublicKey(kyberPreKeyProto.publicKey)
+        let registrationId = UInt32(response.registrationID)
 
         // One-time pre-key is optional (may be exhausted on server)
         let bundle: PreKeyBundle
@@ -215,9 +221,9 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
                 signedPrekey: signedPreKeyPublic,
                 signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
                 identity: identityKey,
-                kyberPrekeyId: kyberPrekeyId,
-                kyberPrekey: kyberKeyPair.publicKey,
-                kyberPrekeySignature: kyberPrekeySignature
+                kyberPrekeyId: UInt32(kyberPreKeyProto.keyID),
+                kyberPrekey: kyberPreKeyPublic,
+                kyberPrekeySignature: [UInt8](kyberPreKeyProto.signature)
             )
         } else {
             bundle = try PreKeyBundle(
@@ -227,9 +233,9 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
                 signedPrekey: signedPreKeyPublic,
                 signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
                 identity: identityKey,
-                kyberPrekeyId: kyberPrekeyId,
-                kyberPrekey: kyberKeyPair.publicKey,
-                kyberPrekeySignature: kyberPrekeySignature
+                kyberPrekeyId: UInt32(kyberPreKeyProto.keyID),
+                kyberPrekey: kyberPreKeyPublic,
+                kyberPrekeySignature: [UInt8](kyberPreKeyProto.signature)
             )
         }
 
@@ -241,14 +247,41 @@ final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Device Management
 
     func fetchUserDevices(recipientId: String) async throws -> [Int32] {
+        let devices = try await fetchDeviceInfo(recipientId: recipientId)
+            .filter(\.keyCapable)
+            .map(\.deviceID)
+
+        if devices.isEmpty {
+            throw AppError.sessionNotEstablished
+        }
+        return devices
+    }
+
+    func hasCompleteServerBundle(userId: String, deviceId: Int32) async throws -> Bool {
+        try await fetchDeviceInfo(recipientId: userId)
+            .contains(where: { $0.deviceID == deviceId && $0.keyCapable })
+    }
+
+    private func fetchDeviceInfo(recipientId: String) async throws -> [Vync_Keys_DeviceInfo] {
         var request = Vync_Keys_GetUserDevicesRequest()
         request.userID = recipientId
         let response = try await keyService.getUserDevices(request)
+        return response.devices
+    }
 
-        if response.deviceIds.isEmpty {
-            throw AppError.sessionNotEstablished
-        }
-        return response.deviceIds
+    private func generateKyberPreKey(identityKeyPair: IdentityKeyPair) throws -> KyberPreKeyRecord {
+        let keyPair = KEMKeyPair.generate()
+        let keyId = UInt32(Date().timeIntervalSince1970) & 0x00FF_FFFF
+        let timestamp = UInt64(Date().timeIntervalSince1970 * 1000)
+        let signature = identityKeyPair.privateKey.generateSignature(message: keyPair.publicKey.serialize())
+        let record = try KyberPreKeyRecord(
+            id: keyId,
+            timestamp: timestamp,
+            keyPair: keyPair,
+            signature: signature
+        )
+        try store.kyberPreKeyStore.storeKyberPreKey(record, id: keyId, context: NullContext())
+        return record
     }
 }
 
