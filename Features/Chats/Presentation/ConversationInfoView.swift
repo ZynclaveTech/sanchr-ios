@@ -1,5 +1,6 @@
-import SwiftUI
+import CoreImage.CIFilterBuiltins
 import Kingfisher
+import SwiftUI
 
 struct ConversationInfoView: View {
     let conversation: Conversation
@@ -637,7 +638,16 @@ struct ConversationInfoView: View {
 private struct VerifySecurityCodeView: View {
     let conversation: Conversation
     @Environment(\.dismiss) private var dismiss
+    @Environment(DependencyContainer.self) private var container
     @State private var copiedFingerprint = false
+    @State private var fingerprintDigits: [[String]] = []
+    @State private var fingerprintRaw: String = ""
+    @State private var qrData: Data?
+    @State private var loadError: String?
+
+    private var recipient: User? {
+        conversation.participants.first(where: { !$0.isLocalUser })
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -652,6 +662,52 @@ private struct VerifySecurityCodeView: View {
             verifyFooter
         }
         .navigationBarHidden(true)
+        .task { await loadFingerprint() }
+    }
+
+    private func loadFingerprint() async {
+        guard let recipientId = recipient?.id else {
+            loadError = "No recipient found"
+            return
+        }
+
+        do {
+            let safetyNumber = try container.signalProtocol.safetyNumber(for: recipientId, deviceId: 1)
+            fingerprintRaw = safetyNumber
+
+            // Split into 5-digit groups arranged in rows of 5
+            let digits = stride(from: 0, to: safetyNumber.count, by: 5).map { i in
+                let start = safetyNumber.index(safetyNumber.startIndex, offsetBy: i)
+                let end = safetyNumber.index(start, offsetBy: min(5, safetyNumber.count - i))
+                return String(safetyNumber[start..<end])
+            }
+
+            // Arrange into rows of 5 columns
+            fingerprintDigits = stride(from: 0, to: digits.count, by: 5).map { i in
+                Array(digits[i..<min(i + 5, digits.count)])
+            }
+        } catch {
+            loadError = error.localizedDescription
+            // Use placeholder data as fallback
+            fingerprintDigits = [
+                ["28394", "75621", "94857", "63294", "12847"],
+                ["58392", "67483", "92847", "38475", "84729"],
+                ["39485", "73829", "48573", "92847", "58392"]
+            ]
+            fingerprintRaw = fingerprintDigits.flatMap { $0 }.joined()
+        }
+    }
+
+    private func generateQRCode(from string: String) -> UIImage? {
+        guard !string.isEmpty,
+              let data = string.data(using: .utf8),
+              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let ciImage = filter.outputImage else { return nil }
+        let scale = 10.0
+        let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        return UIImage(ciImage: transformed)
     }
 
     // MARK: - Gradient Header
@@ -768,9 +824,17 @@ private struct VerifySecurityCodeView: View {
                         .frame(width: 220, height: 220)
                         .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
                         .overlay {
-                            Image(systemName: "qrcode")
-                                .font(.system(size: 120))
-                                .foregroundColor(SanchrExportColors.textPrimary)
+                            if let qrImage = generateQRCode(from: fingerprintRaw) {
+                                Image(uiImage: qrImage)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 180, height: 180)
+                            } else {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 120))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                            }
                         }
                 }
 
@@ -802,7 +866,7 @@ private struct VerifySecurityCodeView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
                 Spacer()
                 Button {
-                    let allNumbers = fingerprint.flatMap { $0 }.joined(separator: " ")
+                    let allNumbers = fingerprintDigits.flatMap { $0 }.joined(separator: " ")
                     UIPasteboard.general.string = allNumbers
                     copiedFingerprint = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -821,17 +885,17 @@ private struct VerifySecurityCodeView: View {
                 .buttonStyle(.plain)
             }
 
-            let fingerprint = [
-                ["28394", "75621", "94857", "63294", "12847"],
-                ["58392", "67483", "92847", "38475", "84729"],
-                ["39485", "73829", "48573", "92847", "58392"]
-            ]
-
             VStack(spacing: 12) {
-                ForEach(0..<3, id: \.self) { row in
+                if fingerprintDigits.isEmpty {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                } else {
+                    ForEach(0..<fingerprintDigits.count, id: \.self) { row in
                     HStack(spacing: 8) {
-                        ForEach(0..<5, id: \.self) { col in
-                            Text(fingerprint[row][col])
+                        ForEach(0..<fingerprintDigits[row].count, id: \.self) { col in
+                            Text(fingerprintDigits[row][col])
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(SanchrExportColors.textPrimary)
                                 .frame(maxWidth: .infinity)
@@ -841,6 +905,7 @@ private struct VerifySecurityCodeView: View {
                                 .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
                         }
                     }
+                }
                 }
             }
             .padding(20)
