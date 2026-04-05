@@ -65,6 +65,11 @@ final class SettingsViewModel {
     var isLoading: Bool = false
     var errorMessage: String?
 
+    // MARK: - Privacy Cache
+
+    /// Stored reference so all sync paths can update the cache without API churn.
+    private var privacySettings: PrivacySettingsCache?
+
     // MARK: - Debounce
 
     private var syncWorkItem: DispatchWorkItem?
@@ -90,13 +95,19 @@ final class SettingsViewModel {
 
     // MARK: - Load Settings
 
-    func loadSettings(settingsDataSource: SettingsDataSource, appLockManager: AppLockManager? = nil) async {
+    func loadSettings(
+        settingsDataSource: SettingsDataSource,
+        appLockManager: AppLockManager? = nil,
+        privacySettings: PrivacySettingsCache? = nil
+    ) async {
+        if let privacySettings { self.privacySettings = privacySettings }
         isLoading = true
         defer { isLoading = false }
 
         do {
             let settings = try await settingsDataSource.getSettings()
             applySettings(settings)
+            self.privacySettings?.update(from: settings)
             // Sync security prefs to local enforcement
             appLockManager?.syncFromSettings(
                 screenLock: settings.screenLockEnabled,
@@ -152,6 +163,7 @@ final class SettingsViewModel {
         do {
             let updated = try await settingsDataSource.updateSettings(settings: settings)
             applySettings(updated)
+            privacySettings?.update(from: updated)
             SanchrLogger.network.info("Settings synced to backend")
         } catch {
             errorMessage = "Failed to save settings. Please try again."
@@ -167,6 +179,7 @@ final class SettingsViewModel {
         do {
             let updated = try await settingsDataSource.toggleVyncMode(enabled: newValue)
             applySettings(updated)
+            privacySettings?.update(from: updated)
         } catch {
             errorMessage = error.localizedDescription
         }
