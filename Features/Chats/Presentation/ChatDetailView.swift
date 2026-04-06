@@ -1275,7 +1275,7 @@ private struct MediaBubbleImage: View {
     @State private var localImageURL: URL?
     @State private var isDownloading = false
 
-    /// Resolve the image to display (local file, thumbnail, or downloaded)
+    /// Resolve the image to display (local file, thumbnail, downloaded, or blur hash placeholder)
     private var displayImage: UIImage? {
         // Local file (optimistic upload)
         if attachment.url.isFileURL, let img = UIImage(contentsOfFile: attachment.url.path) {
@@ -1288,6 +1288,10 @@ private struct MediaBubbleImage: View {
         // Downloaded + decrypted
         if let url = localImageURL, let img = UIImage(contentsOfFile: url.path) {
             return img
+        }
+        // Blur hash placeholder (instant, no download needed)
+        if let hash = attachment.blurHash {
+            return BlurHash.decode(hash, width: 32, height: 32)
         }
         return nil
     }
@@ -1344,7 +1348,9 @@ private struct MediaBubbleImage: View {
         .task {
             guard !attachment.url.isFileURL, localImageURL == nil else { return }
             isDownloading = true
-            let ext = attachment.mimeType.contains("png") ? "png" : "jpg"
+            let ext = attachment.mimeType.contains("png") ? "png"
+                : attachment.mimeType.hasPrefix("video/") ? (attachment.mimeType.contains("quicktime") ? "mov" : "mp4")
+                : "jpg"
             // Check cache first
             if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
                 localImageURL = cached
@@ -1357,12 +1363,37 @@ private struct MediaBubbleImage: View {
                     messageId: messageId,
                     attachment: attachment
                 )
-                localImageURL = url
+                // For videos, generate a thumbnail from the downloaded file
+                if attachment.mimeType.hasPrefix("video/") {
+                    let thumbURL = await generateVideoThumbnailFromFile(url)
+                    localImageURL = thumbURL ?? url
+                } else {
+                    localImageURL = url
+                }
             } catch {
                 SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
             }
             isDownloading = false
         }
+    }
+
+    private func generateVideoThumbnailFromFile(_ videoURL: URL) async -> URL? {
+        await Task.detached(priority: .utility) {
+            let asset = AVAsset(url: videoURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 480, height: 480)
+            let time = CMTime(seconds: 1, preferredTimescale: 600)
+            guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil as URL? }
+            let uiImage = UIImage(cgImage: cgImage)
+            guard let jpegData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
+            let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("MediaMessages", isDirectory: true)
+            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+            let thumbURL = cacheDir.appendingPathComponent("\(videoURL.deletingPathExtension().lastPathComponent)_thumb.jpg")
+            try? jpegData.write(to: thumbURL)
+            return thumbURL
+        }.value
     }
 }
 
