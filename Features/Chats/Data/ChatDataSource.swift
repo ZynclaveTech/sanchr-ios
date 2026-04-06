@@ -58,7 +58,8 @@ final class ChatDataSource: @unchecked Sendable {
         conversationId: String,
         plaintext: Data,
         recipientIds: [String],
-        signalSessionManager: SignalProtocolManagerProtocol
+        signalSessionManager: SignalProtocolManagerProtocol,
+        contentType: String = "text"
     ) async throws -> Vync_Messaging_SendMessageResponse {
         var allDeviceMessages: [Vync_Messaging_DeviceMessage] = []
 
@@ -79,7 +80,7 @@ final class ChatDataSource: @unchecked Sendable {
         return try await sendMessage(
             conversationID: conversationId,
             deviceMessages: allDeviceMessages,
-            contentType: "text"
+            contentType: contentType
         )
     }
 

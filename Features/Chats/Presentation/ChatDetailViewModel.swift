@@ -319,10 +319,37 @@ final class ChatDetailViewModel {
                 replyToMessageId: completedTask.replyToMessageId
             )
 
-            // Send via existing pipeline (Signal Protocol E2EE)
+            // Send via Signal Protocol E2EE (use recipientId, not conversationId)
             do {
-                let sentMessage = try await messageRepository.sendMessage(finalMessage)
+                let plaintext = try JSONEncoder().encode(finalMessage.content)
+                let contentType = completedTask.mimeType.hasPrefix("image/") ? "image"
+                    : completedTask.mimeType.hasPrefix("video/") ? "video"
+                    : completedTask.mimeType.hasPrefix("audio/") ? "audio"
+                    : "document"
+
+                let response = try await chatDataSource.sendEncryptedMessage(
+                    conversationId: conversationId,
+                    plaintext: plaintext,
+                    recipientIds: [recipientId],
+                    signalSessionManager: signalProtocol,
+                    contentType: contentType
+                )
+
+                let serverTimestamp = Date(timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000.0)
+                let sentMessage = Message(
+                    id: response.messageID.isEmpty ? finalMessage.id : response.messageID,
+                    conversationId: conversationId,
+                    senderId: senderId,
+                    timestamp: serverTimestamp,
+                    content: finalMessage.content,
+                    status: .sent,
+                    isOutgoing: true,
+                    replyToMessageId: finalMessage.replyToMessageId
+                )
+
+                try? await localDatabase.saveMessage(sentMessage)
                 await mediaUploadManager.markCompleted(uploadTask.id)
+                SanchrLogger.media.info("Media message sent: \(sentMessage.id)")
 
                 await MainActor.run {
                     if let index = self?.messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
