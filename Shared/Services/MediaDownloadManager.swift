@@ -1,6 +1,10 @@
 import Foundation
 
 /// Manages downloading, decrypting, and caching received media.
+/// Media URLs use the `sanchr-media://{mediaId}` scheme — the manager
+/// calls GetDownloadUrl(mediaId) to get a fresh presigned GET URL,
+/// downloads the encrypted blob, decrypts with the key from the E2EE
+/// message, and caches the plaintext locally.
 actor MediaDownloadManager {
     private let mediaEncryption: MediaEncryptionProtocol
     private let grpcClient: GRPCClientProtocol
@@ -23,22 +27,22 @@ actor MediaDownloadManager {
     }
 
     /// Download, decrypt, and cache media for a message.
+    /// Handles both `sanchr-media://` (Vault mediaId) and direct HTTPS URLs.
     func download(
         messageId: String,
         attachment: Message.MediaAttachment
     ) async throws -> URL {
         let ext = extensionForMime(attachment.mimeType)
 
-        // Check cache
+        // Check cache first
         if let cached = cachedURL(for: messageId, ext: ext) {
             return cached
         }
 
         // Prevent duplicate downloads
         guard !inFlight.contains(messageId) else {
-            // Wait for existing download
             while inFlight.contains(messageId) {
-                try await Task.sleep(nanoseconds: 100_000_000) // 100ms poll
+                try await Task.sleep(nanoseconds: 100_000_000)
             }
             if let cached = cachedURL(for: messageId, ext: ext) {
                 return cached
@@ -48,25 +52,55 @@ actor MediaDownloadManager {
         inFlight.insert(messageId)
         defer { inFlight.remove(messageId) }
 
-        // Download encrypted blob
-        let (encryptedData, response) = try await URLSession.shared.data(from: attachment.url)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
+        // Resolve download URL
+        let downloadURL: URL
+        if attachment.url.scheme == "sanchr-media" {
+            // Vault media — get presigned GET URL from server
+            let mediaId = attachment.url.host ?? attachment.url.lastPathComponent
+            SanchrLogger.media.info("Resolving download URL for mediaId=\(mediaId.prefix(8))...")
+
+            var request = Vync_Media_GetDownloadUrlRequest()
+            request.mediaID = mediaId
+            let response = try await grpcClient.mediaService.getDownloadUrl(request)
+
+            guard let url = URL(string: response.url) else {
+                SanchrLogger.media.error("Invalid download URL from server")
+                throw AppError.mediaDownloadFailed
+            }
+            downloadURL = url
+            SanchrLogger.media.info("Got presigned download URL, downloading...")
+        } else if attachment.url.isFileURL {
+            // Local file — sender's own media, should be cached already
+            SanchrLogger.media.warning("Download called for local file URL, skipping")
             throw AppError.mediaDownloadFailed
+        } else {
+            // Direct HTTPS URL (legacy or CDN)
+            downloadURL = attachment.url
+            SanchrLogger.media.info("Using direct URL for download")
         }
 
-        // Decrypt
+        // Download encrypted blob
+        let (encryptedData, response) = try await URLSession.shared.data(from: downloadURL)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            SanchrLogger.media.error("Download failed: HTTP \(status)")
+            throw AppError.mediaDownloadFailed
+        }
+        SanchrLogger.media.info("Downloaded \(encryptedData.count) bytes, decrypting...")
+
+        // Decrypt with key from E2EE message
         let plaintext = try mediaEncryption.decrypt(
             ciphertext: encryptedData,
             key: attachment.encryptionKey,
             iv: attachment.encryptionIV
         )
 
-        // Cache to disk
+        // Cache to local disk
         let outputURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
         try plaintext.write(to: outputURL, options: .atomic)
 
-        SanchrLogger.media.info("Downloaded + decrypted media for message \(messageId.prefix(8)): \(plaintext.count) bytes")
+        SanchrLogger.media.info("Media cached for message \(messageId.prefix(8)): \(plaintext.count) bytes plaintext")
         return outputURL
     }
 
