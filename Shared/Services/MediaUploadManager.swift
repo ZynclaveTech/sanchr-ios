@@ -85,7 +85,12 @@ actor MediaUploadManager {
 
     /// Execute the full upload pipeline for a task.
     func execute(_ taskId: String) async -> MediaUploadTask? {
-        guard var task = tasks[taskId] else { return nil }
+        guard var task = tasks[taskId] else {
+            SanchrLogger.media.error("Upload execute: task \(taskId.prefix(8)) not found")
+            return nil
+        }
+
+        SanchrLogger.media.info("Upload execute: starting \(taskId.prefix(8)), file=\(task.localFileURL.lastPathComponent)")
 
         // Step 1: Encrypt
         task.state = .encrypting
@@ -96,13 +101,16 @@ actor MediaUploadManager {
         let encryptedURL = tempDir.appendingPathComponent("\(task.id).enc")
 
         do {
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypting...")
             let metadata = try await mediaEncryption.encryptFile(
                 at: task.localFileURL,
                 to: encryptedURL
             )
             task.encryptedFileURL = encryptedURL
             task.encryptionMetadata = metadata
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted, \(metadata.fileSize) bytes plaintext")
         } catch {
+            SanchrLogger.media.error("Upload \(taskId.prefix(8)): encryption failed: \(error)")
             task.state = .failed(error: "Encryption failed: \(error.localizedDescription)", retryCount: task.retryCount)
             tasks[taskId] = task
             notifyUpdate(task)
@@ -116,6 +124,8 @@ actor MediaUploadManager {
 
         do {
             let encryptedData = try Data(contentsOf: encryptedURL)
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted blob \(encryptedData.count) bytes, getting presigned URL...")
+
             let hashHex = SHA256.hash(data: encryptedData).map { String(format: "%02x", $0) }.joined()
 
             var uploadReq = Vync_Media_GetUploadUrlRequest()
@@ -127,9 +137,11 @@ actor MediaUploadManager {
             let uploadResp = try await grpcClient.mediaService.getUploadUrl(uploadReq)
             task.mediaId = uploadResp.mediaID
             task.remoteURL = uploadResp.displayURL.isEmpty ? uploadResp.url : uploadResp.displayURL
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): got presigned URL, mediaId=\(uploadResp.mediaID.prefix(8)), uploading to S3...")
 
             // Step 3: PUT to S3
             guard let putURL = URL(string: uploadResp.url) else {
+                SanchrLogger.media.error("Upload \(taskId.prefix(8)): invalid presigned URL")
                 throw AppError.mediaUploadFailed
             }
 
@@ -145,24 +157,29 @@ actor MediaUploadManager {
 
             guard let response = httpResponse as? HTTPURLResponse,
                   (200...299).contains(response.statusCode) else {
+                let statusCode = (httpResponse as? HTTPURLResponse)?.statusCode ?? -1
+                SanchrLogger.media.error("Upload \(taskId.prefix(8)): S3 PUT failed, status=\(statusCode)")
                 throw AppError.mediaUploadFailed
             }
 
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): S3 PUT success, status=\(response.statusCode)")
             task.state = .uploading(progress: 1.0)
             task.progress = 1.0
             tasks[taskId] = task
             notifyUpdate(task)
         } catch {
+            SanchrLogger.media.error("Upload \(taskId.prefix(8)): failed (attempt \(task.retryCount + 1)/\(task.maxRetries)): \(error)")
             task.retryCount += 1
             if task.retryCount < task.maxRetries {
                 task.state = .failed(error: error.localizedDescription, retryCount: task.retryCount)
                 tasks[taskId] = task
                 notifyUpdate(task)
-                // Auto-retry with backoff
                 let delay = pow(2.0, Double(task.retryCount)) * 2.0
+                SanchrLogger.media.info("Upload \(taskId.prefix(8)): retrying in \(delay)s...")
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 return await execute(taskId)
             } else {
+                SanchrLogger.media.error("Upload \(taskId.prefix(8)): giving up after \(task.maxRetries) retries")
                 task.state = .failed(error: "Upload failed after \(task.maxRetries) retries", retryCount: task.retryCount)
                 tasks[taskId] = task
                 notifyUpdate(task)
@@ -174,13 +191,16 @@ actor MediaUploadManager {
         task.state = .confirming
         tasks[taskId] = task
         notifyUpdate(task)
+        SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirming upload...")
 
         do {
             var confirmReq = Vync_Media_ConfirmUploadRequest()
             confirmReq.mediaID = task.mediaId ?? ""
             confirmReq.fileSize = task.encryptionMetadata?.fileSize ?? 0
             _ = try await grpcClient.mediaService.confirmUpload(confirmReq)
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirmed!")
         } catch {
+            SanchrLogger.media.error("Upload \(taskId.prefix(8)): confirm failed: \(error)")
             task.state = .failed(error: "Confirm failed: \(error.localizedDescription)", retryCount: task.retryCount)
             tasks[taskId] = task
             notifyUpdate(task)
@@ -190,6 +210,7 @@ actor MediaUploadManager {
         task.state = .sendingMessage
         tasks[taskId] = task
         notifyUpdate(task)
+        SanchrLogger.media.info("Upload \(taskId.prefix(8)): ready to send message")
 
         // Cleanup encrypted temp file
         try? FileManager.default.removeItem(at: encryptedURL)

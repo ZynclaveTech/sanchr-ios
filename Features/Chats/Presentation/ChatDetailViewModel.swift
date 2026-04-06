@@ -280,15 +280,21 @@ final class ChatDetailViewModel {
 
         // Execute upload pipeline (runs even if user leaves screen)
         Task.detached { [weak self] in
-            guard let completedTask = await mediaUploadManager.execute(uploadTask.id) else { return }
+            SanchrLogger.media.info("Starting upload pipeline for task \(uploadTask.id.prefix(8))")
+            guard let completedTask = await mediaUploadManager.execute(uploadTask.id) else {
+                SanchrLogger.media.error("Upload pipeline returned nil for task \(uploadTask.id.prefix(8))")
+                return
+            }
+            SanchrLogger.media.info("Upload pipeline completed: state=\(String(describing: completedTask.state))")
 
             guard case .sendingMessage = completedTask.state,
                   let metadata = completedTask.encryptionMetadata,
                   let remoteURL = completedTask.remoteURL,
                   let remoteURLParsed = URL(string: remoteURL) else {
-                // Failed — UI already updated by callback
+                SanchrLogger.media.warning("Upload task not in sendingMessage state or missing data: state=\(String(describing: completedTask.state)), hasMetadata=\(completedTask.encryptionMetadata != nil), remoteURL=\(completedTask.remoteURL ?? "nil")")
                 return
             }
+            SanchrLogger.media.info("Building final message with CDN URL: \(remoteURL.prefix(50))...")
 
             // Build final attachment with CDN URL + encryption keys
             let attachment = Message.MediaAttachment(
