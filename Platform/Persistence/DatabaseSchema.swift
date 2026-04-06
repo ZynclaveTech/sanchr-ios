@@ -123,6 +123,29 @@ enum DatabaseSchema {
             )
         }
 
+        migrator.registerMigration("v3_access_key_entries") { db in
+            try db.create(table: "accessKeyEntry", ifNotExists: true) { t in
+                t.primaryKey("mediaId", .text).notNull()
+                t.column("accessKey", .blob).notNull()
+                t.column("conversationId", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+            }
+
+            try db.create(
+                index: "idx_accessKeyEntry_createdAt",
+                on: "accessKeyEntry",
+                columns: ["createdAt"],
+                ifNotExists: true
+            )
+
+            try db.create(
+                index: "idx_accessKeyEntry_conversationId",
+                on: "accessKeyEntry",
+                columns: ["conversationId"],
+                ifNotExists: true
+            )
+        }
+
         return migrator
     }
 }

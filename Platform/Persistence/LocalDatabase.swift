@@ -34,6 +34,14 @@ protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func fetchVaultItems() async throws -> [VaultItem]
     func deleteVaultItem(id: String) async throws
 
+    // MARK: - Access Keys (Media Forward Secrecy)
+
+    func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws
+    func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry?
+    func deleteAccessKeyEntry(mediaId: String) async throws
+    func purgeAccessKeyEntries(olderThan: Date) async throws -> Int
+    func deleteAllAccessKeyEntries() async throws
+
     // MARK: - Lifecycle
 
     func hasLocalHistory() async throws -> Bool
@@ -342,6 +350,49 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func deleteVaultItem(id: String) async throws {
         try await dbPool.write { db in
             _ = try VaultItemRecord.deleteOne(db, key: id)
+        }
+    }
+
+    // MARK: - Access Keys (Media Forward Secrecy)
+
+    func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws {
+        let record = AccessKeyRecord(entry: entry)
+        try await dbPool.write { db in
+            try record.save(db, onConflict: .replace)
+        }
+    }
+
+    func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? {
+        try await dbPool.read { db in
+            guard let record = try AccessKeyRecord
+                .filter(AccessKeyRecord.Columns.mediaId == mediaId)
+                .fetchOne(db)
+            else {
+                return nil
+            }
+            return record.toEntry()
+        }
+    }
+
+    func deleteAccessKeyEntry(mediaId: String) async throws {
+        try await dbPool.write { db in
+            _ = try AccessKeyRecord
+                .filter(AccessKeyRecord.Columns.mediaId == mediaId)
+                .deleteAll(db)
+        }
+    }
+
+    func purgeAccessKeyEntries(olderThan cutoff: Date) async throws -> Int {
+        try await dbPool.write { db in
+            try AccessKeyRecord
+                .filter(AccessKeyRecord.Columns.createdAt < cutoff)
+                .deleteAll(db)
+        }
+    }
+
+    func deleteAllAccessKeyEntries() async throws {
+        try await dbPool.write { db in
+            _ = try AccessKeyRecord.deleteAll(db)
         }
     }
 
@@ -982,6 +1033,11 @@ final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable
     func fetchVaultItems() async throws -> [VaultItem] { throw error }
     func deleteVaultItem(id: String) async throws { throw error }
     func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
+    func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }
+    func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { throw error }
+    func deleteAccessKeyEntry(mediaId: String) async throws { throw error }
+    func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { throw error }
+    func deleteAllAccessKeyEntries() async throws { throw error }
     func hasLocalHistory() async throws -> Bool { throw error }
     func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
