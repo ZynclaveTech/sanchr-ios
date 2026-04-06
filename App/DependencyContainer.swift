@@ -76,6 +76,16 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
 
+    @ObservationIgnored lazy var mediaUploadManager = MediaUploadManager(
+        mediaEncryption: mediaEncryption,
+        grpcClient: grpcClient
+    )
+
+    @ObservationIgnored lazy var mediaDownloadManager = MediaDownloadManager(
+        mediaEncryption: mediaEncryption,
+        grpcClient: grpcClient
+    )
+
     // MARK: - Repositories
 
     @ObservationIgnored lazy var authRepository: AuthRepositoryProtocol = AuthRepositoryImpl(
