@@ -216,6 +216,7 @@ final class MessageCollectionViewController: UICollectionViewController {
         let animate = !isInitialLoad && newItemCount != lastItemCount
         lastItemCount = newItemCount
 
+        guard let dataSource else { return }
         dataSource.apply(snapshot, animatingDifferences: animate) { [weak self] in
             guard let self else { return }
             if self.isInitialLoad {
