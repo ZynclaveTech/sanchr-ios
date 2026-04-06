@@ -43,6 +43,9 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
 
         /// Duration in seconds for audio and video.
         var durationSeconds: Double?
+
+        /// BlurHash string for instant placeholder display before media download.
+        var blurHash: String?
     }
 
     enum SystemEvent: String, Codable, Hashable, Sendable {
