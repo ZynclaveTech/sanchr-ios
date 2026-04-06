@@ -949,10 +949,17 @@ struct ChatDetailView: View {
             // Generate video thumbnail for optimistic UI
             let thumbnailURL = await generateVideoThumbnail(videoURL: tempURL)
 
-            let attachment = Message.MediaAttachment(
+            // Compute blur hash from thumbnail for instant receiver preview
+            var videoBlurHash: String?
+            if let thumbURL = thumbnailURL, let thumbImage = UIImage(contentsOfFile: thumbURL.path) {
+                videoBlurHash = BlurHash.encode(thumbImage)
+            }
+
+            var attachment = Message.MediaAttachment(
                 url: thumbnailURL ?? tempURL, encryptionKey: Data(), encryptionIV: Data(),
                 mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: thumbnailURL
             )
+            attachment.blurHash = videoBlurHash
 
             await viewModel.sendMediaMessage(
                 localFileURL: tempURL,
@@ -974,10 +981,13 @@ struct ChatDetailView: View {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
             try? imageData.write(to: tempURL)
 
-            let attachment = Message.MediaAttachment(
+            let imageBlurHash: String? = UIImage(data: imageData).flatMap { BlurHash.encode($0) }
+
+            var attachment = Message.MediaAttachment(
                 url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
                 mimeType: "image/jpeg", sizeBytes: Int64(imageData.count), thumbnailURL: nil
             )
+            attachment.blurHash = imageBlurHash
 
             await viewModel.sendMediaMessage(
                 localFileURL: tempURL,
