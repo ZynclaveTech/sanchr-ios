@@ -336,7 +336,7 @@ final class ChatDetailViewModel {
         }
     }
 
-    private static func contentForAttachment(_ attachment: Message.MediaAttachment, mimeType: String) -> Message.MessageContent {
+    private nonisolated static func contentForAttachment(_ attachment: Message.MediaAttachment, mimeType: String) -> Message.MessageContent {
         if mimeType.hasPrefix("image/") { return .image(attachment) }
         if mimeType.hasPrefix("video/") { return .video(attachment) }
         if mimeType.hasPrefix("audio/") { return .audio(attachment) }

@@ -67,7 +67,7 @@ actor MediaUploadManager {
     private let grpcClient: GRPCClientProtocol
 
     /// Callback for UI progress updates (called on MainActor).
-    var onTaskUpdate: ((MediaUploadTask) -> Void)?
+    nonisolated(unsafe) var onTaskUpdate: (@Sendable (MediaUploadTask) -> Void)?
 
     init(mediaEncryption: MediaEncryptionProtocol, grpcClient: GRPCClientProtocol) {
         self.mediaEncryption = mediaEncryption
@@ -223,11 +223,10 @@ actor MediaUploadManager {
         tasks[taskId]
     }
 
-    private func notifyUpdate(_ task: MediaUploadTask) {
+    private nonisolated func notifyUpdate(_ task: MediaUploadTask) {
         let callback = onTaskUpdate
-        let taskCopy = task
         Task { @MainActor in
-            callback?(taskCopy)
+            callback?(task)
         }
     }
 }
