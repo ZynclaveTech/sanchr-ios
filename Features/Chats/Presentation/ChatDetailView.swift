@@ -1,3 +1,4 @@
+import AVFoundation
 import Kingfisher
 import PhotosUI
 import SwiftUI
@@ -493,7 +494,11 @@ struct ChatDetailView: View {
                                 viewModel.setReply(to: message)
                             } content: {
                                 VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 4) {
-                                    MessageBubble(message: message)
+                                    MessageBubble(
+                                        message: message,
+                                        uploadProgress: viewModel.uploadProgress[message.id],
+                                        uploadLabel: viewModel.uploadStatusLabel[message.id]
+                                    )
 
                                     if !message.reactions.isEmpty {
                                         ReactionPillsView(
@@ -541,7 +546,11 @@ struct ChatDetailView: View {
                                     .padding(.vertical, 10)
 
                                     // Message preview
-                                    MessageBubble(message: message)
+                                    MessageBubble(
+                                        message: message,
+                                        uploadProgress: viewModel.uploadProgress[message.id],
+                                        uploadLabel: viewModel.uploadStatusLabel[message.id]
+                                    )
                                         .padding(.horizontal, 16)
                                         .padding(.bottom, 8)
                                 }
@@ -856,6 +865,28 @@ struct ChatDetailView: View {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func generateVideoThumbnail(videoURL: URL) async -> URL? {
+        await Task.detached(priority: .utility) {
+            let asset = AVAsset(url: videoURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 480, height: 480)
+
+            let time = CMTime(seconds: 1, preferredTimescale: 600)
+            guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else {
+                return nil as URL?
+            }
+
+            let uiImage = UIImage(cgImage: cgImage)
+            guard let jpegData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
+
+            let thumbURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(UUID().uuidString)_thumb.jpg")
+            try? jpegData.write(to: thumbURL)
+            return thumbURL
+        }.value
+    }
+
     private func replyPreviewText(_ message: Message) -> String {
         switch message.content {
         case .text(let text): return text
@@ -912,9 +943,12 @@ struct ChatDetailView: View {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
             try? videoData.write(to: tempURL)
 
+            // Generate video thumbnail for optimistic UI
+            let thumbnailURL = await generateVideoThumbnail(videoURL: tempURL)
+
             let attachment = Message.MediaAttachment(
-                url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
-                mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: nil
+                url: thumbnailURL ?? tempURL, encryptionKey: Data(), encryptionIV: Data(),
+                mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: thumbnailURL
             )
 
             await viewModel.sendMediaMessage(
@@ -971,6 +1005,8 @@ private extension Date {
 
 struct MessageBubble: View {
     let message: Message
+    var uploadProgress: Double?
+    var uploadLabel: String?
 
     var body: some View {
         if case .system(let event) = message.content {
@@ -1073,10 +1109,10 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
-            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing)
+            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
 
         case .video(let attachment):
-            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing)
+            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
                 .overlay {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 44))
@@ -1220,31 +1256,39 @@ private struct MediaBubbleImage: View {
     let attachment: Message.MediaAttachment
     let messageId: String
     let isOutgoing: Bool
+    var uploadProgress: Double?
+    var uploadLabel: String?
     @Environment(DependencyContainer.self) private var container
     @State private var localImageURL: URL?
     @State private var isDownloading = false
 
+    /// Resolve the image to display (local file, thumbnail, or downloaded)
+    private var displayImage: UIImage? {
+        // Local file (optimistic upload)
+        if attachment.url.isFileURL, let img = UIImage(contentsOfFile: attachment.url.path) {
+            return img
+        }
+        // Thumbnail (video)
+        if let thumbURL = attachment.thumbnailURL, let img = UIImage(contentsOfFile: thumbURL.path) {
+            return img
+        }
+        // Downloaded + decrypted
+        if let url = localImageURL, let img = UIImage(contentsOfFile: url.path) {
+            return img
+        }
+        return nil
+    }
+
     var body: some View {
-        Group {
-            if attachment.url.isFileURL {
-                // Local file (sending/optimistic)
-                if let uiImage = UIImage(contentsOfFile: attachment.url.path) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: 220, maxHeight: 280)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-            } else if let localURL = localImageURL,
-                      let uiImage = UIImage(contentsOfFile: localURL.path) {
-                // Downloaded + decrypted
-                Image(uiImage: uiImage)
+        ZStack {
+            if let image = displayImage {
+                Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: 220, maxHeight: 280)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
-                // Placeholder while downloading
+                // Placeholder
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
                     .frame(width: 200, height: 150)
@@ -1258,6 +1302,30 @@ private struct MediaBubbleImage: View {
                                 .foregroundColor(isOutgoing ? .white.opacity(0.5) : SanchrExportColors.textTertiary)
                         }
                     }
+            }
+
+            // Upload progress overlay
+            if let progress = uploadProgress {
+                VStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.3), lineWidth: 3)
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: 36, height: 36)
+
+                    if let label = uploadLabel {
+                        Text(label)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.35))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
         }
         .task {

@@ -29,6 +29,11 @@ final class ChatDetailViewModel {
     /// Message being replied to (shown as quote in composer)
     var replyingToMessage: Message?
 
+    /// Upload progress per message ID (0.0 to 1.0). Removed when complete.
+    var uploadProgress: [String: Double] = [:]
+    /// Upload status label per message ID
+    var uploadStatusLabel: [String: String] = [:]
+
     /// Whether the peer is typing.
     var peerIsTyping: Bool = false
     var peerTypingName: String = ""
@@ -275,6 +280,40 @@ final class ChatDetailViewModel {
             replyToMessageId: replyingToMessage?.id
         )
         uploadTask.optimisticMessageId = optimisticMessage.id
+
+        // Wire progress updates
+        let msgId = optimisticMessage.id
+        await mediaUploadManager.onTaskUpdate = { [weak self] task in
+            guard task.optimisticMessageId == msgId else { return }
+            Task { @MainActor [weak self] in
+                switch task.state {
+                case .encrypting:
+                    self?.uploadStatusLabel[msgId] = "Encrypting..."
+                    self?.uploadProgress[msgId] = 0.1
+                case .uploading(let progress):
+                    self?.uploadStatusLabel[msgId] = "Uploading..."
+                    self?.uploadProgress[msgId] = 0.1 + progress * 0.7
+                case .confirming:
+                    self?.uploadStatusLabel[msgId] = "Confirming..."
+                    self?.uploadProgress[msgId] = 0.85
+                case .sendingMessage:
+                    self?.uploadStatusLabel[msgId] = "Sending..."
+                    self?.uploadProgress[msgId] = 0.95
+                case .completed:
+                    self?.uploadProgress.removeValue(forKey: msgId)
+                    self?.uploadStatusLabel.removeValue(forKey: msgId)
+                case .failed(let error, _):
+                    self?.uploadStatusLabel[msgId] = "Failed"
+                    self?.uploadProgress.removeValue(forKey: msgId)
+                    SanchrLogger.media.error("Upload failed: \(error)")
+                case .cancelled:
+                    self?.uploadProgress.removeValue(forKey: msgId)
+                    self?.uploadStatusLabel.removeValue(forKey: msgId)
+                default:
+                    break
+                }
+            }
+        }
 
         uploadTask = await mediaUploadManager.enqueue(uploadTask)
 
