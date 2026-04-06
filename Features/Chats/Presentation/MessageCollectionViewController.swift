@@ -421,11 +421,10 @@ final class MessageCollectionViewController: UICollectionViewController {
 
 // MARK: - UIGestureRecognizerDelegate
 
-extension MessageCollectionViewController {
-    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+extension MessageCollectionViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         let velocity = pan.velocity(in: pan.view)
-        // Only begin if horizontal movement exceeds vertical — avoids hijacking scroll
         return abs(velocity.x) > abs(velocity.y) * 1.5
     }
 }
@@ -512,7 +511,7 @@ private final class SwipeToReplyGesture: UIPanGestureRecognizer {
                 swipeDistance = max(0, translation.x) * 0.5
             }
 
-            cell.contentView.transform = CGAffineTransform(translationX: swipeDistance, y: 0)
+            cell.transform = CGAffineTransform(translationX: swipeDistance, y: 0)
             updateReplyIndicator(offset: swipeDistance)
 
             let absDistance = abs(swipeDistance)
@@ -540,7 +539,7 @@ private final class SwipeToReplyGesture: UIPanGestureRecognizer {
                 usingSpringWithDamping: 0.7,
                 initialSpringVelocity: 0.5
             ) {
-                cell.contentView.transform = .identity
+                cell.transform = .identity
                 self.replyIndicator?.alpha = 0
             } completion: { [weak self] _ in
                 self?.replyIndicator?.removeFromSuperview()

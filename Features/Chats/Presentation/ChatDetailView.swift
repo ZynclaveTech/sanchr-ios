@@ -488,6 +488,14 @@ struct ChatDetailView: View {
                     userId: userId
                 )
             },
+            onLoadMore: {
+                Task {
+                    await viewModel.loadMore(
+                        conversationId: conversation.id,
+                        messageRepository: container.messageRepository
+                    )
+                }
+            },
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled,
             scrollToMessageId: Binding(
