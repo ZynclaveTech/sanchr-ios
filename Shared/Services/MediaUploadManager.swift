@@ -29,6 +29,7 @@ struct MediaUploadTask: Identifiable, Sendable {
     let createdAt: Date
     // Set after encryption
     var encryptedFileURL: URL?
+    var encryptedFileSize: Int64 = 0
     var encryptionMetadata: MediaEncryptionMetadata?
     // Set after upload
     var mediaId: String?
@@ -124,6 +125,8 @@ actor MediaUploadManager {
 
         do {
             let encryptedData = try Data(contentsOf: encryptedURL)
+            task.encryptedFileSize = Int64(encryptedData.count)
+            tasks[taskId] = task
             SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted blob \(encryptedData.count) bytes, getting presigned URL...")
 
             let hashHex = SHA256.hash(data: encryptedData).map { String(format: "%02x", $0) }.joined()
@@ -196,7 +199,8 @@ actor MediaUploadManager {
         do {
             var confirmReq = Vync_Media_ConfirmUploadRequest()
             confirmReq.mediaID = task.mediaId ?? ""
-            confirmReq.fileSize = task.encryptionMetadata?.fileSize ?? 0
+            confirmReq.fileSize = task.encryptedFileSize
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirming with encryptedFileSize=\(task.encryptedFileSize)")
             _ = try await grpcClient.mediaService.confirmUpload(confirmReq)
             SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirmed!")
         } catch {
