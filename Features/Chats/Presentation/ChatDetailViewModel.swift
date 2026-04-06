@@ -289,16 +289,27 @@ final class ChatDetailViewModel {
 
             guard case .sendingMessage = completedTask.state,
                   let metadata = completedTask.encryptionMetadata,
-                  let remoteURL = completedTask.remoteURL,
-                  let remoteURLParsed = URL(string: remoteURL) else {
-                SanchrLogger.media.warning("Upload task not in sendingMessage state or missing data: state=\(String(describing: completedTask.state)), hasMetadata=\(completedTask.encryptionMetadata != nil), remoteURL=\(completedTask.remoteURL ?? "nil")")
+                  let mediaId = completedTask.mediaId else {
+                SanchrLogger.media.warning("Upload task not in sendingMessage state or missing data: state=\(String(describing: completedTask.state)), hasMetadata=\(completedTask.encryptionMetadata != nil), mediaId=\(completedTask.mediaId ?? "nil")")
                 return
             }
-            SanchrLogger.media.info("Building final message with CDN URL: \(remoteURL.prefix(50))...")
 
-            // Build final attachment with CDN URL + encryption keys
+            // Store mediaId as the URL — receiver will call GetDownloadUrl(mediaId) to get presigned GET URL
+            let mediaIdURL = URL(string: "sanchr-media://\(mediaId)")!
+            SanchrLogger.media.info("Building final message with mediaId: \(mediaId)")
+
+            // Cache the sender's local file so we never re-download our own media
+            let ext = completedTask.mimeType.contains("png") ? "png" : completedTask.mimeType.contains("video") ? "mp4" : "jpg"
+            let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("MediaMessages", isDirectory: true)
+            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+            let cachedFile = cacheDir.appendingPathComponent("\(optimisticMessage.id).\(ext)")
+            try? FileManager.default.copyItem(at: completedTask.localFileURL, to: cachedFile)
+            SanchrLogger.media.info("Cached sender's local file at \(cachedFile.lastPathComponent)")
+
+            // Build attachment with mediaId URL + encryption keys
             let attachment = Message.MediaAttachment(
-                url: remoteURLParsed,
+                url: mediaIdURL,
                 encryptionKey: metadata.key,
                 encryptionIV: metadata.nonce,
                 mimeType: completedTask.mimeType,
