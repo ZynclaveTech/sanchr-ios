@@ -492,7 +492,16 @@ struct ChatDetailView: View {
                     ForEach(viewModel.messageSections) { section in
                         dateSeparator(section.title)
 
-                        ForEach(section.messages) { message in
+                        ForEach(Array(section.messages.enumerated()), id: \.element.id) { index, message in
+                            let prevMsg = index > 0 ? section.messages[index - 1] : nil
+                            let nextMsg = index < section.messages.count - 1 ? section.messages[index + 1] : nil
+                            let isGroupedWithPrev = prevMsg?.senderId == message.senderId
+                                && prevMsg?.isOutgoing == message.isOutgoing
+                                && message.timestamp.timeIntervalSince(prevMsg?.timestamp ?? .distantPast) < 60
+                            let isGroupedWithNext = nextMsg?.senderId == message.senderId
+                                && nextMsg?.isOutgoing == message.isOutgoing
+                                && (nextMsg?.timestamp ?? .distantFuture).timeIntervalSince(message.timestamp) < 60
+
                             SwipeToReplyWrapper(message: message) {
                                 viewModel.setReply(to: message)
                             } content: {
@@ -500,7 +509,8 @@ struct ChatDetailView: View {
                                     MessageBubble(
                                         message: message,
                                         uploadProgress: viewModel.uploadProgress[message.id],
-                                        uploadLabel: viewModel.uploadStatusLabel[message.id]
+                                        uploadLabel: viewModel.uploadStatusLabel[message.id],
+                                        hideTimestamp: isGroupedWithNext
                                     )
 
                                     if !message.reactions.isEmpty {
@@ -522,6 +532,7 @@ struct ChatDetailView: View {
                                 }
                             }
                             .id(message.id)
+                            .padding(.top, isGroupedWithPrev ? -8 : 0)
                             .contextMenu {
                                 messageContextMenu(message)
                             } preview: {
@@ -1020,6 +1031,7 @@ struct MessageBubble: View {
     let message: Message
     var uploadProgress: Double?
     var uploadLabel: String?
+    var hideTimestamp: Bool = false
 
     var body: some View {
         if case .system(let event) = message.content {
@@ -1084,9 +1096,11 @@ struct MessageBubble: View {
                             }
                         }
 
-                    timestampRow
-                        .padding(.top, 4)
-                        .padding(.horizontal, 4)
+                    if !hideTimestamp {
+                        timestampRow
+                            .padding(.top, 4)
+                            .padding(.horizontal, 4)
+                    }
                 }
                 .frame(maxWidth: UIScreen.main.bounds.width * SanchrSpacing.messageMaxWidthFraction, alignment: message.isOutgoing ? .trailing : .leading)
 
