@@ -11,7 +11,7 @@ struct ChatDetailView: View {
     @State private var viewModel = ChatDetailViewModel()
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
     @State private var newMessageCountWhileScrolled = 0
@@ -51,13 +51,16 @@ struct ChatDetailView: View {
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
         }
-        .photosPicker(isPresented: $showAttachmentPicker, selection: $selectedPhotoItem, matching: .any(of: [.images, .videos]))
-        .onChange(of: selectedPhotoItem) { _, item in
-            guard let item else { return }
+        .photosPicker(isPresented: $showAttachmentPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
+        .onChange(of: selectedPhotoItems) { _, items in
+            guard !items.isEmpty else { return }
+            let selectedItems = items
+            selectedPhotoItems = []
             Task {
-                await handleSelectedPhoto(item)
+                for item in selectedItems {
+                    await handleSelectedPhoto(item)
+                }
             }
-            selectedPhotoItem = nil
         }
         .task {
             viewModel.configurePeer(recipient)
