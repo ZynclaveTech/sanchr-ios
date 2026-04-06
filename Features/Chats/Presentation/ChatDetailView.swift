@@ -1275,21 +1275,38 @@ private struct MediaBubbleImage: View {
     @State private var localImageURL: URL?
     @State private var isDownloading = false
 
-    /// Resolve the image to display (local file, thumbnail, downloaded, or blur hash placeholder)
+    private static let thumbCacheDir: URL = {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("MediaMessages", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    /// Persistent thumbnail path keyed by messageId (survives view recycling)
+    private var thumbCachePath: URL {
+        Self.thumbCacheDir.appendingPathComponent("\(messageId)_thumb.jpg")
+    }
+
+    /// Resolve the image to display
     private var displayImage: UIImage? {
-        // Local file (optimistic upload)
+        // 1. Local file (sender optimistic upload — image)
         if attachment.url.isFileURL, let img = UIImage(contentsOfFile: attachment.url.path) {
             return img
         }
-        // Thumbnail (video)
+        // 2. Sender's video thumbnail from attachment
         if let thumbURL = attachment.thumbnailURL, let img = UIImage(contentsOfFile: thumbURL.path) {
             return img
         }
-        // Downloaded + decrypted
+        // 3. Persistent thumbnail cache (survives navigation)
+        if FileManager.default.fileExists(atPath: thumbCachePath.path),
+           let img = UIImage(contentsOfFile: thumbCachePath.path) {
+            return img
+        }
+        // 4. Downloaded + decrypted (set by .task)
         if let url = localImageURL, let img = UIImage(contentsOfFile: url.path) {
             return img
         }
-        // Blur hash placeholder (instant, no download needed)
+        // 5. Blur hash placeholder (instant, ~30 bytes decoded)
         if let hash = attachment.blurHash {
             return BlurHash.decode(hash, width: 32, height: 32)
         }
@@ -1297,6 +1314,8 @@ private struct MediaBubbleImage: View {
     }
 
     var body: some View {
+        let hasImage = displayImage != nil
+
         ZStack {
             if let image = displayImage {
                 Image(uiImage: image)
@@ -1304,15 +1323,28 @@ private struct MediaBubbleImage: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: 220, maxHeight: 280)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        // Progress overlay only when we have an image underneath
+                        if let progress = uploadProgress {
+                            progressOverlay(progress: progress)
+                        }
+                    }
             } else {
-                // Placeholder
+                // Placeholder (no image available yet)
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
                     .frame(width: 200, height: 150)
                     .overlay {
-                        if isDownloading {
-                            ProgressView()
-                                .tint(isOutgoing ? .white : .sanchrPrimary)
+                        if isDownloading || uploadProgress != nil {
+                            VStack(spacing: 6) {
+                                ProgressView()
+                                    .tint(isOutgoing ? .white : .sanchrPrimary)
+                                if let label = uploadLabel {
+                                    Text(label)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
+                                }
+                            }
                         } else {
                             Image(systemName: "photo")
                                 .font(.system(size: 32))
@@ -1320,53 +1352,37 @@ private struct MediaBubbleImage: View {
                         }
                     }
             }
-
-            // Upload progress overlay
-            if let progress = uploadProgress {
-                VStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 3)
-                        Circle()
-                            .trim(from: 0, to: progress)
-                            .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                    }
-                    .frame(width: 36, height: 36)
-
-                    if let label = uploadLabel {
-                        Text(label)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.35))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
         }
         .task {
-            guard !attachment.url.isFileURL, localImageURL == nil else { return }
+            // Skip if we have a local file or cached thumbnail already
+            guard !attachment.url.isFileURL,
+                  localImageURL == nil,
+                  !FileManager.default.fileExists(atPath: thumbCachePath.path) else { return }
+
             isDownloading = true
             let ext = attachment.mimeType.contains("png") ? "png"
                 : attachment.mimeType.hasPrefix("video/") ? (attachment.mimeType.contains("quicktime") ? "mov" : "mp4")
                 : "jpg"
-            // Check cache first
+
+            // Check media cache
             if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
-                localImageURL = cached
+                if attachment.mimeType.hasPrefix("video/") {
+                    await generateAndCacheThumb(from: cached)
+                } else {
+                    localImageURL = cached
+                }
                 isDownloading = false
                 return
             }
+
             // Download + decrypt
             do {
                 let url = try await container.mediaDownloadManager.download(
                     messageId: messageId,
                     attachment: attachment
                 )
-                // For videos, generate a thumbnail from the downloaded file
                 if attachment.mimeType.hasPrefix("video/") {
-                    let thumbURL = await generateVideoThumbnailFromFile(url)
-                    localImageURL = thumbURL ?? url
+                    await generateAndCacheThumb(from: url)
                 } else {
                     localImageURL = url
                 }
@@ -1377,23 +1393,46 @@ private struct MediaBubbleImage: View {
         }
     }
 
-    private func generateVideoThumbnailFromFile(_ videoURL: URL) async -> URL? {
-        await Task.detached(priority: .utility) {
+    /// Generate video thumbnail and save to persistent cache keyed by messageId
+    private func generateAndCacheThumb(from videoURL: URL) async {
+        let destPath = thumbCachePath
+        let thumb: URL? = await Task.detached(priority: .utility) {
             let asset = AVAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
             generator.maximumSize = CGSize(width: 480, height: 480)
             let time = CMTime(seconds: 1, preferredTimescale: 600)
             guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil as URL? }
-            let uiImage = UIImage(cgImage: cgImage)
-            guard let jpegData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
-            let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-                .appendingPathComponent("MediaMessages", isDirectory: true)
-            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            let thumbURL = cacheDir.appendingPathComponent("\(videoURL.deletingPathExtension().lastPathComponent)_thumb.jpg")
-            try? jpegData.write(to: thumbURL)
-            return thumbURL
+            guard let jpegData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7) else { return nil }
+            try? jpegData.write(to: destPath, options: .atomic)
+            return destPath
         }.value
+        if let thumb {
+            localImageURL = thumb
+        }
+    }
+
+    private func progressOverlay(progress: Double) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.3), lineWidth: 3)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .frame(width: 36, height: 36)
+
+            if let label = uploadLabel {
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
