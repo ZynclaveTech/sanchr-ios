@@ -230,6 +230,119 @@ final class ChatDetailViewModel {
         isSending = false
     }
 
+    // MARK: - Media Send
+
+    func sendMediaMessage(
+        localFileURL: URL,
+        mimeType: String,
+        contentType: Message.MessageContent,
+        conversationId: String,
+        recipientId: String,
+        caption: String?,
+        messageRepository: MessageRepositoryProtocol,
+        signalProtocol: SignalProtocolManagerProtocol,
+        chatDataSource: ChatDataSource,
+        localDatabase: LocalDatabaseProtocol,
+        sessionService: SessionService,
+        mediaUploadManager: MediaUploadManager,
+        mediaEncryption: MediaEncryptionProtocol
+    ) async {
+        let senderId = sessionService.currentUserId ?? "unknown"
+
+        // Create optimistic message with local file URL
+        let optimisticMessage = Message(
+            id: UUID().uuidString,
+            conversationId: conversationId,
+            senderId: senderId,
+            timestamp: Date(),
+            content: contentType,
+            status: .sending,
+            isOutgoing: true,
+            replyToMessageId: replyingToMessage?.id
+        )
+
+        messages.append(optimisticMessage)
+        rebuildSections()
+        clearReply()
+
+        // Queue upload task
+        var uploadTask = MediaUploadTask(
+            conversationId: conversationId,
+            recipientId: recipientId,
+            localFileURL: localFileURL,
+            mimeType: mimeType,
+            caption: caption,
+            replyToMessageId: replyingToMessage?.id
+        )
+        uploadTask.optimisticMessageId = optimisticMessage.id
+
+        uploadTask = await mediaUploadManager.enqueue(uploadTask)
+
+        // Execute upload pipeline (runs even if user leaves screen)
+        Task.detached { [weak self] in
+            guard let completedTask = await mediaUploadManager.execute(uploadTask.id) else { return }
+
+            guard case .sendingMessage = completedTask.state,
+                  let metadata = completedTask.encryptionMetadata,
+                  let remoteURL = completedTask.remoteURL,
+                  let remoteURLParsed = URL(string: remoteURL) else {
+                // Failed — UI already updated by callback
+                return
+            }
+
+            // Build final attachment with CDN URL + encryption keys
+            let attachment = Message.MediaAttachment(
+                url: remoteURLParsed,
+                encryptionKey: metadata.key,
+                encryptionIV: metadata.nonce,
+                mimeType: completedTask.mimeType,
+                sizeBytes: metadata.fileSize,
+                thumbnailURL: nil,
+                caption: completedTask.caption
+            )
+
+            // Create message with final attachment
+            let finalMessage = Message(
+                id: optimisticMessage.id,
+                conversationId: conversationId,
+                senderId: senderId,
+                timestamp: Date(),
+                content: Self.contentForAttachment(attachment, mimeType: completedTask.mimeType),
+                status: .sending,
+                isOutgoing: true,
+                replyToMessageId: completedTask.replyToMessageId
+            )
+
+            // Send via existing pipeline (Signal Protocol E2EE)
+            do {
+                let sentMessage = try await messageRepository.sendMessage(finalMessage)
+                await mediaUploadManager.markCompleted(uploadTask.id)
+
+                await MainActor.run {
+                    if let index = self?.messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
+                        self?.messages[index] = sentMessage
+                        self?.rebuildSections()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    if let index = self?.messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
+                        self?.messages[index].status = .failed
+                        self?.rebuildSections()
+                    }
+                }
+                SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func contentForAttachment(_ attachment: Message.MediaAttachment, mimeType: String) -> Message.MessageContent {
+        if mimeType.hasPrefix("image/") { return .image(attachment) }
+        if mimeType.hasPrefix("video/") { return .video(attachment) }
+        if mimeType.hasPrefix("audio/") { return .audio(attachment) }
+        return .document(attachment)
+    }
+
     // MARK: - Receive & Decrypt Incoming Message
 
     /// Decrypts an incoming encrypted envelope and appends the plaintext message to the list.
