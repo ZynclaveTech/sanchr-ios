@@ -15,7 +15,6 @@ struct ChatDetailView: View {
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
     @State private var newMessageCountWhileScrolled = 0
-    @State private var scrollToBottomAction: (() -> Void)?
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -41,6 +40,10 @@ struct ChatDetailView: View {
                 }
 
                 // Reaction picker overlay removed — reactions are in context menu
+            }
+
+            if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+                typingPill
             }
 
             composer
@@ -469,168 +472,40 @@ struct ChatDetailView: View {
     }
 
     private var messagesScrollView: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: SanchrSpacing.messageGap) {
-                    Color.clear
-                        .frame(height: 1)
-                        .onAppear {
-                            Task {
-                                await viewModel.loadMore(
-                                    conversationId: conversation.id,
-                                    messageRepository: container.messageRepository
-                                )
-                            }
-                        }
-
-                    if viewModel.isLoadingMore {
-                        ProgressView()
-                            .tint(.sanchrPrimary)
-                            .padding(.vertical, 12)
-                    }
-
-                    ForEach(viewModel.messageSections) { section in
-                        dateSeparator(section.title)
-
-                        ForEach(Array(section.messages.enumerated()), id: \.element.id) { index, message in
-                            let prevMsg = index > 0 ? section.messages[index - 1] : nil
-                            let nextMsg = index < section.messages.count - 1 ? section.messages[index + 1] : nil
-                            let isGroupedWithPrev = prevMsg?.senderId == message.senderId
-                                && prevMsg?.isOutgoing == message.isOutgoing
-                                && message.timestamp.timeIntervalSince(prevMsg?.timestamp ?? .distantPast) < 60
-                            let isGroupedWithNext = nextMsg?.senderId == message.senderId
-                                && nextMsg?.isOutgoing == message.isOutgoing
-                                && (nextMsg?.timestamp ?? .distantFuture).timeIntervalSince(message.timestamp) < 60
-
-                            SwipeToReplyWrapper(message: message) {
-                                viewModel.setReply(to: message)
-                            } content: {
-                                VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 4) {
-                                    MessageBubble(
-                                        message: message,
-                                        uploadProgress: viewModel.uploadProgress[message.id],
-                                        uploadLabel: viewModel.uploadStatusLabel[message.id],
-                                        hideTimestamp: isGroupedWithNext
-                                    )
-
-                                    if !message.reactions.isEmpty {
-                                        ReactionPillsView(
-                                            reactions: message.reactions,
-                                            isOutgoing: message.isOutgoing,
-                                            onTapReaction: { emoji in
-                                                let userId = container.signalProtocol.localUserId
-                                                viewModel.toggleReaction(
-                                                    emoji: emoji,
-                                                    messageId: message.id,
-                                                    conversationId: conversation.id,
-                                                    userId: userId
-                                                )
-                                                // TODO: Send via gRPC
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            .id(message.id)
-                            .padding(.top, isGroupedWithPrev ? -8 : 0)
-                            .contextMenu {
-                                messageContextMenu(message)
-                            } preview: {
-                                // Horizontal reaction bar as context menu preview
-                                VStack(spacing: 12) {
-                                    HStack(spacing: 8) {
-                                        let quickEmojis = ["❤️", "👍", "😂", "😮", "😢", "🙏"]
-                                        ForEach(quickEmojis, id: \.self) { emoji in
-                                            Button {
-                                                let userId = container.signalProtocol.localUserId
-                                                viewModel.toggleReaction(
-                                                    emoji: emoji,
-                                                    messageId: message.id,
-                                                    conversationId: conversation.id,
-                                                    userId: userId
-                                                )
-                                            } label: {
-                                                Text(emoji)
-                                                    .font(.system(size: 30))
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-
-                                    // Message preview
-                                    MessageBubble(
-                                        message: message,
-                                        uploadProgress: viewModel.uploadProgress[message.id],
-                                        uploadLabel: viewModel.uploadStatusLabel[message.id]
-                                    )
-                                        .padding(.horizontal, 16)
-                                        .padding(.bottom, 8)
-                                }
-                                .frame(width: 320)
-                            }
-                        }
-                    }
-
-                    if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
-                        typingPill
-                    }
-
-                    // Bottom anchor for scroll position detection
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom_anchor")
-                        .onAppear { isScrolledToBottom = true; newMessageCountWhileScrolled = 0 }
-                        .onDisappear { isScrolledToBottom = false }
-                }
-                .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
-                .padding(.top, 14)
-                .padding(.bottom, 16)
-            }
-            .defaultScrollAnchor(.bottom)
-            .background(SanchrExportColors.surfaceSoft)
-            .onChange(of: viewModel.messages.count) { oldCount, newCount in
-                guard oldCount > 0, newCount > oldCount else { return }
-                let added = newCount - oldCount
-                if isScrolledToBottom {
-                    // At bottom — auto-scroll to new messages
-                    if let lastID = viewModel.messages.last?.id {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo(lastID, anchor: .bottom)
-                        }
-                    }
-                } else {
-                    // Scrolled up — accumulate unread count, don't auto-scroll
-                    newMessageCountWhileScrolled += added
-                }
-            }
-            .onChange(of: isScrolledToBottom) { _, atBottom in
-                if atBottom { newMessageCountWhileScrolled = 0 }
-            }
-            .onChange(of: viewModel.currentSearchIndex) { _, _ in
-                if let resultId = viewModel.currentSearchResultId {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(resultId, anchor: .center)
-                    }
-                }
-            }
-            .onAppear {
-                scrollToBottomAction = {
-                    if let lastID = viewModel.messages.last?.id {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            proxy.scrollTo(lastID, anchor: .bottom)
-                        }
-                    }
-                }
-            }
+        MessageCollectionView(
+            sections: viewModel.messageSections,
+            uploadProgress: viewModel.uploadProgress,
+            uploadStatusLabel: viewModel.uploadStatusLabel,
+            onReply: { message in
+                viewModel.setReply(to: message)
+            },
+            onReact: { emoji, messageId in
+                let userId = container.signalProtocol.localUserId
+                viewModel.toggleReaction(
+                    emoji: emoji,
+                    messageId: messageId,
+                    conversationId: conversation.id,
+                    userId: userId
+                )
+            },
+            isScrolledToBottom: $isScrolledToBottom,
+            newMessageCountWhileScrolled: $newMessageCountWhileScrolled,
+            scrollToMessageId: Binding(
+                get: { viewModel.currentSearchResultId },
+                set: { _ in }
+            )
+        )
+        .background(SanchrExportColors.surfaceSoft)
+        .environment(container)
+        .onAppear {
+            // Load more is handled by the collection view's scroll delegate
         }
     }
 
     private var scrollToBottomFAB: some View {
         Button {
-            scrollToBottomAction?()
             newMessageCountWhileScrolled = 0
+            isScrolledToBottom = true
         } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "chevron.down")
