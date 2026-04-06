@@ -1,4 +1,5 @@
 import Kingfisher
+import PhotosUI
 import SwiftUI
 
 struct ChatDetailView: View {
@@ -9,6 +10,7 @@ struct ChatDetailView: View {
     @State private var viewModel = ChatDetailViewModel()
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
     @State private var newMessageCountWhileScrolled = 0
@@ -48,26 +50,13 @@ struct ChatDetailView: View {
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
         }
-        .confirmationDialog("Share", isPresented: $showAttachmentPicker) {
-            Button { /* TODO: Photo picker */ } label: {
-                Label("Photo & Video Library", systemImage: "photo.on.rectangle")
+        .photosPicker(isPresented: $showAttachmentPicker, selection: $selectedPhotoItem, matching: .any(of: [.images, .videos]))
+        .onChange(of: selectedPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                await handleSelectedPhoto(item)
             }
-            Button { /* TODO: Camera */ } label: {
-                Label("Camera", systemImage: "camera.fill")
-            }
-            Button { /* TODO: Document picker */ } label: {
-                Label("Document", systemImage: "doc.fill")
-            }
-            Button { /* TODO: Location */ } label: {
-                Label("Location", systemImage: "location.fill")
-            }
-            Button { /* TODO: Contact */ } label: {
-                Label("Contact", systemImage: "person.crop.circle.fill")
-            }
-            Button { /* TODO: Vault media */ } label: {
-                Label("Vault Media", systemImage: "lock.shield.fill")
-            }
-            Button("Cancel", role: .cancel) {}
+            selectedPhotoItem = nil
         }
         .task {
             viewModel.configurePeer(recipient)
@@ -914,6 +903,62 @@ struct ChatDetailView: View {
             SanchrLogger.chat.error("Failed to load chat header preferences: \(error.localizedDescription)")
         }
     }
+
+    private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
+        let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
+
+        if isVideo {
+            guard let videoData = try? await item.loadTransferable(type: Data.self) else { return }
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
+            try? videoData.write(to: tempURL)
+
+            let attachment = Message.MediaAttachment(
+                url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
+                mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: nil
+            )
+
+            await viewModel.sendMediaMessage(
+                localFileURL: tempURL,
+                mimeType: "video/mp4",
+                contentType: .video(attachment),
+                conversationId: conversation.id,
+                recipientId: recipient?.id ?? "",
+                caption: nil,
+                messageRepository: container.messageRepository,
+                signalProtocol: container.signalProtocol,
+                chatDataSource: container.chatDataSource,
+                localDatabase: container.localDatabase,
+                sessionService: container.sessionService,
+                mediaUploadManager: container.mediaUploadManager,
+                mediaEncryption: container.mediaEncryption
+            )
+        } else {
+            guard let imageData = try? await item.loadTransferable(type: Data.self) else { return }
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
+            try? imageData.write(to: tempURL)
+
+            let attachment = Message.MediaAttachment(
+                url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
+                mimeType: "image/jpeg", sizeBytes: Int64(imageData.count), thumbnailURL: nil
+            )
+
+            await viewModel.sendMediaMessage(
+                localFileURL: tempURL,
+                mimeType: "image/jpeg",
+                contentType: .image(attachment),
+                conversationId: conversation.id,
+                recipientId: recipient?.id ?? "",
+                caption: nil,
+                messageRepository: container.messageRepository,
+                signalProtocol: container.signalProtocol,
+                chatDataSource: container.chatDataSource,
+                localDatabase: container.localDatabase,
+                sessionService: container.sessionService,
+                mediaUploadManager: container.mediaUploadManager,
+                mediaEncryption: container.mediaEncryption
+            )
+        }
+    }
 }
 
 private extension Date {
@@ -1028,31 +1073,41 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
-            VStack(alignment: .leading, spacing: 8) {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(hex: 0xE5E7EB))
-                    .frame(width: 210, height: 156)
-                    .overlay {
-                        if let thumbnailURL = attachment.thumbnailURL {
-                            AsyncImage(url: thumbnailURL) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                ProgressView()
-                            }
-                        } else {
-                            Image(systemName: "photo")
-                                .font(.system(size: 34))
-                                .foregroundColor(SanchrExportColors.textTertiary)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing)
 
-                if let caption = attachment.caption, !caption.isEmpty {
-                    Text(caption)
-                        .font(SanchrTypography.messageBubbleText)
+        case .video(let attachment):
+            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing)
+                .overlay {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(.white.opacity(0.9))
+                        .shadow(radius: 4)
+                }
+
+        case .audio(let attachment):
+            HStack(spacing: 10) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 20))
+                    .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+                Text(formatDuration(attachment.durationSeconds ?? 0))
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(messageTextColor)
+            }
+
+        case .document(let attachment):
+            HStack(spacing: 10) {
+                Image(systemName: "doc.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attachment.url.lastPathComponent)
+                        .font(SanchrTypography.captionSmall)
+                        .fontWeight(.semibold)
                         .foregroundColor(messageTextColor)
+                        .lineLimit(1)
+                    Text(formatFileSize(attachment.sizeBytes))
+                        .font(SanchrTypography.micro)
+                        .foregroundColor(messageTextColor.opacity(0.7))
                 }
             }
 
@@ -1061,6 +1116,18 @@ struct MessageBubble: View {
                 .font(SanchrTypography.caption)
                 .foregroundColor(messageTextColor.opacity(0.72))
         }
+    }
+
+    private func formatDuration(_ seconds: Double) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
+    private func formatFileSize(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
     }
 
     private var timestampRow: some View {
@@ -1146,6 +1213,75 @@ struct MessageBubble: View {
     /// Whether to show double-check (delivered/read) vs single-check (sent).
     private var isDoubleCheck: Bool {
         message.status == .delivered || message.status == .read
+    }
+}
+
+private struct MediaBubbleImage: View {
+    let attachment: Message.MediaAttachment
+    let messageId: String
+    let isOutgoing: Bool
+    @Environment(DependencyContainer.self) private var container
+    @State private var localImageURL: URL?
+    @State private var isDownloading = false
+
+    var body: some View {
+        Group {
+            if attachment.url.isFileURL {
+                // Local file (sending/optimistic)
+                if let uiImage = UIImage(contentsOfFile: attachment.url.path) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: 220, maxHeight: 280)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            } else if let localURL = localImageURL,
+                      let uiImage = UIImage(contentsOfFile: localURL.path) {
+                // Downloaded + decrypted
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: 220, maxHeight: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            } else {
+                // Placeholder while downloading
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
+                    .frame(width: 200, height: 150)
+                    .overlay {
+                        if isDownloading {
+                            ProgressView()
+                                .tint(isOutgoing ? .white : .sanchrPrimary)
+                        } else {
+                            Image(systemName: "photo")
+                                .font(.system(size: 32))
+                                .foregroundColor(isOutgoing ? .white.opacity(0.5) : SanchrExportColors.textTertiary)
+                        }
+                    }
+            }
+        }
+        .task {
+            guard !attachment.url.isFileURL, localImageURL == nil else { return }
+            isDownloading = true
+            let ext = attachment.mimeType.contains("png") ? "png" : "jpg"
+            // Check cache first
+            if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
+                localImageURL = cached
+                isDownloading = false
+                return
+            }
+            // Download + decrypt
+            do {
+                let url = try await container.mediaDownloadManager.download(
+                    messageId: messageId,
+                    attachment: attachment
+                )
+                localImageURL = url
+            } catch {
+                SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
+            }
+            isDownloading = false
+        }
     }
 }
 
