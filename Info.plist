@@ -27,6 +27,10 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Sanchr needs camera access for video calls and photos.</string>
 	<key>NSContactsUsageDescription</key>
@@ -37,6 +41,8 @@
 	<string>Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Sanchr uses the microphone for voice messages and calls.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Sanchr saves photos and videos from chats to your library when you tap Save.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Sanchr needs photo library access to share photos and videos.</string>
 	<key>UIApplicationSceneManifest</key>
