@@ -1,0 +1,129 @@
+{
+  "" : {
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SanchrShared-primary.dia",
+    "emit-module-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SanchrShared-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SanchrShared-primary-emit-module.dia",
+    "pch" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SanchrShared-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SanchrShared-primary.swiftdeps"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/AppGroup/AppGroup.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppGroup~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Config/AppConfiguration.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppConfiguration~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Errors/AppError.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/AppError~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Logging/Logger.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Logger~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/BackupArchive.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupArchive~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/BackupConfiguration.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/BackupConfiguration~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/Conversation.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Conversation~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/Message.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/Message~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/PendingMessageAck.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/PendingMessageAck~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/SessionSnapshot.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/SessionSnapshot~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/User.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/User~partial.swiftmodule"
+  },
+  "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/SanchrShared/Models/VaultItem.swift" : {
+    "const-values" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.swiftconstvalues",
+    "dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.d",
+    "diagnostics" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.dia",
+    "index-unit-output-path" : "/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.o",
+    "llvm-bc" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.bc",
+    "object" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.o",
+    "swift-dependencies" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem.swiftdeps",
+    "swiftmodule" : "/Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS/build/Sanchr.build/Debug-iphoneos/SanchrShared.build/Objects-normal/arm64/VaultItem~partial.swiftmodule"
+  }
+}
