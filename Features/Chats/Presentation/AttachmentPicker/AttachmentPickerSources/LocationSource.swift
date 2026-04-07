@@ -83,6 +83,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
 
     // MARK: Delegate
     func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
+        print("[LocationSource] didChangeAuthorization=\(Self.describe(m.authorizationStatus))")
         switch m.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: m.startUpdatingLocation()
         case .denied, .restricted: resume(.failure(Error.denied))
@@ -91,6 +92,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func locationManager(_ m: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
+        print("[LocationSource] didUpdateLocations count=\(locs.count) last=\(locs.last.map { "\($0.coordinate.latitude),\($0.coordinate.longitude) acc=\($0.horizontalAccuracy)" } ?? "nil")")
         guard let loc = locs.last else { return }
         // Stop updating immediately after the first usable fix.
         m.stopUpdatingLocation()
@@ -98,6 +100,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func locationManager(_ m: CLLocationManager, didFailWithError error: Swift.Error) {
+        print("[LocationSource] didFailWithError=\(error.localizedDescription) ns=\((error as NSError).domain)#\((error as NSError).code)")
         resume(.failure(Error.failed(error.localizedDescription)))
     }
 
