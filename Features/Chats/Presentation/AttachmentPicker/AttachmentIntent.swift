@@ -39,5 +39,11 @@ struct PickedFile: Sendable, Equatable {
 }
 
 // Temporary stubs — replaced in Task 2 / Task 3
-struct StrippedContact: Sendable, Equatable {}
+struct StrippedContact: Sendable, Codable, Equatable {
+    let displayName: String
+    let phoneNumbers: [String]   // E.164 normalized
+    let emails: [String]
+    // NO avatar, postal, social, org, notes, birthday, URLs, IM.
+    // Only constructible via ContactSource.strip(_:).
+}
 struct LocationPayload: Sendable, Equatable {}
