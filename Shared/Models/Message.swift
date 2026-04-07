@@ -52,6 +52,12 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
         /// the human-readable name even after the local URL is replaced
         /// with a `sanchr-media://<mediaId>` reference).
         var filename: String?
+
+        /// Voice message metadata. All optional so legacy Codable payloads
+        /// without these keys decode to `nil` and continue to work.
+        var isVoiceMessage: Bool?
+        var audioDurationMs: Int?
+        var audioWaveform: [Float]?
     }
 
     enum SystemEvent: String, Codable, Hashable, Sendable {
