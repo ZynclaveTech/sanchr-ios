@@ -1153,14 +1153,23 @@ struct MessageBubble: View {
     private var messageContent: some View {
         switch message.content {
         case .text(let text):
-            VStack(alignment: .leading, spacing: 8) {
-                Text(text)
-                    .font(SanchrTypography.messageBubbleText)
-                    .foregroundColor(messageTextColor)
-                    .multilineTextAlignment(.leading)
+            if let fallback = AttachmentFallbackParser.parse(text) {
+                switch fallback {
+                case .contact(let name):
+                    contactFallbackBubble(name: name)
+                case .location(let lat, let lng):
+                    locationFallbackBubble(latitude: lat, longitude: lng)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(text)
+                        .font(SanchrTypography.messageBubbleText)
+                        .foregroundColor(messageTextColor)
+                        .multilineTextAlignment(.leading)
 
-                if let url = LinkPreviewService.firstURL(in: text) {
-                    LinkPreviewCard(url: url, isOutgoing: message.isOutgoing)
+                    if let url = LinkPreviewService.firstURL(in: text) {
+                        LinkPreviewCard(url: url, isOutgoing: message.isOutgoing)
+                    }
                 }
             }
 
@@ -1218,6 +1227,46 @@ struct MessageBubble: View {
 
     private func formatFileSize(_ bytes: Int64) -> String {
         Self.fileSizeFormatter.string(fromByteCount: bytes)
+    }
+
+    @ViewBuilder
+    private func contactFallbackBubble(name: String) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 28))
+                .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.semibold)
+                    .foregroundColor(messageTextColor)
+                    .lineLimit(2)
+                Text("Contact")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(messageTextColor.opacity(0.7))
+            }
+        }
+    }
+
+    /// Privacy contract: this view MUST NOT use MapKit, MKMapView,
+    /// MKMapSnapshotter, CLGeocoder, or any reverse-geocoding API. The
+    /// receiver only ever sees the raw lat/lng numbers, never a place name.
+    @ViewBuilder
+    private func locationFallbackBubble(latitude: Double, longitude: Double) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "mappin.and.ellipse")
+                .font(.system(size: 28))
+                .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Location")
+                    .font(SanchrTypography.messageBubbleText)
+                    .fontWeight(.semibold)
+                    .foregroundColor(messageTextColor)
+                Text("\(String(format: "%.4f", latitude)), \(String(format: "%.4f", longitude))")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(messageTextColor.opacity(0.7))
+            }
+        }
     }
 
     private var timestampRow: some View {
