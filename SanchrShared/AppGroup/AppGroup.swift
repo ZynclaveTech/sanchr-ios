@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// Shared identifiers for the App Group container, keychain access group,
 /// and shared UserDefaults suite. Used by both the main app and the share
@@ -8,13 +9,60 @@ public enum AppGroup {
     /// .entitlements files and the provisioning profile.
     public static let identifier = "group.io.sanchr.shared"
 
-    /// Keychain access group passed to `kSecAttrAccessGroup` at runtime.
-    /// Security.framework auto-prepends the team identifier prefix when
-    /// the entitlement is granted, so we pass the bare suffix here.
-    /// The corresponding entitlement (`$(AppIdentifierPrefix)io.sanchr.shared`)
-    /// lives in `Sanchr.entitlements` and `SanchrShareExtension.entitlements`,
-    /// where the build system resolves the placeholder at codesign time.
-    public static let keychainAccessGroup = "io.sanchr.shared"
+    /// Bare suffix of the shared keychain access group, matching the
+    /// `$(AppIdentifierPrefix)io.sanchr.shared` entry in both targets'
+    /// entitlements plists.
+    private static let keychainAccessGroupSuffix = "io.sanchr.shared"
+
+    /// Fully-qualified keychain access group (`<TeamID>.io.sanchr.shared`)
+    /// passed to `kSecAttrAccessGroup` at runtime. The team prefix is NOT
+    /// auto-prepended by Security.framework — it must be the literal string
+    /// that appears in the resolved entitlements. We discover it once by
+    /// probing the keychain for a throwaway item: iOS returns the resolved
+    /// access group in the item attributes, from which we extract the team
+    /// prefix. Falls back to the bare suffix only if probing fails, which
+    /// would indicate a missing entitlement (and will surface as -34018
+    /// downstream rather than being silently masked).
+    public static let keychainAccessGroup: String = {
+        let probeService = "io.sanchr.shared.access-group-probe"
+        let probeAccount = "probe"
+
+        // Clean up any prior probe item before starting.
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: probeService,
+            kSecAttrAccount as String: probeAccount,
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: probeService,
+            kSecAttrAccount as String: probeAccount,
+            kSecValueData as String: Data([0x00]),
+            kSecReturnAttributes as String: true,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
+        var result: CFTypeRef?
+        let status = SecItemAdd(addQuery as CFDictionary, &result)
+
+        defer { SecItemDelete(deleteQuery as CFDictionary) }
+
+        guard status == errSecSuccess,
+              let attrs = result as? [String: Any],
+              let resolvedGroup = attrs[kSecAttrAccessGroup as String] as? String
+        else {
+            return keychainAccessGroupSuffix
+        }
+
+        // resolvedGroup is "<TeamID>.<app-id-suffix>" — e.g. "ABCD1234.com.sanchr.app".
+        // Take the first dot-separated component as the team prefix and glue it
+        // to our suffix so we get "<TeamID>.io.sanchr.shared".
+        guard let teamPrefix = resolvedGroup.split(separator: ".").first else {
+            return keychainAccessGroupSuffix
+        }
+        return "\(teamPrefix).\(keychainAccessGroupSuffix)"
+    }()
 
     /// Shared UserDefaults suite. Same string as `identifier` by convention.
     public static var userDefaults: UserDefaults {
