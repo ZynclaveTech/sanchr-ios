@@ -7,6 +7,7 @@ enum AttachmentIntent: Sendable {
     case file(PickedFile)
     case contact(StrippedContact)
     case location(LocationPayload)
+    case voice(VoiceClip)
 }
 
 struct PickedMedia: Sendable, Identifiable, Equatable {
@@ -52,4 +53,10 @@ struct LocationPayload: Sendable, Codable, Equatable {
     let horizontalAccuracyMeters: Double
     let capturedAtUnixMs: Int64
     // NO place name, no device ID, no session ID, no reverse geocoding.
+}
+
+struct VoiceClip: Sendable, Equatable {
+    let url: URL                  // temp .m4a, ownership transfers to send pipeline
+    let durationMs: Int
+    let waveform: [Float]         // 64 normalized samples, 0...1
 }

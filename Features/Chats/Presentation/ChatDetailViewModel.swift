@@ -527,6 +527,9 @@ final class ChatDetailViewModel {
             SanchrLogger.chat.warning(
                 "send(intent: .vaultItem) not yet implemented for item \(item.id.prefix(8))"
             )
+
+        case .voice:
+            break  // implemented in Task 13
         }
     }
 
