@@ -120,6 +120,15 @@ struct ChatDetailView: View {
                 .background(SanchrExportColors.background)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            if showEmojiPicker {
+                EmojiPickerSheet { emoji in
+                    viewModel.inputText.append(emoji)
+                }
+                .frame(height: 280)
+                .background(SanchrExportColors.background)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .navigationBarHidden(true)
@@ -174,13 +183,6 @@ struct ChatDetailView: View {
                 },
                 onCancel: { showCameraCapture = false }
             )
-        }
-        .sheet(isPresented: $showEmojiPicker) {
-            EmojiPickerSheet { emoji in
-                viewModel.inputText.append(emoji)
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
         .onChange(of: selectedPhotoItems) { _, items in
             guard !items.isEmpty else { return }
@@ -302,10 +304,11 @@ struct ChatDetailView: View {
                     )
                 }
             } else {
-                // Keyboard appeared — mutually exclusive with attachment tray
-                if showAttachmentPicker {
+                // Keyboard appeared — mutually exclusive with attachment & emoji trays
+                if showAttachmentPicker || showEmojiPicker {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showAttachmentPicker = false
+                        showEmojiPicker = false
                     }
                 }
             }
@@ -789,6 +792,7 @@ struct ChatDetailView: View {
                             showAttachmentPicker = false
                         } else {
                             isInputFocused = false
+                            showEmojiPicker = false
                             showAttachmentPicker = true
                         }
                     }
@@ -812,10 +816,17 @@ struct ChatDetailView: View {
 
                     if !hasInput {
                         Button {
-                            isInputFocused = false
-                            showEmojiPicker = true
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                if showEmojiPicker {
+                                    showEmojiPicker = false
+                                } else {
+                                    isInputFocused = false
+                                    showAttachmentPicker = false
+                                    showEmojiPicker = true
+                                }
+                            }
                         } label: {
-                            Image(systemName: "face.smiling")
+                            Image(systemName: showEmojiPicker ? "keyboard" : "face.smiling")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(SanchrExportColors.textTertiary)
                         }
