@@ -156,6 +156,3 @@ final class RecentPhotoCell: UICollectionViewCell {
     }
 }
 
-// Temporary stub — replaced in Task 9
-@MainActor
-final class CameraTileCell: UICollectionViewCell {}
