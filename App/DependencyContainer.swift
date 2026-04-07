@@ -81,6 +81,11 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var mediaChainState: MediaChainState = {
         let deviceSecret = try! deviceSecretProvider.mediaAccessSecret()
+        // Mirror the derived media-access secret into the shared keychain so
+        // the share extension (which can't import Platform/DeviceSecretProvider
+        // and can't re-derive it without the device master secret HKDF chain)
+        // can rebuild an identical `MediaChainState` for cross-process sends.
+        try? secureStorage.saveMediaAccessSecret(deviceSecret)
         return MediaChainState(deviceSecret: deviceSecret)
     }()
 

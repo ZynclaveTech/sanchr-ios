@@ -1,9 +1,8 @@
 import Foundation
 import CryptoKit
-import SanchrShared
 
 /// Upload state for each media task.
-enum MediaUploadState: Sendable {
+public enum MediaUploadState: Sendable {
     case queued
     case encrypting
     case uploading(progress: Double)
@@ -15,31 +14,31 @@ enum MediaUploadState: Sendable {
 }
 
 /// A queued media upload task.
-struct MediaUploadTask: Identifiable, Sendable {
-    let id: String
-    let conversationId: String
-    let recipientId: String
-    let localFileURL: URL
-    let mimeType: String
-    let caption: String?
-    let replyToMessageId: String?
-    var state: MediaUploadState
-    var progress: Double
-    var retryCount: Int
-    let maxRetries: Int
-    let createdAt: Date
+public struct MediaUploadTask: Identifiable, Sendable {
+    public let id: String
+    public let conversationId: String
+    public let recipientId: String
+    public let localFileURL: URL
+    public let mimeType: String
+    public let caption: String?
+    public let replyToMessageId: String?
+    public var state: MediaUploadState
+    public var progress: Double
+    public var retryCount: Int
+    public let maxRetries: Int
+    public let createdAt: Date
     // Set after encryption
-    var encryptedFileURL: URL?
-    var encryptedFileSize: Int64 = 0
-    var encryptionMetadata: MediaEncryptionMetadata?
+    public var encryptedFileURL: URL?
+    public var encryptedFileSize: Int64 = 0
+    public var encryptionMetadata: MediaEncryptionMetadata?
     // Set after upload
-    var mediaId: String?
-    var remoteURL: String?
-    var thumbnailRemoteURL: String?
+    public var mediaId: String?
+    public var remoteURL: String?
+    public var thumbnailRemoteURL: String?
     // Optimistic message ID (for UI updates)
-    var optimisticMessageId: String?
+    public var optimisticMessageId: String?
 
-    init(
+    public init(
         conversationId: String,
         recipientId: String,
         localFileURL: URL,
@@ -63,7 +62,7 @@ struct MediaUploadTask: Identifiable, Sendable {
 }
 
 /// Actor managing media upload queue with background URLSession support.
-actor MediaUploadManager {
+public actor MediaUploadManager {
     private var tasks: [String: MediaUploadTask] = [:]
     private let mediaEncryption: MediaEncryptionProtocol
     private let mediaKeyDerivation: MediaKeyDerivationProtocol
@@ -72,9 +71,9 @@ actor MediaUploadManager {
     private let grpcClient: GRPCClientProtocol
 
     /// Callback for UI progress updates (called on MainActor).
-    nonisolated(unsafe) var onTaskUpdate: (@Sendable (MediaUploadTask) -> Void)?
+    public nonisolated(unsafe) var onTaskUpdate: (@Sendable (MediaUploadTask) -> Void)?
 
-    init(
+    public init(
         mediaEncryption: MediaEncryptionProtocol,
         mediaKeyDerivation: MediaKeyDerivationProtocol,
         mediaChainState: MediaChainState,
@@ -314,7 +313,7 @@ actor MediaUploadManager {
 /// already guarantees a single resume. This eliminates the double-resume
 /// hazard the prep plan called out for callback-based queues.
 extension MediaUploadManager: MediaUploading {
-    func uploadMedia(
+    public func uploadMedia(
         localFileURL: URL,
         mimeType: String,
         conversationId: String,

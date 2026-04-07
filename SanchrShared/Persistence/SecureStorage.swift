@@ -23,6 +23,8 @@ public protocol SecureStorageProtocol: AnyObject, Sendable {
     func saveDatabaseKey(_ key: String) throws
     func readDatabaseKey() throws -> String?
     func readOrCreateDatabaseKey() throws -> String
+    func saveMediaAccessSecret(_ secret: Data) throws
+    func readMediaAccessSecret() throws -> Data?
     func saveRecoveryKey(_ key: String) throws
     func readRecoveryKey() throws -> String?
     func saveBackupConfiguration(_ configuration: BackupConfiguration) throws
@@ -51,6 +53,7 @@ public final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         static let backupConfiguration = "io.sanchr.backup_configuration"
         static let identityKey = "io.sanchr.identity_key"
         static let preKeys = "io.sanchr.pre_keys"
+        static let mediaAccessSecret = "io.sanchr.media_access_secret"
     }
 
     public init(keychain: KeychainServiceProtocol) {
@@ -169,6 +172,15 @@ public final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         let key = Data(randomBytes).base64EncodedString()
         try saveDatabaseKey(key)
         return key
+    }
+
+    public func saveMediaAccessSecret(_ secret: Data) throws {
+        try keychain.save(secret, forKey: Keys.mediaAccessSecret)
+        SanchrLogger.crypto.info("Saved media access secret to Keychain (\(secret.count) bytes)")
+    }
+
+    public func readMediaAccessSecret() throws -> Data? {
+        try keychain.read(forKey: Keys.mediaAccessSecret)
     }
 
     public func saveRecoveryKey(_ key: String) throws {

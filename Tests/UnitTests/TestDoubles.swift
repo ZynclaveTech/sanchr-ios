@@ -40,6 +40,7 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
     var deviceMasterSecret: Data?
     var recoveryKey: String?
     var backupConfiguration: BackupConfiguration?
+    var mediaAccessSecret: Data?
 
     private(set) var deleteAllTokensCallCount = 0
     private(set) var deleteSessionDataCallCount = 0
@@ -135,6 +136,14 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         let generated = UUID().uuidString
         databaseKey = generated
         return generated
+    }
+
+    func saveMediaAccessSecret(_ secret: Data) throws {
+        mediaAccessSecret = secret
+    }
+
+    func readMediaAccessSecret() throws -> Data? {
+        mediaAccessSecret
     }
 
     func saveRecoveryKey(_ key: String) throws {
