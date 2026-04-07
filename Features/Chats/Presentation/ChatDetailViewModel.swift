@@ -287,6 +287,25 @@ final class ChatDetailViewModel {
             }
         }()
 
+        // Preserve voice-message metadata across the upload pipeline. Same
+        // rationale as `originalFilename`: the post-upload rebuild reconstructs
+        // the attachment from scratch using the mediaId URL and would
+        // otherwise drop these fields, causing the bubble to render as a plain
+        // audio file instead of a voice note.
+        let preservedIsVoiceMessage: Bool?
+        let preservedAudioDurationMs: Int?
+        let preservedAudioWaveform: [Float]?
+        switch contentType {
+        case .document(let a), .image(let a), .video(let a), .audio(let a):
+            preservedIsVoiceMessage = a.isVoiceMessage
+            preservedAudioDurationMs = a.audioDurationMs
+            preservedAudioWaveform = a.audioWaveform
+        default:
+            preservedIsVoiceMessage = nil
+            preservedAudioDurationMs = nil
+            preservedAudioWaveform = nil
+        }
+
         messages.append(optimisticMessage)
         appendMessageToSections(optimisticMessage)
         clearReply()
@@ -378,6 +397,9 @@ final class ChatDetailViewModel {
                 caption: completedTask.caption
             )
             attachment.filename = originalFilename
+            attachment.isVoiceMessage = preservedIsVoiceMessage
+            attachment.audioDurationMs = preservedAudioDurationMs
+            attachment.audioWaveform = preservedAudioWaveform
 
             // Create message with final attachment
             let finalMessage = Message(
@@ -528,8 +550,42 @@ final class ChatDetailViewModel {
                 "send(intent: .vaultItem) not yet implemented for item \(item.id.prefix(8))"
             )
 
-        case .voice:
-            break  // implemented in Task 13
+        case .voice(let clip):
+            // Voice notes flow through the same media upload pipeline as any
+            // other audio attachment. The voice-specific metadata
+            // (isVoiceMessage / audioDurationMs / audioWaveform) is stamped
+            // onto the optimistic attachment and re-applied after the
+            // upload's URL swap by sendMediaMessage's preservation block.
+            let filename = "voice-\(Int(Date().timeIntervalSince1970 * 1000)).m4a"
+            let sizeBytes = (try? FileManager.default.attributesOfItem(atPath: clip.url.path)[.size] as? Int64) ?? 0
+            var a = Message.MediaAttachment(
+                url: clip.url,
+                encryptionKey: Data(),
+                encryptionIV: Data(),
+                mimeType: "audio/mp4",
+                sizeBytes: sizeBytes,
+                thumbnailURL: nil,
+                caption: nil
+            )
+            a.filename = filename
+            a.isVoiceMessage = true
+            a.audioDurationMs = clip.durationMs
+            a.audioWaveform = clip.waveform
+            await sendMediaMessage(
+                localFileURL: clip.url,
+                mimeType: "audio/mp4",
+                contentType: .audio(a),
+                conversationId: context.conversationId,
+                recipientId: context.recipientId,
+                caption: nil,
+                messageRepository: context.messageRepository,
+                signalProtocol: context.signalProtocol,
+                chatDataSource: context.chatDataSource,
+                localDatabase: context.localDatabase,
+                sessionService: context.sessionService,
+                mediaUploadManager: context.mediaUploadManager,
+                mediaEncryption: context.mediaEncryption
+            )
         }
     }
 
