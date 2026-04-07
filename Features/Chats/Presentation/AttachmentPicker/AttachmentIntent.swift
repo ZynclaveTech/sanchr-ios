@@ -46,4 +46,10 @@ struct StrippedContact: Sendable, Codable, Equatable {
     // NO avatar, postal, social, org, notes, birthday, URLs, IM.
     // Only constructible via ContactSource.strip(_:).
 }
-struct LocationPayload: Sendable, Equatable {}
+struct LocationPayload: Sendable, Codable, Equatable {
+    let latitude: Double
+    let longitude: Double
+    let horizontalAccuracyMeters: Double
+    let capturedAtUnixMs: Int64
+    // NO place name, no device ID, no session ID, no reverse geocoding.
+}
