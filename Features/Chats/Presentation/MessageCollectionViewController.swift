@@ -54,6 +54,9 @@ private struct MediaAttachmentRenderSignature: Hashable {
     let durationSeconds: Double?
     let blurHash: String?
     let filename: String?
+    let isVoiceMessage: Bool?
+    let audioDurationMs: Int?
+    let audioWaveform: [Float]?
 }
 
 private struct MessageReactionRenderSignature: Hashable {
@@ -122,7 +125,10 @@ private extension Message.MediaAttachment {
             height: height,
             durationSeconds: durationSeconds,
             blurHash: blurHash,
-            filename: filename
+            filename: filename,
+            isVoiceMessage: isVoiceMessage,
+            audioDurationMs: audioDurationMs,
+            audioWaveform: audioWaveform
         )
     }
 }
