@@ -5,7 +5,6 @@ import SanchrShared
 /// Matches Figma: storage-data-screen.
 /// Fetches storage usage from backend and manages auto-download/cache settings.
 struct StorageView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var showClearCacheConfirm = false
@@ -25,7 +24,6 @@ struct StorageView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                header
                 overviewCard
                 breakdownSection
                 manageSection
@@ -44,7 +42,7 @@ struct StorageView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Storage & Data")
         .alert("Clear Media Cache", isPresented: $showClearCacheConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) {
@@ -64,16 +62,6 @@ struct StorageView: View {
         .task {
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
-        }
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Storage & Data") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
         }
     }
 

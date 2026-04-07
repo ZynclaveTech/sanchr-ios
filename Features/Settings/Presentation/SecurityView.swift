@@ -6,7 +6,6 @@ import SanchrShared
 /// Matches Figma: security-screen.
 /// Syncs screen lock, biometric, screenshot protection, and Sanchr Mode to backend.
 struct SecurityView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var showChangePassword = false
@@ -27,22 +26,17 @@ struct SecurityView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                header
-
-                VStack(spacing: 18) {
-                    sanchrModeCard
-                    featureSection
-                    privacySection
-                    accountSection
-                }
-                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 28)
+            VStack(spacing: 18) {
+                sanchrModeCard
+                featureSection
+                privacySection
+                accountSection
             }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Security")
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
         }
@@ -55,72 +49,6 @@ struct SecurityView: View {
                 appLockManager: container.appLockManager
             )
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                SanchrIconButton(
-                    systemName: "chevron.left",
-                    foreground: .white,
-                    background: Color.white.opacity(0.12)
-                ) {
-                    dismiss()
-                }
-
-                Spacer()
-
-                Text("Security & Privacy")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(.white)
-
-                Spacer()
-
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-
-            HStack(spacing: 14) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.accent, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 56, height: 56)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Protected")
-                        .font(SanchrTypography.cardTitle)
-                        .foregroundColor(.white)
-                    Text("All conversations encrypted")
-                        .font(SanchrTypography.body)
-                        .foregroundColor(.white.opacity(0.8))
-                }
-
-                Spacer()
-            }
-            .padding(16)
-            .background(Color.white.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        }
-        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-        .padding(.top, 12)
-        .padding(.bottom, 22)
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, Color(hex: 0x4C1D95)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
     }
 
     private var sanchrModeCard: some View {

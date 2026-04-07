@@ -5,7 +5,6 @@ import SanchrShared
 /// Matches Figma: appearance-screen.
 /// Syncs theme, font size, and wallpaper preferences to the backend via SettingsService.
 struct AppearanceView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @Environment(\.sanchrTheme) private var theme
     @State private var viewModel = SettingsViewModel()
@@ -51,7 +50,6 @@ struct AppearanceView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                header
                 themeSection
                 sanchrModeSection
                 wallpaperSection
@@ -63,7 +61,7 @@ struct AppearanceView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Appearance")
         .task {
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             fontStep = sliderValue(for: viewModel.fontSize)
@@ -71,16 +69,6 @@ struct AppearanceView: View {
             if let savedMode = SanchrTheme.Mode(rawValue: storedThemeMode) {
                 theme.mode = savedMode
             }
-        }
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Appearance") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
         }
     }
 

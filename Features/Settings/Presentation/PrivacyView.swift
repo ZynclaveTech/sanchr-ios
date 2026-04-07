@@ -5,7 +5,6 @@ import SanchrShared
 /// Matches Figma: privacy-screen.
 /// All toggles sync to the backend via SettingsService.UpdateSettings.
 struct PrivacyView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var lastSeenVisibility = "nobody"
@@ -26,97 +25,22 @@ struct PrivacyView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                header
-
-                VStack(spacing: 18) {
-                    sanchrModeCard
-                    accountPrivacySection
-                    securityFeaturesSection
-                    controlsSection
-                    blockedContactsSection
-                }
-                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 28)
+            VStack(spacing: 18) {
+                sanchrModeCard
+                accountPrivacySection
+                securityFeaturesSection
+                controlsSection
+                blockedContactsSection
             }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Privacy")
         .task {
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             lastSeenVisibility = viewModel.onlineStatusVisible ? "contacts" : "nobody"
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 14) {
-                SanchrIconButton(
-                    systemName: "chevron.left",
-                    foreground: .white,
-                    background: Color.white.opacity(0.12)
-                ) {
-                    dismiss()
-                }
-
-                Text("Privacy & Security")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(.white)
-
-                Spacer()
-            }
-
-            HStack(spacing: 14) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.accent, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 52, height: 52)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Protected")
-                        .font(SanchrTypography.bodyBold)
-                        .foregroundColor(.white)
-                    Text("End-to-end encrypted")
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(.white.opacity(0.82))
-                }
-
-                Spacer()
-
-                Circle()
-                    .fill(Color(hex: 0x4ADE80))
-                    .frame(width: 32, height: 32)
-                    .overlay {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-            }
-            .padding(16)
-            .background(Color.white.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        }
-        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-        .padding(.top, 12)
-        .padding(.bottom, 22)
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, Color(hex: 0x4C1D95)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
     }
 
     private var sanchrModeCard: some View {
@@ -489,7 +413,6 @@ struct PrivacyView: View {
 
 /// Sub-screen showing the list of blocked contacts with unblock actions.
 struct BlockedContactsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var blockedIDs: [String] = []
     @State private var isLoading = false
@@ -497,14 +420,6 @@ struct BlockedContactsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                SanchrCenteredHeader(title: "Blocked Contacts") {
-                    SanchrIconButton(systemName: "chevron.left") {
-                        dismiss()
-                    }
-                } trailing: {
-                    Color.clear
-                }
-
                 if isLoading {
                     ProgressView()
                         .tint(.sanchrPrimary)
@@ -566,7 +481,7 @@ struct BlockedContactsView: View {
             }
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Blocked Contacts")
         .task {
             await loadBlocked()
         }

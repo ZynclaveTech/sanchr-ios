@@ -6,7 +6,6 @@ import SanchrShared
 /// Matches Figma: chat-settings-main.
 /// Syncs chat/privacy/storage settings to the backend where supported.
 struct ChatSettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
@@ -50,7 +49,6 @@ struct ChatSettingsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                header
                 privacyControlsSection
                 mediaDownloadSection
                 encryptionSection
@@ -62,7 +60,7 @@ struct ChatSettingsView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Chat Settings")
         .task {
             await viewModel.loadSettings(settingsDataSource: settingsDataSource)
             container.backupCoordinator.reload()
@@ -107,16 +105,6 @@ struct ChatSettingsView: View {
             Button("Close", role: .cancel) {}
         } message: {
             Text(revealedRecoveryKey ?? "")
-        }
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Chat Settings") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
         }
     }
 

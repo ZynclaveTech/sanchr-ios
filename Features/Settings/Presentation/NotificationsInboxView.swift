@@ -2,7 +2,6 @@ import SwiftUI
 import SanchrShared
 
 struct NotificationsInboxView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedFilter: InboxFilter = .all
     @State private var items = NotificationFeedItem.seedData
     @State private var showPreferences = false
@@ -40,55 +39,32 @@ struct NotificationsInboxView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                header
+            VStack(spacing: 24) {
+                filterBar
 
-                VStack(spacing: 24) {
-                    if !todayItems.isEmpty {
-                        notificationSection(
-                            title: "Today",
-                            showsMarkAllRead: true,
-                            items: todayItems
-                        )
-                    }
-
-                    if !yesterdayItems.isEmpty {
-                        notificationSection(title: "Yesterday", items: yesterdayItems)
-                    }
-
-                    if !weekItems.isEmpty {
-                        notificationSection(title: "This Week", items: weekItems)
-                    }
+                if !todayItems.isEmpty {
+                    notificationSection(
+                        title: "Today",
+                        showsMarkAllRead: true,
+                        items: todayItems
+                    )
                 }
-                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 18)
-                .padding(.bottom, 32)
+
+                if !yesterdayItems.isEmpty {
+                    notificationSection(title: "Yesterday", items: yesterdayItems)
+                }
+
+                if !weekItems.isEmpty {
+                    notificationSection(title: "This Week", items: weekItems)
+                }
             }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.bottom, 32)
         }
-        .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
-        .navigationDestination(isPresented: $showPreferences) {
-            NotificationsView()
-        }
-    }
-
-    private var header: some View {
-        VStack(spacing: 0) {
-            HStack {
-                SanchrIconButton(
-                    systemName: "chevron.left",
-                    foreground: .white,
-                    background: Color.white.opacity(0.12)
-                ) { dismiss() }
-
-                Spacer()
-
-                Text("Notifications")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(.white)
-
-                Spacer()
-
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .sanchrSettingsSubscreenNavigation(title: "Notifications")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
                         showPreferences = true
@@ -96,17 +72,16 @@ struct NotificationsInboxView: View {
                         Label("Notification Preferences", systemImage: "bell.badge")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.vertical")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
+                    Image(systemName: "ellipsis.circle")
                 }
             }
-            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-            .padding(.top, 12)
+        }
+        .navigationDestination(isPresented: $showPreferences) {
+            NotificationsView()
+        }
+    }
 
+    private var filterBar: some View {
             HStack(spacing: 8) {
                 ForEach(InboxFilter.allCases) { filter in
                     Button {
@@ -114,28 +89,19 @@ struct NotificationsInboxView: View {
                     } label: {
                         Text(filter.rawValue)
                             .font(selectedFilter == filter ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
-                            .foregroundColor(.white)
+                            .foregroundColor(selectedFilter == filter ? .white : SanchrExportColors.textSecondary)
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
                             .background(
-                                (selectedFilter == filter ? Color.white.opacity(0.22) : Color.white.opacity(0.1))
+                                selectedFilter == filter
+                                    ? SanchrColors.primary
+                                    : SanchrExportColors.surface
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-            .padding(.top, 18)
-            .padding(.bottom, 18)
-        }
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
     }
 
     private func notificationSection(

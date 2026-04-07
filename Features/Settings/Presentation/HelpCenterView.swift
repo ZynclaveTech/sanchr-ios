@@ -5,7 +5,6 @@ import SanchrShared
 /// Matches Figma: help-center-screen.
 /// Provides FAQ sections, support entry points, and local topic cards.
 struct HelpCenterView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var expandedFAQ: String?
     @State private var showContactForm = false
@@ -37,7 +36,6 @@ struct HelpCenterView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                header
                 searchSection
                 quickActions
                 popularTopicsSection
@@ -50,19 +48,9 @@ struct HelpCenterView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Help Center")
         .sheet(isPresented: $showContactForm) {
             ContactSupportForm()
-        }
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Help Center") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
         }
     }
 

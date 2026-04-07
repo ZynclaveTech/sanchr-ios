@@ -418,3 +418,13 @@ private struct AnySettingsRow: View {
         .buttonStyle(.plain)
     }
 }
+
+extension View {
+    func sanchrSettingsSubscreenNavigation(title: String) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonDisplayMode(.minimal)
+            .toolbarBackground(SanchrExportColors.surface, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+    }
+}

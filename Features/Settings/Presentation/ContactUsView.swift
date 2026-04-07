@@ -2,7 +2,6 @@ import SwiftUI
 import SanchrShared
 
 struct ContactUsView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var email = ""
     @State private var topic = "General Support"
@@ -20,7 +19,6 @@ struct ContactUsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                header
                 heroCard
                 quickLinks
                 formCard
@@ -29,17 +27,7 @@ struct ContactUsView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Contact Us") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
-        }
+        .sanchrSettingsSubscreenNavigation(title: "Contact Us")
     }
 
     private var heroCard: some View {

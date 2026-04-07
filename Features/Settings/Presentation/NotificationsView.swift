@@ -6,7 +6,6 @@ import SanchrShared
 /// Matches Figma: notifications-screen.
 /// All toggles persist to the backend via the UpdateNotificationPrefs gRPC endpoint.
 struct NotificationsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
 
@@ -15,8 +14,6 @@ struct NotificationsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                header
-
                 if !viewModel.systemPermissionGranted {
                     permissionBanner
                 }
@@ -140,19 +137,9 @@ struct NotificationsView: View {
             .padding(.bottom, 28)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Notification Preferences")
         .task { @MainActor in
             await viewModel.checkSystemPermission()
-        }
-    }
-
-    private var header: some View {
-        SanchrCenteredHeader(title: "Notification Preferences") {
-            SanchrIconButton(systemName: "chevron.left") {
-                dismiss()
-            }
-        } trailing: {
-            Color.clear
         }
     }
 
@@ -266,7 +253,6 @@ struct NotificationsView: View {
 
 /// Simple picker view for selecting a notification sound.
 struct NotificationSoundPicker: View {
-    @Environment(\.dismiss) private var dismiss
     @Binding var selectedSound: String
     var onSelect: () -> Void
 
@@ -282,14 +268,6 @@ struct NotificationSoundPicker: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                SanchrCenteredHeader(title: "Notification Tone") {
-                    SanchrIconButton(systemName: "chevron.left") {
-                        dismiss()
-                    }
-                } trailing: {
-                    Color.clear
-                }
-
                 VStack(spacing: 0) {
                     ForEach(Array(sounds.enumerated()), id: \.offset) { index, sound in
                         let name = sound.0
@@ -334,7 +312,7 @@ struct NotificationSoundPicker: View {
             }
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .sanchrSettingsSubscreenNavigation(title: "Notification Tone")
     }
 }
 
