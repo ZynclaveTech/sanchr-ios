@@ -591,22 +591,36 @@ final class ChatDetailViewModel {
             .appendingPathComponent("\(UUID().uuidString).\(ext)")
 
         // PhotosLibrarySource.loadVideo returns PickedMedia with an EMPTY
-        // `data` and a populated `fileURL` pointing at the asset on disk;
-        // `loadPhoto` does the opposite. Copy from `fileURL` when it's set,
-        // otherwise write the in-memory bytes. Writing empty Data() for
-        // a video produces a 0-byte file and crashes the upload pipeline.
-        let stagedSize: Int64
-        do {
-            if let sourceURL = item.fileURL {
-                try? FileManager.default.removeItem(at: tempURL)
-                try FileManager.default.copyItem(at: sourceURL, to: tempURL)
-                let attrs = try FileManager.default.attributesOfItem(atPath: tempURL.path)
-                stagedSize = (attrs[.size] as? Int64) ?? Int64((attrs[.size] as? Int) ?? 0)
-            } else {
-                try item.data.write(to: tempURL)
-                stagedSize = Int64(item.data.count)
+        // `data` and a populated `fileURL` pointing at an already-exported
+        // local file; `loadPhoto` does the opposite (data present,
+        // fileURL nil). Copy / write runs OFF the main actor — videos can
+        // be large and blocking the main thread produces the "should not
+        // be called on the main thread" warning plus an unresponsive UI
+        // that looks like a crash.
+        let itemData = item.data
+        let itemFileURL = item.fileURL
+        let stagingResult: Result<Int64, Error> = await Task.detached(priority: .userInitiated) {
+            do {
+                if let sourceURL = itemFileURL {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    try FileManager.default.copyItem(at: sourceURL, to: tempURL)
+                    let attrs = try FileManager.default.attributesOfItem(atPath: tempURL.path)
+                    let size = (attrs[.size] as? Int64) ?? Int64((attrs[.size] as? Int) ?? 0)
+                    return .success(size)
+                } else {
+                    try itemData.write(to: tempURL)
+                    return .success(Int64(itemData.count))
+                }
+            } catch {
+                return .failure(error)
             }
-        } catch {
+        }.value
+
+        let stagedSize: Int64
+        switch stagingResult {
+        case .success(let size):
+            stagedSize = size
+        case .failure(let error):
             SanchrLogger.chat.error("Failed to stage picked media: \(error.localizedDescription)")
             return
         }

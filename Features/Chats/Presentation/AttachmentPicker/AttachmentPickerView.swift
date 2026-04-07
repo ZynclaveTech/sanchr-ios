@@ -35,11 +35,15 @@ final class AttachmentPickerView: UIView {
         stack.spacing = 8
         addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
+        // Stack sizes itself to its content (strip 124 + spacing 8 +
+        // pills 96 = 228pt). Anchored to top so the bottom floats above
+        // the safe area without over-constraining the container height.
+        // The SwiftUI parent sets the picker container frame; see
+        // ChatDetailView's `.frame(height:)` on AttachmentPickerHost.
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
             recentsStrip.heightAnchor.constraint(equalToConstant: 124),
             actionPills.heightAnchor.constraint(equalToConstant: 96)
         ])
