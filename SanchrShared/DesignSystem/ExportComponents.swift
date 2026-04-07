@@ -1,50 +1,56 @@
 import SwiftUI
-import SanchrShared
 
-enum SanchrExportMetrics {
-    static let screenHorizontal: CGFloat = 20
-    static let sectionHorizontal: CGFloat = 16
-    static let topBarTop: CGFloat = 14
-    static let rootTop: CGFloat = 16
-    static let chipHeight: CGFloat = 38
-    static let cardRadius: CGFloat = 20
-    static let softRadius: CGFloat = 16
-    static let largeRadius: CGFloat = 24
-    static let iconButtonSize: CGFloat = 40
-    static let contentSpacing: CGFloat = 20
+public enum SanchrExportMetrics {
+    public static let screenHorizontal: CGFloat = 20
+    public static let sectionHorizontal: CGFloat = 16
+    public static let topBarTop: CGFloat = 14
+    public static let rootTop: CGFloat = 16
+    public static let chipHeight: CGFloat = 38
+    public static let cardRadius: CGFloat = 20
+    public static let softRadius: CGFloat = 16
+    public static let largeRadius: CGFloat = 24
+    public static let iconButtonSize: CGFloat = 40
+    public static let contentSpacing: CGFloat = 20
 }
 
-enum SanchrExportColors {
-    static let background = Color(uiColor: .systemBackground)
-    static let surface = Color(uiColor: .secondarySystemBackground)
-    static let surfaceSoft = Color(uiColor: .systemGroupedBackground)
-    static let surfaceMuted = Color(uiColor: .tertiarySystemFill)
-    static let textPrimary = Color(uiColor: .label)
-    static let textSecondary = Color(uiColor: .secondaryLabel)
-    static let textTertiary = Color(uiColor: .tertiaryLabel)
-    static let line = Color(uiColor: .separator)
-    static let selectedChip = SanchrColors.primary
+public enum SanchrExportColors {
+    public static let background = Color(uiColor: .systemBackground)
+    public static let surface = Color(uiColor: .secondarySystemBackground)
+    public static let surfaceSoft = Color(uiColor: .systemGroupedBackground)
+    public static let surfaceMuted = Color(uiColor: .tertiarySystemFill)
+    public static let textPrimary = Color(uiColor: .label)
+    public static let textSecondary = Color(uiColor: .secondaryLabel)
+    public static let textTertiary = Color(uiColor: .tertiaryLabel)
+    public static let line = Color(uiColor: .separator)
+    public static let selectedChip = SanchrColors.primary
 }
 
 extension View {
-    func sanchrExportBackground() -> some View {
+    public func sanchrExportBackground() -> some View {
         background(SanchrExportColors.background.ignoresSafeArea())
     }
 }
 
-struct SanchrPrimaryCTA: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+public struct SanchrPrimaryCTA: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .opacity(configuration.isPressed ? 0.96 : 1)
     }
 }
 
-struct SanchrBrandHeader<Trailing: View>: View {
-    let title: String
-    @ViewBuilder var trailing: Trailing
+public struct SanchrBrandHeader<Trailing: View>: View {
+    public let title: String
+    @ViewBuilder public var trailing: Trailing
 
-    var body: some View {
+    public init(title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.title = title
+        self.trailing = trailing()
+    }
+
+    public var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 12) {
                 Image("SanchrLogo")
@@ -69,12 +75,22 @@ struct SanchrBrandHeader<Trailing: View>: View {
     }
 }
 
-struct SanchrCenteredHeader<Leading: View, Trailing: View>: View {
-    let title: String
-    @ViewBuilder var leading: Leading
-    @ViewBuilder var trailing: Trailing
+public struct SanchrCenteredHeader<Leading: View, Trailing: View>: View {
+    public let title: String
+    @ViewBuilder public var leading: Leading
+    @ViewBuilder public var trailing: Trailing
 
-    var body: some View {
+    public init(
+        title: String,
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.title = title
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    public var body: some View {
         HStack(spacing: 12) {
             leading
                 .frame(width: 40, height: 40)
@@ -102,13 +118,13 @@ struct SanchrCenteredHeader<Leading: View, Trailing: View>: View {
     }
 }
 
-struct SanchrIconButton: View {
-    let systemName: String
-    let foreground: Color
-    let background: Color
-    let action: () -> Void
+public struct SanchrIconButton: View {
+    public let systemName: String
+    public let foreground: Color
+    public let background: Color
+    public let action: () -> Void
 
-    init(
+    public init(
         systemName: String,
         foreground: Color = SanchrExportColors.textSecondary,
         background: Color = .clear,
@@ -120,7 +136,7 @@ struct SanchrIconButton: View {
         self.action = action
     }
 
-    var body: some View {
+    public var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
@@ -133,14 +149,14 @@ struct SanchrIconButton: View {
     }
 }
 
-struct SanchrSearchField<Trailing: View>: View {
-    let placeholder: String
-    @Binding var text: String
-    @ViewBuilder var trailing: Trailing
+public struct SanchrSearchField<Trailing: View>: View {
+    public let placeholder: String
+    @Binding public var text: String
+    @ViewBuilder public var trailing: Trailing
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isFocused: Bool
 
-    init(
+    public init(
         placeholder: String,
         text: Binding<String>,
         @ViewBuilder trailing: () -> Trailing
@@ -150,7 +166,7 @@ struct SanchrSearchField<Trailing: View>: View {
         self.trailing = trailing()
     }
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: SanchrSpacing.searchIconSize, weight: .semibold))
@@ -174,13 +190,19 @@ struct SanchrSearchField<Trailing: View>: View {
     }
 }
 
-struct SanchrFilterChip: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
+public struct SanchrFilterChip: View {
+    public let title: String
+    public let isSelected: Bool
+    public let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
+    public init(title: String, isSelected: Bool, action: @escaping () -> Void) {
+        self.title = title
+        self.isSelected = isSelected
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             Text(title)
                 .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
@@ -194,12 +216,17 @@ struct SanchrFilterChip: View {
     }
 }
 
-struct SanchrModeChip: View {
-    let isActive: Bool
-    let action: () -> Void
+public struct SanchrModeChip: View {
+    public let isActive: Bool
+    public let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
+    public init(isActive: Bool, action: @escaping () -> Void) {
+        self.isActive = isActive
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: "shield.fill")
@@ -217,11 +244,16 @@ struct SanchrModeChip: View {
     }
 }
 
-struct SanchrSectionEyebrow: View {
-    let title: String
-    var systemImage: String?
+public struct SanchrSectionEyebrow: View {
+    public let title: String
+    public var systemImage: String?
 
-    var body: some View {
+    public init(title: String, systemImage: String? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    public var body: some View {
         HStack(spacing: 6) {
             if let systemImage {
                 Image(systemName: systemImage)
@@ -240,8 +272,10 @@ struct SanchrSectionEyebrow: View {
     }
 }
 
-struct SquircleShape: Shape {
-    func path(in rect: CGRect) -> Path {
+public struct SquircleShape: Shape {
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height
         var path = Path()
@@ -270,11 +304,16 @@ struct SquircleShape: Shape {
     }
 }
 
-struct SanchrGradientButtonLabel: View {
-    let title: String
-    let systemName: String?
+public struct SanchrGradientButtonLabel: View {
+    public let title: String
+    public let systemName: String?
 
-    var body: some View {
+    public init(title: String, systemName: String? = nil) {
+        self.title = title
+        self.systemName = systemName
+    }
+
+    public var body: some View {
         HStack(spacing: 10) {
             if let systemName {
                 Image(systemName: systemName)

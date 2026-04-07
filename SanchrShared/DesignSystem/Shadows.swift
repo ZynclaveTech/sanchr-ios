@@ -1,13 +1,14 @@
 import SwiftUI
-import SanchrShared
 
 /// Shadow definitions as view modifiers for consistent elevation.
-enum SanchrShadows {
+public enum SanchrShadows {
     /// Subtle shadow for cards and list items.
-    struct CardShadow: ViewModifier {
+    public struct CardShadow: ViewModifier {
         @Environment(\.colorScheme) private var colorScheme
 
-        func body(content: Content) -> some View {
+        public init() {}
+
+        public func body(content: Content) -> some View {
             content.shadow(
                 color: colorScheme == .dark
                     ? Color.black.opacity(0.3)
@@ -20,10 +21,12 @@ enum SanchrShadows {
     }
 
     /// Elevated shadow for floating elements (FABs, sheets).
-    struct ElevatedShadow: ViewModifier {
+    public struct ElevatedShadow: ViewModifier {
         @Environment(\.colorScheme) private var colorScheme
 
-        func body(content: Content) -> some View {
+        public init() {}
+
+        public func body(content: Content) -> some View {
             content.shadow(
                 color: colorScheme == .dark
                     ? Color.black.opacity(0.5)
@@ -36,8 +39,10 @@ enum SanchrShadows {
     }
 
     /// Glow effect for primary action buttons.
-    struct PrimaryGlow: ViewModifier {
-        func body(content: Content) -> some View {
+    public struct PrimaryGlow: ViewModifier {
+        public init() {}
+
+        public func body(content: Content) -> some View {
             content.shadow(
                 color: SanchrColors.primary.opacity(0.4),
                 radius: 12,
@@ -51,15 +56,15 @@ enum SanchrShadows {
 // MARK: - View Extensions
 
 extension View {
-    func sanchrCardShadow() -> some View {
+    public func sanchrCardShadow() -> some View {
         modifier(SanchrShadows.CardShadow())
     }
 
-    func sanchrElevatedShadow() -> some View {
+    public func sanchrElevatedShadow() -> some View {
         modifier(SanchrShadows.ElevatedShadow())
     }
 
-    func sanchrPrimaryGlow() -> some View {
+    public func sanchrPrimaryGlow() -> some View {
         modifier(SanchrShadows.PrimaryGlow())
     }
 }

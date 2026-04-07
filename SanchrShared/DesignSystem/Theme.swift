@@ -1,17 +1,16 @@
 import SwiftUI
-import SanchrShared
 
 /// Unified theme object combining all design tokens with light/dark support.
 @Observable
-final class SanchrTheme: @unchecked Sendable {
-    enum Mode: String, CaseIterable, Identifiable {
+public final class SanchrTheme: @unchecked Sendable {
+    public enum Mode: String, CaseIterable, Identifiable {
         case system
         case light
         case dark
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
-        var displayName: String {
+        public var displayName: String {
             switch self {
             case .system: "System"
             case .light: "Light"
@@ -19,7 +18,7 @@ final class SanchrTheme: @unchecked Sendable {
             }
         }
 
-        var colorScheme: ColorScheme? {
+        public var colorScheme: ColorScheme? {
             switch self {
             case .system: nil
             case .light: .light
@@ -28,10 +27,12 @@ final class SanchrTheme: @unchecked Sendable {
         }
     }
 
-    var mode: Mode = .light
+    public var mode: Mode = .light
+
+    public init() {}
 
     /// Resolved color scheme based on current mode and system setting.
-    func resolvedScheme(system: ColorScheme) -> ColorScheme {
+    public func resolvedScheme(system: ColorScheme) -> ColorScheme {
         mode.colorScheme ?? system
     }
 }
@@ -43,7 +44,7 @@ private struct ThemeKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    var sanchrTheme: SanchrTheme {
+    public var sanchrTheme: SanchrTheme {
         get { self[ThemeKey.self] }
         set { self[ThemeKey.self] = newValue }
     }
@@ -52,18 +53,20 @@ extension EnvironmentValues {
 // MARK: - Themed View Modifier
 
 /// Applies the current theme's color scheme override to a view hierarchy.
-struct ThemedModifier: ViewModifier {
+public struct ThemedModifier: ViewModifier {
     @Environment(\.sanchrTheme) private var theme
     @Environment(\.colorScheme) private var systemScheme
 
-    func body(content: Content) -> some View {
+    public init() {}
+
+    public func body(content: Content) -> some View {
         content
             .preferredColorScheme(theme.mode.colorScheme)
     }
 }
 
 extension View {
-    func sanchrThemed() -> some View {
+    public func sanchrThemed() -> some View {
         modifier(ThemedModifier())
     }
 }
