@@ -91,11 +91,12 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: true
         CODE_SIGN_ENTITLEMENTS: Sanchr.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: "$(SRCROOT)/Sanchr-Bridging-Header.h"
         SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
-        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
-        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
-        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
-        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lc++"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers $(SRCROOT)/Platform/Crypto/VyncOPRF"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device $(SRCROOT)/Vendor/VyncPSI/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator $(SRCROOT)/Vendor/VyncPSI/simulator"
+        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lvync_psi -lc++"
     info:
       path: Info.plist
       properties:

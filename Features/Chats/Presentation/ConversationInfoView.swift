@@ -57,6 +57,7 @@ struct ConversationInfoView: View {
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .task {
             // Fetch fresh contacts from server to get phone numbers
             guard let recipientId = recipient?.id else { return }
@@ -64,7 +65,6 @@ struct ConversationInfoView: View {
                 let contacts = try await container.contactRepository.fetchContacts()
                 if let fresh = contacts.first(where: { $0.id == recipientId }) {
                     refreshedRecipient = fresh
-                    SanchrLogger.chat.info("Chat Settings: refreshed recipient phone='\(fresh.phoneNumber)'")
                 }
             } catch {
                 SanchrLogger.chat.warning("Chat Settings: failed to refresh contacts: \(error.localizedDescription)")
@@ -1148,6 +1148,7 @@ private struct VerifySecurityCodeView: View {
 // MARK: - Shared Screen Header Helper
 
 @ViewBuilder
+@MainActor
 private func screenHeader(title: String, onBack: @escaping () -> Void) -> some View {
     HStack {
         Button(action: onBack) {

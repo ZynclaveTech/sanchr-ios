@@ -18,6 +18,16 @@ enum RealtimeNotificationKey {
     static let presence = "presence"
 }
 
+extension NotificationCenter {
+    func postConversationStateDidChange(conversationId: String? = nil) {
+        var userInfo: [AnyHashable: Any]?
+        if let conversationId, !conversationId.isEmpty {
+            userInfo = [RealtimeNotificationKey.conversationId: conversationId]
+        }
+        post(name: .sanchrConversationStateDidChange, object: nil, userInfo: userInfo)
+    }
+}
+
 @Observable
 final class RealtimeService: @unchecked Sendable {
     private let messageRepository: MessageRepositoryProtocol
@@ -165,7 +175,7 @@ final class RealtimeService: @unchecked Sendable {
             }
             if result.appliedCount > 0 {
                 await MainActor.run {
-                    NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                    NotificationCenter.default.postConversationStateDidChange()
                 }
             }
             return result.appliedCount
@@ -190,7 +200,9 @@ final class RealtimeService: @unchecked Sendable {
                         RealtimeNotificationKey.message: message,
                     ]
                 )
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: message.conversationId
+                )
             }
 
         case .typing(let indicator):
@@ -215,7 +227,9 @@ final class RealtimeService: @unchecked Sendable {
                         RealtimeNotificationKey.receipt: receipt,
                     ]
                 )
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: receipt.conversationID
+                )
             }
 
         case .presence(let presence):

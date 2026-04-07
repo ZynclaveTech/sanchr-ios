@@ -28,6 +28,12 @@ extension Date {
         Self.timeFormatter.string(from: self)
     }
 
+    /// Returns relative presence text such as "5m ago".
+    @MainActor
+    var relativePresenceDescription: String {
+        Self.relativePresenceFormatter.localizedString(for: self, relativeTo: Date())
+    }
+
     /// Returns call duration string: "1:23" or "0:05".
     static func callDuration(seconds: TimeInterval) -> String {
         let minutes = Int(seconds) / 60
@@ -55,5 +61,12 @@ extension Date {
         let f = DateFormatter()
         f.dateFormat = "EEEE"
         return f
+    }()
+
+    @MainActor
+    private static let relativePresenceFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter
     }()
 }

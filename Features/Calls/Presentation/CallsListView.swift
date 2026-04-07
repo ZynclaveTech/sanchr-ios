@@ -32,6 +32,7 @@ struct CallsListView: View {
             }
         }
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .task {
             viewModel.configure(
                 callManager: container.callManager,

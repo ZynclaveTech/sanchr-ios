@@ -1,20 +1,32 @@
 import SwiftUI
 import UIKit
 
+enum TranscriptScrollCommand: Equatable {
+    case initialBottom(sequence: UInt64)
+    case manualBottom(sequence: UInt64)
+    case message(id: String, sequence: UInt64)
+}
+
+struct TranscriptRenderInput {
+    let sections: [MessageSection]
+    let uploadProgress: [String: Double]
+    let uploadStatusLabel: [String: String]
+    let version: UInt64
+    let scrollCommand: TranscriptScrollCommand?
+}
+
 /// SwiftUI bridge for `MessageCollectionViewController`.
 /// Passes ViewModel sections and upload progress, handles scroll state bindings,
 /// and wires reply / reaction callbacks.
 struct MessageCollectionView: UIViewControllerRepresentable {
 
-    let sections: [MessageSection]
-    let uploadProgress: [String: Double]
-    let uploadStatusLabel: [String: String]
+    let renderInput: TranscriptRenderInput
+    let onInitialPresentation: () -> Void
     let onReply: (Message) -> Void
     let onReact: (String, String) -> Void
     let onLoadMore: () -> Void
     @Binding var isScrolledToBottom: Bool
     @Binding var newMessageCountWhileScrolled: Int
-    @Binding var scrollToMessageId: String?
 
     // MARK: - UIViewControllerRepresentable
 
@@ -23,6 +35,12 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onReplyToMessage = { message in
             onReply(message)
+        }
+
+        vc.onInitialContentPresented = {
+            DispatchQueue.main.async {
+                onInitialPresentation()
+            }
         }
 
         vc.onReactToMessage = { emoji, messageId in
@@ -45,12 +63,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onLoadMore()
         }
 
-        // Apply initial snapshot
-        vc.applySnapshot(
-            sections: sections,
-            uploadProgress: uploadProgress,
-            uploadStatusLabel: uploadStatusLabel
-        )
+        vc.update(renderInput: renderInput)
 
         return vc
     }
@@ -61,6 +74,12 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onReply(message)
         }
 
+        vc.onInitialContentPresented = {
+            DispatchQueue.main.async {
+                onInitialPresentation()
+            }
+        }
+
         vc.onReactToMessage = { emoji, messageId in
             onReact(emoji, messageId)
         }
@@ -69,19 +88,6 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onLoadMore()
         }
 
-        // Apply updated snapshot
-        vc.applySnapshot(
-            sections: sections,
-            uploadProgress: uploadProgress,
-            uploadStatusLabel: uploadStatusLabel
-        )
-
-        // Handle scroll-to-message request
-        if let targetId = scrollToMessageId {
-            vc.scrollToMessage(id: targetId)
-            DispatchQueue.main.async {
-                scrollToMessageId = nil
-            }
-        }
+        vc.update(renderInput: renderInput)
     }
 }

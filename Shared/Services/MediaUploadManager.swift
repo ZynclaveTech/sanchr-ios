@@ -65,13 +65,25 @@ struct MediaUploadTask: Identifiable, Sendable {
 actor MediaUploadManager {
     private var tasks: [String: MediaUploadTask] = [:]
     private let mediaEncryption: MediaEncryptionProtocol
+    private let mediaKeyDerivation: MediaKeyDerivationProtocol
+    private let mediaChainState: MediaChainState
+    private let accessKeyStore: AccessKeyStoreProtocol
     private let grpcClient: GRPCClientProtocol
 
     /// Callback for UI progress updates (called on MainActor).
     nonisolated(unsafe) var onTaskUpdate: (@Sendable (MediaUploadTask) -> Void)?
 
-    init(mediaEncryption: MediaEncryptionProtocol, grpcClient: GRPCClientProtocol) {
+    init(
+        mediaEncryption: MediaEncryptionProtocol,
+        mediaKeyDerivation: MediaKeyDerivationProtocol,
+        mediaChainState: MediaChainState,
+        accessKeyStore: AccessKeyStoreProtocol,
+        grpcClient: GRPCClientProtocol
+    ) {
         self.mediaEncryption = mediaEncryption
+        self.mediaKeyDerivation = mediaKeyDerivation
+        self.mediaChainState = mediaChainState
+        self.accessKeyStore = accessKeyStore
         self.grpcClient = grpcClient
     }
 
@@ -102,11 +114,37 @@ actor MediaUploadManager {
         let encryptedURL = tempDir.appendingPathComponent("\(task.id).enc")
 
         do {
-            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypting...")
+            // 1. Read plaintext to compute file hash
+            let plaintextData = try Data(contentsOf: task.localFileURL)
+            let fileHash = Data(SHA256.hash(data: plaintextData))
+
+            // 2. Get current chain key and derive MediaK
+            let chainKey = mediaChainState.getOrInitChainKey(conversationId: task.conversationId)
+            let mediaKey = mediaKeyDerivation.deriveMediaKey(chainKey: chainKey, fileHash: fileHash)
+
+            // 3. Advance the chain (forward secrecy — old chain key is erased)
+            mediaChainState.advanceChainKey(conversationId: task.conversationId)
+
+            // 4. Encrypt file with derived MediaK
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypting with ratchet-derived key...")
             let metadata = try await mediaEncryption.encryptFile(
                 at: task.localFileURL,
-                to: encryptedURL
+                to: encryptedURL,
+                withKey: mediaKey
             )
+
+            // 5. Store AccessK for future re-access
+            let accessKey = mediaKeyDerivation.deriveAccessKey(
+                mediaKey: mediaKey,
+                mediaId: task.id,
+                deviceSecret: mediaChainState.deviceSecretData
+            )
+            try await accessKeyStore.store(
+                mediaId: task.id,
+                accessKey: accessKey,
+                conversationId: task.conversationId
+            )
+
             task.encryptedFileURL = encryptedURL
             task.encryptionMetadata = metadata
             SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted, \(metadata.fileSize) bytes plaintext")

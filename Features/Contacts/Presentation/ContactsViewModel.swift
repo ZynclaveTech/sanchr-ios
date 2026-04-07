@@ -1,5 +1,11 @@
 import Foundation
 
+struct ContactSection: Identifiable, Sendable {
+    let id: String
+    let letter: String
+    let contacts: [User]
+}
+
 /// View model for the contacts list screen.
 /// Manages contacts grouped alphabetically with search, filter, block/unblock, and pull-to-refresh.
 @MainActor
@@ -8,24 +14,41 @@ final class ContactsViewModel {
 
     // MARK: - State
 
-    var contacts: [User] = []
-    var blockedUserIDs: Set<String> = []
+    var contacts: [User] = [] {
+        didSet { rebuildDerivedState() }
+    }
+    var blockedUserIDs: Set<String> = [] {
+        didSet { rebuildDerivedState() }
+    }
     var isLoading: Bool = false
     var errorMessage: String?
     var hasCompletedSync: Bool = false
-    var searchText: String = ""
-
-    // MARK: - Computed
-
-    /// Contacts filtered by search text, excluding blocked users.
-    var filteredContacts: [User] {
-        let base = contacts.filter { !blockedUserIDs.contains($0.id) }
-        guard !searchText.isEmpty else { return base }
-        return base.filter { $0.displayName.localizedCaseInsensitiveContains(searchText) }
+    var searchText: String = "" {
+        didSet { rebuildDerivedState() }
     }
 
-    /// Contacts grouped by first letter for alphabetical section headers.
-    var groupedContacts: [(letter: String, contacts: [User])] {
+    private(set) var groupedContacts: [ContactSection] = []
+    private(set) var onlineCount: Int = 0
+
+    init() {
+        rebuildDerivedState()
+    }
+
+    // MARK: - Derived State
+
+    private func rebuildDerivedState() {
+        let base = contacts.filter { !blockedUserIDs.contains($0.id) }
+        onlineCount = contacts.filter { $0.status == .online }.count
+
+        let filteredContacts: [User]
+        if searchText.isEmpty {
+            filteredContacts = base
+        } else {
+            filteredContacts = base.filter {
+                $0.displayName.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
         let sorted = filteredContacts.sorted {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
@@ -33,15 +56,11 @@ final class ContactsViewModel {
             let first = user.displayName.prefix(1).uppercased()
             return first.rangeOfCharacter(from: .letters) != nil ? first : "#"
         }
-        return
+
+        groupedContacts =
             grouped
             .sorted { $0.key < $1.key }
-            .map { (letter: $0.key, contacts: $0.value) }
-    }
-
-    /// Number of online contacts.
-    var onlineCount: Int {
-        contacts.filter { $0.status == .online }.count
+            .map { ContactSection(id: $0.key, letter: $0.key, contacts: $0.value) }
     }
 
     // MARK: - Load Contacts

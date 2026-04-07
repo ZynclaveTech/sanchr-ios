@@ -5,10 +5,11 @@ struct ChatsListView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
     @State private var viewModel = ChatsListViewModel()
-    @State private var searchText = ""
     @State private var showNewConversation = false
     @State private var conversationToDelete: Conversation?
     @State private var sanchrModeEnabled = false
+    @State private var pendingConversationRefreshIDs: Set<String> = []
+    @State private var scheduledRefreshTask: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -16,6 +17,7 @@ struct ChatsListView: View {
             fabButton
         }
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .navigationDestination(for: Conversation.self) { conversation in
             ChatDetailView(conversation: conversation)
         }
@@ -47,17 +49,23 @@ struct ChatsListView: View {
             await viewModel.loadConversations(messageRepository: container.messageRepository)
             await openPendingConversationIfNeeded()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { _ in
-            Task {
-                await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
-                await openPendingConversationIfNeeded()
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
+            if let conversationId = note.userInfo?[RealtimeNotificationKey.conversationId] as? String,
+               !conversationId.isEmpty
+            {
+                pendingConversationRefreshIDs.insert(conversationId)
             }
+            scheduleConversationRefresh()
         }
         .onChange(of: router.pendingConversationId) { _, _ in
             Task { await openPendingConversationIfNeeded() }
         }
         .onChange(of: viewModel.totalUnreadCount) { _, newCount in
             router.chatUnreadCount = newCount
+        }
+        .onDisappear {
+            scheduledRefreshTask?.cancel()
+            scheduledRefreshTask = nil
         }
     }
 
@@ -111,7 +119,7 @@ struct ChatsListView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(SanchrExportColors.background)
 
-            let pinned = viewModel.pinnedConversations(searchText: searchText)
+            let pinned = viewModel.pinnedConversations
             if !pinned.isEmpty {
                 Section {
                     ForEach(pinned) { conversation in
@@ -124,7 +132,7 @@ struct ChatsListView: View {
                 .listRowBackground(SanchrExportColors.background)
             }
 
-            let recent = viewModel.recentConversations(searchText: searchText)
+            let recent = viewModel.recentConversations
             if !recent.isEmpty {
                 Section {
                     ForEach(recent) { conversation in
@@ -162,11 +170,15 @@ struct ChatsListView: View {
     }
 
     private func conversationCell(_ conversation: Conversation) -> some View {
-        ConversationRow(conversation: conversation)
-            .onTapGesture {
-                router.chatsPath.append(conversation)
-            }
-            .listRowInsets(EdgeInsets())
+        Button {
+            openConversation(conversation)
+        } label: {
+            ConversationRow(conversation: conversation)
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets())
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 conversationToDelete = conversation
@@ -274,11 +286,11 @@ struct ChatsListView: View {
     }
 
     private var searchBar: some View {
-        SanchrSearchField(placeholder: "Search chats...", text: $searchText) {
+        SanchrSearchField(placeholder: "Search chats...", text: $viewModel.searchText) {
             Button {
-                searchText = ""
+                viewModel.searchText = ""
             } label: {
-                Image(systemName: searchText.isEmpty ? "slider.horizontal.3" : "xmark.circle.fill")
+                Image(systemName: viewModel.searchText.isEmpty ? "slider.horizontal.3" : "xmark.circle.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textTertiary)
             }
@@ -411,8 +423,37 @@ struct ChatsListView: View {
         if let conversation = viewModel.conversations.first(where: { $0.id == pendingConversationId }) {
             router.selectedTab = .chats
             router.chatsPath = NavigationPath()
-            router.chatsPath.append(conversation)
+            openConversation(conversation)
             router.clearPendingConversation()
+        }
+    }
+
+    private func openConversation(_ conversation: Conversation) {
+        router.chatsPath.append(conversation)
+    }
+
+    private func scheduleConversationRefresh(forceFullReload: Bool = false) {
+        scheduledRefreshTask?.cancel()
+
+        scheduledRefreshTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+
+            let pendingIDs = pendingConversationRefreshIDs
+            pendingConversationRefreshIDs.removeAll()
+
+            if forceFullReload || pendingIDs.isEmpty {
+                await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
+            } else {
+                for conversationId in pendingIDs {
+                    await viewModel.refreshConversation(
+                        id: conversationId,
+                        localDatabase: container.localDatabase
+                    )
+                }
+            }
+
+            await openPendingConversationIfNeeded()
         }
     }
 }

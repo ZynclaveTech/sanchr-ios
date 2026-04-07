@@ -76,15 +76,42 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
 
+    @ObservationIgnored lazy var mediaChainState: MediaChainState = {
+        let deviceSecret = try! deviceSecretProvider.mediaAccessSecret()
+        return MediaChainState(deviceSecret: deviceSecret)
+    }()
+
     @ObservationIgnored lazy var mediaUploadManager = MediaUploadManager(
         mediaEncryption: mediaEncryption,
+        mediaKeyDerivation: mediaKeyDerivation,
+        mediaChainState: mediaChainState,
+        accessKeyStore: accessKeyStore,
         grpcClient: grpcClient
     )
 
     @ObservationIgnored lazy var mediaDownloadManager = MediaDownloadManager(
         mediaEncryption: mediaEncryption,
+        accessKeyStore: accessKeyStore,
         grpcClient: grpcClient
     )
+
+    // MARK: - Protocol Extensions (OPRF-PSI, Media Key Derivation, EKF)
+
+    @ObservationIgnored lazy var oprfClient: OPRFClientProtocol = OPRFClient()
+
+    @ObservationIgnored lazy var mediaKeyDerivation: MediaKeyDerivationProtocol = MediaKeyDerivation()
+
+    @ObservationIgnored lazy var accessKeyStore: AccessKeyStoreProtocol =
+        AccessKeyStore(localDatabase: localDatabase)
+
+    @ObservationIgnored lazy var discoveryRepository: DiscoveryRepositoryProtocol =
+        DiscoveryRepository(grpcClient: grpcClient, oprfClient: oprfClient)
+
+    @ObservationIgnored lazy var ekfClientService: EKFClientServiceProtocol =
+        EKFClientService(accessKeyStore: accessKeyStore, keyManager: signalKeyManager)
+
+    @ObservationIgnored lazy var ekfNotificationListener: EKFNotificationListener =
+        EKFNotificationListener(ekfClientService: ekfClientService)
 
     // MARK: - Repositories
 

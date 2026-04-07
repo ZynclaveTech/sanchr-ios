@@ -1,0 +1,10 @@
+syntax = "proto3";
+package vync.ekf;
+option java_package = "com.vync.ekf";
+
+message EkfRotationNeeded {
+    string user_id = 1;
+    string key_class = 2;
+    int64  expired_at = 3;
+    string entry_id = 4;
+}

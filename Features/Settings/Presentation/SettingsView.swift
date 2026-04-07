@@ -133,6 +133,7 @@ struct SettingsView: View {
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .task {
             viewModel.loadProfile(from: container.sessionService)
             await viewModel.loadSettings(

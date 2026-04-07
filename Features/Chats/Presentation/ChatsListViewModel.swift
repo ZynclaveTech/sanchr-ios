@@ -19,17 +19,28 @@ final class ChatsListViewModel {
 
     // MARK: - State
 
-    var conversations: [Conversation] = []
+    var conversations: [Conversation] = [] {
+        didSet { rebuildVisibleConversations() }
+    }
     var isLoading: Bool = false
     var isRefreshing: Bool = false
     var errorMessage: String?
     var showEncryptionBanner: Bool = true
-    var selectedFilter: ChatFilter = .all
+    var selectedFilter: ChatFilter = .all {
+        didSet { rebuildVisibleConversations() }
+    }
+    var searchText: String = "" {
+        didSet { rebuildVisibleConversations() }
+    }
 
     /// Total unread count across all conversations for badge display.
-    var totalUnreadCount: Int {
-        conversations.reduce(0) { $0 + $1.unreadCount }
-    }
+    private(set) var totalUnreadCount: Int = 0
+
+    /// Conversations that are pinned (for the pinned section).
+    private(set) var pinnedConversations: [Conversation] = []
+
+    /// Conversations that are not pinned (for the recent section).
+    private(set) var recentConversations: [Conversation] = []
 
     /// Whether the list is empty (after loading).
     var isEmpty: Bool {
@@ -78,11 +89,18 @@ final class ChatsListViewModel {
         }
     }
 
-    // MARK: - Filtering & Sorting
+    // MARK: - Derived State
+
+    private func rebuildVisibleConversations() {
+        totalUnreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
+        let visible = filteredConversations()
+        pinnedConversations = visible.filter(\.isPinned)
+        recentConversations = visible.filter { !$0.isPinned }
+    }
 
     /// Returns conversations filtered by search text and active filter tab.
-    func filteredConversations(searchText: String) -> [Conversation] {
-        var result = sortedConversations
+    private func filteredConversations() -> [Conversation] {
+        var result = sortedConversations()
 
         // Apply filter tab
         switch selectedFilter {
@@ -103,18 +121,8 @@ final class ChatsListViewModel {
         return result
     }
 
-    /// Conversations that are pinned (for the pinned section).
-    func pinnedConversations(searchText: String) -> [Conversation] {
-        filteredConversations(searchText: searchText).filter(\.isPinned)
-    }
-
-    /// Conversations that are not pinned (for the recent section).
-    func recentConversations(searchText: String) -> [Conversation] {
-        filteredConversations(searchText: searchText).filter { !$0.isPinned }
-    }
-
     /// Conversations sorted by pinned status and last activity.
-    private var sortedConversations: [Conversation] {
+    private func sortedConversations() -> [Conversation] {
         conversations.sorted { lhs, rhs in
             // Pinned conversations always sort first
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
@@ -151,6 +159,28 @@ final class ChatsListViewModel {
             SanchrLogger.chat.info("Loaded \(self.conversations.count) cached conversations")
         } catch {
             SanchrLogger.chat.warning("Cached conversation refresh failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Refreshes a single conversation row from local persistence.
+    func refreshConversation(id: String, localDatabase: LocalDatabaseProtocol) async {
+        do {
+            let refreshedConversation = try await localDatabase.fetchConversation(id: id)
+
+            if let refreshedConversation {
+                if let index = conversations.firstIndex(where: { $0.id == id }) {
+                    conversations[index] = refreshedConversation
+                } else {
+                    conversations.append(refreshedConversation)
+                }
+            } else {
+                conversations.removeAll { $0.id == id }
+            }
+            errorMessage = nil
+        } catch {
+            SanchrLogger.chat.warning(
+                "Single conversation refresh failed for \(id.prefix(8)): \(error.localizedDescription)"
+            )
         }
     }
 
@@ -208,6 +238,7 @@ final class ChatsListViewModel {
             return
         }
         conversations[index].isPinned.toggle()
+        rebuildVisibleConversations()
         SanchrLogger.chat.info(
             "Toggled pin for \(conversation.id.prefix(8)): \(self.conversations[index].isPinned)")
         // TODO: Persist pin state
@@ -219,6 +250,7 @@ final class ChatsListViewModel {
             return
         }
         conversations[index].isMuted.toggle()
+        rebuildVisibleConversations()
         // TODO: Persist mute state
     }
 
@@ -239,6 +271,7 @@ final class ChatsListViewModel {
             return
         }
         conversations[index].unreadCount = 0
+        rebuildVisibleConversations()
         SanchrLogger.chat.info("Marked conversation \(conversation.id.prefix(8)) as read")
         // TODO: Send read receipts via repository/server
     }

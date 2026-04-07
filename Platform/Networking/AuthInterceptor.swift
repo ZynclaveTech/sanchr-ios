@@ -186,6 +186,14 @@ extension AuthInterceptorFactory: Vync_Backup_BackupServiceClientInterceptorFact
     func makeDeleteBackupInterceptors() -> [ClientInterceptor<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>] { makeInterceptors() }
 }
 
+// MARK: - DiscoveryService Interceptors
+
+extension AuthInterceptorFactory: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol {
+    func makeOprfDiscoverInterceptors() -> [ClientInterceptor<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>] { makeInterceptors() }
+    func makeGetBloomFilterInterceptors() -> [ClientInterceptor<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>] { makeInterceptors() }
+    func makeGetRegisteredSetInterceptors() -> [ClientInterceptor<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>] { makeInterceptors() }
+}
+
 // MARK: - CallSignalingService Interceptors
 
 extension AuthInterceptorFactory: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol {

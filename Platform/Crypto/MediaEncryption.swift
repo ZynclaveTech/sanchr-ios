@@ -19,6 +19,9 @@ protocol MediaEncryptionProtocol: Sendable {
     /// Decrypts a file at the given URL and writes plaintext to the output URL.
     func decryptFile(at inputURL: URL, to outputURL: URL, metadata: MediaEncryptionMetadata)
         async throws
+
+    /// Encrypts a file with a pre-derived key instead of generating a random one.
+    func encryptFile(at inputURL: URL, to outputURL: URL, withKey keyData: Data) async throws -> MediaEncryptionMetadata
 }
 
 /// AES-256-GCM encryption for media files (photos, videos, voice notes).
@@ -98,6 +101,30 @@ final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable {
             key: keyData,
             nonce: nonceData,
             tag: tagData,
+            digest: Data(digest),
+            fileSize: Int64(inputData.count)
+        )
+    }
+
+    func encryptFile(at inputURL: URL, to outputURL: URL, withKey keyData: Data) async throws -> MediaEncryptionMetadata {
+        SanchrLogger.media.info("Encrypting file with derived key at \(inputURL.lastPathComponent)")
+
+        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
+        let digest = SHA256.hash(data: inputData)
+
+        let key = SymmetricKey(data: keyData)
+        let nonce = AES.GCM.Nonce()
+        let sealedBox = try AES.GCM.seal(inputData, using: key, nonce: nonce)
+
+        guard let combined = sealedBox.combined else {
+            throw AppError.encryptionFailed(reason: "Failed to produce combined ciphertext for file")
+        }
+        try combined.write(to: outputURL, options: .atomic)
+
+        return MediaEncryptionMetadata(
+            key: keyData,
+            nonce: Data(nonce),
+            tag: Data(sealedBox.tag),
             digest: Data(digest),
             fileSize: Int64(inputData.count)
         )

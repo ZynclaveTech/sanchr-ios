@@ -1,4 +1,5 @@
 import AVFoundation
+import ImageIO
 import Kingfisher
 import PhotosUI
 import SwiftUI
@@ -15,6 +16,10 @@ struct ChatDetailView: View {
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
     @State private var newMessageCountWhileScrolled = 0
+    @State private var transcriptScrollSequence: UInt64 = 0
+    @State private var transcriptScrollCommand: TranscriptScrollCommand? = .initialBottom(sequence: 0)
+    @State private var hasPresentedInitialTranscript = false
+    @State private var hasScheduledDeferredEntryTasks = false
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -50,6 +55,7 @@ struct ChatDetailView: View {
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
@@ -66,32 +72,10 @@ struct ChatDetailView: View {
             }
         }
         .task {
-            viewModel.configurePeer(recipient)
             await viewModel.loadMessages(
                 conversationId: conversation.id,
                 messageRepository: container.messageRepository
             )
-            await loadHeaderPreferences()
-            if let recipient {
-                container.realtimeService.trackPresencePeer(recipient.id)
-            }
-
-            // Mark conversation as read — gate receipt sending on privacy setting
-            if let lastMessageId = viewModel.messages.last?.id {
-                if container.privacySettings.canSendReadReceipts {
-                    try? await container.messageRepository.markAsRead(
-                        conversationId: conversation.id,
-                        upToMessageId: lastMessageId
-                    )
-                } else {
-                    try? await container.messageRepository.markAsReadLocally(
-                        conversationId: conversation.id,
-                        upToMessageId: lastMessageId
-                    )
-                }
-                // Notify chat list to refresh unread counts
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
-            }
         }
         .onAppear {
             viewModel.configurePeer(recipient)
@@ -107,9 +91,8 @@ struct ChatDetailView: View {
             }
             // Clear typing indicator when leaving conversation
             Task {
-                await viewModel.sendTypingIndicator(
+                await viewModel.stopTypingIndicator(
                     conversationId: conversation.id,
-                    isTyping: false,
                     messageRepository: container.messageRepository,
                     canSend: container.privacySettings.canSendTypingIndicators
                 )
@@ -140,7 +123,9 @@ struct ChatDetailView: View {
                         upToMessageId: message.id
                     )
                 }
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: conversation.id
+                )
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeTypingChanged)) { note in
@@ -178,23 +163,19 @@ struct ChatDetailView: View {
             viewModel.handlePresenceUpdate(presence, participantId: recipient?.id)
         }
         .onChange(of: viewModel.inputText) { _, newValue in
-            let isTyping = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            Task {
-                await viewModel.sendTypingIndicator(
-                    conversationId: conversation.id,
-                    isTyping: isTyping,
-                    messageRepository: container.messageRepository,
-                    canSend: container.privacySettings.canSendTypingIndicators
-                )
-            }
+            viewModel.handleInputTextChanged(
+                newValue,
+                conversationId: conversation.id,
+                messageRepository: container.messageRepository,
+                canSend: container.privacySettings.canSendTypingIndicators
+            )
         }
         .onChange(of: isInputFocused) { _, focused in
             if !focused {
                 // Keyboard dismissed — stop typing indicator
                 Task {
-                    await viewModel.sendTypingIndicator(
+                    await viewModel.stopTypingIndicator(
                         conversationId: conversation.id,
-                        isTyping: false,
                         messageRepository: container.messageRepository,
                         canSend: container.privacySettings.canSendTypingIndicators
                     )
@@ -202,15 +183,15 @@ struct ChatDetailView: View {
             }
         }
         .onChange(of: viewModel.searchQuery) { _, query in
-            Task {
-                try? await Task.sleep(nanoseconds: 300_000_000) // 300ms debounce
-                guard viewModel.searchQuery == query else { return } // Cancelled by newer input
-                await viewModel.searchMessages(
-                    conversationId: conversation.id,
-                    query: query,
-                    localDatabase: container.localDatabase
-                )
-            }
+            viewModel.scheduleSearch(
+                conversationId: conversation.id,
+                query: query,
+                localDatabase: container.localDatabase
+            )
+        }
+        .onChange(of: viewModel.currentSearchResultId) { _, messageId in
+            guard let messageId else { return }
+            issueTranscriptScroll(to: .message(id: messageId, sequence: nextTranscriptScrollSequence()))
         }
     }
 
@@ -269,8 +250,7 @@ struct ChatDetailView: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.isSearching.toggle()
                             if !viewModel.isSearching {
-                                viewModel.searchQuery = ""
-                                viewModel.searchResults = []
+                                viewModel.clearSearch()
                             }
                         }
                     } label: {
@@ -392,13 +372,11 @@ struct ChatDetailView: View {
                     .font(SanchrTypography.messageBubbleText)
                     .textFieldStyle(.plain)
                     .onSubmit {
-                        Task {
-                            await viewModel.searchMessages(
-                                conversationId: conversation.id,
-                                query: viewModel.searchQuery,
-                                localDatabase: container.localDatabase
-                            )
-                        }
+                        viewModel.scheduleSearch(
+                            conversationId: conversation.id,
+                            query: viewModel.searchQuery,
+                            localDatabase: container.localDatabase
+                        )
                     }
             }
             .padding(.horizontal, 12)
@@ -432,8 +410,7 @@ struct ChatDetailView: View {
             Button {
                 withAnimation {
                     viewModel.isSearching = false
-                    viewModel.searchQuery = ""
-                    viewModel.searchResults = []
+                    viewModel.clearSearch()
                 }
             } label: {
                 Text("Cancel")
@@ -473,9 +450,10 @@ struct ChatDetailView: View {
 
     private var messagesScrollView: some View {
         MessageCollectionView(
-            sections: viewModel.messageSections,
-            uploadProgress: viewModel.uploadProgress,
-            uploadStatusLabel: viewModel.uploadStatusLabel,
+            renderInput: transcriptRenderInput,
+            onInitialPresentation: {
+                handleInitialTranscriptPresentation()
+            },
             onReply: { message in
                 viewModel.setReply(to: message)
             },
@@ -497,23 +475,37 @@ struct ChatDetailView: View {
                 }
             },
             isScrolledToBottom: $isScrolledToBottom,
-            newMessageCountWhileScrolled: $newMessageCountWhileScrolled,
-            scrollToMessageId: Binding(
-                get: { viewModel.currentSearchResultId },
-                set: { _ in }
-            )
+            newMessageCountWhileScrolled: $newMessageCountWhileScrolled
         )
         .background(SanchrExportColors.surfaceSoft)
+        .overlay {
+            if !hasPresentedInitialTranscript {
+                transcriptLoadingPlaceholder
+            }
+        }
         .environment(container)
         .onAppear {
             // Load more is handled by the collection view's scroll delegate
         }
     }
 
+    private var transcriptLoadingPlaceholder: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .tint(.sanchrPrimary)
+            Text("Opening conversation…")
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SanchrExportColors.surfaceSoft.opacity(0.96))
+        .allowsHitTesting(false)
+    }
+
     private var scrollToBottomFAB: some View {
         Button {
             newMessageCountWhileScrolled = 0
-            isScrolledToBottom = true
+            issueTranscriptScroll(to: .manualBottom(sequence: nextTranscriptScrollSequence()))
         } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "chevron.down")
@@ -762,6 +754,65 @@ struct ChatDetailView: View {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var transcriptRenderInput: TranscriptRenderInput {
+        TranscriptRenderInput(
+            sections: viewModel.messageSections,
+            uploadProgress: viewModel.uploadProgress,
+            uploadStatusLabel: viewModel.uploadStatusLabel,
+            version: viewModel.transcriptVersion,
+            scrollCommand: transcriptScrollCommand
+        )
+    }
+
+    private func nextTranscriptScrollSequence() -> UInt64 {
+        transcriptScrollSequence &+= 1
+        return transcriptScrollSequence
+    }
+
+    private func issueTranscriptScroll(to command: TranscriptScrollCommand) {
+        transcriptScrollCommand = command
+    }
+
+    private func handleInitialTranscriptPresentation() {
+        hasPresentedInitialTranscript = true
+        scheduleDeferredEntryTasksIfNeeded()
+    }
+
+    private func scheduleDeferredEntryTasksIfNeeded() {
+        guard !hasScheduledDeferredEntryTasks else { return }
+        hasScheduledDeferredEntryTasks = true
+
+        Task {
+            if let recipient {
+                container.realtimeService.trackPresencePeer(recipient.id)
+            }
+
+            async let preferencesLoad: Void = loadHeaderPreferences()
+            async let readMark: Void = markConversationAsReadIfNeeded()
+            _ = await (preferencesLoad, readMark)
+        }
+    }
+
+    private func markConversationAsReadIfNeeded() async {
+        guard let lastMessageId = viewModel.messages.last?.id else { return }
+
+        if container.privacySettings.canSendReadReceipts {
+            try? await container.messageRepository.markAsRead(
+                conversationId: conversation.id,
+                upToMessageId: lastMessageId
+            )
+        } else {
+            try? await container.messageRepository.markAsReadLocally(
+                conversationId: conversation.id,
+                upToMessageId: lastMessageId
+            )
+        }
+
+        NotificationCenter.default.postConversationStateDidChange(
+            conversationId: conversation.id
+        )
+    }
+
     private func generateVideoThumbnail(videoURL: URL) async -> URL? {
         await Task.detached(priority: .utility) {
             let asset = AVAsset(url: videoURL)
@@ -844,10 +895,14 @@ struct ChatDetailView: View {
             let thumbnailURL = await generateVideoThumbnail(videoURL: tempURL)
 
             // Compute blur hash from thumbnail for instant receiver preview
-            var videoBlurHash: String?
-            if let thumbURL = thumbnailURL, let thumbImage = UIImage(contentsOfFile: thumbURL.path) {
-                videoBlurHash = BlurHash.encode(thumbImage)
-            }
+            let videoBlurHash: String? = await Task.detached(priority: .utility) {
+                guard let thumbURL = thumbnailURL,
+                      let thumbImage = UIImage(contentsOfFile: thumbURL.path)
+                else {
+                    return nil
+                }
+                return BlurHash.encode(thumbImage)
+            }.value
 
             var attachment = Message.MediaAttachment(
                 url: thumbnailURL ?? tempURL, encryptionKey: Data(), encryptionIV: Data(),
@@ -875,7 +930,9 @@ struct ChatDetailView: View {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
             try? imageData.write(to: tempURL)
 
-            let imageBlurHash: String? = UIImage(data: imageData).flatMap { BlurHash.encode($0) }
+            let imageBlurHash: String? = await Task.detached(priority: .utility) {
+                UIImage(data: imageData).flatMap { BlurHash.encode($0) }
+            }.value
 
             var attachment = Message.MediaAttachment(
                 url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
@@ -902,19 +959,19 @@ struct ChatDetailView: View {
     }
 }
 
-private extension Date {
-    var relativePresenceDescription: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: self, relativeTo: Date())
-    }
-}
-
 struct MessageBubble: View {
     let message: Message
     var uploadProgress: Double?
     var uploadLabel: String?
     var hideTimestamp: Bool = false
+    var isGroupedWithPrev: Bool = false
+    var isGroupedWithNext: Bool = false
+
+    private static let fileSizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter
+    }()
 
     var body: some View {
         if case .system(let event) = message.content {
@@ -1071,9 +1128,7 @@ struct MessageBubble: View {
     }
 
     private func formatFileSize(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
+        Self.fileSizeFormatter.string(fromByteCount: bytes)
     }
 
     private var timestampRow: some View {
@@ -1123,17 +1178,21 @@ struct MessageBubble: View {
     private var bubbleShape: UnevenRoundedRectangle {
         let main = SanchrSpacing.bubbleMainRadius
         let tail = SanchrSpacing.bubbleTailRadius
+        // Signal-style: sharp inner corners on the tail side when messages are clustered
+        let sharp: CGFloat = 4
         if message.isOutgoing {
+            // Tail is on the trailing side
             return UnevenRoundedRectangle(
                 topLeadingRadius: main,
                 bottomLeadingRadius: main,
-                bottomTrailingRadius: tail,
-                topTrailingRadius: main
+                bottomTrailingRadius: isGroupedWithNext ? sharp : tail,
+                topTrailingRadius: isGroupedWithPrev ? sharp : main
             )
         }
+        // Tail is on the leading side
         return UnevenRoundedRectangle(
-            topLeadingRadius: main,
-            bottomLeadingRadius: tail,
+            topLeadingRadius: isGroupedWithPrev ? sharp : main,
+            bottomLeadingRadius: isGroupedWithNext ? sharp : tail,
             bottomTrailingRadius: main,
             topTrailingRadius: main
         )
@@ -1169,8 +1228,16 @@ private struct MediaBubbleImage: View {
     var uploadProgress: Double?
     var uploadLabel: String?
     @Environment(DependencyContainer.self) private var container
-    @State private var localImageURL: URL?
+    @State private var resolvedImage: UIImage?
+    @State private var placeholderImage: UIImage?
     @State private var isDownloading = false
+
+    private static let imageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 100
+        cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+        return cache
+    }()
 
     private static let thumbCacheDir: URL = {
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -1179,58 +1246,59 @@ private struct MediaBubbleImage: View {
         return dir
     }()
 
-    /// Persistent thumbnail path keyed by messageId (survives view recycling)
     private var thumbCachePath: URL {
         Self.thumbCacheDir.appendingPathComponent("\(messageId)_thumb.jpg")
     }
 
-    /// Resolve the image to display
-    private var displayImage: UIImage? {
-        // 1. Local file (sender optimistic upload — image)
-        if attachment.url.isFileURL, let img = UIImage(contentsOfFile: attachment.url.path) {
-            return img
+    private static func cacheImage(_ image: UIImage, forKey key: String) {
+        let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+        imageCache.setObject(image, forKey: key as NSString, cost: cost)
+    }
+
+    private var cachedMediaFilePath: URL? {
+        let ext: String
+        if attachment.mimeType.contains("png") {
+            ext = "png"
+        } else if attachment.mimeType.hasPrefix("video/") {
+            return nil
+        } else {
+            ext = "jpg"
         }
-        // 2. Sender's video thumbnail from attachment
-        if let thumbURL = attachment.thumbnailURL, let img = UIImage(contentsOfFile: thumbURL.path) {
-            return img
-        }
-        // 3. Persistent thumbnail cache (survives navigation)
-        if FileManager.default.fileExists(atPath: thumbCachePath.path),
-           let img = UIImage(contentsOfFile: thumbCachePath.path) {
-            return img
-        }
-        // 4. Downloaded + decrypted (set by .task)
-        if let url = localImageURL, let img = UIImage(contentsOfFile: url.path) {
-            return img
-        }
-        // 5. Blur hash placeholder (instant, ~30 bytes decoded)
-        if let hash = attachment.blurHash {
-            return BlurHash.decode(hash, width: 32, height: 32)
-        }
-        return nil
+        let filePath = Self.thumbCacheDir.appendingPathComponent("\(messageId).\(ext)")
+        return FileManager.default.fileExists(atPath: filePath.path) ? filePath : nil
+    }
+
+    private var displaySize: CGSize {
+        BubbleMediaLayout.displaySize(for: attachment)
+    }
+
+    private var mediaLoadKey: String {
+        [
+            messageId,
+            attachment.url.absoluteString,
+            attachment.thumbnailURL?.absoluteString ?? "",
+            attachment.mimeType,
+            attachment.blurHash ?? "",
+        ].joined(separator: "|")
     }
 
     var body: some View {
-        let hasImage = displayImage != nil
-
         ZStack {
-            if let image = displayImage {
+            if let image = resolvedImage ?? placeholderImage {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: 220, maxHeight: 280)
+                    .frame(width: displaySize.width, height: displaySize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay {
-                        // Progress overlay only when we have an image underneath
-                        if let progress = uploadProgress {
+                        if let progress = uploadProgress, resolvedImage != nil {
                             progressOverlay(progress: progress)
                         }
                     }
             } else {
-                // Placeholder (no image available yet)
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
-                    .frame(width: 200, height: 150)
+                    .frame(width: displaySize.width, height: displaySize.height)
                     .overlay {
                         if isDownloading || uploadProgress != nil {
                             VStack(spacing: 6) {
@@ -1250,63 +1318,161 @@ private struct MediaBubbleImage: View {
                     }
             }
         }
-        .task {
-            // Skip if we have a local file or cached thumbnail already
-            guard !attachment.url.isFileURL,
-                  localImageURL == nil,
-                  !FileManager.default.fileExists(atPath: thumbCachePath.path) else { return }
-
-            isDownloading = true
-            let ext = attachment.mimeType.contains("png") ? "png"
-                : attachment.mimeType.hasPrefix("video/") ? (attachment.mimeType.contains("quicktime") ? "mov" : "mp4")
-                : "jpg"
-
-            // Check media cache
-            if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
-                if attachment.mimeType.hasPrefix("video/") {
-                    await generateAndCacheThumb(from: cached)
-                } else {
-                    localImageURL = cached
-                }
-                isDownloading = false
-                return
-            }
-
-            // Download + decrypt
-            do {
-                let url = try await container.mediaDownloadManager.download(
-                    messageId: messageId,
-                    attachment: attachment
-                )
-                if attachment.mimeType.hasPrefix("video/") {
-                    await generateAndCacheThumb(from: url)
-                } else {
-                    localImageURL = url
-                }
-            } catch {
-                SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
-            }
-            isDownloading = false
+        .task(id: mediaLoadKey) {
+            await loadImages()
         }
     }
 
-    /// Generate video thumbnail and save to persistent cache keyed by messageId
-    private func generateAndCacheThumb(from videoURL: URL) async {
-        let destPath = thumbCachePath
-        let thumb: URL? = await Task.detached(priority: .utility) {
+    private func loadImages() async {
+        if let cached = Self.imageCache.object(forKey: messageId as NSString) {
+            resolvedImage = cached
+            return
+        }
+
+        if placeholderImage == nil, let blurHash = attachment.blurHash {
+            let targetSize = displaySize
+            placeholderImage = await Task.detached(priority: .utility) {
+                BubbleImagePipeline.decodeBlurHash(blurHash, size: targetSize)
+            }.value
+        }
+
+        isDownloading = true
+        defer { isDownloading = false }
+
+        if let image = await loadResolvedImage() {
+            Self.cacheImage(image, forKey: messageId)
+            resolvedImage = image
+        }
+    }
+
+    private func loadResolvedImage() async -> UIImage? {
+        let scale = await MainActor.run { UIScreen.main.scale }
+        let targetSize = displaySize
+
+        if attachment.mimeType.hasPrefix("video/") {
+            return await loadResolvedVideoThumbnail(scale: scale, targetSize: targetSize)
+        }
+
+        if let localURL = localImageCandidateURL() {
+            return await Task.detached(priority: .utility) {
+                BubbleImagePipeline.downsampleImage(
+                    at: localURL,
+                    to: targetSize,
+                    scale: scale
+                )
+            }.value
+        }
+
+        let ext = mediaCacheExtension
+        if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
+            return await Task.detached(priority: .utility) {
+                BubbleImagePipeline.downsampleImage(
+                    at: cached,
+                    to: targetSize,
+                    scale: scale
+                )
+            }.value
+        }
+
+        do {
+            let url = try await container.mediaDownloadManager.download(
+                messageId: messageId,
+                attachment: attachment
+            )
+            return await Task.detached(priority: .utility) {
+                BubbleImagePipeline.downsampleImage(
+                    at: url,
+                    to: targetSize,
+                    scale: scale
+                )
+            }.value
+        } catch {
+            SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func loadResolvedVideoThumbnail(scale: CGFloat, targetSize: CGSize) async -> UIImage? {
+        if let thumbURL = localVideoThumbnailCandidateURL() {
+            return await Task.detached(priority: .utility) {
+                BubbleImagePipeline.downsampleImage(
+                    at: thumbURL,
+                    to: targetSize,
+                    scale: scale
+                )
+            }.value
+        }
+
+        let ext = mediaCacheExtension
+        let cachedVideoURL: URL?
+        if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
+            cachedVideoURL = cached
+        } else {
+            do {
+                cachedVideoURL = try await container.mediaDownloadManager.download(
+                    messageId: messageId,
+                    attachment: attachment
+                )
+            } catch {
+                SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        guard let cachedVideoURL else { return nil }
+        return await generateAndCacheThumb(from: cachedVideoURL, scale: scale, targetSize: targetSize)
+    }
+
+    private func localImageCandidateURL() -> URL? {
+        if attachment.url.isFileURL {
+            return attachment.url
+        }
+        return cachedMediaFilePath
+    }
+
+    private func localVideoThumbnailCandidateURL() -> URL? {
+        if let thumbnailURL = attachment.thumbnailURL, FileManager.default.fileExists(atPath: thumbnailURL.path) {
+            return thumbnailURL
+        }
+        if FileManager.default.fileExists(atPath: thumbCachePath.path) {
+            return thumbCachePath
+        }
+        return nil
+    }
+
+    private var mediaCacheExtension: String {
+        if attachment.mimeType.contains("png") {
+            return "png"
+        }
+        if attachment.mimeType.hasPrefix("video/") {
+            return attachment.mimeType.contains("quicktime") ? "mov" : "mp4"
+        }
+        return "jpg"
+    }
+
+    private func generateAndCacheThumb(from videoURL: URL, scale: CGFloat, targetSize: CGSize) async -> UIImage? {
+        let destinationPath = thumbCachePath
+        let thumbnail: UIImage? = await Task.detached(priority: .utility) {
             let asset = AVAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 480, height: 480)
+            generator.maximumSize = CGSize(
+                width: targetSize.width * scale,
+                height: targetSize.height * scale
+            )
             let time = CMTime(seconds: 1, preferredTimescale: 600)
-            guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil as URL? }
-            guard let jpegData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7) else { return nil }
-            try? jpegData.write(to: destPath, options: .atomic)
-            return destPath
+            guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else {
+                return nil as UIImage?
+            }
+
+            let image = UIImage(cgImage: cgImage)
+            if let jpegData = image.jpegData(compressionQuality: 0.7) {
+                try? jpegData.write(to: destinationPath, options: .atomic)
+            }
+            return image
         }.value
-        if let thumb {
-            localImageURL = thumb
-        }
+
+        return thumbnail
     }
 
     private func progressOverlay(progress: Double) -> some View {
@@ -1337,18 +1503,27 @@ private struct LinkPreviewCard: View {
     let url: URL
     let isOutgoing: Bool
     @State private var preview: LinkPreviewData?
+    @State private var previewImage: UIImage?
     @State private var isLoading = true
+
+    private static let imageCache = NSCache<NSString, UIImage>()
+    private let cardWidth: CGFloat = 220
+    private let imageHeight: CGFloat = 120
 
     var body: some View {
         Group {
             if let preview {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let imageData = preview.imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
+                    if let previewImage {
+                        Image(uiImage: previewImage)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(maxHeight: 140)
+                            .frame(height: imageHeight)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    } else if preview.imageData != nil {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill((isOutgoing ? Color.white : SanchrExportColors.textPrimary).opacity(0.08))
+                            .frame(height: imageHeight)
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -1373,25 +1548,123 @@ private struct LinkPreviewCard: View {
                         : SanchrExportColors.surfaceSoft
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(width: cardWidth, alignment: .leading)
                 .onTapGesture {
                     UIApplication.shared.open(url)
                 }
             } else if isLoading {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .tint(isOutgoing ? .white : Color.sanchrPrimary)
-                    Text(url.host ?? "Loading...")
-                        .font(SanchrTypography.micro)
-                        .foregroundColor(isOutgoing ? Color.white.opacity(0.6) : SanchrExportColors.textTertiary)
+                VStack(alignment: .leading, spacing: 0) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill((isOutgoing ? Color.white : SanchrExportColors.textPrimary).opacity(0.08))
+                        .frame(height: imageHeight)
+
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                            .tint(isOutgoing ? .white : Color.sanchrPrimary)
+                        Text(url.host ?? "Loading...")
+                            .font(SanchrTypography.micro)
+                            .foregroundColor(isOutgoing ? Color.white.opacity(0.6) : SanchrExportColors.textTertiary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                 }
-                .padding(8)
+                .background(
+                    isOutgoing
+                        ? Color.white.opacity(0.1)
+                        : SanchrExportColors.surfaceSoft
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(width: cardWidth, alignment: .leading)
             }
         }
-        .task {
-            preview = await LinkPreviewService.shared.preview(for: url)
-            isLoading = false
+        .task(id: url) {
+            let cachedImage = Self.imageCache.object(forKey: url.absoluteString as NSString)
+            if let cachedImage {
+                previewImage = cachedImage
+            }
+
+            let preview = await LinkPreviewService.shared.preview(for: url)
+            self.preview = preview
+            self.isLoading = false
+
+            guard let preview, let imageData = preview.imageData, previewImage == nil else { return }
+
+            let scale = await MainActor.run { UIScreen.main.scale }
+            let targetSize = CGSize(width: cardWidth, height: imageHeight)
+            let decodedImage = await Task.detached(priority: .utility) {
+                BubbleImagePipeline.downsampleImage(
+                    data: imageData,
+                    to: targetSize,
+                    scale: scale
+                )
+            }.value
+
+            if let decodedImage {
+                Self.imageCache.setObject(decodedImage, forKey: url.absoluteString as NSString)
+                previewImage = decodedImage
+            }
         }
+    }
+}
+
+private enum BubbleMediaLayout {
+    static let maxWidth: CGFloat = 220
+    static let maxHeight: CGFloat = 280
+
+    static func displaySize(for attachment: Message.MediaAttachment) -> CGSize {
+        guard let width = attachment.width,
+              let height = attachment.height,
+              width > 0,
+              height > 0
+        else {
+            return attachment.mimeType.hasPrefix("video/")
+                ? CGSize(width: maxWidth, height: maxWidth)
+                : CGSize(width: maxWidth, height: 180)
+        }
+
+        let sourceSize = CGSize(width: CGFloat(width), height: CGFloat(height))
+        let scale = min(maxWidth / sourceSize.width, maxHeight / sourceSize.height)
+        return CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+    }
+}
+
+private enum BubbleImagePipeline {
+    static func downsampleImage(at url: URL, to pointSize: CGSize, scale: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
+        return downsampleImage(from: source, to: pointSize, scale: scale)
+    }
+
+    static func downsampleImage(data: Data, to pointSize: CGSize, scale: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        return downsampleImage(from: source, to: pointSize, scale: scale)
+    }
+
+    static func decodeBlurHash(_ blurHash: String, size: CGSize) -> UIImage? {
+        let width = max(Int(size.width / 8), 24)
+        let height = max(Int(size.height / 8), 24)
+        return BlurHash.decode(blurHash, width: width, height: height)
+    }
+
+    private static func downsampleImage(
+        from source: CGImageSource,
+        to pointSize: CGSize,
+        scale: CGFloat
+    ) -> UIImage? {
+        let maxDimensionInPixels = max(pointSize.width, pointSize.height) * scale
+        let downsampleOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimensionInPixels,
+            kCGImageSourceShouldCacheImmediately: true,
+        ] as CFDictionary
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions) else {
+            return nil
+        }
+        return UIImage(cgImage: cgImage)
     }
 }
 

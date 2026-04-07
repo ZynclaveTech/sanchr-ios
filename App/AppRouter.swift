@@ -1,4 +1,6 @@
+import Foundation
 import SwiftUI
+import UIKit
 
 /// Centralized navigation coordinator managing the root tab selection
 /// and per-tab navigation stacks.
@@ -89,6 +91,87 @@ final class AppRouter {
 
     func clearPendingCall() {
         pendingCallId = nil
+    }
+}
+
+private struct InteractivePopGestureEnabler: UIViewControllerRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller(coordinator: context.coordinator)
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.configureInteractivePopGesture(using: context.coordinator)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        weak var navigationController: UINavigationController?
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let navigationController else { return false }
+            return navigationController.viewControllers.count > 1
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+    }
+
+    final class Controller: UIViewController {
+        private weak var coordinator: Coordinator?
+
+        init(coordinator: Coordinator) {
+            self.coordinator = coordinator
+            super.init(nibName: nil, bundle: nil)
+            view.isHidden = true
+            view.isUserInteractionEnabled = false
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            if let coordinator {
+                configureInteractivePopGesture(using: coordinator)
+            }
+        }
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            if let coordinator {
+                configureInteractivePopGesture(using: coordinator)
+            }
+        }
+
+        func configureInteractivePopGesture(using coordinator: Coordinator) {
+            guard let navigationController,
+                  let popGesture = navigationController.interactivePopGestureRecognizer
+            else {
+                return
+            }
+
+            coordinator.navigationController = navigationController
+            popGesture.isEnabled = true
+
+            if popGesture.delegate !== coordinator {
+                popGesture.delegate = coordinator
+            }
+        }
+    }
+}
+
+extension View {
+    func sanchrInteractivePopEnabled() -> some View {
+        background(InteractivePopGestureEnabler().frame(width: 0, height: 0))
     }
 }
 

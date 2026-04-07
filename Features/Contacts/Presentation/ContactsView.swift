@@ -18,6 +18,7 @@ struct ContactsView: View {
             }
         }
         .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
         .refreshable {
             await viewModel.refreshContacts(
                 contactDataSource: contactDataSource,
@@ -75,7 +76,9 @@ struct ContactsView: View {
                     localUserId: localUserId
                 )
                 try await container.localDatabase.saveConversation(conversation)
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: conversation.id
+                )
                 navigateToConversation = conversation
             } catch {
                 viewModel.errorMessage = "Failed to start chat: \(error.localizedDescription)"
@@ -149,7 +152,7 @@ struct ContactsView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(SanchrExportColors.background)
 
-            ForEach(viewModel.groupedContacts, id: \.letter) { group in
+            ForEach(viewModel.groupedContacts) { group in
                 Section {
                     ForEach(group.contacts) { contact in
                         Button {

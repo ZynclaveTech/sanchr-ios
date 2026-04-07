@@ -164,7 +164,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         try await localDatabase.saveMessage(updatedMessage)
         await MainActor.run {
-            NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+            NotificationCenter.default.postConversationStateDidChange(
+                conversationId: message.conversationId
+            )
         }
 
         SanchrLogger.chat.info("Message sent successfully: \(updatedMessage.id)")

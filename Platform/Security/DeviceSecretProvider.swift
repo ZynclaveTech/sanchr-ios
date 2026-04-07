@@ -7,6 +7,7 @@ protocol DeviceSecretProviderProtocol: AnyObject, Sendable {
     func localDatabasePassphrase() throws -> String
     func localHMACKey() throws -> Data
     func mediaWrapKey() throws -> Data
+    func mediaAccessSecret() throws -> Data
     func clearDeviceSecrets() throws
 }
 
@@ -15,6 +16,7 @@ final class DeviceSecretProvider: DeviceSecretProviderProtocol, @unchecked Senda
         static let sqlCipher = "sanchr.device.sqlcipher.v1"
         static let localHMAC = "sanchr.device.local-hmac.v1"
         static let mediaWrap = "sanchr.device.media-wrap.v1"
+        static let mediaAccess = "sanchr.device.media-access.v1"
         static let salt = "sanchr.device.hkdf.v1"
     }
 
@@ -56,6 +58,10 @@ final class DeviceSecretProvider: DeviceSecretProviderProtocol, @unchecked Senda
 
     func mediaWrapKey() throws -> Data {
         try deriveKey(label: Labels.mediaWrap)
+    }
+
+    func mediaAccessSecret() throws -> Data {
+        try deriveKey(label: Labels.mediaAccess)
     }
 
     func clearDeviceSecrets() throws {

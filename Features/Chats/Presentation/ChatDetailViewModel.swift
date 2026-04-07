@@ -4,7 +4,7 @@ import UserNotifications
 struct MessageSection: Identifiable, Sendable {
     let id: Date
     let title: String
-    let messages: [Message]
+    var messages: [Message]
 }
 
 /// View model for the chat conversation detail screen.
@@ -30,9 +30,13 @@ final class ChatDetailViewModel {
     var replyingToMessage: Message?
 
     /// Upload progress per message ID (0.0 to 1.0). Removed when complete.
-    var uploadProgress: [String: Double] = [:]
+    var uploadProgress: [String: Double] = [:] {
+        didSet { bumpTranscriptVersion() }
+    }
     /// Upload status label per message ID
-    var uploadStatusLabel: [String: String] = [:]
+    var uploadStatusLabel: [String: String] = [:] {
+        didSet { bumpTranscriptVersion() }
+    }
 
     /// Whether the peer is typing.
     var peerIsTyping: Bool = false
@@ -44,12 +48,18 @@ final class ChatDetailViewModel {
     var showsTypingIndicators: Bool = false
 
     /// Grouped messages by day for stable section headers.
-    private(set) var messageSections: [MessageSection] = []
+    private(set) var messageSections: [MessageSection] = [] {
+        didSet { bumpTranscriptVersion() }
+    }
+    private(set) var transcriptVersion: UInt64 = 0
 
     /// Whether there are more messages to load.
     var hasMoreMessages: Bool = true
 
     private var lastPaginationAnchor: Date?
+    private var typingIdleTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
+    private var typingIndicatorIsActive = false
 
     // MARK: - Search State
 
@@ -117,6 +127,8 @@ final class ChatDetailViewModel {
             )
             messages[index].reactions.append(reaction)
         }
+
+        syncMessageSection(for: messages[index])
     }
 
     func handleRealtimeReaction(messageId: String, userId: String, emoji: String, removed: Bool) {
@@ -130,6 +142,8 @@ final class ChatDetailViewModel {
                 messages[index].reactions.append(reaction)
             }
         }
+
+        syncMessageSection(for: messages[index])
     }
 
     // MARK: - Reply State
@@ -199,7 +213,7 @@ final class ChatDetailViewModel {
             isOutgoing: true
         )
         messages.append(optimisticMessage)
-        rebuildSections()
+        appendMessageToSections(optimisticMessage)
 
         do {
             let useCase = ChatUseCases.SendMessageUseCase(
@@ -217,17 +231,11 @@ final class ChatDetailViewModel {
                 )
             }
             // Replace optimistic message with server-confirmed message
-            if let index = messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
-                messages[index] = sentMessage
-            }
-            rebuildSections()
+            replaceMessage(id: optimisticMessage.id, with: sentMessage)
             SanchrLogger.chat.info("Message sent successfully")
         } catch {
             // Mark optimistic message as failed
-            if let index = messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
-                messages[index].status = .failed
-            }
-            rebuildSections()
+            updateMessage(id: optimisticMessage.id) { $0.status = .failed }
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Send failed: \(error.localizedDescription)")
         }
@@ -267,7 +275,7 @@ final class ChatDetailViewModel {
         )
 
         messages.append(optimisticMessage)
-        rebuildSections()
+        appendMessageToSections(optimisticMessage)
         clearReply()
 
         // Queue upload task
@@ -283,7 +291,7 @@ final class ChatDetailViewModel {
 
         // Wire progress updates
         let msgId = optimisticMessage.id
-        await mediaUploadManager.onTaskUpdate = { [weak self] task in
+        mediaUploadManager.onTaskUpdate = { [weak self] task in
             guard task.optimisticMessageId == msgId else { return }
             Task { @MainActor [weak self] in
                 switch task.state {
@@ -402,17 +410,13 @@ final class ChatDetailViewModel {
                 SanchrLogger.media.info("Media message sent: \(sentMessage.id)")
 
                 await MainActor.run {
-                    if let index = self?.messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
-                        self?.messages[index] = sentMessage
-                        self?.rebuildSections()
+                    if let self {
+                        self.replaceMessage(id: optimisticMessage.id, with: sentMessage)
                     }
                 }
             } catch {
                 await MainActor.run {
-                    if let index = self?.messages.firstIndex(where: { $0.id == optimisticMessage.id }) {
-                        self?.messages[index].status = .failed
-                        self?.rebuildSections()
-                    }
+                    self?.updateMessage(id: optimisticMessage.id) { $0.status = .failed }
                 }
                 SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
             }
@@ -450,8 +454,7 @@ final class ChatDetailViewModel {
                 status: .delivered,
                 isOutgoing: false
             )
-            messages.append(incomingMessage)
-            rebuildSections()
+            appendMessageChronologically(incomingMessage)
             SanchrLogger.chat.info(
                 "Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
         } catch {
@@ -468,8 +471,7 @@ final class ChatDetailViewModel {
                 status: .delivered,
                 isOutgoing: false
             )
-            messages.append(errorMsg)
-            rebuildSections()
+            appendMessageChronologically(errorMsg)
         }
     }
 
@@ -576,11 +578,66 @@ final class ChatDetailViewModel {
         }
     }
 
+    func handleInputTextChanged(
+        _ newValue: String,
+        conversationId: String,
+        messageRepository: MessageRepositoryProtocol,
+        canSend: Bool
+    ) {
+        typingIdleTask?.cancel()
+        let hasText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        guard hasText else {
+            Task {
+                await stopTypingIndicator(
+                    conversationId: conversationId,
+                    messageRepository: messageRepository,
+                    canSend: canSend
+                )
+            }
+            return
+        }
+
+        if !typingIndicatorIsActive {
+            Task {
+                await setTypingIndicator(
+                    true,
+                    conversationId: conversationId,
+                    messageRepository: messageRepository,
+                    canSend: canSend
+                )
+            }
+        }
+
+        typingIdleTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.stopTypingIndicator(
+                conversationId: conversationId,
+                messageRepository: messageRepository,
+                canSend: canSend
+            )
+        }
+    }
+
+    func stopTypingIndicator(
+        conversationId: String,
+        messageRepository: MessageRepositoryProtocol,
+        canSend: Bool
+    ) async {
+        typingIdleTask?.cancel()
+        typingIdleTask = nil
+        await setTypingIndicator(
+            false,
+            conversationId: conversationId,
+            messageRepository: messageRepository,
+            canSend: canSend
+        )
+    }
+
     func handleRealtimeMessage(_ message: Message) {
         guard !messages.contains(where: { $0.id == message.id }) else { return }
-        messages.append(message)
-        messages.sort { $0.timestamp < $1.timestamp }
-        rebuildSections()
+        appendMessageChronologically(message)
     }
 
     func handleTypingIndicator(_ indicator: Vync_Messaging_TypingIndicator) {
@@ -621,28 +678,55 @@ final class ChatDetailViewModel {
         guard let index = messages.firstIndex(where: { $0.id == receipt.messageID }) else { return }
         if let status = Message.DeliveryStatus(rawValue: receipt.status) {
             messages[index].status = status
-            rebuildSections()
+            syncMessageSection(for: messages[index])
         }
     }
 
     // MARK: - Search
 
-    func searchMessages(conversationId: String, query: String, localDatabase: LocalDatabaseProtocol) async {
+    func scheduleSearch(
+        conversationId: String,
+        query: String,
+        localDatabase: LocalDatabaseProtocol
+    ) {
+        searchTask?.cancel()
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             searchResults = []
             currentSearchIndex = 0
             return
         }
-        do {
-            searchResults = try await localDatabase.searchMessages(
-                conversationId: conversationId,
-                query: query
-            )
-            currentSearchIndex = 0
-        } catch {
-            SanchrLogger.chat.error("Search failed: \(error.localizedDescription)")
-            searchResults = []
+
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+
+            do {
+                let results = try await localDatabase.searchMessages(
+                    conversationId: conversationId,
+                    query: query
+                )
+
+                await MainActor.run {
+                    guard let self, self.searchQuery == query else { return }
+                    self.searchResults = results
+                    self.currentSearchIndex = 0
+                }
+            } catch {
+                await MainActor.run {
+                    guard let self, self.searchQuery == query else { return }
+                    SanchrLogger.chat.error("Search failed: \(error.localizedDescription)")
+                    self.searchResults = []
+                }
+            }
         }
+    }
+
+    func clearSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        searchQuery = ""
+        searchResults = []
+        currentSearchIndex = 0
     }
 
     func nextSearchResult() {
@@ -658,6 +742,107 @@ final class ChatDetailViewModel {
     var currentSearchResultId: String? {
         guard !searchResults.isEmpty else { return nil }
         return searchResults[currentSearchIndex].id
+    }
+
+    private func setTypingIndicator(
+        _ isTyping: Bool,
+        conversationId: String,
+        messageRepository: MessageRepositoryProtocol,
+        canSend: Bool
+    ) async {
+        guard typingIndicatorIsActive != isTyping else { return }
+        typingIndicatorIsActive = isTyping
+        await sendTypingIndicator(
+            conversationId: conversationId,
+            isTyping: isTyping,
+            messageRepository: messageRepository,
+            canSend: canSend
+        )
+    }
+
+    private func updateMessage(id: String, mutate: (inout Message) -> Void) {
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        let previousTimestamp = messages[index].timestamp
+        mutate(&messages[index])
+        syncMessageSection(for: messages[index], previousTimestamp: previousTimestamp)
+    }
+
+    private func replaceMessage(id: String, with message: Message) {
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        let previousTimestamp = messages[index].timestamp
+        messages[index] = message
+        syncMessageSection(for: message, previousTimestamp: previousTimestamp)
+    }
+
+    private func appendMessageChronologically(_ message: Message) {
+        if let lastMessage = messages.last, message.timestamp < lastMessage.timestamp {
+            messages.append(message)
+            messages.sort { $0.timestamp < $1.timestamp }
+            rebuildSections()
+            return
+        }
+
+        messages.append(message)
+        appendMessageToSections(message)
+    }
+
+    private func appendMessageToSections(_ message: Message) {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: message.timestamp)
+
+        if let lastIndex = messageSections.indices.last {
+            if messageSections[lastIndex].id == day {
+                messageSections[lastIndex].messages.append(message)
+                return
+            }
+
+            if messageSections[lastIndex].id < day {
+                messageSections.append(
+                    MessageSection(
+                        id: day,
+                        title: sectionTitle(for: day, calendar: calendar),
+                        messages: [message]
+                    )
+                )
+                return
+            }
+        }
+
+        if messageSections.isEmpty {
+            messageSections = [
+                MessageSection(
+                    id: day,
+                    title: sectionTitle(for: day, calendar: calendar),
+                    messages: [message]
+                )
+            ]
+            return
+        }
+
+        rebuildSections()
+    }
+
+    private func syncMessageSection(for message: Message, previousTimestamp: Date? = nil) {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: message.timestamp)
+
+        if let previousTimestamp,
+           calendar.startOfDay(for: previousTimestamp) != day
+        {
+            rebuildSections()
+            return
+        }
+
+        guard let sectionIndex = messageSections.firstIndex(where: { $0.id == day }),
+              let messageIndex = messageSections[sectionIndex].messages.firstIndex(where: {
+                  $0.id == message.id
+              })
+        else {
+            rebuildSections()
+            return
+        }
+
+        messageSections[sectionIndex].messages[messageIndex] = message
     }
 
     private func rebuildSections() {
@@ -685,5 +870,9 @@ final class ChatDetailViewModel {
             return "Yesterday"
         }
         return day.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private func bumpTranscriptVersion() {
+        transcriptVersion &+= 1
     }
 }

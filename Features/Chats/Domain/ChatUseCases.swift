@@ -130,7 +130,9 @@ enum ChatUseCases {
 
             try await localDatabase.saveMessage(confirmedMessage)
             await MainActor.run {
-                NotificationCenter.default.post(name: .sanchrConversationStateDidChange, object: nil)
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: conversationId
+                )
             }
 
             SanchrLogger.chat.info("Message sent: \(response.messageID)")

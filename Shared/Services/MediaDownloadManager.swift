@@ -7,12 +7,18 @@ import Foundation
 /// message, and caches the plaintext locally.
 actor MediaDownloadManager {
     private let mediaEncryption: MediaEncryptionProtocol
+    private let accessKeyStore: AccessKeyStoreProtocol
     private let grpcClient: GRPCClientProtocol
     private let cacheDir: URL
     private var inFlight: Set<String> = []
 
-    init(mediaEncryption: MediaEncryptionProtocol, grpcClient: GRPCClientProtocol) {
+    init(
+        mediaEncryption: MediaEncryptionProtocol,
+        accessKeyStore: AccessKeyStoreProtocol,
+        grpcClient: GRPCClientProtocol
+    ) {
         self.mediaEncryption = mediaEncryption
+        self.accessKeyStore = accessKeyStore
         self.grpcClient = grpcClient
 
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -89,12 +95,28 @@ actor MediaDownloadManager {
         }
         SanchrLogger.media.info("Downloaded \(encryptedData.count) bytes, decrypting...")
 
-        // Decrypt with key from E2EE message
-        let plaintext = try mediaEncryption.decrypt(
-            ciphertext: encryptedData,
-            key: attachment.encryptionKey,
-            iv: attachment.encryptionIV
-        )
+        // Decrypt — try E2EE message key first, fall back to AccessK
+        let plaintext: Data
+        if !attachment.encryptionKey.isEmpty {
+            // Primary path: key from E2EE message (first open)
+            plaintext = try mediaEncryption.decrypt(
+                ciphertext: encryptedData,
+                key: attachment.encryptionKey,
+                iv: attachment.encryptionIV
+            )
+        } else if let mediaId = extractMediaId(from: attachment),
+                  let accessKey = try await accessKeyStore.retrieve(mediaId: mediaId) {
+            // Re-access path: use device-local AccessK
+            SanchrLogger.media.info("Using AccessK for re-access of \(mediaId.prefix(8))")
+            plaintext = try mediaEncryption.decrypt(
+                ciphertext: encryptedData,
+                key: accessKey,
+                iv: attachment.encryptionIV
+            )
+        } else {
+            SanchrLogger.media.error("No decryption key available (E2EE key empty, no AccessK)")
+            throw AppError.mediaDownloadFailed
+        }
 
         // Cache to local disk
         let outputURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
@@ -102,6 +124,13 @@ actor MediaDownloadManager {
 
         SanchrLogger.media.info("Media cached for message \(messageId.prefix(8)): \(plaintext.count) bytes plaintext")
         return outputURL
+    }
+
+    private func extractMediaId(from attachment: Message.MediaAttachment) -> String? {
+        if attachment.url.scheme == "sanchr-media" {
+            return attachment.url.host ?? attachment.url.lastPathComponent
+        }
+        return nil
     }
 
     private func extensionForMime(_ mime: String) -> String {
