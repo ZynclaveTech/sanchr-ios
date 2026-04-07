@@ -79,8 +79,28 @@ final class AttachmentGridTile: UIControl {
             stack.centerXAnchor.constraint(equalTo: centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
-        accessibilityLabel = Self.title(for: item)
+        isAccessibilityElement = true
+        accessibilityLabel = Self.a11yLabel(for: item)
         accessibilityTraits = .button
+        accessibilityIdentifier = Self.a11yIdentifier(for: item)
+    }
+
+    static func a11yLabel(for item: ActionGridItem) -> String {
+        switch item {
+        case .vault: return "Vault, encrypted"
+        case .file: return "Files"
+        case .contact: return "Contact"
+        case .location: return "Location"
+        }
+    }
+
+    static func a11yIdentifier(for item: ActionGridItem) -> String {
+        switch item {
+        case .vault: return "attachmentPicker.actionGrid.vault"
+        case .file: return "attachmentPicker.actionGrid.file"
+        case .contact: return "attachmentPicker.actionGrid.contact"
+        case .location: return "attachmentPicker.actionGrid.location"
+        }
     }
     required init?(coder: NSCoder) { fatalError() }
 

@@ -32,6 +32,7 @@ final class AttachmentPickerRecentsStrip: UIView {
         cv.delegate = self
         cv.register(RecentPhotoCell.self, forCellWithReuseIdentifier: "photo")
         cv.register(CameraTileCell.self, forCellWithReuseIdentifier: "camera")
+        cv.accessibilityIdentifier = "attachmentPicker.recentsStrip"
         return cv
     }()
 
@@ -84,10 +85,19 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
 
     func collectionView(_ cv: UICollectionView, cellForItemAt ip: IndexPath) -> UICollectionViewCell {
         if ip.item == 0 {
-            return cv.dequeueReusableCell(withReuseIdentifier: "camera", for: ip)
+            let cell = cv.dequeueReusableCell(withReuseIdentifier: "camera", for: ip)
+            cell.isAccessibilityElement = true
+            cell.accessibilityLabel = "Camera"
+            cell.accessibilityTraits = .button
+            cell.accessibilityIdentifier = "attachmentPicker.cameraTile"
+            return cell
         }
         let photo = recents[ip.item - 1]
         let c = cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip) as! RecentPhotoCell
+        c.isAccessibilityElement = true
+        c.accessibilityLabel = "Recent photo"
+        c.accessibilityTraits = .button
+        c.accessibilityIdentifier = "attachmentPicker.recentPhoto.\(ip.item - 1)"
         let src = photosSource
         c.configure(photo: photo,
                     isSelected: selectedIDs.contains(photo.id),

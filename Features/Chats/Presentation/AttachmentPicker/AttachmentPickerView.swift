@@ -36,8 +36,10 @@ final class AttachmentPickerView: UIView {
         e2eeChip.text = "🛡 E2EE"
         e2eeChip.font = .systemFont(ofSize: 11, weight: .semibold)
         e2eeChip.textColor = .systemPurple
+        e2eeChip.isAccessibilityElement = true
         e2eeChip.accessibilityLabel = "End-to-end encrypted"
         e2eeChip.accessibilityHint = "All attachments are encrypted on your device before sending"
+        e2eeChip.accessibilityIdentifier = "attachmentPicker.header.e2eeChip"
 
         let title = UILabel()
         title.text = "Attach"
@@ -46,6 +48,9 @@ final class AttachmentPickerView: UIView {
         allPhotosLink.setTitle("All Photos →", for: .normal)
         allPhotosLink.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
         allPhotosLink.addTarget(self, action: #selector(onAllPhotos), for: .touchUpInside)
+        allPhotosLink.isAccessibilityElement = true
+        allPhotosLink.accessibilityLabel = "All Photos"
+        allPhotosLink.accessibilityIdentifier = "attachmentPicker.header.allPhotos"
 
         let headerStack = UIStackView(arrangedSubviews: [title, e2eeChip, UIView(), allPhotosLink])
         headerStack.axis = .horizontal
