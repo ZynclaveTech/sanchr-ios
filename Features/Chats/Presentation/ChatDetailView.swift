@@ -13,8 +13,6 @@ struct ChatDetailView: View {
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
     @State private var showPhotosPicker = false
-    @State private var showCameraCapture = false
-    @State private var showVaultPicker = false
     @State private var showFileImporter = false
     @State private var showContactPicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
@@ -57,6 +55,65 @@ struct ChatDetailView: View {
             }
 
             composer
+
+            if showAttachmentPicker {
+                AttachmentPickerHost(
+                    onIntent: { intent in
+                        let ctx = makeAttachmentSendContext()
+                        Task { @MainActor in
+                            await viewModel.send(intent: intent, context: ctx)
+                        }
+                    },
+                    onRequestAction: { item in
+                        switch item {
+                        case .photos:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                showPhotosPicker = true
+                            }
+                        case .gif:
+                            // TODO: GIF picker (Giphy/Tenor integration)
+                            break
+                        case .file:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                showFileImporter = true
+                            }
+                        case .contact:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                showContactPicker = true
+                            }
+                        case .location:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            let ctx = makeAttachmentSendContext()
+                            Task { @MainActor in
+                                // Bind to a local to keep the LocationSource alive
+                                // across the suspension; the CLLocationManager's
+                                // delegate is weak, so a temporary would race ARC.
+                                let source = LocationSource()
+                                do {
+                                    let payload = try await source.requestOneShot()
+                                    await viewModel.send(intent: .location(payload), context: ctx)
+                                } catch {
+                                    print("[AttachmentPicker] location failed: \(error)")
+                                }
+                            }
+                        }
+                    }
+                )
+                .frame(height: 240)
+                .background(SanchrExportColors.background)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .navigationBarHidden(true)
@@ -64,96 +121,6 @@ struct ChatDetailView: View {
         .toolbar(.hidden, for: .tabBar)
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
-        }
-        .sheet(isPresented: $showAttachmentPicker) {
-            AttachmentPickerHost(
-                onIntent: { intent in
-                    let ctx = makeAttachmentSendContext()
-                    Task { @MainActor in
-                        await viewModel.send(intent: intent, context: ctx)
-                    }
-                },
-                onRequestAllPhotos: {
-                    showAttachmentPicker = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        showPhotosPicker = true
-                    }
-                },
-                onRequestAction: { item in
-                    switch item {
-                    case .vault:
-                        showAttachmentPicker = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            showVaultPicker = true
-                        }
-                    case .file:
-                        showAttachmentPicker = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            showFileImporter = true
-                        }
-                    case .contact:
-                        showAttachmentPicker = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            showContactPicker = true
-                        }
-                    case .location:
-                        showAttachmentPicker = false
-                        let ctx = makeAttachmentSendContext()
-                        Task { @MainActor in
-                            // Bind to a local to keep the LocationSource alive
-                            // across the suspension; the CLLocationManager's
-                            // delegate is weak, so a temporary would race ARC.
-                            let source = LocationSource()
-                            do {
-                                let payload = try await source.requestOneShot()
-                                await viewModel.send(intent: .location(payload), context: ctx)
-                            } catch {
-                                print("[AttachmentPicker] location failed: \(error)")
-                            }
-                        }
-                    }
-                },
-                onRequestCameraCapture: {
-                    showAttachmentPicker = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        showCameraCapture = true
-                    }
-                }
-            )
-            .presentationDetents([.height(360), .large])
-            .presentationDragIndicator(.visible)
-            .ignoresSafeArea(edges: .bottom)
-        }
-        .fullScreenCover(isPresented: $showCameraCapture) {
-            CameraCaptureView(
-                onCapture: { capture in
-                    let ctx = makeAttachmentSendContext()
-                    Task { @MainActor in
-                        await viewModel.send(intent: .capturedMedia(capture), context: ctx)
-                    }
-                    showCameraCapture = false
-                },
-                onCancel: {
-                    showCameraCapture = false
-                }
-            )
-        }
-        .sheet(isPresented: $showVaultPicker) {
-            EmbeddedVaultPickerView(
-                onSelect: { intents in
-                    let ctx = makeAttachmentSendContext()
-                    Task { @MainActor in
-                        for intent in intents {
-                            await viewModel.send(intent: intent, context: ctx)
-                        }
-                    }
-                    showVaultPicker = false
-                },
-                onCancel: {
-                    showVaultPicker = false
-                }
-            )
-            .presentationDetents([.large])
         }
         .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
         .fileImporter(
@@ -308,6 +275,13 @@ struct ChatDetailView: View {
                         messageRepository: container.messageRepository,
                         canSend: container.privacySettings.canSendTypingIndicators
                     )
+                }
+            } else {
+                // Keyboard appeared — mutually exclusive with attachment tray
+                if showAttachmentPicker {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showAttachmentPicker = false
+                    }
                 }
             }
         }
@@ -785,9 +759,16 @@ struct ChatDetailView: View {
             HStack(alignment: .bottom, spacing: 10) {
                 // Plus button — opens attachment sheet
                 Button {
-                    showAttachmentPicker = true
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if showAttachmentPicker {
+                            showAttachmentPicker = false
+                        } else {
+                            isInputFocused = false
+                            showAttachmentPicker = true
+                        }
+                    }
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: showAttachmentPicker ? "xmark" : "plus")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(SanchrColors.primary)
                         .frame(width: 36, height: 36)

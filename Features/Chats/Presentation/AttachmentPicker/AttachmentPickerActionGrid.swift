@@ -1,119 +1,135 @@
 import UIKit
 
-@MainActor
-protocol AttachmentPickerActionGridDelegate: AnyObject {
-    func actionGrid(_ grid: AttachmentPickerActionGrid, didTap item: ActionGridItem)
+enum AttachmentPillItem: String, CaseIterable {
+    case photos, gif, file, contact, location
 }
 
 @MainActor
-final class AttachmentPickerActionGrid: UIView {
+protocol AttachmentPickerActionPillsDelegate: AnyObject {
+    func actionPills(_ pills: AttachmentPickerActionPills, didTap item: AttachmentPillItem)
+}
 
-    weak var delegate: AttachmentPickerActionGridDelegate?
+@MainActor
+final class AttachmentPickerActionPills: UIView {
 
+    weak var delegate: AttachmentPickerActionPillsDelegate?
+
+    private let scrollView = UIScrollView()
     private let stack = UIStackView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        stack.axis = .vertical
-        stack.spacing = 6
-        stack.distribution = .fillEqually
-        addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
-        ])
-        let row1 = UIStackView(arrangedSubviews: [makeTile(.vault), makeTile(.file)])
-        let row2 = UIStackView(arrangedSubviews: [makeTile(.contact), makeTile(.location)])
-        for row in [row1, row2] {
-            row.axis = .horizontal
-            row.spacing = 6
-            row.distribution = .fillEqually
-        }
-        stack.addArrangedSubview(row1)
-        stack.addArrangedSubview(row2)
+        setupUI()
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private func makeTile(_ item: ActionGridItem) -> UIControl {
-        let btn = AttachmentGridTile(item: item)
-        btn.addTarget(self, action: #selector(onTap(_:)), for: .touchUpInside)
-        return btn
+    private func setupUI() {
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.alwaysBounceHorizontal = true
+        addSubview(scrollView)
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+
+        stack.axis = .horizontal
+        stack.spacing = 18
+        stack.alignment = .center
+        stack.distribution = .equalSpacing
+        scrollView.addSubview(stack)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 8),
+            stack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -8),
+            stack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 18),
+            stack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -18),
+            stack.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -16)
+        ])
+
+        for item in AttachmentPillItem.allCases {
+            let pill = AttachmentPillButton(item: item)
+            pill.addTarget(self, action: #selector(onTap(_:)), for: .touchUpInside)
+            stack.addArrangedSubview(pill)
+        }
     }
 
-    @objc private func onTap(_ sender: AttachmentGridTile) {
-        delegate?.actionGrid(self, didTap: sender.item)
+    @objc private func onTap(_ sender: AttachmentPillButton) {
+        delegate?.actionPills(self, didTap: sender.item)
     }
 }
 
 @MainActor
-final class AttachmentGridTile: UIControl {
-    let item: ActionGridItem
+final class AttachmentPillButton: UIControl {
+    let item: AttachmentPillItem
+    private let iconContainer = UIView()
     private let iconView = UIImageView()
     private let titleLabel = UILabel()
-    init(item: ActionGridItem) {
+
+    init(item: AttachmentPillItem) {
         self.item = item
         super.init(frame: .zero)
-        layer.cornerRadius = 12
-        backgroundColor = UIColor.secondarySystemBackground
-        if item == .vault {
-            backgroundColor = UIColor.systemPurple.withAlphaComponent(0.18)
-        }
-        let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
+
+        iconContainer.backgroundColor = UIColor.secondarySystemBackground
+        iconContainer.layer.cornerRadius = 28
+        iconContainer.isUserInteractionEnabled = false
+        iconContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        let cfg = UIImage.SymbolConfiguration(pointSize: 24, weight: .regular)
         iconView.image = UIImage(systemName: Self.symbolName(for: item), withConfiguration: cfg)
-        iconView.tintColor = (item == .vault) ? .systemPurple : .label
+        iconView.tintColor = .label
         iconView.contentMode = .scaleAspectFit
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconContainer.addSubview(iconView)
+
         titleLabel.text = Self.title(for: item)
         titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        titleLabel.textAlignment = .center
         titleLabel.textColor = .secondaryLabel
-        let stack = UIStackView(arrangedSubviews: [iconView, titleLabel])
+        titleLabel.textAlignment = .center
+
+        let stack = UIStackView(arrangedSubviews: [iconContainer, titleLabel])
         stack.axis = .vertical
         stack.alignment = .center
-        stack.spacing = 4
+        stack.spacing = 6
         stack.isUserInteractionEnabled = false
         addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor)
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            iconContainer.widthAnchor.constraint(equalToConstant: 56),
+            iconContainer.heightAnchor.constraint(equalToConstant: 56),
+            iconView.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor)
         ])
+
         isAccessibilityElement = true
-        accessibilityLabel = Self.a11yLabel(for: item)
+        accessibilityLabel = Self.title(for: item)
         accessibilityTraits = .button
-        accessibilityIdentifier = Self.a11yIdentifier(for: item)
-    }
-
-    static func a11yLabel(for item: ActionGridItem) -> String {
-        switch item {
-        case .vault: return "Vault, encrypted"
-        case .file: return "Files"
-        case .contact: return "Contact"
-        case .location: return "Location"
-        }
-    }
-
-    static func a11yIdentifier(for item: ActionGridItem) -> String {
-        switch item {
-        case .vault: return "attachmentPicker.actionGrid.vault"
-        case .file: return "attachmentPicker.actionGrid.file"
-        case .contact: return "attachmentPicker.actionGrid.contact"
-        case .location: return "attachmentPicker.actionGrid.location"
-        }
+        accessibilityIdentifier = "attachmentPicker.actionPill.\(item.rawValue)"
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    static func symbolName(for item: ActionGridItem) -> String {
+    static func symbolName(for item: AttachmentPillItem) -> String {
         switch item {
-        case .vault: return "lock.shield.fill"
+        case .photos: return "photo.on.rectangle.angled"
+        case .gif: return "square.stack.3d.up"
         case .file: return "doc.fill"
         case .contact: return "person.crop.circle.fill"
-        case .location: return "mappin.and.ellipse"
+        case .location: return "location.fill"
         }
     }
-    static func title(for item: ActionGridItem) -> String {
-        switch item { case .vault: return "Vault"; case .file: return "File"; case .contact: return "Contact"; case .location: return "Location" }
+    static func title(for item: AttachmentPillItem) -> String {
+        switch item {
+        case .photos: return "Photos"
+        case .gif: return "GIF"
+        case .file: return "File"
+        case .contact: return "Contact"
+        case .location: return "Location"
+        }
     }
 }

@@ -11,8 +11,6 @@ protocol PhotosSourceProviding: AnyObject {
 
 extension PhotosLibrarySource: PhotosSourceProviding {}
 
-enum ActionGridItem: CaseIterable { case vault, file, contact, location }
-
 @MainActor
 final class AttachmentPickerViewModel: ObservableObject {
 

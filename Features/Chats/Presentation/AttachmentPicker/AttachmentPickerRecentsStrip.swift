@@ -6,7 +6,6 @@ import Combine
 protocol AttachmentPickerRecentsStripDelegate: AnyObject {
     func recentsStrip(_ strip: AttachmentPickerRecentsStrip, didTapPhotoAt id: String)
     func recentsStrip(_ strip: AttachmentPickerRecentsStrip, didLongPressPhotoAt id: String)
-    func recentsStripDidTapCameraTile(_ strip: AttachmentPickerRecentsStrip)
 }
 
 @MainActor
@@ -31,7 +30,6 @@ final class AttachmentPickerRecentsStrip: UIView {
         cv.dataSource = self
         cv.delegate = self
         cv.register(RecentPhotoCell.self, forCellWithReuseIdentifier: "photo")
-        cv.register(CameraTileCell.self, forCellWithReuseIdentifier: "camera")
         cv.accessibilityIdentifier = "attachmentPicker.recentsStrip"
         return cv
     }()
@@ -72,32 +70,24 @@ final class AttachmentPickerRecentsStrip: UIView {
     @objc private func onLongPress(_ gr: UILongPressGestureRecognizer) {
         guard gr.state == .began else { return }
         let point = gr.location(in: collectionView)
-        guard let ip = collectionView.indexPathForItem(at: point), ip.item > 0 else { return }
-        let photo = recents[ip.item - 1]
+        guard let ip = collectionView.indexPathForItem(at: point) else { return }
+        let photo = recents[ip.item]
         delegate?.recentsStrip(self, didLongPressPhotoAt: photo.id)
     }
 }
 
 extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollectionViewDelegate {
     func collectionView(_ cv: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        1 + recents.count
+        recents.count
     }
 
     func collectionView(_ cv: UICollectionView, cellForItemAt ip: IndexPath) -> UICollectionViewCell {
-        if ip.item == 0 {
-            let cell = cv.dequeueReusableCell(withReuseIdentifier: "camera", for: ip)
-            cell.isAccessibilityElement = true
-            cell.accessibilityLabel = "Camera"
-            cell.accessibilityTraits = .button
-            cell.accessibilityIdentifier = "attachmentPicker.cameraTile"
-            return cell
-        }
-        let photo = recents[ip.item - 1]
+        let photo = recents[ip.item]
         let c = cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip) as! RecentPhotoCell
         c.isAccessibilityElement = true
         c.accessibilityLabel = "Recent photo"
         c.accessibilityTraits = .button
-        c.accessibilityIdentifier = "attachmentPicker.recentPhoto.\(ip.item - 1)"
+        c.accessibilityIdentifier = "attachmentPicker.recentPhoto.\(ip.item)"
         let src = photosSource
         c.configure(photo: photo,
                     isSelected: selectedIDs.contains(photo.id),
@@ -109,11 +99,7 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
     }
 
     func collectionView(_ cv: UICollectionView, didSelectItemAt ip: IndexPath) {
-        if ip.item == 0 {
-            delegate?.recentsStripDidTapCameraTile(self)
-        } else {
-            delegate?.recentsStrip(self, didTapPhotoAt: recents[ip.item - 1].id)
-        }
+        delegate?.recentsStrip(self, didTapPhotoAt: recents[ip.item].id)
     }
 }
 
@@ -168,4 +154,3 @@ final class RecentPhotoCell: UICollectionViewCell {
         imageView.image = nil
     }
 }
-

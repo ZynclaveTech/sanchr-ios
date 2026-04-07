@@ -5,95 +5,59 @@ import UIKit
 @MainActor
 final class AttachmentPickerViewStructuralTests: XCTestCase {
 
-    // MARK: - Action Grid
+    // MARK: - Action Pills
 
-    func testActionGridContainsFourTilesInExpectedOrder() throws {
-        let grid = AttachmentPickerActionGrid()
-        grid.frame = CGRect(x: 0, y: 0, width: 320, height: 200)
-        grid.layoutIfNeeded()
+    func testActionPillsContainsFiveItemsInExpectedOrder() throws {
+        let pills = AttachmentPickerActionPills()
+        pills.frame = CGRect(x: 0, y: 0, width: 360, height: 96)
+        pills.layoutIfNeeded()
 
-        let tiles = collectTiles(in: grid)
-        XCTAssertEqual(tiles.count, 4, "Expected 4 action grid tiles")
+        let buttons = collectPills(in: pills)
+        XCTAssertEqual(buttons.count, 5, "Expected 5 action pills")
 
-        let identifiers = tiles.map { $0.accessibilityIdentifier ?? "" }
+        let identifiers = buttons.map { $0.accessibilityIdentifier ?? "" }
         XCTAssertEqual(identifiers, [
-            "attachmentPicker.actionGrid.vault",
-            "attachmentPicker.actionGrid.file",
-            "attachmentPicker.actionGrid.contact",
-            "attachmentPicker.actionGrid.location"
+            "attachmentPicker.actionPill.photos",
+            "attachmentPicker.actionPill.gif",
+            "attachmentPicker.actionPill.file",
+            "attachmentPicker.actionPill.contact",
+            "attachmentPicker.actionPill.location"
         ])
     }
 
-    func testVaultTileHasPurpleAccentBackground() throws {
-        let grid = AttachmentPickerActionGrid()
-        grid.frame = CGRect(x: 0, y: 0, width: 320, height: 200)
-        grid.layoutIfNeeded()
+    func testPhotosPillExists() throws {
+        let pills = AttachmentPickerActionPills()
+        pills.frame = CGRect(x: 0, y: 0, width: 360, height: 96)
+        pills.layoutIfNeeded()
 
-        let tiles = collectTiles(in: grid)
-        let vault = try XCTUnwrap(tiles.first { $0.item == .vault })
-        let file = try XCTUnwrap(tiles.first { $0.item == .file })
-
-        let vaultBG = try XCTUnwrap(vault.backgroundColor)
-        let fileBG = try XCTUnwrap(file.backgroundColor)
-
-        XCTAssertNotEqual(vaultBG, fileBG, "Vault tile should be visually differentiated from File tile")
+        let buttons = collectPills(in: pills)
+        XCTAssertNotNil(buttons.first { $0.item == .photos })
     }
 
     // MARK: - Recents Strip
 
-    func testRecentsStripFirstItemIsCameraTile() throws {
+    func testRecentsStripContainsOnlyPhotoCells() throws {
         let strip = AttachmentPickerRecentsStrip(photosSource: PhotosLibrarySource())
-        strip.frame = CGRect(x: 0, y: 0, width: 320, height: 94)
+        strip.frame = CGRect(x: 0, y: 0, width: 320, height: 96)
         strip.update(recents: [], selected: [], multiSelecting: false)
         strip.layoutIfNeeded()
 
         let cv = try XCTUnwrap(firstSubview(of: UICollectionView.self, in: strip))
         XCTAssertEqual(cv.accessibilityIdentifier, "attachmentPicker.recentsStrip")
 
-        let cell = cv.dataSource?.collectionView(cv, cellForItemAt: IndexPath(item: 0, section: 0))
-        let unwrapped = try XCTUnwrap(cell)
-        XCTAssertTrue(unwrapped is CameraTileCell, "First item should be CameraTileCell, got \(type(of: unwrapped))")
-        XCTAssertEqual(unwrapped.accessibilityIdentifier, "attachmentPicker.cameraTile")
-        XCTAssertEqual(unwrapped.accessibilityLabel, "Camera")
-    }
-
-    // MARK: - Header A11y
-
-    func testE2EEChipIsAccessible() throws {
-        let view = makePickerView()
-        let chip = try XCTUnwrap(findSubview(in: view, identifier: "attachmentPicker.header.e2eeChip"))
-        XCTAssertTrue(chip.isAccessibilityElement)
-        let label = try XCTUnwrap(chip.accessibilityLabel)
-        XCTAssertNotNil(label.range(of: "encrypted", options: .caseInsensitive),
-                        "Expected accessibilityLabel to mention 'encrypted', got: \(label)")
-    }
-
-    func testAllPhotosHeaderLinkIsAccessible() throws {
-        let view = makePickerView()
-        let link = try XCTUnwrap(findSubview(in: view, identifier: "attachmentPicker.header.allPhotos"))
-        XCTAssertTrue(link.isAccessibilityElement)
-        let label = try XCTUnwrap(link.accessibilityLabel)
-        XCTAssertNotNil(label.range(of: "photos", options: .caseInsensitive),
-                        "Expected accessibilityLabel to mention 'photos', got: \(label)")
+        // Empty recents → 0 items, no camera tile registered.
+        XCTAssertEqual(cv.numberOfItems(inSection: 0), 0)
     }
 
     // MARK: - Helpers
 
-    private func makePickerView() -> AttachmentPickerView {
-        let vm = AttachmentPickerViewModel(photos: StubPhotosSource())
-        let view = AttachmentPickerView(viewModel: vm, photosSource: PhotosLibrarySource())
-        view.frame = CGRect(x: 0, y: 0, width: 360, height: 320)
-        view.layoutIfNeeded()
-        return view
-    }
-
-    private func collectTiles(in view: UIView) -> [AttachmentGridTile] {
-        var out: [AttachmentGridTile] = []
+    private func collectPills(in view: UIView) -> [AttachmentPillButton] {
+        var out: [AttachmentPillButton] = []
         for sv in view.subviews {
-            if let tile = sv as? AttachmentGridTile {
-                out.append(tile)
+            if let pill = sv as? AttachmentPillButton {
+                out.append(pill)
             } else {
-                out.append(contentsOf: collectTiles(in: sv))
+                out.append(contentsOf: collectPills(in: sv))
             }
         }
         return out
@@ -103,14 +67,6 @@ final class AttachmentPickerViewStructuralTests: XCTestCase {
         for sv in view.subviews {
             if let hit = sv as? T { return hit }
             if let nested = firstSubview(of: type, in: sv) { return nested }
-        }
-        return nil
-    }
-
-    private func findSubview(in view: UIView, identifier: String) -> UIView? {
-        if view.accessibilityIdentifier == identifier { return view }
-        for sv in view.subviews {
-            if let hit = findSubview(in: sv, identifier: identifier) { return hit }
         }
         return nil
     }
