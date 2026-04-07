@@ -196,6 +196,10 @@ final class DependencyContainer: @unchecked Sendable {
         cleanup: {
             nonisolated(unsafe) weak var weakSelf = self
             await weakSelf?.wipeLocalSessionArtifacts()
+        },
+        deepWipe: {
+            nonisolated(unsafe) weak var weakSelf = self
+            await weakSelf?.wipeAppGroupArtifacts()
         }
     )
 
@@ -495,6 +499,45 @@ final class DependencyContainer: @unchecked Sendable {
         syncState.lastSyncTimestamp = nil
         syncState.pendingMessageCount = 0
         syncState.syncError = nil
+    }
+
+    /// Best-effort wipe of every App Group artifact. Used when the user
+    /// permanently deletes their account. Each step swallows errors so one
+    /// failure cannot strand the user in a partially-deleted state.
+    private func wipeAppGroupArtifacts() async {
+        let fm = FileManager.default
+
+        // Database file and any -wal/-shm sidecars.
+        let dbURL = AppGroup.databaseURL
+        for url in [dbURL, dbURL.appendingPathExtension("wal"), dbURL.appendingPathExtension("shm")] {
+            if fm.fileExists(atPath: url.path) {
+                do { try fm.removeItem(at: url) }
+                catch { SanchrLogger.app.error("deleteAccount: failed to remove \(url.lastPathComponent): \(error.localizedDescription)") }
+            }
+        }
+
+        // Sender coordination lock file.
+        let lockURL = AppGroup.senderLockURL
+        if fm.fileExists(atPath: lockURL.path) {
+            do { try fm.removeItem(at: lockURL) }
+            catch { SanchrLogger.app.error("deleteAccount: failed to remove sender lock: \(error.localizedDescription)") }
+        }
+
+        // Media cache directory — wipe contents but leave the dir so future
+        // launches don't need to recreate it.
+        let mediaDir = AppGroup.mediaCacheURL
+        if let entries = try? fm.contentsOfDirectory(at: mediaDir, includingPropertiesForKeys: nil) {
+            for entry in entries {
+                do { try fm.removeItem(at: entry) }
+                catch { SanchrLogger.app.error("deleteAccount: failed to remove media cache entry \(entry.lastPathComponent): \(error.localizedDescription)") }
+            }
+        }
+
+        // Shared UserDefaults suite.
+        AppGroup.userDefaults.removePersistentDomain(forName: AppGroup.identifier)
+        AppGroup.userDefaults.synchronize()
+
+        SanchrLogger.app.warning("deleteAccount: App Group artifacts wiped")
     }
 
     private func removeSignalStoreDirectory() {

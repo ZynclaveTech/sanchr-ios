@@ -8,6 +8,7 @@ protocol AuthServiceProtocol: AnyObject, Sendable {
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult
     func changePassword(currentPassword: String, newPassword: String) async throws
     func logout() async throws
+    func deleteAccount() async throws
 }
 
 /// Authentication service coordinating login, registration, and key exchange.
@@ -50,5 +51,10 @@ final class AuthServiceImpl: AuthServiceProtocol, @unchecked Sendable {
     func logout() async throws {
         SanchrLogger.auth.info("Logging out")
         try await sessionService.clearSession()
+    }
+
+    func deleteAccount() async throws {
+        SanchrLogger.auth.warning("Delete account requested")
+        try await sessionService.deleteAccount()
     }
 }

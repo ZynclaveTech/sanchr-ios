@@ -8,6 +8,7 @@ final class SessionService: @unchecked Sendable {
     private let secureStorage: SecureStorageProtocol
     private let authRepository: AuthRepositoryProtocol
     private let cleanup: @Sendable () async -> Void
+    private let deepWipe: @Sendable () async -> Void
 
     /// Whether the user is currently authenticated.
     private(set) var isAuthenticated: Bool = false
@@ -42,11 +43,13 @@ final class SessionService: @unchecked Sendable {
     init(
         secureStorage: SecureStorageProtocol,
         authRepository: AuthRepositoryProtocol,
-        cleanup: @escaping @Sendable () async -> Void = {}
+        cleanup: @escaping @Sendable () async -> Void = {},
+        deepWipe: @escaping @Sendable () async -> Void = {}
     ) {
         self.secureStorage = secureStorage
         self.authRepository = authRepository
         self.cleanup = cleanup
+        self.deepWipe = deepWipe
         restorePersistedSession()
     }
 
@@ -209,6 +212,20 @@ final class SessionService: @unchecked Sendable {
         guard timestamp > lastMessageSyncTimestamp else { return }
         lastMessageSyncTimestamp = timestamp
         try? persistSnapshot()
+    }
+
+    /// Permanently deletes the user's account on the server and wipes ALL
+    /// local artifacts (including App Group state). On server failure no
+    /// local wipe is performed so the user can retry without being stranded.
+    func deleteAccount() async throws {
+        SanchrLogger.auth.warning("Attempting account deletion on server")
+        try await authRepository.deleteAccount()
+        SanchrLogger.auth.warning("Account deletion confirmed; wiping local artifacts")
+
+        try? secureStorage.deleteSessionData()
+        await clearSessionState()
+        await cleanup()
+        await deepWipe()
     }
 
     /// Clears the session and logs out.

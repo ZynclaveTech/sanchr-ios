@@ -22,6 +22,9 @@ protocol AuthRepositoryProtocol: AnyObject, Sendable {
     /// Changes the current account password.
     func changePassword(currentPassword: String, newPassword: String) async throws
 
+    /// Permanently deletes the authenticated user's account on the server.
+    func deleteAccount() async throws
+
 }
 
 // MARK: - Supporting Types
@@ -159,6 +162,22 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         request.currentPassword = currentPassword
         request.newPassword = newPassword
         _ = try await authService.changePassword(request)
+    }
+
+    func deleteAccount() async throws {
+        SanchrLogger.auth.warning("Submitting account deletion request")
+        let request = Vync_Auth_DeleteAccountRequest()
+        do {
+            let response = try await authService.deleteAccount(request)
+            guard response.success else {
+                SanchrLogger.auth.error("deleteAccount returned success=false")
+                throw AppError.unknown(underlying: "Account deletion was not confirmed by the server.")
+            }
+            SanchrLogger.auth.info("Account deletion confirmed by server")
+        } catch {
+            SanchrLogger.auth.error("deleteAccount failed: \(Self.detailedError(error))")
+            throw error
+        }
     }
 
     // MARK: - Mapping
