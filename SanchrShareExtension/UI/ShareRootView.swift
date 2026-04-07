@@ -96,7 +96,8 @@ struct ShareRootView: View {
                         state = .done
                         onComplete()
                     },
-                    onCancel: onCancel
+                    onCancel: onCancel,
+                    driver: ShareSendCoordinator()
                 )
 
             case .done:
