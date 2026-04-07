@@ -430,6 +430,216 @@ final class ChatDetailViewModel {
         return .document(attachment)
     }
 
+    // MARK: - Attachment Intent Routing (Task 13)
+
+    /// Bundle of dependencies + addressing info needed to fulfil an
+    /// `AttachmentIntent`. The view layer constructs this once from the
+    /// `DependencyContainer` and the active conversation/recipient and passes
+    /// it into `send(intent:context:)`.
+    struct AttachmentSendContext {
+        let conversationId: String
+        let recipientId: String
+        let messageRepository: MessageRepositoryProtocol
+        let signalProtocol: SignalProtocolManagerProtocol
+        let chatDataSource: ChatDataSource
+        let localDatabase: LocalDatabaseProtocol
+        let sessionService: SessionService
+        let mediaUploadManager: MediaUploadManager
+        let mediaEncryption: MediaEncryptionProtocol
+    }
+
+    /// Routes a user-issued `AttachmentIntent` from the attachment picker
+    /// through the existing send pipeline. Each case is mapped to the most
+    /// appropriate existing send path; cases without a structured payload yet
+    /// fall back to a text message and are flagged with TODOs.
+    @MainActor
+    func send(intent: AttachmentIntent, context: AttachmentSendContext) async {
+        switch intent {
+        case .photoLibrary(let items):
+            for item in items {
+                await sendPickedMedia(item, context: context)
+            }
+
+        case .capturedMedia(let capture):
+            await sendCapturedMedia(capture, context: context)
+
+        case .file(let file):
+            // Reuse the media pipeline; documents flow through the same
+            // upload + encryption path with a non-image MIME type.
+            await sendMediaMessage(
+                localFileURL: file.url,
+                mimeType: file.mimeType,
+                contentType: .document(
+                    Message.MediaAttachment(
+                        url: file.url,
+                        encryptionKey: Data(),
+                        encryptionIV: Data(),
+                        mimeType: file.mimeType,
+                        sizeBytes: file.sizeBytes,
+                        thumbnailURL: nil,
+                        caption: nil
+                    )
+                ),
+                conversationId: context.conversationId,
+                recipientId: context.recipientId,
+                caption: nil,
+                messageRepository: context.messageRepository,
+                signalProtocol: context.signalProtocol,
+                chatDataSource: context.chatDataSource,
+                localDatabase: context.localDatabase,
+                sessionService: context.sessionService,
+                mediaUploadManager: context.mediaUploadManager,
+                mediaEncryption: context.mediaEncryption
+            )
+
+        case .contact(let stripped):
+            // TODO: replace with structured contact message once a contact
+            // MessageContent variant + proto exists. For now we send a text
+            // fallback so the picker round-trip is observable end-to-end.
+            await sendTextFallback(Self.contactFallbackText(stripped), context: context)
+
+        case .location(let payload):
+            // TODO: replace with structured location message + proto. We are
+            // forbidden from reverse-geocoding (privacy contract), so the
+            // text fallback only contains the raw lat/long.
+            await sendTextFallback(Self.locationFallbackText(payload), context: context)
+
+        case .vaultItem(let item):
+            // TODO(Task 13+): wire vault re-send pipeline. Vault items already
+            // live on the server with their own encryption metadata, so we
+            // need a dedicated re-send path that does not re-upload bytes.
+            SanchrLogger.chat.warning(
+                "send(intent: .vaultItem) not yet implemented for item \(item.id.prefix(8))"
+            )
+        }
+    }
+
+    /// Pure formatting helper for the contact text-fallback. Exposed for tests.
+    static func contactFallbackText(_ stripped: StrippedContact) -> String {
+        "[Contact] \(stripped.displayName)"
+    }
+
+    /// Pure formatting helper for the location text-fallback. Exposed for tests.
+    /// MUST NOT include any reverse-geocoded place data (privacy contract).
+    static func locationFallbackText(_ payload: LocationPayload) -> String {
+        "[Location] \(payload.latitude),\(payload.longitude)"
+    }
+
+    /// Stages a `CapturedMedia` blob to a temp file and returns the URL +
+    /// derived MIME type. Exposed for tests so we can assert the
+    /// pass-through-bytes contract without spinning up the full send pipeline.
+    static func stageCapturedMediaForTesting(_ capture: CapturedMedia) throws -> (url: URL, mimeType: String) {
+        let isVideo = capture.kind == .video
+        let ext = isVideo ? "mp4" : "jpg"
+        let mimeType = isVideo ? "video/mp4" : "image/jpeg"
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).\(ext)")
+        try capture.data.write(to: tempURL)
+        return (tempURL, mimeType)
+    }
+
+    private func sendPickedMedia(_ item: PickedMedia, context: AttachmentSendContext) async {
+        let ext = item.mimeType.contains("png") ? "png"
+            : item.mimeType.hasPrefix("video/") ? "mp4"
+            : "jpg"
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).\(ext)")
+        do {
+            try item.data.write(to: tempURL)
+        } catch {
+            SanchrLogger.chat.error("Failed to stage picked media: \(error.localizedDescription)")
+            return
+        }
+
+        let attachment = Message.MediaAttachment(
+            url: tempURL,
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: item.mimeType,
+            sizeBytes: Int64(item.data.count),
+            thumbnailURL: nil,
+            caption: nil
+        )
+
+        let content: Message.MessageContent
+        switch item.kind {
+        case .photo: content = .image(attachment)
+        case .video: content = .video(attachment)
+        }
+
+        await sendMediaMessage(
+            localFileURL: tempURL,
+            mimeType: item.mimeType,
+            contentType: content,
+            conversationId: context.conversationId,
+            recipientId: context.recipientId,
+            caption: nil,
+            messageRepository: context.messageRepository,
+            signalProtocol: context.signalProtocol,
+            chatDataSource: context.chatDataSource,
+            localDatabase: context.localDatabase,
+            sessionService: context.sessionService,
+            mediaUploadManager: context.mediaUploadManager,
+            mediaEncryption: context.mediaEncryption
+        )
+    }
+
+    private func sendCapturedMedia(_ capture: CapturedMedia, context: AttachmentSendContext) async {
+        let isVideo = capture.kind == .video
+        let ext = isVideo ? "mp4" : "jpg"
+        let mimeType = isVideo ? "video/mp4" : "image/jpeg"
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).\(ext)")
+        do {
+            // Pass through bytes as-is; do not re-encode.
+            try capture.data.write(to: tempURL)
+        } catch {
+            SanchrLogger.chat.error("Failed to stage captured media: \(error.localizedDescription)")
+            return
+        }
+
+        let attachment = Message.MediaAttachment(
+            url: tempURL,
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: mimeType,
+            sizeBytes: Int64(capture.data.count),
+            thumbnailURL: nil,
+            caption: nil
+        )
+
+        let content: Message.MessageContent = isVideo ? .video(attachment) : .image(attachment)
+
+        await sendMediaMessage(
+            localFileURL: tempURL,
+            mimeType: mimeType,
+            contentType: content,
+            conversationId: context.conversationId,
+            recipientId: context.recipientId,
+            caption: nil,
+            messageRepository: context.messageRepository,
+            signalProtocol: context.signalProtocol,
+            chatDataSource: context.chatDataSource,
+            localDatabase: context.localDatabase,
+            sessionService: context.sessionService,
+            mediaUploadManager: context.mediaUploadManager,
+            mediaEncryption: context.mediaEncryption
+        )
+    }
+
+    private func sendTextFallback(_ text: String, context: AttachmentSendContext) async {
+        inputText = text
+        await sendMessage(
+            conversationId: context.conversationId,
+            recipientId: context.recipientId,
+            messageRepository: context.messageRepository,
+            signalProtocol: context.signalProtocol,
+            chatDataSource: context.chatDataSource,
+            localDatabase: context.localDatabase,
+            sessionService: context.sessionService
+        )
+    }
+
     // MARK: - Receive & Decrypt Incoming Message
 
     /// Decrypts an incoming encrypted envelope and appends the plaintext message to the list.

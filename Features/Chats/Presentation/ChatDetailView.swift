@@ -66,8 +66,10 @@ struct ChatDetailView: View {
         .sheet(isPresented: $showAttachmentPicker) {
             AttachmentPickerHost(
                 onIntent: { intent in
-                    // TODO(Task 13): route via chatViewModel.send(intent:)
-                    print("[AttachmentPicker] intent: \(intent)")
+                    let ctx = makeAttachmentSendContext()
+                    Task { @MainActor in
+                        await viewModel.send(intent: intent, context: ctx)
+                    }
                 },
                 onRequestAllPhotos: {
                     showAttachmentPicker = false
@@ -101,8 +103,10 @@ struct ChatDetailView: View {
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
                 onCapture: { capture in
-                    // TODO(Task 13): chatViewModel.send(intent: .capturedMedia(capture))
-                    print("[Camera] captured \(capture.data.count) bytes")
+                    let ctx = makeAttachmentSendContext()
+                    Task { @MainActor in
+                        await viewModel.send(intent: .capturedMedia(capture), context: ctx)
+                    }
                     showCameraCapture = false
                 },
                 onCancel: {
@@ -113,8 +117,12 @@ struct ChatDetailView: View {
         .sheet(isPresented: $showVaultPicker) {
             EmbeddedVaultPickerView(
                 onSelect: { intents in
-                    // TODO(Task 13): forward to chatViewModel
-                    print("[Vault] selected \(intents.count)")
+                    let ctx = makeAttachmentSendContext()
+                    Task { @MainActor in
+                        for intent in intents {
+                            await viewModel.send(intent: intent, context: ctx)
+                        }
+                    }
                     showVaultPicker = false
                 },
                 onCancel: {
@@ -944,6 +952,24 @@ struct ChatDetailView: View {
         } catch {
             SanchrLogger.chat.error("Failed to load chat header preferences: \(error.localizedDescription)")
         }
+    }
+
+    /// Builds the dependency bundle the view model needs to fulfil an
+    /// `AttachmentIntent`. Captured by value at call time so the resulting
+    /// closure-friendly struct doesn't accidentally retain SwiftUI state.
+    @MainActor
+    private func makeAttachmentSendContext() -> ChatDetailViewModel.AttachmentSendContext {
+        ChatDetailViewModel.AttachmentSendContext(
+            conversationId: conversation.id,
+            recipientId: recipient?.id ?? "",
+            messageRepository: container.messageRepository,
+            signalProtocol: container.signalProtocol,
+            chatDataSource: container.chatDataSource,
+            localDatabase: container.localDatabase,
+            sessionService: container.sessionService,
+            mediaUploadManager: container.mediaUploadManager,
+            mediaEncryption: container.mediaEncryption
+        )
     }
 
     private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
