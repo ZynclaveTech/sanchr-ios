@@ -40,6 +40,10 @@ packages:
     url: https://github.com/apple/swift-nio-http2.git
     minVersion: "1.0.0"
     maxVersion: "2.0.0"
+  swift-nio-ssl:
+    url: https://github.com/apple/swift-nio-ssl.git
+    minVersion: "2.0.0"
+    maxVersion: "3.0.0"
   swift-log:
     url: https://github.com/apple/swift-log.git
     minVersion: "1.4.0"
@@ -85,7 +89,15 @@ targets:
       - package: swift-nio
         product: NIOCore
       - package: swift-nio
+        product: NIOPosix
+      - package: swift-nio-ssl
+        product: NIOSSL
+      - package: swift-nio
         product: NIOConcurrencyHelpers
+      - package: swift-nio-http2
+        product: NIOHPACK
+      - package: swift-log
+        product: Logging
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
@@ -188,6 +200,8 @@ targets:
       properties:
         aps-environment: development
         com.apple.developer.associated-domains: []
+        com.apple.security.application-groups:
+          - group.io.sanchr.shared
 
   SanchrTests:
     type: bundle.unit-test

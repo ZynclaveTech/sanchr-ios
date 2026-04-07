@@ -1,17 +1,16 @@
 import Combine
 import Foundation
 import Network
-import SanchrShared
 
 /// Protocol for observing network connectivity changes.
-protocol NetworkMonitorProtocol: AnyObject, Sendable {
+public protocol NetworkMonitorProtocol: AnyObject, Sendable {
     var isConnected: Bool { get }
     var connectionType: NetworkMonitor.ConnectionType { get }
 }
 
 /// Monitors device network connectivity using NWPathMonitor.
-final class NetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
-    enum ConnectionType: Sendable {
+public final class NetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
+    public enum ConnectionType: Sendable {
         case wifi
         case cellular
         case wiredEthernet
@@ -21,10 +20,10 @@ final class NetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "io.sanchr.networkmonitor", qos: .utility)
 
-    private(set) var isConnected: Bool = false
-    private(set) var connectionType: ConnectionType = .none
+    public private(set) var isConnected: Bool = false
+    public private(set) var connectionType: ConnectionType = .none
 
-    init() {
+    public init() {
         startMonitoring()
     }
 

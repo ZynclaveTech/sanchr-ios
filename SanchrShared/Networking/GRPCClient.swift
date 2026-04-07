@@ -3,10 +3,9 @@ import GRPC
 import NIOCore
 import NIOPosix
 import NIOSSL
-import SanchrShared
 
 /// Protocol for the gRPC client manager abstraction.
-protocol GRPCClientProtocol: Sendable {
+public protocol GRPCClientProtocol: Sendable {
     /// Establishes both core and call gRPC channels.
     func connect() async throws
 
@@ -43,33 +42,33 @@ protocol GRPCClientProtocol: Sendable {
 /// first RPC — so creating them early is safe and avoids "accessed before
 /// connect()" crashes from lazy DI containers.  `connect()` is still provided
 /// for explicit lifecycle control and logging.
-final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
+public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
     private let configuration: AppConfiguration
     private let group: EventLoopGroup
     private let coreChannel: ClientConnection
     private let callChannel: ClientConnection
 
-    var isConnected: Bool {
+    public var isConnected: Bool {
         coreChannel.connectivity.state == .ready || callChannel.connectivity.state == .ready
     }
 
     // MARK: - Service clients (created eagerly)
 
-    let authService: Vync_Auth_AuthServiceAsyncClientProtocol
-    let messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol
-    let contactService: Vync_Contacts_ContactServiceAsyncClientProtocol
-    let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
-    let mediaService: Vync_Media_MediaServiceAsyncClientProtocol
-    let settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol
-    let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
-    let vaultService: Vync_Vault_VaultServiceAsyncClientProtocol
-    let backupService: Vync_Backup_BackupServiceAsyncClientProtocol
-    let discoveryService: Vync_Discovery_DiscoveryServiceAsyncClientProtocol
-    let callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
+    public let authService: Vync_Auth_AuthServiceAsyncClientProtocol
+    public let messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol
+    public let contactService: Vync_Contacts_ContactServiceAsyncClientProtocol
+    public let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
+    public let mediaService: Vync_Media_MediaServiceAsyncClientProtocol
+    public let settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol
+    public let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
+    public let vaultService: Vync_Vault_VaultServiceAsyncClientProtocol
+    public let backupService: Vync_Backup_BackupServiceAsyncClientProtocol
+    public let discoveryService: Vync_Discovery_DiscoveryServiceAsyncClientProtocol
+    public let callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
 
     // MARK: - Init
 
-    init(
+    public init(
         configuration: AppConfiguration,
         authInterceptors: AuthInterceptorFactory? = nil
     ) {
@@ -135,7 +134,7 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
 
     // MARK: - Connection Lifecycle
 
-    func connect() async throws {
+    public func connect() async throws {
         let config = self.configuration
         SanchrLogger.network.info(
             "Connecting gRPC: core=\(config.grpcHost):\(config.grpcPort), call=\(config.callHost):\(config.callPort)"
@@ -145,7 +144,7 @@ final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
         )
     }
 
-    func disconnect() async throws {
+    public func disconnect() async throws {
         SanchrLogger.network.info("Disconnecting gRPC channels")
 
         let coreClose = coreChannel.close()

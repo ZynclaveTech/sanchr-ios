@@ -29,27 +29,51 @@ final class AppLockManager: @unchecked Sendable {
         static let screenshotProtection = "sanchr.security.screenshotProtection"
     }
 
+    private static let migrationFlagKey = "applock_migrated_to_appgroup_v1"
+
+    // MARK: - Init
+
+    init() {
+        let shared = AppGroup.userDefaults
+        if shared.bool(forKey: Self.migrationFlagKey) == false {
+            let std = UserDefaults.standard
+            let migratedKeys = [
+                Keys.screenLockEnabled,
+                Keys.biometricLockEnabled,
+                Keys.screenLockTimeout,
+                Keys.screenshotProtection,
+            ]
+            for key in migratedKeys {
+                if let value = std.object(forKey: key) {
+                    shared.set(value, forKey: key)
+                }
+            }
+            shared.set(true, forKey: Self.migrationFlagKey)
+        }
+        isScreenshotProtectionActive = shared.bool(forKey: Keys.screenshotProtection)
+    }
+
     // MARK: - Preferences (read from UserDefaults)
 
     var screenLockEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Keys.screenLockEnabled) }
-        set { UserDefaults.standard.set(newValue, forKey: Keys.screenLockEnabled) }
+        get { AppGroup.userDefaults.bool(forKey: Keys.screenLockEnabled) }
+        set { AppGroup.userDefaults.set(newValue, forKey: Keys.screenLockEnabled) }
     }
 
     var biometricLockEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Keys.biometricLockEnabled) }
-        set { UserDefaults.standard.set(newValue, forKey: Keys.biometricLockEnabled) }
+        get { AppGroup.userDefaults.bool(forKey: Keys.biometricLockEnabled) }
+        set { AppGroup.userDefaults.set(newValue, forKey: Keys.biometricLockEnabled) }
     }
 
     var screenLockTimeout: Int32 {
-        get { Int32(UserDefaults.standard.integer(forKey: Keys.screenLockTimeout)) }
-        set { UserDefaults.standard.set(Int(newValue), forKey: Keys.screenLockTimeout) }
+        get { Int32(AppGroup.userDefaults.integer(forKey: Keys.screenLockTimeout)) }
+        set { AppGroup.userDefaults.set(Int(newValue), forKey: Keys.screenLockTimeout) }
     }
 
     var screenshotProtectionEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Keys.screenshotProtection) }
+        get { AppGroup.userDefaults.bool(forKey: Keys.screenshotProtection) }
         set {
-            UserDefaults.standard.set(newValue, forKey: Keys.screenshotProtection)
+            AppGroup.userDefaults.set(newValue, forKey: Keys.screenshotProtection)
             isScreenshotProtectionActive = newValue
         }
     }
