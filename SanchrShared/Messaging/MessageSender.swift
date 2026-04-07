@@ -159,9 +159,8 @@ public actor MessageSender {
     // MARK: Dependencies
 
     private let db: LocalDatabaseProtocol
-    private let crypto: SignalProtocolManagerProtocol
     private let uploader: MediaUploading
-    private let grpc: GRPCClientProtocol
+    private let encryptedSender: EncryptedMessageSendingClient
     private let coordinator: FileCoordinatorLock
     private let currentUser: CurrentUserProviding
     private let logger: MessageSenderLogging
@@ -170,17 +169,15 @@ public actor MessageSender {
 
     public init(
         db: LocalDatabaseProtocol,
-        crypto: SignalProtocolManagerProtocol,
         uploader: MediaUploading,
-        grpc: GRPCClientProtocol,
+        encryptedSender: EncryptedMessageSendingClient,
         coordinator: FileCoordinatorLock,
         currentUser: CurrentUserProviding,
         logger: MessageSenderLogging = NoopMessageSenderLogger()
     ) {
         self.db = db
-        self.crypto = crypto
         self.uploader = uploader
-        self.grpc = grpc
+        self.encryptedSender = encryptedSender
         self.coordinator = coordinator
         self.currentUser = currentUser
         self.logger = logger
@@ -188,51 +185,205 @@ public actor MessageSender {
 
     // MARK: Public API
 
-    /// Send a plain-text message, holding the cross-process lock for the
-    /// duration of the ratchet step + gRPC call.
+    /// Send a plain-text message. The optimistic DB row is written first,
+    /// then the cross-process lock is taken for the duration of the ratchet
+    /// step + gRPC call so Signal-protocol mutations stay atomic across the
+    /// main app and the share extension.
     public func sendText(
         _ text: String,
         to chatId: String
     ) async throws -> MessageSendReceipt {
-        try await coordinator.withLock { [self] in
-            try await self.performSendText(text, to: chatId)
+        guard let senderId = await currentUser.currentUserId else {
+            throw AppError.sessionExpired
+        }
+        let timestamp = Date()
+        let localId = try await insertPendingOutgoingTextRow(
+            text: text,
+            chatId: chatId,
+            authorId: senderId,
+            timestamp: timestamp
+        )
+
+        do {
+            // Wire format must match `SendMessageUseCase.execute` and the
+            // Android `SendMessageUseCase`: raw UTF-8 bytes of the trimmed
+            // text, contentType "text". Any deviation breaks interop.
+            guard let plaintextData = text.data(using: .utf8) else {
+                throw AppError.encryptionFailed(
+                    reason: "Failed to encode message text as UTF-8."
+                )
+            }
+
+            let sendResult = try await coordinator.withLock { [encryptedSender] in
+                try await encryptedSender.sendEncryptedMessage(
+                    plaintext: plaintextData,
+                    contentType: "text",
+                    conversationId: chatId,
+                    recipientIds: [chatId],
+                    expiresAfterSecs: 0
+                )
+            }
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sendResult.serverTimestampMs) / 1000.0
+            )
+            let confirmedRow = Message(
+                id: sendResult.messageId.isEmpty ? localId : sendResult.messageId,
+                conversationId: chatId,
+                senderId: senderId,
+                timestamp: serverTimestamp,
+                content: .text(text),
+                status: .sent,
+                isOutgoing: true
+            )
+            try await markMessageAsSent(
+                localMessageId: localId,
+                confirmedRow: confirmedRow
+            )
+
+            logger.info(
+                "MessageSender.sendText succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId)"
+            )
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: confirmedRow.id,
+                serverTimestampMs: sendResult.serverTimestampMs
+            )
+        } catch {
+            logger.error(
+                "MessageSender.sendText failed chat=\(chatId) local=\(localId): \(error.localizedDescription)"
+            )
+            await markMessageAsFailed(localMessageId: localId, error: error)
+            throw error
         }
     }
 
-    /// Send a media message (with optional caption), holding the cross-process
-    /// lock for the duration of upload + ratchet step + gRPC call.
+    /// Send a media message (with optional caption).
+    ///
+    /// The upload runs OUTSIDE the cross-process lock — uploads are slow and
+    /// holding the lock for them would serialize every other process's sends
+    /// behind the slowest network. Only the Signal ratchet step + gRPC
+    /// `sendMessage` are held under the lock.
     public func sendMedia(
         attachment: Message.MediaAttachment,
         caption: String?,
         to chatId: String,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> MessageSendReceipt {
-        try await coordinator.withLock { [self] in
-            try await self.performSendMedia(
-                attachment: attachment,
-                caption: caption,
-                to: chatId,
+        guard let senderId = await currentUser.currentUserId else {
+            throw AppError.sessionExpired
+        }
+        let timestamp = Date()
+        let localId = try await insertPendingOutgoingMediaRow(
+            attachment: attachment,
+            caption: caption,
+            chatId: chatId,
+            authorId: senderId,
+            timestamp: timestamp
+        )
+
+        do {
+            // Step 1 — upload (outside the lock).
+            let uploadOutcome = try await uploader.uploadMedia(
+                localFileURL: attachment.url,
+                mimeType: attachment.mimeType,
+                conversationId: chatId,
+                recipientId: chatId,
                 progress: progress
             )
+
+            // Step 2 — rebuild the attachment with the mediaId reference and
+            // the encryption key/nonce the receiver needs. Mirrors
+            // `ChatDetailViewModel.sendMediaMessage` exactly: same field
+            // mapping, same voice-message field preservation. Any divergence
+            // here causes silent data loss for voice notes / file names.
+            guard let mediaIdURL = URL(string: "sanchr-media://\(uploadOutcome.mediaId)") else {
+                throw AppError.mediaUploadFailed
+            }
+            var uploadedAttachment = Message.MediaAttachment(
+                url: mediaIdURL,
+                encryptionKey: uploadOutcome.encryptionKey,
+                encryptionIV: uploadOutcome.encryptionNonce,
+                mimeType: attachment.mimeType,
+                sizeBytes: uploadOutcome.plaintextFileSize,
+                thumbnailURL: uploadOutcome.thumbnailRemoteURL.flatMap(URL.init(string:)),
+                caption: caption ?? attachment.caption,
+                width: attachment.width,
+                height: attachment.height,
+                durationSeconds: attachment.durationSeconds,
+                blurHash: attachment.blurHash,
+                filename: attachment.filename,
+                isVoiceMessage: attachment.isVoiceMessage,
+                audioDurationMs: attachment.audioDurationMs,
+                audioWaveform: attachment.audioWaveform
+            )
+            // Defensive: caption setter on the rebuilt struct (already set
+            // via init, but mirrors the old code path explicitly).
+            if uploadedAttachment.caption == nil, let caption {
+                uploadedAttachment.caption = caption
+            }
+
+            // Step 3 — build the plaintext payload. Wire format must match
+            // `ChatDetailViewModel.sendMediaMessage`: JSON-encoded
+            // `Message.MessageContent` enum case carrying the rebuilt
+            // attachment, contentType derived from MIME prefix.
+            let contentForWire = Self.contentForAttachment(
+                uploadedAttachment,
+                mimeType: attachment.mimeType
+            )
+            let plaintextData = try JSONEncoder().encode(contentForWire)
+            let contentTypeString: String = {
+                if attachment.mimeType.hasPrefix("image/") { return "image" }
+                if attachment.mimeType.hasPrefix("video/") { return "video" }
+                if attachment.mimeType.hasPrefix("audio/") { return "audio" }
+                return "document"
+            }()
+
+            // Step 4 — encrypted send under the cross-process lock.
+            let sendResult = try await coordinator.withLock { [encryptedSender] in
+                try await encryptedSender.sendEncryptedMessage(
+                    plaintext: plaintextData,
+                    contentType: contentTypeString,
+                    conversationId: chatId,
+                    recipientIds: [chatId],
+                    expiresAfterSecs: 0
+                )
+            }
+
+            // Step 5 — flip optimistic row to .sent (or replace it with the
+            // server-confirmed id if the server reissued one).
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sendResult.serverTimestampMs) / 1000.0
+            )
+            let confirmedRow = Message(
+                id: sendResult.messageId.isEmpty ? localId : sendResult.messageId,
+                conversationId: chatId,
+                senderId: senderId,
+                timestamp: serverTimestamp,
+                content: contentForWire,
+                status: .sent,
+                isOutgoing: true
+            )
+            try await markMessageAsSent(
+                localMessageId: localId,
+                confirmedRow: confirmedRow
+            )
+
+            logger.info(
+                "MessageSender.sendMedia succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId) media=\(uploadOutcome.mediaId)"
+            )
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: confirmedRow.id,
+                serverTimestampMs: sendResult.serverTimestampMs
+            )
+        } catch {
+            logger.error(
+                "MessageSender.sendMedia failed chat=\(chatId) local=\(localId): \(error.localizedDescription)"
+            )
+            await markMessageAsFailed(localMessageId: localId, error: error)
+            throw error
         }
-    }
-
-    // MARK: Private pipeline (implemented in Task 16)
-
-    private func performSendText(
-        _ text: String,
-        to chatId: String
-    ) async throws -> MessageSendReceipt {
-        fatalError("T16: not yet implemented")
-    }
-
-    private func performSendMedia(
-        attachment: Message.MediaAttachment,
-        caption: String?,
-        to chatId: String,
-        progress: @Sendable (Double) -> Void
-    ) async throws -> MessageSendReceipt {
-        fatalError("T16: not yet implemented")
     }
 
     // MARK: Local DB write helpers (T16c scaffold)
