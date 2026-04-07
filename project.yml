@@ -119,7 +119,7 @@ targets:
           - com.sanchr.sync.refresh
         NSContactsUsageDescription: "Sanchr needs access to your contacts to find friends who use the app."
         NSCameraUsageDescription: "Sanchr needs camera access for video calls and photos."
-        NSMicrophoneUsageDescription: "Sanchr needs microphone access for voice and video calls."
+        NSMicrophoneUsageDescription: "Sanchr uses the microphone for voice messages and calls."
         NSPhotoLibraryUsageDescription: "Sanchr needs photo library access to share photos and videos."
         NSFaceIDUsageDescription: "Use Face ID to unlock Sanchr."
         NSLocationWhenInUseUsageDescription: "Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers."

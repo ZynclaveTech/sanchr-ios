@@ -36,7 +36,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Sanchr needs microphone access for voice and video calls.</string>
+	<string>Sanchr uses the microphone for voice messages and calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Sanchr needs photo library access to share photos and videos.</string>
 	<key>UIApplicationSceneManifest</key>
