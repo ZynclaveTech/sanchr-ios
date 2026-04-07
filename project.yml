@@ -33,6 +33,17 @@ packages:
   GRDB:
     url: https://github.com/ZynclaveTech/GRDB.swift.git
     exactVersion: "7.10.0-zynclave.1"
+  swift-nio:
+    url: https://github.com/apple/swift-nio.git
+    exactVersion: "2.97.1"
+  swift-nio-http2:
+    url: https://github.com/apple/swift-nio-http2.git
+    minVersion: "1.0.0"
+    maxVersion: "2.0.0"
+  swift-log:
+    url: https://github.com/apple/swift-log.git
+    minVersion: "1.4.0"
+    maxVersion: "2.0.0"
 
 targets:
   LibSignalClient:
@@ -64,6 +75,17 @@ targets:
     dependencies:
       - package: GRDB
         product: GRDBSQLCipher
+      - target: LibSignalClient
+      - package: grpc-swift
+        product: GRPC
+      - package: swift-protobuf
+        product: SwiftProtobuf
+      - package: swift-nio
+        product: NIO
+      - package: swift-nio
+        product: NIOCore
+      - package: swift-nio
+        product: NIOConcurrencyHelpers
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
@@ -76,6 +98,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
+        SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
+        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lc++"
 
   Sanchr:
     type: application
@@ -86,23 +113,32 @@ targets:
       - path: Platform
       - path: Shared
       - path: Features
-      - path: Generated
       - path: Resources/Assets.xcassets
     resources:
       - path: Resources/Fonts
     dependencies:
       - target: LibSignalClient
       - target: SanchrShared
-      - package: grpc-swift
-        product: GRPC
-      - package: swift-protobuf
-        product: SwiftProtobuf
       - package: WebRTC
         product: WebRTC
       - package: Kingfisher
         product: Kingfisher
       - package: GRDB
         product: GRDBSQLCipher
+      - package: grpc-swift
+        product: GRPC
+      - package: swift-protobuf
+        product: SwiftProtobuf
+      - package: swift-nio
+        product: NIO
+      - package: swift-nio
+        product: NIOCore
+      - package: swift-nio
+        product: NIOPosix
+      - package: swift-nio-http2
+        product: NIOHPACK
+      - package: swift-log
+        product: Logging
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
@@ -119,7 +155,7 @@ targets:
         HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers $(SRCROOT)/Platform/Crypto/VyncOPRF"
         LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device $(SRCROOT)/Vendor/VyncPSI/device"
         LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator $(SRCROOT)/Vendor/VyncPSI/simulator"
-        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lvync_psi -lc++"
+        OTHER_LDFLAGS: "$(inherited) -lvync_psi -lc++"
     preBuildScripts:
       - name: AttachmentPicker import hygiene
         script: '"${SRCROOT}/Scripts/check-attachment-picker-imports.sh"'
@@ -161,8 +197,13 @@ targets:
     dependencies:
       - target: Sanchr
       - target: LibSignalClient
+      - target: SanchrShared
       - package: GRDB
         product: GRDBSQLCipher
+      - package: grpc-swift
+        product: GRPC
+      - package: swift-protobuf
+        product: SwiftProtobuf
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
@@ -179,8 +220,14 @@ targets:
       - path: Tests/UITests
     dependencies:
       - target: Sanchr
+      - target: SanchrShared
+      - target: LibSignalClient
       - package: GRDB
         product: GRDBSQLCipher
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
+        SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
