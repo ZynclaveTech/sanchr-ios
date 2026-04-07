@@ -116,6 +116,57 @@ targets:
         LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
         OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lc++"
 
+  SanchrShareExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: SanchrShareExtension
+        excludes:
+          - "Info.plist"
+          - "SanchrShareExtension.entitlements"
+    info:
+      path: SanchrShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Sanchr
+        CFBundlePackageType: XPC!
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionMainStoryboard: ""
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+              NSExtensionActivationSupportsMovieWithMaxCount: 1
+              NSExtensionActivationSupportsFileWithMaxCount: 1
+    entitlements:
+      path: SanchrShareExtension/SanchrShareExtension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.io.sanchr.shared
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)io.sanchr.shared
+    dependencies:
+      - target: SanchrShared
+      - target: LibSignalClient
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sanchr.app.share
+        PRODUCT_NAME: SanchrShareExtension
+        SWIFT_VERSION: "6.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        ENABLE_BITCODE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
+        OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lc++"
+
   Sanchr:
     type: application
     platform: iOS
@@ -131,6 +182,8 @@ targets:
     dependencies:
       - target: LibSignalClient
       - target: SanchrShared
+      - target: SanchrShareExtension
+        embed: true
       - package: WebRTC
         product: WebRTC
       - package: Kingfisher
