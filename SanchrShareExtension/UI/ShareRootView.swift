@@ -1,11 +1,6 @@
 import SwiftUI
 import SanchrShared
 
-/// Top-level SwiftUI surface hosted by `ShareViewController`.
-///
-/// In Task 21 this view only knows how to load the shared payload and
-/// surface load failures — the full picker / composer / sending state
-/// machine lands in Task 22 and beyond.
 /// `NSItemProvider` is not `Sendable`, but we only ever read it from the
 /// loader's continuation closures (which already hop to a private queue
 /// internally). Boxing the array in an `@unchecked Sendable` wrapper lets
@@ -14,49 +9,127 @@ struct ShareProviders: @unchecked Sendable {
     let items: [NSItemProvider]
 }
 
+/// Top-level state for the share-extension flow.
+///
+/// The progression is strictly forward except for `error`, which is
+/// terminal. The full graph is:
+///
+///     loadingPayload
+///         -> locked          (if screen lock is on)
+///         -> picker          (otherwise)
+///         -> error           (load failure)
+///
+///     locked
+///         -> loadingPayload  (after unlock; we re-run the loader because
+///                            file URLs in the App Group cache survive but
+///                            we want a single source of truth)
+///
+///     picker
+///         -> composer
+///         -> error           (cancellable)
+///
+///     composer
+///         -> sending
+///
+///     sending
+///         -> done            (terminal, calls onComplete)
+///         -> error           (terminal)
+///
+/// All non-loading/error states render stub views in this task — the real
+/// unlock / picker / composer / progress views land in T23–T27.
+enum ShareRootState: Equatable {
+    case loadingPayload
+    case locked
+    case picker(SharePayload)
+    case composer(SharePayload, selectedChatIds: [String])
+    case sending(SharePayload, selectedChatIds: [String])
+    case done
+    case error(title: String, message: String)
+}
+
 struct ShareRootView: View {
 
     let providers: ShareProviders
     let onComplete: () -> Void
     let onCancel: () -> Void
 
-    @State private var phase: Phase = .loading
-
-    private enum Phase: Equatable {
-        case loading
-        case loaded(SharePayload)
-        case error(title: String, message: String)
-    }
+    @State private var state: ShareRootState = .loadingPayload
 
     var body: some View {
         Group {
-            switch phase {
-            case .loading:
+            switch state {
+            case .loadingPayload:
                 ProgressView("Loading\u{2026}")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(uiColor: .systemBackground))
                     .task { await loadPayload(from: providers) }
-            case .loaded:
-                // Real picker/composer flow lands in Task 22+. For now we
-                // render a placeholder so the host can dismiss cleanly.
-                ShareErrorView(
-                    title: "Coming soon",
-                    message: "Share-extension UI lands in the next task.",
-                    onDismiss: onCancel
+
+            case .locked:
+                ShareUnlockView(
+                    onUnlocked: { state = .loadingPayload },
+                    onCancel: onCancel
                 )
+
+            case .picker(let payload):
+                ShareChatPickerView(
+                    payload: payload,
+                    onCancel: onCancel,
+                    onNext: { ids in
+                        state = .composer(payload, selectedChatIds: ids)
+                    }
+                )
+
+            case .composer(let payload, let ids):
+                ShareComposerView(
+                    payload: payload,
+                    selectedChatIds: ids,
+                    onCancel: onCancel,
+                    onSend: {
+                        state = .sending(payload, selectedChatIds: ids)
+                    }
+                )
+
+            case .sending(let payload, let ids):
+                ShareProgressSheet(
+                    payload: payload,
+                    chatIds: ids,
+                    onDone: {
+                        state = .done
+                        onComplete()
+                    },
+                    onCancel: onCancel
+                )
+
+            case .done:
+                // Briefly visible before the host dismisses the extension.
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(uiColor: .systemBackground))
+
             case .error(let title, let message):
                 ShareErrorView(title: title, message: message, onDismiss: onCancel)
             }
         }
     }
 
+    // MARK: - Payload loading
+
     private func loadPayload(from providers: ShareProviders) async {
         do {
             let payload = try await SharePayloadLoader.load(from: providers.items)
-            phase = .loaded(payload)
+            if isScreenLockEnabled() {
+                state = .locked
+                // The picker will pick the payload back up after unlock by
+                // re-running this method via the .loadingPayload arm. We
+                // intentionally do not stash `payload` here so there is one
+                // source of truth.
+                _ = payload
+            } else {
+                state = .picker(payload)
+            }
         } catch SharePayloadError.tooLarge(let bytes) {
             let mb = Double(bytes) / 1_048_576
-            phase = .error(
+            state = .error(
                 title: "File is too large",
                 message: String(
                     format: "This file is %.0f MB. Sanchr's share extension supports files up to 100 MB. Open Sanchr to send larger files.",
@@ -64,20 +137,123 @@ struct ShareRootView: View {
                 )
             )
         } catch SharePayloadError.unsupportedType {
-            phase = .error(
+            state = .error(
                 title: "Unsupported",
                 message: "Sanchr can't share this kind of content yet."
             )
         } catch SharePayloadError.nothingShared {
-            phase = .error(
+            state = .error(
                 title: "Nothing to share",
                 message: "The host app didn't pass any content."
             )
         } catch {
-            phase = .error(
+            state = .error(
                 title: "Couldn't load",
                 message: error.localizedDescription
             )
         }
+    }
+
+    private func isScreenLockEnabled() -> Bool {
+        AppGroup.userDefaults.bool(forKey: "screenLockEnabled")
+    }
+}
+
+// MARK: - Stubs for T23–T27
+//
+// These views are placeholders so the state machine compiles in
+// isolation. Each task in the next phase will replace its stub with the
+// real implementation. Until then they render a labelled card and wire
+// their callbacks to a single button so the flow can be exercised
+// manually in the simulator.
+
+struct ShareUnlockView: View {
+    let onUnlocked: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ShareStubView(
+            title: "Unlock Sanchr",
+            subtitle: "Lands in Task 23",
+            primaryLabel: "Unlock",
+            primaryAction: onUnlocked,
+            secondaryAction: onCancel
+        )
+    }
+}
+
+struct ShareChatPickerView: View {
+    let payload: SharePayload
+    let onCancel: () -> Void
+    let onNext: ([String]) -> Void
+
+    var body: some View {
+        ShareStubView(
+            title: "Pick a chat",
+            subtitle: "Lands in Task 24",
+            primaryLabel: "Next",
+            primaryAction: { onNext([]) },
+            secondaryAction: onCancel
+        )
+    }
+}
+
+struct ShareComposerView: View {
+    let payload: SharePayload
+    let selectedChatIds: [String]
+    let onCancel: () -> Void
+    let onSend: () -> Void
+
+    var body: some View {
+        ShareStubView(
+            title: "Compose",
+            subtitle: "Lands in Task 25",
+            primaryLabel: "Send",
+            primaryAction: onSend,
+            secondaryAction: onCancel
+        )
+    }
+}
+
+struct ShareProgressSheet: View {
+    let payload: SharePayload
+    let chatIds: [String]
+    let onDone: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ShareStubView(
+            title: "Sending\u{2026}",
+            subtitle: "Lands in Task 27",
+            primaryLabel: "Done",
+            primaryAction: onDone,
+            secondaryAction: onCancel
+        )
+    }
+}
+
+private struct ShareStubView: View {
+    let title: String
+    let subtitle: String
+    let primaryLabel: String
+    let primaryAction: () -> Void
+    let secondaryAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundColor(SanchrExportColors.textSecondary)
+            Button(primaryLabel, action: primaryAction)
+                .buttonStyle(.borderedProminent)
+                .tint(SanchrColors.primary)
+            Button("Cancel", action: secondaryAction)
+                .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(uiColor: .systemBackground))
     }
 }
