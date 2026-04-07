@@ -36,6 +36,10 @@ struct ChatDetailView: View {
         phoneNormalizer: { $0 }
     )
     @StateObject private var locationCoordinator = LocationPreviewCoordinator()
+    @StateObject private var documentCoordinator = DocumentPreviewCoordinator(
+        resolver: BootstrapMediaResolver(),
+        messageLookup: { _ in nil }
+    )
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @Environment(AppRouter.self) private var router
@@ -259,6 +263,27 @@ struct ChatDetailView: View {
                 onDismiss: { locationCoordinator.dismiss() }
             )
         }
+        .fullScreenCover(item: $documentCoordinator.presentation) { presentation in
+            DocumentPreviewView(
+                fileURL: presentation.fileURL,
+                onDismiss: { documentCoordinator.dismiss() }
+            )
+        }
+        .overlay {
+            if documentCoordinator.isResolving {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .overlay(ProgressView().tint(.white))
+            }
+        }
+        .alert("Couldn't open file", isPresented: Binding(
+            get: { documentCoordinator.resolveError != nil },
+            set: { if !$0 { documentCoordinator.clearError() } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(documentCoordinator.resolveError ?? "")
+        }
         .task(id: "bubble-viewers-reconfigure") {
             contactCoordinator.reconfigure(
                 contactRepository: container.contactRepository,
@@ -267,6 +292,16 @@ struct ChatDetailView: View {
                 },
                 currentUserId: { container.sessionService.currentUserId },
                 phoneNormalizer: ContactDataSource.normalizePhoneNumber
+            )
+            // viewModel is a @State-owned reference; the documentCoordinator
+            // is a @StateObject on the same view so the capture can't
+            // outlive the view. Strong capture is intentional.
+            let vm = viewModel
+            documentCoordinator.reconfigure(
+                resolver: container.chatMediaResolver,
+                messageLookup: { id in
+                    vm.messages.first(where: { $0.id == id })
+                }
             )
         }
         .onChange(of: selectedPhotoItems) { _, items in
@@ -702,6 +737,9 @@ struct ChatDetailView: View {
                     },
                     onOpenLocation: { lat, lon in
                         locationCoordinator.present(latitude: lat, longitude: lon)
+                    },
+                    onOpenDocument: { messageId in
+                        Task { await documentCoordinator.open(messageId: messageId) }
                     }
                 )
             },
@@ -2205,6 +2243,27 @@ private final class BootstrapContactRepository: ContactRepositoryProtocol, @unch
         avatarData: Data?
     ) async throws -> User {
         fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+}
+
+/// Bootstrap `ChatMediaResolving` used as the initial resolver for
+/// `DocumentPreviewCoordinator` when `ChatDetailView` first constructs
+/// its `@StateObject`. Both methods fatalError — the coordinator is
+/// reconfigured with the real `container.chatMediaResolver` inside
+/// `.task` before any bubble can be tapped, so nothing should ever hit
+/// this path.
+private final class BootstrapMediaResolver: ChatMediaResolving, @unchecked Sendable {
+    func decryptedURL(
+        forMessageId messageId: String,
+        attachment: Message.MediaAttachment
+    ) async throws -> URL {
+        fatalError("ChatDetailView bootstrap resolver should never be called")
+    }
+    func decryptedURLWithDisplayName(
+        forMessageId messageId: String,
+        attachment: Message.MediaAttachment
+    ) async throws -> URL {
+        fatalError("ChatDetailView bootstrap resolver should never be called")
     }
 }
 
