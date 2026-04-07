@@ -35,6 +35,7 @@ struct ChatDetailView: View {
         currentUserId: { nil },
         phoneNormalizer: { $0 }
     )
+    @StateObject private var locationCoordinator = LocationPreviewCoordinator()
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @Environment(AppRouter.self) private var router
@@ -250,6 +251,13 @@ struct ChatDetailView: View {
         }
         .sheet(item: $invitePayload) { payload in
             ChatShareActivityView(items: ["Join me on Sanchr — \(payload.url)"])
+        }
+        .fullScreenCover(item: $locationCoordinator.presentation) { presentation in
+            LocationPreviewView(
+                latitude: presentation.latitude,
+                longitude: presentation.longitude,
+                onDismiss: { locationCoordinator.dismiss() }
+            )
         }
         .task(id: "bubble-viewers-reconfigure") {
             contactCoordinator.reconfigure(
@@ -691,6 +699,9 @@ struct ChatDetailView: View {
                     },
                     onOpenContact: { name, phone in
                         Task { await contactCoordinator.present(name: name, phoneNumber: phone) }
+                    },
+                    onOpenLocation: { lat, lon in
+                        locationCoordinator.present(latitude: lat, longitude: lon)
                     }
                 )
             },
