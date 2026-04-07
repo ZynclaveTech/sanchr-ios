@@ -9,7 +9,9 @@ final class DependencyContainer: @unchecked Sendable {
 
     // MARK: - Platform Services
 
-    @ObservationIgnored lazy var keychainService: KeychainServiceProtocol = KeychainService()
+    @ObservationIgnored lazy var keychainService: KeychainServiceProtocol = KeychainService(
+        accessGroup: AppGroup.keychainAccessGroup
+    )
 
     @ObservationIgnored lazy var secureStorage: SecureStorageProtocol = SecureStorage(
         keychain: keychainService

@@ -1,9 +1,8 @@
 import Foundation
 import Security
-import SanchrShared
 
 /// Protocol for Keychain CRUD operations.
-protocol KeychainServiceProtocol: AnyObject, Sendable {
+public protocol KeychainServiceProtocol: AnyObject, Sendable {
     func save(_ data: Data, forKey key: String) throws
     func read(forKey key: String) throws -> Data?
     func update(_ data: Data, forKey key: String) throws
@@ -12,16 +11,16 @@ protocol KeychainServiceProtocol: AnyObject, Sendable {
 }
 
 /// Keychain wrapper providing type-safe access to the iOS Keychain.
-final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
+public final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     private let serviceName: String
     private let accessGroup: String?
 
-    init(serviceName: String = "io.sanchr.keychain", accessGroup: String? = nil) {
+    public init(serviceName: String = "io.sanchr.keychain", accessGroup: String? = nil) {
         self.serviceName = serviceName
         self.accessGroup = accessGroup
     }
 
-    func save(_ data: Data, forKey key: String) throws {
+    public func save(_ data: Data, forKey key: String) throws {
         // Delete existing item first to avoid duplicates
         try? delete(forKey: key)
 
@@ -36,7 +35,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func read(forKey key: String) throws -> Data? {
+    public func read(forKey key: String) throws -> Data? {
         var query = baseQuery(forKey: key)
         query[kSecReturnData as String] = kCFBooleanTrue
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -55,7 +54,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func update(_ data: Data, forKey key: String) throws {
+    public func update(_ data: Data, forKey key: String) throws {
         let query = baseQuery(forKey: key)
         let attributes: [String: Any] = [kSecValueData as String: data]
 
@@ -66,7 +65,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func delete(forKey key: String) throws {
+    public func delete(forKey key: String) throws {
         let query = baseQuery(forKey: key)
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
@@ -75,7 +74,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteAll() throws {
+    public func deleteAll() throws {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
