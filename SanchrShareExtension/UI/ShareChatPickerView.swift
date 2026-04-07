@@ -10,7 +10,7 @@ struct ShareChatPickerView: View {
 
     let payload: SharePayload
     let onCancel: () -> Void
-    let onNext: ([String]) -> Void
+    let onNext: ([ShareChatSummary]) -> Void
 
     @State private var summaries: [ShareChatSummary] = []
     @State private var selectedIds: Set<String> = []
@@ -41,9 +41,7 @@ struct ShareChatPickerView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Next") {
-                            onNext(summaries
-                                .map(\.id)
-                                .filter { selectedIds.contains($0) })
+                            onNext(summaries.filter { selectedIds.contains($0.id) })
                         }
                         .disabled(selectedIds.isEmpty)
                         .tint(SanchrColors.primary)

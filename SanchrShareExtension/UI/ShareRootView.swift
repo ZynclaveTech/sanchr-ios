@@ -41,8 +41,8 @@ enum ShareRootState: Equatable {
     case loadingPayload
     case locked
     case picker(SharePayload)
-    case composer(SharePayload, selectedChatIds: [String])
-    case sending(SharePayload, selectedChatIds: [String])
+    case composer(SharePayload, recipients: [ShareChatSummary])
+    case sending(SharePayload, recipients: [ShareChatSummary], caption: String?)
     case done
     case error(title: String, message: String)
 }
@@ -74,25 +74,26 @@ struct ShareRootView: View {
                 ShareChatPickerView(
                     payload: payload,
                     onCancel: onCancel,
-                    onNext: { ids in
-                        state = .composer(payload, selectedChatIds: ids)
+                    onNext: { recipients in
+                        state = .composer(payload, recipients: recipients)
                     }
                 )
 
-            case .composer(let payload, let ids):
+            case .composer(let payload, let recipients):
                 ShareComposerView(
                     payload: payload,
-                    selectedChatIds: ids,
+                    recipients: recipients,
                     onCancel: onCancel,
-                    onSend: {
-                        state = .sending(payload, selectedChatIds: ids)
+                    onSend: { caption in
+                        state = .sending(payload, recipients: recipients, caption: caption)
                     }
                 )
 
-            case .sending(let payload, let ids):
+            case .sending(let payload, let recipients, let caption):
                 ShareProgressSheet(
                     payload: payload,
-                    chatIds: ids,
+                    recipients: recipients,
+                    caption: caption,
                     onDone: {
                         state = .done
                         onComplete()
@@ -159,66 +160,29 @@ struct ShareRootView: View {
     }
 }
 
-// MARK: - Stubs for T23–T27
+// MARK: - Temporary stub for T26 (ShareProgressSheet)
 //
-// These views are placeholders so the state machine compiles in
-// isolation. Each task in the next phase will replace its stub with the
-// real implementation. Until then they render a labelled card and wire
-// their callbacks to a single button so the flow can be exercised
-// manually in the simulator.
-
-struct ShareComposerView: View {
-    let payload: SharePayload
-    let selectedChatIds: [String]
-    let onCancel: () -> Void
-    let onSend: () -> Void
-
-    var body: some View {
-        ShareStubView(
-            title: "Compose",
-            subtitle: "Lands in Task 25",
-            primaryLabel: "Send",
-            primaryAction: onSend,
-            secondaryAction: onCancel
-        )
-    }
-}
+// Replaced by the real progress sheet in the next task. Left inline here
+// so the state machine compiles between T25 and T26.
 
 struct ShareProgressSheet: View {
     let payload: SharePayload
-    let chatIds: [String]
+    let recipients: [ShareChatSummary]
+    let caption: String?
     let onDone: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
-        ShareStubView(
-            title: "Sending\u{2026}",
-            subtitle: "Lands in Task 27",
-            primaryLabel: "Done",
-            primaryAction: onDone,
-            secondaryAction: onCancel
-        )
-    }
-}
-
-private struct ShareStubView: View {
-    let title: String
-    let subtitle: String
-    let primaryLabel: String
-    let primaryAction: () -> Void
-    let secondaryAction: () -> Void
-
-    var body: some View {
         VStack(spacing: 16) {
-            Text(title)
+            Text("Sending\u{2026}")
                 .font(.title3.weight(.semibold))
-            Text(subtitle)
+            Text("Lands in the next task")
                 .font(.footnote)
                 .foregroundColor(SanchrExportColors.textSecondary)
-            Button(primaryLabel, action: primaryAction)
+            Button("Done", action: onDone)
                 .buttonStyle(.borderedProminent)
                 .tint(SanchrColors.primary)
-            Button("Cancel", action: secondaryAction)
+            Button("Cancel", action: onCancel)
                 .buttonStyle(.bordered)
         }
         .padding()
