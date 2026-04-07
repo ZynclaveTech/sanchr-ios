@@ -223,6 +223,13 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
 
     func changePassword(currentPassword: String, newPassword: String) async throws {}
 
+    var deleteAccountCallCount = 0
+    var deleteAccountError: Error?
+    func deleteAccount() async throws {
+        deleteAccountCallCount += 1
+        if let deleteAccountError { throw deleteAccountError }
+    }
+
 }
 
 final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendable {
