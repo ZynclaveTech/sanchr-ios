@@ -12,7 +12,8 @@ final class RealtimeServiceTests: XCTestCase {
             messageRepository: messageRepository,
             signalKeyManager: MockKeyManager(),
             sessionService: sessionService,
-            callManager: MockCallEventRouter()
+            callManager: MockCallEventRouter(),
+            privacySettings: PrivacySettingsCache()
         )
 
         let notificationExpectation = expectation(
@@ -38,7 +39,8 @@ final class RealtimeServiceTests: XCTestCase {
             messageRepository: messageRepository,
             signalKeyManager: keyManager,
             sessionService: sessionService,
-            callManager: callRouter
+            callManager: callRouter,
+            privacySettings: PrivacySettingsCache()
         )
 
         let message = Message(
