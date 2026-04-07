@@ -29,8 +29,7 @@ actor VoiceRecorder {
             throw VoiceRecorderError.recordingTooShort
         }
         let duration = Int(elapsed * 1000)
-        // TODO(Task 7): replace with VoiceWaveformDecoder.decode(url: r.url, bins: 64)
-        let waveform = lastSamples
+        let waveform = (try? await VoiceWaveformDecoder.decode(url: r.url, bins: 64)) ?? lastSamples
         return Recording(url: r.url, durationMs: duration, waveform: waveform)
     }
 
@@ -138,8 +137,7 @@ actor VoiceRecorder {
         r.stop()
         let elapsed = r.currentTime
         let duration = Int(elapsed * 1000)
-        // TODO(Task 7): replace with VoiceWaveformDecoder.decode(url: r.url, bins: 64)
-        let waveform = lastSamples
+        let waveform = (try? await VoiceWaveformDecoder.decode(url: r.url, bins: 64)) ?? lastSamples
         let recording = Recording(url: r.url, durationMs: duration, waveform: waveform)
         teardown()
         interruptionContinuation.yield(recording)
