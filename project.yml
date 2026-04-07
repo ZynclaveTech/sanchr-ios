@@ -33,8 +33,6 @@ packages:
   GRDB:
     url: https://github.com/ZynclaveTech/GRDB.swift.git
     exactVersion: "7.10.0-zynclave.1"
-  SanchrShared:
-    path: SanchrShared
 
 targets:
   LibSignalClient:
@@ -82,8 +80,6 @@ targets:
         product: Kingfisher
       - package: GRDB
         product: GRDBSQLCipher
-      - package: SanchrShared
-        product: SanchrShared
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
