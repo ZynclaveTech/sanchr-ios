@@ -46,6 +46,12 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
 
         /// BlurHash string for instant placeholder display before media download.
         var blurHash: String?
+
+        /// Original filename for documents/files (preserved across the
+        /// upload pipeline so the receiver/sender bubble can render
+        /// the human-readable name even after the local URL is replaced
+        /// with a `sanchr-media://<mediaId>` reference).
+        var filename: String?
     }
 
     enum SystemEvent: String, Codable, Hashable, Sendable {

@@ -274,6 +274,19 @@ final class ChatDetailViewModel {
             replyToMessageId: replyingToMessage?.id
         )
 
+        // Preserve the original filename across the upload pipeline so the
+        // post-upload rebuild (which replaces the local URL with a
+        // `sanchr-media://<mediaId>` reference) can still render the
+        // human-readable name in the document bubble.
+        let originalFilename: String? = {
+            switch contentType {
+            case .document(let a), .image(let a), .video(let a), .audio(let a):
+                return a.filename
+            default:
+                return nil
+            }
+        }()
+
         messages.append(optimisticMessage)
         appendMessageToSections(optimisticMessage)
         clearReply()
@@ -355,7 +368,7 @@ final class ChatDetailViewModel {
             SanchrLogger.media.info("Cached sender's local file at \(cachedFile.lastPathComponent)")
 
             // Build attachment with mediaId URL + encryption keys
-            let attachment = Message.MediaAttachment(
+            var attachment = Message.MediaAttachment(
                 url: mediaIdURL,
                 encryptionKey: metadata.key,
                 encryptionIV: metadata.nonce,
@@ -364,6 +377,7 @@ final class ChatDetailViewModel {
                 thumbnailURL: nil,
                 caption: completedTask.caption
             )
+            attachment.filename = originalFilename
 
             // Create message with final attachment
             let finalMessage = Message(
@@ -469,8 +483,8 @@ final class ChatDetailViewModel {
             await sendMediaMessage(
                 localFileURL: file.url,
                 mimeType: file.mimeType,
-                contentType: .document(
-                    Message.MediaAttachment(
+                contentType: .document({
+                    var a = Message.MediaAttachment(
                         url: file.url,
                         encryptionKey: Data(),
                         encryptionIV: Data(),
@@ -479,7 +493,9 @@ final class ChatDetailViewModel {
                         thumbnailURL: nil,
                         caption: nil
                     )
-                ),
+                    a.filename = file.filename
+                    return a
+                }()),
                 conversationId: context.conversationId,
                 recipientId: context.recipientId,
                 caption: nil,

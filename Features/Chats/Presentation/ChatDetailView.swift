@@ -1257,7 +1257,7 @@ struct MessageBubble: View {
                     .font(.system(size: 24))
                     .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(attachment.url.lastPathComponent)
+                    Text(attachment.filename ?? attachment.url.lastPathComponent)
                         .font(SanchrTypography.captionSmall)
                         .fontWeight(.semibold)
                         .foregroundColor(messageTextColor)
