@@ -16,6 +16,10 @@ final class CameraTileCell: UICollectionViewCell {
     // every UIKit-side access to be async).
     nonisolated(unsafe) private static let sharedSession = AVCaptureSession()
     nonisolated(unsafe) private static var isConfigured = false
+    /// True only after configureSessionIfNeeded successfully attached a camera input.
+    /// On the simulator (no camera hardware) this stays false and we never call
+    /// startRunning — calling it without an input triggers `Fig assert ... err=-17281`.
+    nonisolated(unsafe) private static var hasCameraInput = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -42,6 +46,9 @@ final class CameraTileCell: UICollectionViewCell {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         guard status == .authorized else { return }
         Self.configureSessionIfNeeded()
+        // No camera hardware (simulator, denied at OS level, etc.) — keep the SF
+        // Symbol fallback visible and skip session start to avoid Fig asserts.
+        guard Self.hasCameraInput else { return }
         let layer = AVCaptureVideoPreviewLayer(session: Self.sharedSession)
         layer.videoGravity = .resizeAspectFill
         layer.frame = previewContainer.bounds
@@ -63,6 +70,7 @@ final class CameraTileCell: UICollectionViewCell {
            let input = try? AVCaptureDeviceInput(device: device),
            sharedSession.canAddInput(input) {
             sharedSession.addInput(input)
+            hasCameraInput = true
         }
         sharedSession.commitConfiguration()
         isConfigured = true
@@ -74,7 +82,7 @@ final class CameraTileCell: UICollectionViewCell {
     }
 
     static func stopSession() {
-        guard sharedSession.isRunning else { return }
+        guard hasCameraInput, sharedSession.isRunning else { return }
         DispatchQueue.global(qos: .userInitiated).async {
             sharedSession.stopRunning()
         }

@@ -12,7 +12,9 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     private var continuation: CheckedContinuation<CLLocation, Swift.Error>?
     private var timeoutTask: Task<Void, Never>?
 
-    init(timeout: TimeInterval = 5.0) {
+    /// 15s default: first-time auth prompt + simulator + cold CL daemon can each
+    /// eat several seconds. Test code overrides with a small value.
+    init(timeout: TimeInterval = 15.0) {
         self.timeout = timeout
         super.init()
     }

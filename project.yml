@@ -122,6 +122,7 @@ targets:
         NSMicrophoneUsageDescription: "Sanchr needs microphone access for voice and video calls."
         NSPhotoLibraryUsageDescription: "Sanchr needs photo library access to share photos and videos."
         NSFaceIDUsageDescription: "Use Face ID to unlock Sanchr."
+        NSLocationWhenInUseUsageDescription: "Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers."
         ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: Sanchr.entitlements

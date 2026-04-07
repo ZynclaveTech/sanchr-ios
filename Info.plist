@@ -33,6 +33,8 @@
 	<string>Sanchr needs access to your contacts to find friends who use the app.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to unlock Sanchr.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Sanchr needs microphone access for voice and video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
