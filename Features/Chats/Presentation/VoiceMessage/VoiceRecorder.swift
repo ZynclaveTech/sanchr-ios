@@ -79,7 +79,7 @@ actor VoiceRecorder {
 
     private func activateSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, options: [.allowBluetooth, .defaultToSpeaker])
+        try session.setCategory(.playAndRecord, options: [.allowBluetoothHFP, .defaultToSpeaker])
         try session.setActive(true)
     }
 

@@ -40,7 +40,7 @@ final class AttachmentPickerView: UIView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
-            recentsStrip.heightAnchor.constraint(equalToConstant: 96),
+            recentsStrip.heightAnchor.constraint(equalToConstant: 124),
             actionPills.heightAnchor.constraint(equalToConstant: 96)
         ])
     }

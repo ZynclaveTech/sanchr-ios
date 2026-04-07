@@ -205,6 +205,10 @@ public actor MessageSender {
         )
 
         do {
+            let recipientIds = try await resolveRecipientIds(
+                chatId: chatId,
+                senderId: senderId
+            )
             // Wire format must match `SendMessageUseCase.execute` and the
             // Android `SendMessageUseCase`: raw UTF-8 bytes of the trimmed
             // text, contentType "text". Any deviation breaks interop.
@@ -219,7 +223,7 @@ public actor MessageSender {
                     plaintext: plaintextData,
                     contentType: "text",
                     conversationId: chatId,
-                    recipientIds: [chatId],
+                    recipientIds: recipientIds,
                     expiresAfterSecs: 0
                 )
             }
@@ -283,12 +287,23 @@ public actor MessageSender {
         )
 
         do {
+            let recipientIds = try await resolveRecipientIds(
+                chatId: chatId,
+                senderId: senderId
+            )
+            // For 1:1 the recipient list has exactly one entry; for groups the
+            // uploader still derives a single access-key storage identity per
+            // upload so we use the first recipient. Group media fan-out would
+            // need a separate rework — out of scope here.
+            guard let primaryRecipient = recipientIds.first else {
+                throw AppError.sessionNotEstablished
+            }
             // Step 1 — upload (outside the lock).
             let uploadOutcome = try await uploader.uploadMedia(
                 localFileURL: attachment.url,
                 mimeType: attachment.mimeType,
                 conversationId: chatId,
-                recipientId: chatId,
+                recipientId: primaryRecipient,
                 progress: progress
             )
 
@@ -345,7 +360,7 @@ public actor MessageSender {
                     plaintext: plaintextData,
                     contentType: contentTypeString,
                     conversationId: chatId,
-                    recipientIds: [chatId],
+                    recipientIds: recipientIds,
                     expiresAfterSecs: 0
                 )
             }
@@ -384,6 +399,36 @@ public actor MessageSender {
             await markMessageAsFailed(localMessageId: localId, error: error)
             throw error
         }
+    }
+
+    // MARK: Recipient resolution
+
+    /// Resolves the set of recipient user IDs for an outgoing message by
+    /// loading the conversation from the local DB and filtering the
+    /// participant list down to everyone except the sender. `chatId` is a
+    /// conversation UUID — NOT a user UUID — so it must never be passed
+    /// directly to `encryptForAllDevices`, which expects the peer identity.
+    ///
+    /// Throws `sessionNotEstablished` if the conversation is missing or
+    /// yields no peer participants (e.g. a self-chat or a corrupted row);
+    /// treating that as a session failure surfaces cleanly in the existing
+    /// send-failure UI without needing a new error case.
+    private func resolveRecipientIds(
+        chatId: String,
+        senderId: String
+    ) async throws -> [String] {
+        guard let conversation = try await db.fetchConversation(id: chatId) else {
+            logger.error("resolveRecipientIds: conversation \(chatId) not found in local DB")
+            throw AppError.sessionNotEstablished
+        }
+        let peers = conversation.participants
+            .map(\.id)
+            .filter { $0 != senderId }
+        guard !peers.isEmpty else {
+            logger.error("resolveRecipientIds: conversation \(chatId) has no non-self participants")
+            throw AppError.sessionNotEstablished
+        }
+        return peers
     }
 
     // MARK: Local DB write helpers (T16c scaffold)

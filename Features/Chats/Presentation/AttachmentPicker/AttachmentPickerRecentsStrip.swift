@@ -17,7 +17,7 @@ final class AttachmentPickerRecentsStrip: UIView {
     private let layout: UICollectionViewFlowLayout = {
         let l = UICollectionViewFlowLayout()
         l.scrollDirection = .horizontal
-        l.itemSize = CGSize(width: 84, height: 84)
+        l.itemSize = CGSize(width: 112, height: 112)
         l.minimumInteritemSpacing = 6
         l.minimumLineSpacing = 6
         l.sectionInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
@@ -110,17 +110,48 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
 final class RecentPhotoCell: UICollectionViewCell {
     private let imageView = UIImageView()
     private let selectionBadge = UIImageView()
+    private let videoGradientLayer = CAGradientLayer()
+    private let videoPlayIcon = UIImageView()
+    private let videoDurationLabel = UILabel()
     private var loadTask: Task<Void, Never>?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        contentView.layer.cornerRadius = 10
+        contentView.layer.cornerRadius = 12
         contentView.clipsToBounds = true
         imageView.contentMode = .scaleAspectFill
         contentView.addSubview(imageView)
         imageView.frame = contentView.bounds
         imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        selectionBadge.frame = CGRect(x: 4, y: 4, width: 22, height: 22)
+
+        // Video overlay: subtle bottom gradient so the play icon + duration
+        // stay legible regardless of the underlying thumbnail brightness.
+        videoGradientLayer.colors = [
+            UIColor.clear.cgColor,
+            UIColor.black.withAlphaComponent(0.55).cgColor
+        ]
+        videoGradientLayer.locations = [0.4, 1.0]
+        videoGradientLayer.isHidden = true
+        contentView.layer.addSublayer(videoGradientLayer)
+
+        let playCfg = UIImage.SymbolConfiguration(pointSize: 13, weight: .bold)
+        videoPlayIcon.image = UIImage(systemName: "play.fill", withConfiguration: playCfg)
+        videoPlayIcon.tintColor = .white
+        videoPlayIcon.contentMode = .center
+        videoPlayIcon.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+        videoPlayIcon.layer.cornerRadius = 12
+        videoPlayIcon.layer.masksToBounds = true
+        videoPlayIcon.isHidden = true
+        contentView.addSubview(videoPlayIcon)
+
+        videoDurationLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        videoDurationLabel.textColor = .white
+        videoDurationLabel.shadowColor = UIColor.black.withAlphaComponent(0.4)
+        videoDurationLabel.shadowOffset = CGSize(width: 0, height: 0.5)
+        videoDurationLabel.isHidden = true
+        contentView.addSubview(videoDurationLabel)
+
+        selectionBadge.frame = CGRect(x: 6, y: 6, width: 22, height: 22)
         selectionBadge.backgroundColor = .systemPurple
         selectionBadge.tintColor = .white
         selectionBadge.contentMode = .center
@@ -133,12 +164,48 @@ final class RecentPhotoCell: UICollectionViewCell {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Gradient covers the bottom ~40% of the cell.
+        let h = contentView.bounds.height
+        videoGradientLayer.frame = CGRect(
+            x: 0, y: h * 0.55,
+            width: contentView.bounds.width, height: h * 0.45
+        )
+        // Play badge pinned bottom-right with an 8pt inset.
+        let playSize: CGFloat = 24
+        videoPlayIcon.frame = CGRect(
+            x: contentView.bounds.width - playSize - 8,
+            y: contentView.bounds.height - playSize - 8,
+            width: playSize, height: playSize
+        )
+        // Duration sits to the left of the play badge on the same row.
+        videoDurationLabel.sizeToFit()
+        let durW = max(videoDurationLabel.bounds.width, 28)
+        videoDurationLabel.frame = CGRect(
+            x: videoPlayIcon.frame.minX - durW - 6,
+            y: contentView.bounds.height - 8 - videoDurationLabel.bounds.height,
+            width: durW,
+            height: videoDurationLabel.bounds.height
+        )
+    }
+
     func configure(photo: RecentPhoto, isSelected: Bool, multiSelecting: Bool,
                    thumbnailLoader: @escaping @MainActor @Sendable (CGSize) async -> UIImage?) {
         selectionBadge.isHidden = !multiSelecting
         let badgeCfg = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
         selectionBadge.image = isSelected ? UIImage(systemName: "checkmark", withConfiguration: badgeCfg) : nil
         selectionBadge.backgroundColor = isSelected ? .systemPurple : UIColor.black.withAlphaComponent(0.3)
+
+        let isVideo = photo.kind == .video
+        videoGradientLayer.isHidden = !isVideo
+        videoPlayIcon.isHidden = !isVideo
+        videoDurationLabel.isHidden = !isVideo
+        if isVideo {
+            videoDurationLabel.text = Self.formatDuration(photo.durationSeconds ?? 0)
+            setNeedsLayout()
+        }
+
         imageView.image = nil
         loadTask?.cancel()
         let size = bounds.size
@@ -153,5 +220,25 @@ final class RecentPhotoCell: UICollectionViewCell {
         loadTask?.cancel()
         loadTask = nil
         imageView.image = nil
+        videoGradientLayer.isHidden = true
+        videoPlayIcon.isHidden = true
+        videoDurationLabel.isHidden = true
+        videoDurationLabel.text = nil
+    }
+
+    /// Mirrors the standard media-duration formatting used elsewhere in the
+    /// app: `m:ss` for anything under an hour, `h:mm:ss` otherwise. A nil or
+    /// zero duration renders as a dash so unexpected photo-typed rows don't
+    /// look broken if they slip through.
+    private static func formatDuration(_ seconds: Double) -> String {
+        guard seconds > 0 else { return "—" }
+        let total = Int(seconds.rounded())
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%d:%02d", m, s)
     }
 }

@@ -126,14 +126,29 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             plaintext = try encoder.encode(message.content)
         }
 
-        // 2. Encrypt for all recipient devices via Signal Protocol
-        // The recipientId is derived from the conversation participants.
-        // For 1:1, the senderId is the local user, so we encrypt for the other participant.
-        // The signalProtocol.encryptForAllDevices handles fetching device list and per-device encryption.
-        let deviceMessages = try await signalProtocol.encryptForAllDevices(
-            plaintext: plaintext,
-            recipientId: message.conversationId
-        )
+        // 2. Encrypt for all recipient devices via Signal Protocol.
+        //
+        // `encryptForAllDevices` expects the *peer user id*, never a
+        // conversation id. Resolve the participants from the local DB and
+        // fan out across every non-self peer.
+        let senderId = currentUserIdProvider() ?? message.senderId
+        guard let conversation = try await localDatabase.fetchConversation(id: message.conversationId) else {
+            throw AppError.sessionNotEstablished
+        }
+        let peerIds = conversation.participants
+            .map(\.id)
+            .filter { $0 != senderId }
+        guard !peerIds.isEmpty else {
+            throw AppError.sessionNotEstablished
+        }
+        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        for peerId in peerIds {
+            let perPeer = try await signalProtocol.encryptForAllDevices(
+                plaintext: plaintext,
+                recipientId: peerId
+            )
+            deviceMessages.append(contentsOf: perPeer)
+        }
 
         // 3. Send encrypted message via gRPC
         var request = Vync_Messaging_SendMessageRequest()
