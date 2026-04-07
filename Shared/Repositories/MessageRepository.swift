@@ -48,6 +48,11 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 
     /// Flushes locally persisted message delivery acks to the server.
     func flushPendingAcks() async throws -> Int
+
+    /// Creates (or fetches existing) 1:1 conversation with `peerUserId`.
+    /// Returns the server-assigned conversation id so the caller can
+    /// deep-link into it via `AppRouter`.
+    func startDirectConversation(peerUserId: String) async throws -> String
 }
 
 struct MessageSyncResult: Sendable {
@@ -440,6 +445,15 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         SanchrLogger.chat.info("Flushed \(pendingAcks.count) pending delivery ack(s)")
         return pendingAcks.count
+    }
+
+    func startDirectConversation(peerUserId: String) async throws -> String {
+        var request = Vync_Messaging_StartDirectConversationRequest()
+        request.recipientID = peerUserId
+        let response = try await grpcClient.messagingService.startDirectConversation(request)
+        SanchrLogger.chat.info(
+            "startDirectConversation: peer=\(peerUserId.prefix(8)) convId=\(response.id.prefix(8))")
+        return response.id
     }
 
     // MARK: - Helpers

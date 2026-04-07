@@ -1,4 +1,5 @@
 import AVFoundation
+import Contacts
 import ImageIO
 import Kingfisher
 import PhotosUI
@@ -28,6 +29,15 @@ struct ChatDetailView: View {
     @State private var hasScheduledDeferredEntryTasks = false
     @State private var voicePlayback = VoicePlaybackController()
     @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
+    @StateObject private var contactCoordinator = ContactActionCoordinator(
+        contactRepository: BootstrapContactRepository(),
+        deviceContactMatcher: { _ in false },
+        currentUserId: { nil },
+        phoneNormalizer: { $0 }
+    )
+    @State private var presentingNewContact: NewContactPayload?
+    @State private var invitePayload: GalleryIdentifiedURLBridge?
+    @Environment(AppRouter.self) private var router
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -192,6 +202,63 @@ struct ChatDetailView: View {
                 presentation: presentation,
                 resolver: container.chatMediaResolver,
                 onDismiss: { galleryCoordinator.dismiss() }
+            )
+        }
+        .sheet(item: $contactCoordinator.pendingContact) { pending in
+            ContactActionSheet(
+                pending: pending,
+                onMessageOnSanchr: { userId in
+                    Task {
+                        do {
+                            let convId = try await container.messageRepository.startDirectConversation(peerUserId: userId)
+                            contactCoordinator.dismiss()
+                            router.deepLinkToConversation(conversationId: convId)
+                        } catch {
+                            SanchrLogger.chat.error("startDirectConversation failed: \(error.localizedDescription)")
+                        }
+                    }
+                },
+                onInvite: {
+                    contactCoordinator.dismiss()
+                    if let url = URL(string: "https://sanchr.io/invite?from=chat") {
+                        invitePayload = GalleryIdentifiedURLBridge(url: url)
+                    }
+                },
+                onOpenNewContact: { name, phone in
+                    contactCoordinator.dismiss()
+                    presentingNewContact = NewContactPayload(name: name, phone: phone)
+                },
+                onOpenExistingContact: {
+                    // Read-only view of an existing CNContact would require
+                    // a second roundtrip through CNContactStore to find the
+                    // matching CNContact by phone. For now, fall back to the
+                    // new-contact sheet which lets the user see + merge.
+                    contactCoordinator.dismiss()
+                    presentingNewContact = NewContactPayload(
+                        name: pending.name,
+                        phone: pending.phoneNumber
+                    )
+                },
+                onDismiss: { contactCoordinator.dismiss() }
+            )
+        }
+        .sheet(item: $presentingNewContact) { payload in
+            ContactViewControllerHost(
+                mode: .newContact(name: payload.name, phone: payload.phone),
+                onDismiss: { presentingNewContact = nil }
+            )
+        }
+        .sheet(item: $invitePayload) { payload in
+            ChatShareActivityView(items: ["Join me on Sanchr — \(payload.url)"])
+        }
+        .task(id: "bubble-viewers-reconfigure") {
+            contactCoordinator.reconfigure(
+                contactRepository: container.contactRepository,
+                deviceContactMatcher: { phone in
+                    DeviceContactMatcher.shared.contains(phone: phone)
+                },
+                currentUserId: { container.sessionService.currentUserId },
+                phoneNormalizer: ContactDataSource.normalizePhoneNumber
             )
         }
         .onChange(of: selectedPhotoItems) { _, items in
@@ -621,6 +688,9 @@ struct ChatDetailView: View {
                     interaction: interaction,
                     onOpenGallery: { seed in
                         galleryCoordinator.present(seed: seed)
+                    },
+                    onOpenContact: { name, phone in
+                        Task { await contactCoordinator.present(name: name, phoneNumber: phone) }
                     }
                 )
             },
@@ -2062,5 +2132,93 @@ private struct ReactionPillsView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+// MARK: - Bubble viewer helper types
+
+/// Identifiable payload used by the "Save to Contacts" `.sheet(item:)`
+/// in `ChatDetailView`.
+private struct NewContactPayload: Identifiable {
+    let id = UUID()
+    let name: String
+    let phone: String
+}
+
+/// Identifiable URL wrapper used by the invite `.sheet(item:)`. Named
+/// "Bridge" to avoid colliding with the file-private `GalleryIdentifiedURL`
+/// inside `MediaGalleryView.swift`.
+private struct GalleryIdentifiedURLBridge: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// Thin `UIActivityViewController` wrapper used by the invite sheet.
+/// File-private to `ChatDetailView.swift` — the media gallery has its
+/// own copy (`GalleryActivityView`) since cross-file sharing isn't
+/// worth the refactor for two 10-line structs.
+private struct ChatShareActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+/// Bootstrap no-op `ContactRepositoryProtocol` used as the initial
+/// dependency of `ContactActionCoordinator` when `ChatDetailView` first
+/// constructs its `@StateObject`. The coordinator is swapped to the
+/// real `container.contactRepository` inside `.task`; every method here
+/// is expected to never be called. `fatalError` on the ones that aren't
+/// `fetchContacts` so a misuse is loud.
+private final class BootstrapContactRepository: ContactRepositoryProtocol, @unchecked Sendable {
+    func fetchContacts() async throws -> [User] { [] }
+    func syncDeviceContacts(phoneNumbers: [String]) async throws -> [User] {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+    func searchUser(phoneNumber: String) async throws -> User? {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+    func blockUser(userId: String) async throws {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+    func unblockUser(userId: String) async throws {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+    func fetchBlockedUsers() async throws -> [User] {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+    func updateProfile(
+        displayName: String?,
+        bio: String?,
+        avatarData: Data?
+    ) async throws -> User {
+        fatalError("ChatDetailView bootstrap repo should never be called")
+    }
+}
+
+/// Device-book lookup helper used by `ContactActionCoordinator` to
+/// determine whether a phone is already in the user's native Contacts.
+/// Lives here because it's only used from this view; if another view
+/// needs it, lift into `Platform`.
+struct DeviceContactMatcher {
+    static let shared = DeviceContactMatcher()
+    func contains(phone: String) -> Bool {
+        let store = CNContactStore()
+        let keys = [CNContactPhoneNumbersKey as CNKeyDescriptor]
+        let request = CNContactFetchRequest(keysToFetch: keys)
+        let normalizedTarget = ContactDataSource.normalizePhoneNumber(phone)
+        var found = false
+        try? store.enumerateContacts(with: request) { contact, stop in
+            for number in contact.phoneNumbers {
+                let candidate = ContactDataSource.normalizePhoneNumber(number.value.stringValue)
+                if candidate == normalizedTarget {
+                    found = true
+                    stop.pointee = true
+                    return
+                }
+            }
+        }
+        return found
     }
 }

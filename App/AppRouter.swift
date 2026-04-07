@@ -90,6 +90,14 @@ final class AppRouter {
         pendingConversationId = nil
     }
 
+    /// Deep-link into a conversation from any tab. Used by the contact
+    /// viewer's "Message on Sanchr" row after starting a direct chat.
+    func deepLinkToConversation(conversationId: String) {
+        selectedTab = .chats
+        chatsPath = NavigationPath()
+        pendingConversationId = conversationId
+    }
+
     func clearPendingCall() {
         pendingCallId = nil
     }

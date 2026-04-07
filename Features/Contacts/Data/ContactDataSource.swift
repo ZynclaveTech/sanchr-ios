@@ -93,15 +93,24 @@ final class ContactDataSource: @unchecked Sendable {
 
     /// Hashes a phone number using SHA-256 for privacy-preserving contact discovery.
     static func hashPhoneNumber(_ phoneNumber: String) -> Data {
-        let normalized =
-            phoneNumber
+        let normalized = normalizePhoneNumber(phoneNumber)
+        let data = Data(normalized.utf8)
+        let digest = SHA256.hash(data: data)
+        return Data(digest)
+    }
+
+    /// Normalize a phone number for comparison — strips whitespace,
+    /// dashes, and parentheses. Keeps the leading `+` and digits so
+    /// `"+91 98765 43210"` matches `"+919876543210"`. MUST be used
+    /// everywhere a phone needs to match another phone (contact lookup,
+    /// bubble viewer resolution) so there is exactly one definition of
+    /// "same phone" in the app.
+    static func normalizePhoneNumber(_ phoneNumber: String) -> String {
+        phoneNumber
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "(", with: "")
             .replacingOccurrences(of: ")", with: "")
-        let data = Data(normalized.utf8)
-        let digest = SHA256.hash(data: data)
-        return Data(digest)
     }
 
     // MARK: - Mapping

@@ -301,6 +301,13 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         return flushPendingAcksResult
     }
 
+    var startDirectConversationResult: String = "conv-mock"
+    private(set) var startDirectConversationCalls: [String] = []
+    func startDirectConversation(peerUserId: String) async throws -> String {
+        startDirectConversationCalls.append(peerUserId)
+        return startDirectConversationResult
+    }
+
     func emit(_ event: RealtimeEvent) {
         if case .message = event {
             flushPendingAcksCallCount += 1
