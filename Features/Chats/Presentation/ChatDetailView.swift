@@ -608,6 +608,9 @@ struct ChatDetailView: View {
                     )
                 }
             },
+            onBubbleTap: { _ in
+                // Real routing wired in Phase 1 Task 4.
+            },
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled
         )

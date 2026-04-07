@@ -301,3 +301,17 @@ targets:
         HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers"
         LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device"
         LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator"
+
+schemes:
+  Sanchr:
+    build:
+      targets:
+        Sanchr: all
+    test:
+      targets:
+        - SanchrTests
+      gatherCoverageData: false
+    run:
+      config: Debug
+    archive:
+      config: Release

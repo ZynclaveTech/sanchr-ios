@@ -27,6 +27,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onReply: (Message) -> Void
     let onReact: (String, String) -> Void
     let onLoadMore: () -> Void
+    let onBubbleTap: (MessageInteraction) -> Void
     @Binding var isScrolledToBottom: Bool
     @Binding var newMessageCountWhileScrolled: Int
 
@@ -66,6 +67,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onLoadMore()
         }
 
+        vc.onBubbleTap = { interaction in
+            onBubbleTap(interaction)
+        }
+
         vc.update(renderInput: renderInput)
 
         return vc
@@ -90,6 +95,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onLoadMore = {
             onLoadMore()
+        }
+
+        vc.onBubbleTap = { interaction in
+            onBubbleTap(interaction)
         }
 
         vc.update(renderInput: renderInput)

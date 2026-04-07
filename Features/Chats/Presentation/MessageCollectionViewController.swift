@@ -166,6 +166,9 @@ final class MessageCollectionViewController: UIViewController {
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
     var onInitialContentPresented: (() -> Void)?
+    /// Forwarded from `MessageBubble.onBubbleTap`. The view model owns the
+    /// routing decision; this controller just plumbs the payload upward.
+    var onBubbleTap: ((MessageInteraction) -> Void)?
     var voicePlayback: VoicePlaybackController = VoicePlaybackController()
 
     // MARK: - Views
