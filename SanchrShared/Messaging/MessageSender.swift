@@ -43,6 +43,21 @@ public struct NoopMessageSenderLogger: MessageSenderLogging {
     public func error(_ message: String) {}
 }
 
+// MARK: - CurrentUserProviding
+
+/// Lightweight seam giving `MessageSender` access to "who am I" without
+/// dragging in the main app's `SessionService` (which is `@MainActor`-bound
+/// and references app-only types). Both the main-app adapter and a
+/// share-extension adapter conform to this.
+///
+/// The accessor is `async` so adapters that hold main-actor-isolated state
+/// can hop safely; sync implementations just `return` immediately.
+public protocol CurrentUserProviding: Sendable {
+    /// The currently authenticated user's stable ID. Returns `nil` if no
+    /// session is active — callers must treat that as a hard send failure.
+    var currentUserId: String? { get async }
+}
+
 // MARK: - MediaUploading
 
 /// Outcome of a media upload that `MessageSender` needs in order to build
@@ -148,6 +163,7 @@ public actor MessageSender {
     private let uploader: MediaUploading
     private let grpc: GRPCClientProtocol
     private let coordinator: FileCoordinatorLock
+    private let currentUser: CurrentUserProviding
     private let logger: MessageSenderLogging
 
     // MARK: Init
@@ -158,6 +174,7 @@ public actor MessageSender {
         uploader: MediaUploading,
         grpc: GRPCClientProtocol,
         coordinator: FileCoordinatorLock,
+        currentUser: CurrentUserProviding,
         logger: MessageSenderLogging = NoopMessageSenderLogger()
     ) {
         self.db = db
@@ -165,6 +182,7 @@ public actor MessageSender {
         self.uploader = uploader
         self.grpc = grpc
         self.coordinator = coordinator
+        self.currentUser = currentUser
         self.logger = logger
     }
 
@@ -215,5 +233,133 @@ public actor MessageSender {
         progress: @Sendable (Double) -> Void
     ) async throws -> MessageSendReceipt {
         fatalError("T16: not yet implemented")
+    }
+
+    // MARK: Local DB write helpers (T16c scaffold)
+    //
+    // `MessageSender` is the SOLE writer of outgoing message rows. View
+    // models / coordinators no longer touch the local DB on the send path —
+    // they observe the DB after the receipt comes back. These helpers wrap
+    // `LocalDatabaseProtocol` so the actor can: (1) insert an optimistic
+    // row keyed on a fresh local UUID, (2) on success, replace it with the
+    // server-confirmed row, (3) on failure, mark it as `.failed` so the UI
+    // can offer a retry affordance.
+
+    /// Insert an outgoing text row in `.sending` state and return the
+    /// freshly generated local message ID. The actor uses this ID as the
+    /// stable handle for subsequent mark-sent / mark-failed transitions
+    /// AND as the `messageId` field of the returned `MessageSendReceipt`.
+    private func insertPendingOutgoingTextRow(
+        text: String,
+        chatId: String,
+        authorId: String,
+        timestamp: Date
+    ) async throws -> String {
+        let localId = UUID().uuidString
+        let row = Message(
+            id: localId,
+            conversationId: chatId,
+            senderId: authorId,
+            timestamp: timestamp,
+            content: .text(text),
+            status: .sending,
+            isOutgoing: true
+        )
+        try await db.saveMessage(row)
+        return localId
+    }
+
+    /// Insert an outgoing media row in `.sending` state. The attachment is
+    /// stored as-is (with whatever URL the caller chose — typically a local
+    /// file URL pre-upload, swapped for `sanchr-media://<id>` post-upload).
+    private func insertPendingOutgoingMediaRow(
+        attachment: Message.MediaAttachment,
+        caption: String?,
+        chatId: String,
+        authorId: String,
+        timestamp: Date
+    ) async throws -> String {
+        let localId = UUID().uuidString
+        var attachmentWithCaption = attachment
+        if let caption, attachmentWithCaption.caption == nil {
+            attachmentWithCaption.caption = caption
+        }
+        let content = Self.contentForAttachment(
+            attachmentWithCaption,
+            mimeType: attachmentWithCaption.mimeType
+        )
+        let row = Message(
+            id: localId,
+            conversationId: chatId,
+            senderId: authorId,
+            timestamp: timestamp,
+            content: content,
+            status: .sending,
+            isOutgoing: true
+        )
+        try await db.saveMessage(row)
+        return localId
+    }
+
+    /// Mark the local `.sending` row as `.sent` after the server confirms
+    /// receipt.
+    ///
+    /// Because `Message.id` is immutable, the row's primary key cannot be
+    /// rewritten in place. When the server returns the SAME id we generated
+    /// locally, we just flip the status column. When the server returns a
+    /// DIFFERENT id (the production case today), the caller must construct
+    /// a confirmed `Message` with the server-issued id + server timestamp
+    /// and pass it via `confirmedRow` — we then delete the optimistic row
+    /// and insert the confirmed one. The two writes are not yet wrapped in
+    /// a single transaction at the `LocalDatabaseProtocol` boundary; if/when
+    /// the protocol grows a `replaceMessage(oldId:with:)` primitive, swap
+    /// this helper to use it.
+    private func markMessageAsSent(
+        localMessageId: String,
+        confirmedRow: Message
+    ) async throws {
+        if confirmedRow.id == localMessageId {
+            try await db.updateMessageStatus(id: localMessageId, status: .sent)
+        } else {
+            try await db.deleteMessage(id: localMessageId)
+            try await db.saveMessage(confirmedRow)
+        }
+    }
+
+    /// Best-effort failure marker. Never throws — a DB write failure here
+    /// must not mask the original send error the caller is about to
+    /// surface to the UI.
+    private func markMessageAsFailed(
+        localMessageId: String,
+        error: Error
+    ) async {
+        do {
+            try await db.updateMessageStatus(id: localMessageId, status: .failed)
+        } catch {
+            logger.error(
+                "Failed to mark message \(localMessageId) as .failed: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    // MARK: Content helpers
+
+    /// Map a `MediaAttachment` to the right `MessageContent` case based on
+    /// MIME type. Mirrors `ChatDetailViewModel.contentForAttachment` so
+    /// the two stay in lockstep until that view-model copy is removed in
+    /// the final T16 cutover.
+    private static func contentForAttachment(
+        _ attachment: Message.MediaAttachment,
+        mimeType: String
+    ) -> Message.MessageContent {
+        if mimeType.hasPrefix("image/") {
+            return .image(attachment)
+        } else if mimeType.hasPrefix("video/") {
+            return .video(attachment)
+        } else if mimeType.hasPrefix("audio/") {
+            return .audio(attachment)
+        } else {
+            return .document(attachment)
+        }
     }
 }
