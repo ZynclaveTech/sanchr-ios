@@ -15,6 +15,8 @@ struct ChatDetailView: View {
     @State private var showPhotosPicker = false
     @State private var showCameraCapture = false
     @State private var showVaultPicker = false
+    @State private var showFileImporter = false
+    @State private var showContactPicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
@@ -84,9 +86,27 @@ struct ChatDetailView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                             showVaultPicker = true
                         }
-                    case .file, .contact, .location:
-                        // TODO(Task 13): wire remaining action grid destinations
-                        break
+                    case .file:
+                        showAttachmentPicker = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            showFileImporter = true
+                        }
+                    case .contact:
+                        showAttachmentPicker = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            showContactPicker = true
+                        }
+                    case .location:
+                        showAttachmentPicker = false
+                        let ctx = makeAttachmentSendContext()
+                        Task { @MainActor in
+                            do {
+                                let payload = try await LocationSource().requestOneShot()
+                                await viewModel.send(intent: .location(payload), context: ctx)
+                            } catch {
+                                print("[AttachmentPicker] location failed: \(error)")
+                            }
+                        }
                     }
                 },
                 onRequestCameraCapture: {
@@ -132,6 +152,40 @@ struct ChatDetailView: View {
             .presentationDetents([.large])
         }
         .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                let ctx = makeAttachmentSendContext()
+                Task { @MainActor in
+                    do {
+                        let picked = try FileSource.makePickedFile(fromSecurityScopedURL: url)
+                        await viewModel.send(intent: .file(picked), context: ctx)
+                    } catch {
+                        print("[AttachmentPicker] file import failed: \(error)")
+                    }
+                }
+            case .failure(let error):
+                print("[AttachmentPicker] file picker error: \(error)")
+            }
+        }
+        .sheet(isPresented: $showContactPicker) {
+            ContactPickerHost(
+                onPick: { stripped in
+                    let ctx = makeAttachmentSendContext()
+                    Task { @MainActor in
+                        await viewModel.send(intent: .contact(stripped), context: ctx)
+                    }
+                    showContactPicker = false
+                },
+                onCancel: { showContactPicker = false }
+            )
+            .ignoresSafeArea()
+        }
         .onChange(of: selectedPhotoItems) { _, items in
             guard !items.isEmpty else { return }
             let selectedItems = items
