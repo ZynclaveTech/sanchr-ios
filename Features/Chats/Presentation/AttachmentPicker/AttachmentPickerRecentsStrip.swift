@@ -2,6 +2,7 @@
 import UIKit
 import Combine
 
+@MainActor
 protocol AttachmentPickerRecentsStripDelegate: AnyObject {
     func recentsStrip(_ strip: AttachmentPickerRecentsStrip, didTapPhotoAt id: String)
     func recentsStrip(_ strip: AttachmentPickerRecentsStrip, didLongPressPhotoAt id: String)
