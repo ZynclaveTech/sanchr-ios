@@ -1,3 +1,4 @@
+import SanchrShared
 @preconcurrency import BackgroundTasks
 import Foundation
 import UIKit

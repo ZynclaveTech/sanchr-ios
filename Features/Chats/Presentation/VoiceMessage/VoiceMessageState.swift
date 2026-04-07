@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import SanchrShared
 
 struct Recording: Equatable, Sendable {
     let url: URL

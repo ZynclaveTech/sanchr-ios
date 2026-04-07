@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Protocol for media file encryption/decryption using AES-GCM.
 /// Media keys are generated per-file and shared via Signal Protocol messages.

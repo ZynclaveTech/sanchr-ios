@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Domain use cases for chat operations.
 /// Each use case encapsulates a single chat operation with proper error handling.

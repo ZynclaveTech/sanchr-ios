@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import XCTest
+import SanchrShared
 
 @testable import Sanchr
 

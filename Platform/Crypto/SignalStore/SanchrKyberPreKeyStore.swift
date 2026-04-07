@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// Keychain-backed storage for signed Kyber pre-keys used by PQXDH.
 ///

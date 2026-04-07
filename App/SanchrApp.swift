@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import SanchrShared
 
 private struct SendableNotificationPayload: @unchecked Sendable {
     let userInfo: [AnyHashable: Any]

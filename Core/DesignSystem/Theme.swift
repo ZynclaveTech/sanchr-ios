@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Unified theme object combining all design tokens with light/dark support.
 @Observable

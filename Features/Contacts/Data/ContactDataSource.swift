@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Data source for contact-related gRPC service calls.
 /// Translates between domain models and Vync_Contacts protobuf messages.

@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Protocol defining Signal Protocol key management operations.
 protocol KeyRepositoryProtocol: AnyObject, Sendable {

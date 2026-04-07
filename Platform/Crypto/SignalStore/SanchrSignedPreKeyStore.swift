@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// Keychain-backed storage for signed pre-keys.
 ///

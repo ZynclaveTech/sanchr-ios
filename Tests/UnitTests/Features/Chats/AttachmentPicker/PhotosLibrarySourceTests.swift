@@ -1,6 +1,7 @@
 // PhotosLibrarySourceTests.swift
 import XCTest
 import Photos
+import SanchrShared
 @testable import Sanchr
 
 final class PhotosLibrarySourceTests: XCTestCase {

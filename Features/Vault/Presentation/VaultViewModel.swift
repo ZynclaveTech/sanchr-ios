@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// View model for the vault screen.
 /// Manages items list, filter state, stats, upload progress, and pagination.

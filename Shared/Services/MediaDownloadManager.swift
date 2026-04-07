@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Manages downloading, decrypting, and caching received media.
 /// Media URLs use the `sanchr-media://{mediaId}` scheme — the manager

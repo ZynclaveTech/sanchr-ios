@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct OnboardingWelcomeStepView: View {
     @Bindable var viewModel: OnboardingViewModel

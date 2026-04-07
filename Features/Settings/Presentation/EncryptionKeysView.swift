@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Encryption key management screen.
 /// Matches Figma: encryption-keys-screen.

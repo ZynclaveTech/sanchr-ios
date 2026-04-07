@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Domain use cases for settings operations.
 enum SettingsUseCases {

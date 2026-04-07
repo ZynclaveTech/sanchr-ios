@@ -437,8 +437,8 @@ public enum BackupArchiveSerializer {
     }
 }
 
-enum BackupArchiveContentCodec {
-    static func encode(content: Message.MessageContent) throws -> (
+public enum BackupArchiveContentCodec {
+    public static func encode(content: Message.MessageContent) throws -> (
         type: String,
         body: String,
         preview: String
@@ -483,7 +483,7 @@ enum BackupArchiveContentCodec {
         }
     }
 
-    static func decode(type: String, body: String, preview: String?) -> Message.MessageContent {
+    public static func decode(type: String, body: String, preview: String?) -> Message.MessageContent {
         switch type {
         case "text":
             return .text(body)
@@ -519,7 +519,7 @@ enum BackupArchiveContentCodec {
         }
     }
 
-    static func decodeStoredContent(_ json: String) -> (type: String, body: String, preview: String)? {
+    public static func decodeStoredContent(_ json: String) -> (type: String, body: String, preview: String)? {
         guard
             let data = json.data(using: .utf8),
             let content = try? JSONDecoder().decode(Message.MessageContent.self, from: data)
@@ -529,7 +529,7 @@ enum BackupArchiveContentCodec {
         return try? encode(content: content)
     }
 
-    static func encodeStoredContent(type: String, body: String, preview: String?) -> String? {
+    public static func encodeStoredContent(type: String, body: String, preview: String?) -> String? {
         let content = decode(type: type, body: body, preview: preview)
         guard let data = try? JSONEncoder().encode(content) else { return nil }
         return String(data: data, encoding: .utf8)

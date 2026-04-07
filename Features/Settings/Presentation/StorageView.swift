@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Storage and data management screen.
 /// Matches Figma: storage-data-screen.

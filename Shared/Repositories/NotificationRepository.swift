@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Protocol defining push notification registration and preference operations.
 protocol NotificationRepositoryProtocol: AnyObject, Sendable {

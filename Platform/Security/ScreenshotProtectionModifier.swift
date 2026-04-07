@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import SanchrShared
 
 /// View modifier that prevents screenshots and screen recording
 /// by embedding a hidden secure UITextField in the view hierarchy.

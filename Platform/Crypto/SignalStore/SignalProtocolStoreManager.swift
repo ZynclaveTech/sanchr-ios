@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// Unified Signal Protocol store that conforms to `SignalProtocolStore` by delegating
 /// to individual sub-stores for each key type.

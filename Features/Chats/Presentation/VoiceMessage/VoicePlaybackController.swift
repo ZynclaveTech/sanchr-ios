@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Observation
+import SanchrShared
 
 @Observable
 final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate {

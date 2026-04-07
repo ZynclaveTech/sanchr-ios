@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// View model for the settings screen.
 /// Manages all settings state with debounced sync to the backend.

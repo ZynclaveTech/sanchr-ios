@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Pure SwiftUI Canvas renderer for voice-message waveforms. Used by:
 /// - RecordingHUD (live samples, no progress)

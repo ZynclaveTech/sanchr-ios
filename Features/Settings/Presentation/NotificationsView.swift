@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import SanchrShared
 
 /// Notification preferences screen.
 /// Matches Figma: notifications-screen.

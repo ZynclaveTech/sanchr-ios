@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import SanchrShared
 
 /// Model for a call history entry.
 struct CallHistoryEntry: Identifiable, Sendable {

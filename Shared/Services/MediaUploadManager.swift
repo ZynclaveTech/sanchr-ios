@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import SanchrShared
 
 /// Upload state for each media task.
 enum MediaUploadState: Sendable {

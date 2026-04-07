@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Use case for sending an encrypted message.
 /// Orchestrates Signal Protocol encryption, sending, and local persistence.

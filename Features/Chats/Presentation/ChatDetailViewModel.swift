@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import SanchrShared
 
 struct MessageSection: Identifiable, Sendable {
     let id: Date

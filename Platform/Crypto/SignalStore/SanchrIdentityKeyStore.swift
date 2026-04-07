@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// Manages identity key storage and trust decisions for the Signal Protocol.
 ///

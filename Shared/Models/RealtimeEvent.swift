@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Internal representation of the app-wide realtime message stream.
 enum RealtimeEvent: Sendable {

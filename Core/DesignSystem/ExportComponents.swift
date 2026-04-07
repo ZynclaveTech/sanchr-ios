@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 enum SanchrExportMetrics {
     static let screenHorizontal: CGFloat = 20

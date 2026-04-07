@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 protocol OPRFClientProtocol: Sendable {
     func blind(phoneNumbers: [String]) -> (blindingFactors: [Data], blindedPoints: [Data])

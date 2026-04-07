@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Typography scale extracted from Figma design tokens.
 /// The exported HTML uses Afacad as the visible family across screens.

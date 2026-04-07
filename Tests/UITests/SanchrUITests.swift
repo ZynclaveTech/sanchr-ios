@@ -1,4 +1,5 @@
 import XCTest
+import SanchrShared
 
 final class SanchrUITests: XCTestCase {
     @MainActor

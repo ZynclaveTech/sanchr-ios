@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SanchrShared
 
 /// State machine for the authentication flow.
 /// Drives LoginView, OTPView, and RegisterView through a linear progression.

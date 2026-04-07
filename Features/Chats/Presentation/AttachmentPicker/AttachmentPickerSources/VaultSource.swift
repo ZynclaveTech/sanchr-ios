@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Abstraction over the vault fetching use case so VaultSource can be tested
 /// without spinning up the real data source / encryption pipeline.

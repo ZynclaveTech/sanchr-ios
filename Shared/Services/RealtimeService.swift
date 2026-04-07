@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 extension Notification.Name {
     static let sanchrConversationStateDidChange = Notification.Name("io.sanchr.realtime.conversationStateDidChange")

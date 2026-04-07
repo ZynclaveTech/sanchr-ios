@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SanchrShared
 
 /// View model for the profile screen.
 /// @Observable with user profile state, edit mode, avatar picker, and gRPC sync.

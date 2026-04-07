@@ -1,5 +1,6 @@
 import XCTest
 import Contacts
+import SanchrShared
 @testable import Sanchr
 
 final class StrippedContactTests: XCTestCase {

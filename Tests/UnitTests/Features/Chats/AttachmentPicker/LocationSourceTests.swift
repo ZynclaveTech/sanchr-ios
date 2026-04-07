@@ -1,5 +1,6 @@
 import XCTest
 import CoreLocation
+import SanchrShared
 @testable import Sanchr
 
 final class LocationSourceTests: XCTestCase {

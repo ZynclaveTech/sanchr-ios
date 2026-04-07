@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// File-backed session storage for the Signal Protocol Double Ratchet.
 ///

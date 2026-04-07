@@ -1,6 +1,7 @@
 import Contacts
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Domain use cases for contact operations.
 enum ContactUseCases {

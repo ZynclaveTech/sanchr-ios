@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import SanchrShared
 
 /// One-shot CLLocationManager. NEVER imports CLGeocoder or MKMapSnapshotter.
 /// Manager is released as soon as requestOneShot returns.

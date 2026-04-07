@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Embedded vault picker presented from the attachment picker sheet.
 ///

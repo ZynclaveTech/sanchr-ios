@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct MediaViewerView: View {
     let image: UIImage

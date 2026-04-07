@@ -2,6 +2,7 @@ import Foundation
 import Contacts
 import ContactsUI
 import UIKit
+import SanchrShared
 
 enum ContactSource {
 

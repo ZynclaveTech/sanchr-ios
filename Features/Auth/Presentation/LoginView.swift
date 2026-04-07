@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct LoginView: View {
     @Environment(\.colorScheme) private var colorScheme

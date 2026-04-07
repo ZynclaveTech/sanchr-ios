@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Protocol defining vault (encrypted file storage) operations.
 protocol VaultRepositoryProtocol: AnyObject, Sendable {

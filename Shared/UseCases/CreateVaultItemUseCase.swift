@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SanchrShared
 
 /// Use case for creating and uploading an encrypted vault item.
 struct CreateVaultItemUseCase: Sendable {

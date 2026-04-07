@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import SanchrShared
 
 /// SwiftUI host wrapping the UIKit `AttachmentPickerView`.
 ///

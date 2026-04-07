@@ -1,5 +1,6 @@
 import Accelerate
 import UIKit
+import SanchrShared
 
 /// Self-contained BlurHash encoder/decoder with Accelerate-optimized decode.
 /// Same algorithm as woltapp/blurhash and Signal's implementation.

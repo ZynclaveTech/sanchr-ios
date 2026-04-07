@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import UIKit
+import SanchrShared
 
 /// Domain use cases for vault operations.
 enum VaultUseCases {

@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Corner radius tokens extracted from Figma design tokens.
 enum SanchrRadius {

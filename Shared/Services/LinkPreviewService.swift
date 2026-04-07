@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import LinkPresentation
+import SanchrShared
 
 /// Fetches and caches Open Graph metadata for URLs.
 /// Two-tier cache: in-memory NSCache + disk JSON cache.

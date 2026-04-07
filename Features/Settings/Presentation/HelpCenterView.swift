@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Help center screen.
 /// Matches Figma: help-center-screen.

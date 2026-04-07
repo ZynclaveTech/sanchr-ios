@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import SanchrShared
 
 /// Protocol for local database operations.
 protocol LocalDatabaseProtocol: AnyObject, Sendable {

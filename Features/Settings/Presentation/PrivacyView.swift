@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Privacy settings screen.
 /// Matches Figma: privacy-screen.

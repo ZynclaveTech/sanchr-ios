@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import Network
+import SanchrShared
 
 /// Protocol for observing network connectivity changes.
 protocol NetworkMonitorProtocol: AnyObject, Sendable {

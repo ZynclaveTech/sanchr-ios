@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 struct ContactSection: Identifiable, Sendable {
     let id: String

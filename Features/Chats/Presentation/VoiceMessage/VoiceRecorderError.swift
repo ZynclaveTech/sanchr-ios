@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 enum VoiceRecorderError: Error, Equatable {
     case permissionDenied

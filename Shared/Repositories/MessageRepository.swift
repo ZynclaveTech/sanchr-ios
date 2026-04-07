@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 /// Protocol defining messaging operations.
 protocol MessageRepositoryProtocol: AnyObject, Sendable {

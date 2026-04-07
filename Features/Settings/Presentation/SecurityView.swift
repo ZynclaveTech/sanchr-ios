@@ -1,5 +1,6 @@
 import LocalAuthentication
 import SwiftUI
+import SanchrShared
 
 /// Security settings screen.
 /// Matches Figma: security-screen.

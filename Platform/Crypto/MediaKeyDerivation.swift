@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 protocol MediaKeyDerivationProtocol: Sendable {
     func deriveMediaKey(chainKey: Data, fileHash: Data) -> Data

@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import SanchrShared
 
 struct OnboardingAvatarStepView: View {
     @Bindable var viewModel: OnboardingViewModel

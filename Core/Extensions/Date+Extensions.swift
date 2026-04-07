@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 extension Date {
     // MARK: - Chat Formatting

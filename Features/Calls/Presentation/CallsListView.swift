@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct CallsListView: View {
     @Environment(DependencyContainer.self) private var container

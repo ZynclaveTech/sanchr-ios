@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 enum AttachmentIntent: Sendable {
     case photoLibrary([PickedMedia])

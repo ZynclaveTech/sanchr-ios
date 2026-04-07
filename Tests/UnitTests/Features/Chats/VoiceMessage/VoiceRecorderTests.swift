@@ -1,5 +1,6 @@
 import AVFoundation
 import XCTest
+import SanchrShared
 
 @testable import Sanchr
 

@@ -3,6 +3,7 @@ import Foundation
 import Photos
 import UIKit
 import AVFoundation
+import SanchrShared
 
 /// Protocol boundary so unit tests can feed fake assets without touching PhotoKit.
 protocol PhotosAssetLike {

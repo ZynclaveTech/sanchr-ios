@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 protocol DeviceSecretProviderProtocol: AnyObject, Sendable {
     func readDeviceMasterSecret() throws -> Data?

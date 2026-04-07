@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// File-backed sender key storage for Signal Protocol group messaging.
 ///

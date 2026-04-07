@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 /// Data source for chat-related gRPC service calls.
 /// Wraps the MessagingService client with domain model mapping

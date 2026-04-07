@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Lightweight emoji picker presented from the composer's smiley button.
 /// Categories are static curated lists — no Unicode CLDR dependency, no

@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Spacing scale extracted from Figma design tokens.
 /// Usage: `SanchrSpacing.md` or `.padding(.horizontal, SanchrSpacing.lg)`

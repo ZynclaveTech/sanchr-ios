@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import UIKit
+import SanchrShared
 
 actor VoiceRecorder {
 

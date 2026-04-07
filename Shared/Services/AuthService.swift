@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Protocol for high-level authentication operations.
 protocol AuthServiceProtocol: AnyObject, Sendable {

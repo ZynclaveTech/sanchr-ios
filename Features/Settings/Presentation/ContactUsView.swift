@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct ContactUsView: View {
     @Environment(\.dismiss) private var dismiss

@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct SplashView: View {
     var body: some View {

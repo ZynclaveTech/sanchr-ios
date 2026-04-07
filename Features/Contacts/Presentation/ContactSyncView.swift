@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Contact sync screen requesting permission and showing sync progress.
 /// Matches Figma: contact-sync-screen.

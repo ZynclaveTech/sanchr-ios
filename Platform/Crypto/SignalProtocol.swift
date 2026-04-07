@@ -1,6 +1,7 @@
 import Foundation
 import GRPC
 import LibSignalClient
+import SanchrShared
 
 /// Protocol for Signal Protocol session management and message encryption/decryption.
 protocol SignalProtocolManagerProtocol: AnyObject, Sendable {

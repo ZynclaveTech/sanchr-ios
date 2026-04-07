@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 enum LocalDatabaseKeyResolution: Sendable {
     case passphrase(String)

@@ -2,6 +2,7 @@ import Foundation
 import GRPC
 import NIOCore
 import SwiftProtobuf
+import SanchrShared
 
 // MARK: - Generic Auth Interceptor
 

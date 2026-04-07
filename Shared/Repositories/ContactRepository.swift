@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Protocol defining contact operations.
 protocol ContactRepositoryProtocol: AnyObject, Sendable {

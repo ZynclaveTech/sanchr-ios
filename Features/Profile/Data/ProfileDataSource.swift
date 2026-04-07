@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Data source for profile-related gRPC service calls.
 /// Wires to SettingsService.UpdateProfile and MediaService for avatar upload.

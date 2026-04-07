@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SanchrShared
 
 /// Protocol for Keychain CRUD operations.
 protocol KeychainServiceProtocol: AnyObject, Sendable {

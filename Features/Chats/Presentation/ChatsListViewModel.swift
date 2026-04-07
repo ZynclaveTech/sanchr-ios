@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// View model for the conversations list screen.
 /// Manages loading, filtering, sorting, and mutation of the conversation list.

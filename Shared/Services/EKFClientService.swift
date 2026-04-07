@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Client-side handler for EKF lifecycle events.
 ///

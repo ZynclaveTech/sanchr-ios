@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Protocol defining media upload/download operations via presigned URLs.
 protocol MediaRepositoryProtocol: AnyObject, Sendable {

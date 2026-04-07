@@ -3,6 +3,7 @@ import ImageIO
 import Kingfisher
 import PhotosUI
 import SwiftUI
+import SanchrShared
 
 struct ChatDetailView: View {
     let conversation: Conversation

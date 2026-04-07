@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SanchrShared
 
 /// Domain use cases for profile operations.
 enum ProfileUseCases {

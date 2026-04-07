@@ -3,6 +3,7 @@ import CallKit
 import Foundation
 import GRPC
 import WebRTC
+import SanchrShared
 
 protocol CallEventRouting: AnyObject, Sendable {
     func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent)

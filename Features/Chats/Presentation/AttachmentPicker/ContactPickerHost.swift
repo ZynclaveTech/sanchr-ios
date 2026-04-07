@@ -5,6 +5,7 @@
 import SwiftUI
 import Contacts
 import ContactsUI
+import SanchrShared
 
 struct ContactPickerHost: UIViewControllerRepresentable {
     var onPick: (StrippedContact) -> Void

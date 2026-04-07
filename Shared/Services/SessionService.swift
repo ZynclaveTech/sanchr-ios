@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 /// Manages the current user session: token storage, refresh, and auth state.
 @Observable

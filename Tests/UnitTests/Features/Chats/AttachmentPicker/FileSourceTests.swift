@@ -1,5 +1,6 @@
 // FileSourceTests.swift
 import XCTest
+import SanchrShared
 @testable import Sanchr
 
 final class FileSourceTests: XCTestCase {

@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import UIKit
+import SanchrShared
 
 /// Downloads, decrypts, and caches vault item thumbnails.
 ///

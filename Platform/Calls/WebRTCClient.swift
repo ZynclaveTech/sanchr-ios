@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import SanchrShared
 @preconcurrency import WebRTC
 
 // MARK: - WebRTC Client Delegate

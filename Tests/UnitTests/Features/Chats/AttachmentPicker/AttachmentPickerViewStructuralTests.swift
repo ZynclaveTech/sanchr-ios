@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import SanchrShared
 @testable import Sanchr
 
 @MainActor

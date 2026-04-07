@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Registration screen for new accounts.
 /// Matches Figma: register-screen with profile photo, display name, and phone.

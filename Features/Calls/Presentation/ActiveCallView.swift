@@ -1,5 +1,6 @@
 import SwiftUI
 import WebRTC
+import SanchrShared
 
 /// Active call UI with controls for mute, speaker, video, and end call.
 /// Matches Figma: call-main.

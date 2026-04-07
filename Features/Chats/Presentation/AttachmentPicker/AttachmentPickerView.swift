@@ -1,5 +1,6 @@
 import UIKit
 import Combine
+import SanchrShared
 
 @MainActor
 final class AttachmentPickerView: UIView {

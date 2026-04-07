@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct NotificationsInboxView: View {
     @Environment(\.dismiss) private var dismiss

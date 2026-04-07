@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Gradient definitions extracted from Figma design tokens.
 enum SanchrGradients {

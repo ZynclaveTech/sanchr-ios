@@ -1,6 +1,7 @@
 import Kingfisher
 import SwiftUI
 import PhotosUI
+import SanchrShared
 
 /// Profile screen for viewing and editing the current user's profile.
 /// Matches Figma: header screen with large avatar, name, phone, status, QR code, action buttons.

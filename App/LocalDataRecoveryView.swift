@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct LocalDataRecoveryView: View {
     @Environment(\.colorScheme) private var colorScheme

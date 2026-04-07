@@ -1,5 +1,6 @@
 import Foundation
 import LocalAuthentication
+import SanchrShared
 
 @Observable
 final class BackupCoordinator {

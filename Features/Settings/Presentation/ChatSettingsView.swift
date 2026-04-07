@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import SanchrShared
 
 /// Chat-specific settings screen.
 /// Matches Figma: chat-settings-main.

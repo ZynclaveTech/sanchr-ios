@@ -1,6 +1,7 @@
 import Foundation
 import LocalAuthentication
 import UIKit
+import SanchrShared
 
 /// Manages app-level screen lock and biometric authentication enforcement.
 /// Reads security preferences from UserDefaults (synced from SettingsViewModel)

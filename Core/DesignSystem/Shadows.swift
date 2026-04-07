@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Shadow definitions as view modifiers for consistent elevation.
 enum SanchrShadows {

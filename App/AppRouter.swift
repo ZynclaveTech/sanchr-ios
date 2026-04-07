@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import SanchrShared
 
 /// Centralized navigation coordinator managing the root tab selection
 /// and per-tab navigation stacks.

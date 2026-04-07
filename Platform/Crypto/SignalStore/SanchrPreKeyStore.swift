@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// File-backed storage for one-time pre-keys used during X3DH key agreement.
 ///

@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Protocol defining user settings and profile operations.
 protocol SettingsRepositoryProtocol: AnyObject, Sendable {

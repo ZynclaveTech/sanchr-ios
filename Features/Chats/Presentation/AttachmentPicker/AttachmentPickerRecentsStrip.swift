@@ -1,6 +1,7 @@
 // AttachmentPickerRecentsStrip.swift
 import UIKit
 import Combine
+import SanchrShared
 
 @MainActor
 protocol AttachmentPickerRecentsStripDelegate: AnyObject {

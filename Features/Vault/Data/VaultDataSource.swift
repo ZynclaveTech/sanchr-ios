@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Data source for vault-related gRPC service calls.
 /// Orchestrates VaultService and MediaService RPCs for encrypted vault operations.

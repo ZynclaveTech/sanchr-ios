@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Push payload structure sent by the Sanchr backend.
 /// Maps to the JSON payload embedded in APNs `userInfo` under the `"sanchr"` key.

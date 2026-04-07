@@ -3,6 +3,7 @@ import GRPC
 import NIOCore
 import NIOPosix
 import NIOSSL
+import SanchrShared
 
 /// Protocol for the gRPC client manager abstraction.
 protocol GRPCClientProtocol: Sendable {

@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Data source for settings-related gRPC service calls.
 /// Translates between domain state and Vync_Settings protobuf messages.

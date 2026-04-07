@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 struct MediaChainKey: Codable, Sendable {
     var chainKey: Data

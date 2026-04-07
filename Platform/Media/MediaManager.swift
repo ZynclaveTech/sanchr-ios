@@ -2,6 +2,7 @@ import AVFoundation
 import Foundation
 import PhotosUI
 import UIKit
+import SanchrShared
 
 /// Protocol for media capture, compression, and management.
 protocol MediaManagerProtocol: AnyObject, Sendable {

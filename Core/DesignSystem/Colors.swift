@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Design tokens for color extracted from Figma.
 /// All colors are available as `Color.sanchr*` extensions.

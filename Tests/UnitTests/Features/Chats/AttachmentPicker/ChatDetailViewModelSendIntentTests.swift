@@ -1,4 +1,5 @@
 import XCTest
+import SanchrShared
 @testable import Sanchr
 
 /// Smoke tests for `ChatDetailViewModel.send(intent:context:)`.

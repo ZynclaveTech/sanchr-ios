@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import SanchrShared
 
 /// Abstraction over AVAudioRecorder so VoiceRecorderTests can run on
 /// CI/simulator without touching the real audio hardware.

@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 /// Protocol defining authentication operations against the backend.
 protocol AuthRepositoryProtocol: AnyObject, Sendable {

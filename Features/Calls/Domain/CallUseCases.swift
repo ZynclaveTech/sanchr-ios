@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import SanchrShared
 
 /// Domain use cases for call operations.
 enum CallUseCases {

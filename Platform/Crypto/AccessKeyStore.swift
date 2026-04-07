@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 protocol AccessKeyStoreProtocol: AnyObject, Sendable {
     func store(mediaId: String, accessKey: Data, conversationId: String) async throws

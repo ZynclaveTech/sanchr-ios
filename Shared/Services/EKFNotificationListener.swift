@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Listens for EKF rotation_needed events from the server and delegates
 /// to EKFClientService for handling.

@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct VoicePreviewBubble: View {
     let recording: Recording

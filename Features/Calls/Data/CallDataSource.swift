@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import SanchrShared
 
 /// Data source wrapping the CallSignalingService gRPC client.
 /// Provides typed domain-level access to call signaling, history, and TURN credentials.

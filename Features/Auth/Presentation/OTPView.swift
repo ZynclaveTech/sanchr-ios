@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// OTP verification screen with 6-digit input boxes.
 /// Matches Figma: otp-verification-screen.

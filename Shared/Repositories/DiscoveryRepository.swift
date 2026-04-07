@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Repository for OPRF-PSI contact discovery.
 ///

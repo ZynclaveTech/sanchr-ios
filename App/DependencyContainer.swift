@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Protocol-based dependency injection container.
 /// All services are lazily initialized and shared across the app.

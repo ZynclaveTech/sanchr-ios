@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import UserNotifications
+import SanchrShared
 
 // MARK: - Notification Action
 

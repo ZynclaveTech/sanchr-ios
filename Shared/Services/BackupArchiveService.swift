@@ -2,6 +2,7 @@ import CommonCrypto
 import CryptoKit
 import Foundation
 import Security
+import SanchrShared
 
 struct BackupUploadOutcome: Sendable {
     let backupDate: Date

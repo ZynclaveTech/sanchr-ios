@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct VoicePlaybackBubble: View {
     let messageId: String

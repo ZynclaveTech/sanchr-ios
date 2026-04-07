@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 struct DerivedBackupMaterial: Equatable, Sendable {
     let metadataKey: Data

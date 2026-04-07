@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SanchrShared
 
 /// Manages per-conversation media chain keys for forward-secure media encryption.
 /// Chain keys are advanced after each media derivation and the previous key is erased.

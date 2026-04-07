@@ -2,6 +2,7 @@ import PhotosUI
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import SanchrShared
 
 @MainActor
 struct VaultView: View {

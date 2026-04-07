@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SanchrShared
 
 /// Protocol for encrypted key-value storage backed by Keychain.
 protocol SecureStorageProtocol: AnyObject, Sendable {

@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 // MARK: - UserDefaults Keys
 

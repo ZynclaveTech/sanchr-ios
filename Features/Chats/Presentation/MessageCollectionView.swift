@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import SanchrShared
 
 enum TranscriptScrollCommand: Equatable {
     case initialBottom(sequence: UInt64)

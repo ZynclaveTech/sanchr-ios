@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SanchrShared
 @preconcurrency import UserNotifications
 
 /// Handles modifying notification content before display.

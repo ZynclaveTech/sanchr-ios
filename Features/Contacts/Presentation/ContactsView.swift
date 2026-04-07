@@ -1,5 +1,6 @@
 import Kingfisher
 import SwiftUI
+import SanchrShared
 
 struct ContactsView: View {
     @Environment(DependencyContainer.self) private var container

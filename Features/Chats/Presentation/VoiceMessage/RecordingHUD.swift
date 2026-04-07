@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 struct RecordingHUD: View {
     let elapsed: TimeInterval

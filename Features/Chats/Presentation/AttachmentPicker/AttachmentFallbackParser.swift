@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 
 /// Result of parsing a text-message body that may have been produced by the
 /// Task 13 attachment text-fallback path (`ChatDetailViewModel.contactFallbackText` /

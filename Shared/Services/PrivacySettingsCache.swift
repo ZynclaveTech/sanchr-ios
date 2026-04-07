@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import SanchrShared
 
 /// Thread-safe cached copy of user privacy settings.
 /// Readable from any context. Updated after settings fetch/change.

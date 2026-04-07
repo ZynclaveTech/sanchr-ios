@@ -1,4 +1,5 @@
 import UIKit
+import SanchrShared
 
 enum AttachmentPillItem: String, CaseIterable {
     case camera, photos, file, contact, location

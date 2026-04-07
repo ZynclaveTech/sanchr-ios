@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 protocol RecoveryKeyManagerProtocol: AnyObject, Sendable {
     func loadConfiguration() throws -> BackupConfiguration?

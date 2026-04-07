@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Full-screen overlay shown when the app is locked.
 /// Displays the app icon and a button to trigger biometric/passcode authentication.

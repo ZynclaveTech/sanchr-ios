@@ -1,5 +1,6 @@
 import Foundation
 import LibSignalClient
+import SanchrShared
 
 /// Protocol for cryptographic key lifecycle management using libsignal.
 protocol KeyManagerProtocol: AnyObject, Sendable {

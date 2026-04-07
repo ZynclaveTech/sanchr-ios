@@ -1,4 +1,5 @@
 import SwiftUI
+import SanchrShared
 
 /// Theme and appearance settings screen.
 /// Matches Figma: appearance-screen.
