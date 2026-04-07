@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Near-black background with blue tint -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070B14"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <!-- Path gradient -->
+    <linearGradient id="sGrad" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="35%" stop-color="#6366F1"/>
+      <stop offset="70%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#D946EF"/>
+    </linearGradient>
+
+    <!-- Outer ring gradient for shield hint -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0.15"/>
+    </linearGradient>
+
+    <filter id="pathGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="bigGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+
+  <g transform="translate(512, 512)">
+
+    <!-- Subtle protective circle/ring (E2EE hint) -->
+    <circle cx="0" cy="0" r="340" fill="none" stroke="url(#ringGrad)" stroke-width="1.5"
+            stroke-dasharray="12 8" opacity="0.4"/>
+
+    <!-- Very faint network mesh in background -->
+    <g opacity="0.06" stroke="#6366F1" stroke-width="1">
+      <line x1="-300" y1="-200" x2="200" y2="-100"/>
+      <line x1="-200" y1="300" x2="100" y2="-200"/>
+      <line x1="300" y1="200" x2="-100" y2="100"/>
+      <line x1="-250" y1="50" x2="250" y2="-50"/>
+      <line x1="50" y1="-350" x2="-50" y2="350"/>
+    </g>
+
+    <!-- Main S-curve — bolder, more confident -->
+    <path d="M 130,-270
+             C -120,-280 -230,-170 -170,-70
+             C -110,30 110,-30 170,70
+             C 230,170 120,280 -130,270"
+          fill="none" stroke="url(#sGrad)" stroke-width="44"
+          stroke-linecap="round" filter="url(#pathGlow)"/>
+
+    <!-- Inner highlight stroke -->
+    <path d="M 130,-270
+             C -120,-280 -230,-170 -170,-70
+             C -110,30 110,-30 170,70
+             C 230,170 120,280 -130,270"
+          fill="none" stroke="white" stroke-width="3"
+          stroke-linecap="round" opacity="0.12"/>
+
+    <!-- Top endpoint: teal glow -->
+    <circle cx="130" cy="-270" r="50" fill="#06B6D4" opacity="0.2" filter="url(#bigGlow)"/>
+    <circle cx="130" cy="-270" r="26" fill="#06B6D4"/>
+    <circle cx="130" cy="-270" r="12" fill="white" opacity="0.85"/>
+
+    <!-- Upper curve node -->
+    <circle cx="-190" cy="-170" r="12" fill="#38BDF8" opacity="0.7"/>
+    <circle cx="-190" cy="-170" r="5" fill="white" opacity="0.6"/>
+
+    <!-- Left inflection node -->
+    <circle cx="-170" cy="-70" r="16" fill="#6366F1" opacity="0.85"/>
+    <circle cx="-170" cy="-70" r="7" fill="white" opacity="0.6"/>
+
+    <!-- Center node: the user — larger, brighter -->
+    <circle cx="0" cy="0" r="28" fill="white" opacity="0.95"/>
+    <circle cx="0" cy="0" r="15" fill="#6366F1" opacity="0.75"/>
+    <circle cx="0" cy="0" r="6" fill="white" opacity="0.9"/>
+
+    <!-- Right inflection node -->
+    <circle cx="170" cy="70" r="16" fill="#A855F7" opacity="0.85"/>
+    <circle cx="170" cy="70" r="7" fill="white" opacity="0.6"/>
+
+    <!-- Lower curve node -->
+    <circle cx="190" cy="170" r="12" fill="#C084FC" opacity="0.7"/>
+    <circle cx="190" cy="170" r="5" fill="white" opacity="0.6"/>
+
+    <!-- Bottom endpoint: purple glow -->
+    <circle cx="-130" cy="270" r="50" fill="#A855F7" opacity="0.2" filter="url(#bigGlow)"/>
+    <circle cx="-130" cy="270" r="26" fill="#A855F7"/>
+    <circle cx="-130" cy="270" r="12" fill="white" opacity="0.85"/>
+
+    <!-- Thin connection lines from center to intermediate nodes -->
+    <line x1="0" y1="0" x2="-170" y2="-70" stroke="#6366F1" stroke-width="1.5" opacity="0.2"/>
+    <line x1="0" y1="0" x2="170" y2="70" stroke="#A855F7" stroke-width="1.5" opacity="0.2"/>
+    <line x1="0" y1="0" x2="130" y2="-270" stroke="#22D3EE" stroke-width="1" opacity="0.08"/>
+    <line x1="0" y1="0" x2="-130" y2="270" stroke="#A855F7" stroke-width="1" opacity="0.08"/>
+  </g>
+</svg>
