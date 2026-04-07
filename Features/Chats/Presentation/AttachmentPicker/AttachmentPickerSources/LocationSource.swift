@@ -23,39 +23,40 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
         print("[LocationSource] requestOneShot called, locationServicesEnabled=\(CLLocationManager.locationServicesEnabled())")
         let location = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<CLLocation, Swift.Error>) in
             self.continuation = cont
-            let m = CLLocationManager()
-            m.desiredAccuracy = kCLLocationAccuracyBest
-            m.delegate = self
-            self.manager = m
+            // CLLocationManager delegate callbacks are dispatched to the runloop
+            // of the thread that created the manager. Swift concurrency worker
+            // threads have no runloop, so we MUST init + start on the main
+            // thread or callbacks silently never fire.
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                let m = CLLocationManager()
+                m.desiredAccuracy = kCLLocationAccuracyBest
+                m.delegate = self
+                self.manager = m
 
-            print("[LocationSource] initial authStatus=\(Self.describe(m.authorizationStatus))")
-            switch m.authorizationStatus {
-            case .notDetermined:
-                print("[LocationSource] requesting whenInUse authorization")
-                m.requestWhenInUseAuthorization()
-                // Once permission is granted, locationManagerDidChangeAuthorization
-                // calls startUpdatingLocation. Don't start before grant.
-            case .denied, .restricted:
-                print("[LocationSource] denied/restricted, resuming with .denied")
-                self.resume(.failure(Error.denied))
-                return
-            case .authorizedWhenInUse, .authorizedAlways:
-                // startUpdatingLocation is more reliable than requestLocation on
-                // simulators and cold CL daemons — requestLocation can silently
-                // do nothing if no recent fix is cached. We stop updating as soon
-                // as the first location arrives in didUpdateLocations.
-                print("[LocationSource] already authorized, calling startUpdatingLocation")
-                m.startUpdatingLocation()
-            @unknown default:
-                self.resume(.failure(Error.failed("unknown auth status")))
-                return
-            }
+                print("[LocationSource] initial authStatus=\(Self.describe(m.authorizationStatus))")
+                switch m.authorizationStatus {
+                case .notDetermined:
+                    print("[LocationSource] requesting whenInUse authorization")
+                    m.requestWhenInUseAuthorization()
+                case .denied, .restricted:
+                    print("[LocationSource] denied/restricted, resuming with .denied")
+                    self.resume(.failure(Error.denied))
+                    return
+                case .authorizedWhenInUse, .authorizedAlways:
+                    print("[LocationSource] already authorized, calling startUpdatingLocation")
+                    m.startUpdatingLocation()
+                @unknown default:
+                    self.resume(.failure(Error.failed("unknown auth status")))
+                    return
+                }
 
-            let to = self.timeout
-            self.timeoutTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(to * 1_000_000_000))
-                print("[LocationSource] timeout fired after \(to)s")
-                self?.resume(.failure(Error.timeout))
+                let to = self.timeout
+                self.timeoutTask = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(to * 1_000_000_000))
+                    print("[LocationSource] timeout fired after \(to)s")
+                    self?.resume(.failure(Error.timeout))
+                }
             }
         }
         return Self.makePayload(from: location)
