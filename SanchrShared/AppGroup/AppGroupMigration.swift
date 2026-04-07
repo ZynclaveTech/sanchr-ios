@@ -55,14 +55,31 @@ public enum AppGroupMigration {
     /// `SanchrLogger.persistence`, and the flag is left unset so a future
     /// launch may retry.
     public static func runIfNeeded() {
-        let defaults = AppGroup.userDefaults
+        performMigration(
+            legacyDatabaseURL: legacyDatabaseURL,
+            targetDatabaseURL: AppGroup.databaseURL,
+            defaults: AppGroup.userDefaults
+        )
+    }
+
+    /// Test seam: same migration logic as `runIfNeeded()`, but with the
+    /// legacy source path, App Group destination path, and defaults store
+    /// injected. This exists ONLY so unit tests can exercise the migration
+    /// against a temporary directory and an isolated `UserDefaults` suite
+    /// without touching the developer's real Application Support directory
+    /// or the real shared App Group container.
+    ///
+    /// Production code MUST call `runIfNeeded()`.
+    public static func performMigration(
+        legacyDatabaseURL legacy: URL,
+        targetDatabaseURL target: URL,
+        defaults: UserDefaults
+    ) {
         if defaults.bool(forKey: migrationFlagKey) {
             return
         }
 
         let fm = FileManager.default
-        let legacy = legacyDatabaseURL
-        let target = AppGroup.databaseURL
 
         // Clean install: nothing to migrate. Mark complete so we never
         // probe the legacy path again.
@@ -113,6 +130,11 @@ public enum AppGroupMigration {
         defaults.set(true, forKey: migrationFlagKey)
         SanchrLogger.persistence.info("AppGroupMigration v1: complete")
     }
+
+    /// Test-only accessor for the migration flag key, so tests can assert
+    /// flag state on an injected `UserDefaults` suite without duplicating
+    /// the literal.
+    public static var migrationFlagKeyForTesting: String { migrationFlagKey }
 
     /// Copy `source` to `destination` if the source exists. Returns `true`
     /// when the post-condition (destination exists OR source legitimately
