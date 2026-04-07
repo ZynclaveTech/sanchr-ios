@@ -69,6 +69,73 @@ final class ChatDetailViewModel {
     var searchResults: [Message] = []
     var currentSearchIndex = 0
 
+    // MARK: - Bubble-tap routing
+
+    /// Most recent interaction routed through `route(interaction:)`.
+    /// Visible to tests only — the real app reads the coordinators bound
+    /// in `ChatDetailView`, not this. Kept because it's the cheapest way
+    /// to unit-test routing without coupling the test to the coordinator
+    /// implementations (which live in the main-app target).
+    var lastRoutedInteraction: MessageInteraction?
+
+    /// Dispatch a bubble-tap interaction to the appropriate coordinator.
+    /// Each handler is supplied by `ChatDetailView` because the coordinators
+    /// themselves are `@StateObject`s that must live in the view hierarchy;
+    /// the view model stays `@Observable` without holding `ObservableObject`
+    /// references.
+    ///
+    /// For `.openMedia`, the method also seeds the gallery with every
+    /// image/video message from the current in-memory snapshot in
+    /// chronological order via `galleryItems(forTappedMessageId:)`.
+    func route(
+        interaction: MessageInteraction,
+        onOpenGallery: (GallerySeed) -> Void = { _ in },
+        onOpenContact: (String, String) -> Void = { _, _ in },
+        onOpenLocation: (Double, Double) -> Void = { _, _ in },
+        onOpenDocument: (String) -> Void = { _ in }
+    ) {
+        lastRoutedInteraction = interaction
+        switch interaction {
+        case .openMedia(let messageId):
+            guard let seed = galleryItems(forTappedMessageId: messageId) else {
+                SanchrLogger.chat.warning(
+                    "route: no gallery seed for \(messageId.prefix(8))")
+                return
+            }
+            onOpenGallery(seed)
+        case .openContact(let name, let phoneNumber):
+            onOpenContact(name, phoneNumber)
+        case .openLocation(let latitude, let longitude):
+            onOpenLocation(latitude, longitude)
+        case .openDocument(let messageId):
+            onOpenDocument(messageId)
+        }
+    }
+
+    /// Seed the media gallery with every image + video in the current chat
+    /// snapshot, ordered chronologically, plus the tapped message's index.
+    /// Returns `nil` if the tapped message isn't media or isn't in the
+    /// current snapshot. The snapshot is frozen at call time — new messages
+    /// arriving while the gallery is open do NOT mutate the pager.
+    func galleryItems(forTappedMessageId messageId: String) -> GallerySeed? {
+        let ordered = messages
+            .sorted { $0.timestamp < $1.timestamp }
+            .compactMap { msg -> GalleryItem? in
+                switch msg.content {
+                case .image:
+                    return GalleryItem(id: msg.id, kind: .image, message: msg)
+                case .video:
+                    return GalleryItem(id: msg.id, kind: .video, message: msg)
+                default:
+                    return nil
+                }
+            }
+        guard let index = ordered.firstIndex(where: { $0.id == messageId }) else {
+            return nil
+        }
+        return GallerySeed(items: ordered, initialIndex: index)
+    }
+
     // MARK: - Conversation Lifecycle
 
     /// Called when the user enters a conversation.
@@ -1030,4 +1097,21 @@ final class ChatDetailViewModel {
     private func bumpTranscriptVersion() {
         transcriptVersion &+= 1
     }
+}
+
+// MARK: - Gallery DTOs
+
+/// Frozen gallery page list + starting index produced by
+/// `ChatDetailViewModel.galleryItems(forTappedMessageId:)` and consumed by
+/// `MediaGalleryCoordinator` (added in Phase 2).
+struct GallerySeed: Equatable {
+    let items: [GalleryItem]
+    let initialIndex: Int
+}
+
+struct GalleryItem: Identifiable, Equatable {
+    enum Kind: Equatable { case image, video }
+    let id: String            // messageId
+    let kind: Kind
+    let message: Message
 }

@@ -608,8 +608,8 @@ struct ChatDetailView: View {
                     )
                 }
             },
-            onBubbleTap: { _ in
-                // Real routing wired in Phase 1 Task 4.
+            onBubbleTap: { interaction in
+                viewModel.route(interaction: interaction)
             },
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled
