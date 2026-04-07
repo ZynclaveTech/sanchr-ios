@@ -6,7 +6,6 @@ import SanchrShared
 /// Matches Figma: notifications-screen.
 /// All toggles persist to the backend via the UpdateNotificationPrefs gRPC endpoint.
 struct NotificationsView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
 
     @State private var viewModel = NotificationsViewModel()
