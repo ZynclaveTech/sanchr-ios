@@ -20,7 +20,6 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func requestOneShot() async throws -> LocationPayload {
-        print("[LocationSource] requestOneShot called, locationServicesEnabled=\(CLLocationManager.locationServicesEnabled())")
         let location = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<CLLocation, Swift.Error>) in
             self.continuation = cont
             // CLLocationManager delegate callbacks are dispatched to the runloop
@@ -34,17 +33,13 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
                 m.delegate = self
                 self.manager = m
 
-                print("[LocationSource] initial authStatus=\(Self.describe(m.authorizationStatus))")
                 switch m.authorizationStatus {
                 case .notDetermined:
-                    print("[LocationSource] requesting whenInUse authorization")
                     m.requestWhenInUseAuthorization()
                 case .denied, .restricted:
-                    print("[LocationSource] denied/restricted, resuming with .denied")
                     self.resume(.failure(Error.denied))
                     return
                 case .authorizedWhenInUse, .authorizedAlways:
-                    print("[LocationSource] already authorized, calling startUpdatingLocation")
                     m.startUpdatingLocation()
                 @unknown default:
                     self.resume(.failure(Error.failed("unknown auth status")))
@@ -54,23 +49,11 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
                 let to = self.timeout
                 self.timeoutTask = Task { [weak self] in
                     try? await Task.sleep(nanoseconds: UInt64(to * 1_000_000_000))
-                    print("[LocationSource] timeout fired after \(to)s")
                     self?.resume(.failure(Error.timeout))
                 }
             }
         }
         return Self.makePayload(from: location)
-    }
-
-    private static func describe(_ s: CLAuthorizationStatus) -> String {
-        switch s {
-        case .notDetermined: return "notDetermined"
-        case .restricted: return "restricted"
-        case .denied: return "denied"
-        case .authorizedAlways: return "authorizedAlways"
-        case .authorizedWhenInUse: return "authorizedWhenInUse"
-        @unknown default: return "unknown(\(s.rawValue))"
-        }
     }
 
     static func makePayload(from location: CLLocation) -> LocationPayload {
@@ -84,7 +67,6 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
 
     // MARK: Delegate
     func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
-        print("[LocationSource] didChangeAuthorization=\(Self.describe(m.authorizationStatus))")
         switch m.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: m.startUpdatingLocation()
         case .denied, .restricted: resume(.failure(Error.denied))
@@ -93,7 +75,6 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func locationManager(_ m: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
-        print("[LocationSource] didUpdateLocations count=\(locs.count) last=\(locs.last.map { "\($0.coordinate.latitude),\($0.coordinate.longitude) acc=\($0.horizontalAccuracy)" } ?? "nil")")
         guard let loc = locs.last else { return }
         // Stop updating immediately after the first usable fix.
         m.stopUpdatingLocation()
@@ -101,7 +82,6 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func locationManager(_ m: CLLocationManager, didFailWithError error: Swift.Error) {
-        print("[LocationSource] didFailWithError=\(error.localizedDescription) ns=\((error as NSError).domain)#\((error as NSError).code)")
         resume(.failure(Error.failed(error.localizedDescription)))
     }
 
