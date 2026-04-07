@@ -8,10 +8,13 @@ public enum AppGroup {
     /// .entitlements files and the provisioning profile.
     public static let identifier = "group.io.sanchr.shared"
 
-    /// Keychain access group. The `$(AppIdentifierPrefix)` placeholder is
-    /// resolved at runtime by Security.framework — do NOT hard-code the
-    /// team prefix.
-    public static let keychainAccessGroup = "$(AppIdentifierPrefix)io.sanchr.shared"
+    /// Keychain access group passed to `kSecAttrAccessGroup` at runtime.
+    /// Security.framework auto-prepends the team identifier prefix when
+    /// the entitlement is granted, so we pass the bare suffix here.
+    /// The corresponding entitlement (`$(AppIdentifierPrefix)io.sanchr.shared`)
+    /// lives in `Sanchr.entitlements` and `SanchrShareExtension.entitlements`,
+    /// where the build system resolves the placeholder at codesign time.
+    public static let keychainAccessGroup = "io.sanchr.shared"
 
     /// Shared UserDefaults suite. Same string as `identifier` by convention.
     public static var userDefaults: UserDefaults {
