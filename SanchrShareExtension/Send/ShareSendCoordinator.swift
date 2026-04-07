@@ -77,40 +77,31 @@ final actor ShareSendCoordinator: ShareSendDriving {
 
         // Normalise the payload into an ordered list of "send units" so that
         // a `.multi` payload is sent as one text/one media per child, in the
-        // order the user picked them.
+        // order the user picked them. The actual fan-out + concurrency lives
+        // in `ShareSendDispatcher` (in SanchrShared) so it's testable from
+        // the main-app unit-test target without `@testable import`-ing this
+        // app-extension binary.
         let units = Self.flatten(payload: payload, caption: caption)
+        let dispatcher = ShareSendDispatcher(sender: deps.messageSender)
+        let recipientIds = recipients.map(\.id)
 
-        let total = max(recipients.count, 1)
-        let completedCountBox = CompletedCount()
-
-        await withTaskGroup(of: Void.self) { group in
-            for recipient in recipients {
-                group.addTask { [units, caption] in
-                    if Task.isCancelled {
-                        progress(recipient.id, .failure("Cancelled"), 0)
-                        return
-                    }
-                    progress(recipient.id, .sending, 0)
-                    let finalState: ShareRecipientState
-                    do {
-                        try await Self.dispatch(
-                            units: units,
-                            caption: caption,
-                            recipient: recipient,
-                            sender: deps.messageSender
-                        )
-                        finalState = .success
-                    } catch {
-                        SanchrLogger.chat.error(
-                            "ShareSendCoordinator: send to \(recipient.id.prefix(8)) failed: \(error.localizedDescription)"
-                        )
-                        finalState = .failure(Self.friendlySendError(error))
-                    }
-                    let completed = await completedCountBox.increment()
-                    progress(recipient.id, finalState, Double(completed) / Double(total))
-                }
+        await dispatcher.send(units: units, to: recipientIds) { recipientId, outcome, overall in
+            let mapped = Self.mapOutcome(outcome)
+            if case .failure(let reason) = mapped {
+                SanchrLogger.chat.error(
+                    "ShareSendCoordinator: send to \(recipientId.prefix(8)) failed: \(reason)"
+                )
             }
-            await group.waitForAll()
+            progress(recipientId, mapped, overall)
+        }
+    }
+
+    private static func mapOutcome(_ outcome: ShareRecipientOutcome) -> ShareRecipientState {
+        switch outcome {
+        case .sending: return .sending
+        case .success: return .success
+        case .cancelled: return .failure("Cancelled")
+        case .failure(let reason): return .failure(reason)
         }
     }
 
@@ -182,129 +173,91 @@ final actor ShareSendCoordinator: ShareSendDriving {
         return Dependencies(messageSender: sender)
     }
 
-    // MARK: - Dispatch
+    // MARK: - Payload flattening
 
-    /// A single send unit extracted from a possibly-compound `SharePayload`.
-    /// The caption rides on the FIRST unit only so multi-attachment shares
-    /// don't double-post the caption.
-    fileprivate struct SendUnit: Sendable {
-        enum Kind: Sendable {
-            case text(String)
-            case media(Message.MediaAttachment)
-        }
-        let kind: Kind
-        let carriesCaption: Bool
-    }
-
-    private static func flatten(payload: SharePayload, caption: String?) -> [SendUnit] {
+    /// Flatten a possibly-compound `SharePayload` into the ordered list of
+    /// `ShareSendUnit`s the dispatcher consumes. The caption rides on the
+    /// FIRST unit only so multi-attachment shares don't double-post it.
+    private static func flatten(payload: SharePayload, caption: String?) -> [ShareSendUnit] {
         let parts: [SharePayload]
         switch payload {
         case .multi(let children): parts = children
         default: parts = [payload]
         }
 
-        var units: [SendUnit] = []
+        var units: [ShareSendUnit] = []
         var captionAssigned = false
         for part in parts {
-            if let unit = makeUnit(from: part, caption: captionAssigned ? nil : caption) {
+            let captionForPart = captionAssigned ? nil : caption
+            if let unit = makeUnit(from: part, caption: captionForPart) {
                 units.append(unit)
-                if !captionAssigned { captionAssigned = true }
+                if captionForPart != nil { captionAssigned = true }
             }
         }
         return units
     }
 
-    private static func makeUnit(from payload: SharePayload, caption: String?) -> SendUnit? {
+    private static func makeUnit(from payload: SharePayload, caption: String?) -> ShareSendUnit? {
         switch payload {
         case .text(let text):
             let body = [text, caption].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: "\n\n")
             guard !body.isEmpty else { return nil }
-            return SendUnit(kind: .text(body), carriesCaption: caption != nil)
+            return .text(body)
 
         case .url(let url):
             let urlString = url.absoluteString
             let body = [urlString, caption].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: "\n\n")
-            return SendUnit(kind: .text(body), carriesCaption: caption != nil)
+            return .text(body)
 
         case .image(let fileURL, let size):
-            let mime = mimeType(for: fileURL, fallback: "image/jpeg")
-            let attachment = Message.MediaAttachment(
+            return .media(Message.MediaAttachment(
                 url: fileURL,
                 encryptionKey: Data(),
                 encryptionIV: Data(),
-                mimeType: mime,
+                mimeType: mimeType(for: fileURL, fallback: "image/jpeg"),
                 sizeBytes: size,
                 caption: caption,
                 filename: fileURL.lastPathComponent
-            )
-            return SendUnit(kind: .media(attachment), carriesCaption: caption != nil)
+            ))
 
         case .video(let fileURL, let size, let duration):
-            let mime = mimeType(for: fileURL, fallback: "video/mp4")
-            let attachment = Message.MediaAttachment(
+            return .media(Message.MediaAttachment(
                 url: fileURL,
                 encryptionKey: Data(),
                 encryptionIV: Data(),
-                mimeType: mime,
+                mimeType: mimeType(for: fileURL, fallback: "video/mp4"),
                 sizeBytes: size,
                 caption: caption,
                 durationSeconds: duration,
                 filename: fileURL.lastPathComponent
-            )
-            return SendUnit(kind: .media(attachment), carriesCaption: caption != nil)
+            ))
 
         case .audio(let fileURL, let size, let duration):
-            let mime = mimeType(for: fileURL, fallback: "audio/m4a")
-            let attachment = Message.MediaAttachment(
+            return .media(Message.MediaAttachment(
                 url: fileURL,
                 encryptionKey: Data(),
                 encryptionIV: Data(),
-                mimeType: mime,
+                mimeType: mimeType(for: fileURL, fallback: "audio/m4a"),
                 sizeBytes: size,
                 caption: caption,
                 durationSeconds: duration,
                 filename: fileURL.lastPathComponent
-            )
-            return SendUnit(kind: .media(attachment), carriesCaption: caption != nil)
+            ))
 
         case .file(let fileURL, let size, let filename):
-            let mime = mimeType(for: fileURL, fallback: "application/octet-stream")
-            let attachment = Message.MediaAttachment(
+            return .media(Message.MediaAttachment(
                 url: fileURL,
                 encryptionKey: Data(),
                 encryptionIV: Data(),
-                mimeType: mime,
+                mimeType: mimeType(for: fileURL, fallback: "application/octet-stream"),
                 sizeBytes: size,
                 caption: caption,
                 filename: filename
-            )
-            return SendUnit(kind: .media(attachment), carriesCaption: caption != nil)
+            ))
 
         case .multi:
-            // Callers should flatten before calling this, but be defensive.
+            // Callers must flatten before calling this; be defensive.
             return nil
-        }
-    }
-
-    private static func dispatch(
-        units: [SendUnit],
-        caption: String?,
-        recipient: ShareChatSummary,
-        sender: MessageSender
-    ) async throws {
-        for unit in units {
-            if Task.isCancelled { throw CancellationError() }
-            switch unit.kind {
-            case .text(let body):
-                _ = try await sender.sendText(body, to: recipient.id)
-            case .media(let attachment):
-                _ = try await sender.sendMedia(
-                    attachment: attachment,
-                    caption: attachment.caption,
-                    to: recipient.id,
-                    progress: { _ in }
-                )
-            }
         }
     }
 
@@ -317,14 +270,6 @@ final actor ShareSendCoordinator: ShareSendDriving {
                 return "Open Sanchr once to finish setup, then try sharing again."
             }
         }
-        if let appError = error as? AppError {
-            return appError.localizedDescription
-        }
-        return error.localizedDescription
-    }
-
-    private static func friendlySendError(_ error: Error) -> String {
-        if error is CancellationError { return "Cancelled" }
         if let appError = error as? AppError {
             return appError.localizedDescription
         }
@@ -358,15 +303,4 @@ final actor ShareSendCoordinator: ShareSendDriving {
 
 private enum ShareSendBootstrapError: Error {
     case missingMediaAccessSecret
-}
-
-/// Thread-safe completion counter used by the structured task group to
-/// drive the overall progress bar. An actor keeps the increments
-/// race-free without leaking isolation into the progress closure.
-private actor CompletedCount {
-    private var value: Int = 0
-    func increment() -> Int {
-        value += 1
-        return value
-    }
 }
