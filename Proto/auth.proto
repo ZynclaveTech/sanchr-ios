@@ -8,6 +8,7 @@ service AuthService {
   rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
 message DeviceInfo {
@@ -60,6 +61,14 @@ message ChangePasswordRequest {
 }
 
 message ChangePasswordResponse {}
+
+message DeleteAccountRequest {
+  reserved 1; // future: confirmation password / OTP
+}
+
+message DeleteAccountResponse {
+  bool success = 1;
+}
 
 message User {
   string id = 1;

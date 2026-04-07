@@ -45,6 +45,11 @@ public protocol Vync_Auth_AuthServiceClientProtocol: GRPCClient {
     _ request: Vync_Auth_ChangePasswordRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>
+
+  func deleteAccount(
+    _ request: Vync_Auth_DeleteAccountRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>
 }
 
 extension Vync_Auth_AuthServiceClientProtocol {
@@ -159,6 +164,24 @@ extension Vync_Auth_AuthServiceClientProtocol {
       interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
     )
   }
+
+  /// Unary call to DeleteAccount
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to DeleteAccount.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func deleteAccount(
+    _ request: Vync_Auth_DeleteAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -252,6 +275,11 @@ public protocol Vync_Auth_AuthServiceAsyncClientProtocol: GRPCClient {
     _ request: Vync_Auth_ChangePasswordRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>
+
+  func makeDeleteAccountCall(
+    _ request: Vync_Auth_DeleteAccountRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -345,6 +373,18 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
     )
   }
+
+  public func makeDeleteAccountCall(
+    _ request: Vync_Auth_DeleteAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -420,6 +460,18 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
     )
   }
+
+  public func deleteAccount(
+    _ request: Vync_Auth_DeleteAccountRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Auth_DeleteAccountResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -458,6 +510,9 @@ public protocol Vync_Auth_AuthServiceClientInterceptorFactoryProtocol: Sendable 
 
   /// - Returns: Interceptors to use when invoking 'changePassword'.
   func makeChangePasswordInterceptors() -> [ClientInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'deleteAccount'.
+  func makeDeleteAccountInterceptors() -> [ClientInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>]
 }
 
 public enum Vync_Auth_AuthServiceClientMetadata {
@@ -471,6 +526,7 @@ public enum Vync_Auth_AuthServiceClientMetadata {
       Vync_Auth_AuthServiceClientMetadata.Methods.refreshToken,
       Vync_Auth_AuthServiceClientMetadata.Methods.logout,
       Vync_Auth_AuthServiceClientMetadata.Methods.changePassword,
+      Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount,
     ]
   )
 
@@ -510,6 +566,12 @@ public enum Vync_Auth_AuthServiceClientMetadata {
       path: "/vync.auth.AuthService/ChangePassword",
       type: GRPCCallType.unary
     )
+
+    internal static let deleteAccount = GRPCMethodDescriptor(
+      name: "DeleteAccount",
+      path: "/vync.auth.AuthService/DeleteAccount",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -528,6 +590,8 @@ public protocol Vync_Auth_AuthServiceProvider: CallHandlerProvider {
   func logout(request: Vync_Auth_LogoutRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_LogoutResponse>
 
   func changePassword(request: Vync_Auth_ChangePasswordRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_ChangePasswordResponse>
+
+  func deleteAccount(request: Vync_Auth_DeleteAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_DeleteAccountResponse>
 }
 
 extension Vync_Auth_AuthServiceProvider {
@@ -596,6 +660,15 @@ extension Vync_Auth_AuthServiceProvider {
         userFunction: self.changePassword(request:context:)
       )
 
+    case "DeleteAccount":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Auth_DeleteAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Auth_DeleteAccountResponse>(),
+        interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? [],
+        userFunction: self.deleteAccount(request:context:)
+      )
+
     default:
       return nil
     }
@@ -637,6 +710,11 @@ public protocol Vync_Auth_AuthServiceAsyncProvider: CallHandlerProvider, Sendabl
     request: Vync_Auth_ChangePasswordRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Vync_Auth_ChangePasswordResponse
+
+  func deleteAccount(
+    request: Vync_Auth_DeleteAccountRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Auth_DeleteAccountResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -712,6 +790,15 @@ extension Vync_Auth_AuthServiceAsyncProvider {
         wrapping: { try await self.changePassword(request: $0, context: $1) }
       )
 
+    case "DeleteAccount":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Auth_DeleteAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Auth_DeleteAccountResponse>(),
+        interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? [],
+        wrapping: { try await self.deleteAccount(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -743,6 +830,10 @@ public protocol Vync_Auth_AuthServiceServerInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when handling 'changePassword'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeChangePasswordInterceptors() -> [ServerInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>]
+
+  /// - Returns: Interceptors to use when handling 'deleteAccount'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDeleteAccountInterceptors() -> [ServerInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>]
 }
 
 public enum Vync_Auth_AuthServiceServerMetadata {
@@ -756,6 +847,7 @@ public enum Vync_Auth_AuthServiceServerMetadata {
       Vync_Auth_AuthServiceServerMetadata.Methods.refreshToken,
       Vync_Auth_AuthServiceServerMetadata.Methods.logout,
       Vync_Auth_AuthServiceServerMetadata.Methods.changePassword,
+      Vync_Auth_AuthServiceServerMetadata.Methods.deleteAccount,
     ]
   )
 
@@ -793,6 +885,12 @@ public enum Vync_Auth_AuthServiceServerMetadata {
     internal static let changePassword = GRPCMethodDescriptor(
       name: "ChangePassword",
       path: "/vync.auth.AuthService/ChangePassword",
+      type: GRPCCallType.unary
+    )
+
+    internal static let deleteAccount = GRPCMethodDescriptor(
+      name: "DeleteAccount",
+      path: "/vync.auth.AuthService/DeleteAccount",
       type: GRPCCallType.unary
     )
   }

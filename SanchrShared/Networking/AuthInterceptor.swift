@@ -106,6 +106,7 @@ extension AuthInterceptorFactory: Vync_Auth_AuthServiceClientInterceptorFactoryP
     public func makeRefreshTokenInterceptors() -> [ClientInterceptor<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>] { makeInterceptors() }
     public func makeLogoutInterceptors() -> [ClientInterceptor<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>] { makeInterceptors() }
     public func makeChangePasswordInterceptors() -> [ClientInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>] { makeInterceptors() }
+    public func makeDeleteAccountInterceptors() -> [ClientInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>] { makeInterceptors() }
 }
 
 // MARK: - MessagingService Interceptors
