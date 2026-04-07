@@ -20,6 +20,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     }
 
     func requestOneShot() async throws -> LocationPayload {
+        print("[LocationSource] requestOneShot called, locationServicesEnabled=\(CLLocationManager.locationServicesEnabled())")
         let location = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<CLLocation, Swift.Error>) in
             self.continuation = cont
             let m = CLLocationManager()
@@ -27,12 +28,15 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
             m.delegate = self
             self.manager = m
 
+            print("[LocationSource] initial authStatus=\(Self.describe(m.authorizationStatus))")
             switch m.authorizationStatus {
             case .notDetermined:
+                print("[LocationSource] requesting whenInUse authorization")
                 m.requestWhenInUseAuthorization()
                 // Once permission is granted, locationManagerDidChangeAuthorization
                 // calls startUpdatingLocation. Don't start before grant.
             case .denied, .restricted:
+                print("[LocationSource] denied/restricted, resuming with .denied")
                 self.resume(.failure(Error.denied))
                 return
             case .authorizedWhenInUse, .authorizedAlways:
@@ -40,6 +44,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
                 // simulators and cold CL daemons — requestLocation can silently
                 // do nothing if no recent fix is cached. We stop updating as soon
                 // as the first location arrives in didUpdateLocations.
+                print("[LocationSource] already authorized, calling startUpdatingLocation")
                 m.startUpdatingLocation()
             @unknown default:
                 self.resume(.failure(Error.failed("unknown auth status")))
@@ -49,10 +54,22 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
             let to = self.timeout
             self.timeoutTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(to * 1_000_000_000))
+                print("[LocationSource] timeout fired after \(to)s")
                 self?.resume(.failure(Error.timeout))
             }
         }
         return Self.makePayload(from: location)
+    }
+
+    private static func describe(_ s: CLAuthorizationStatus) -> String {
+        switch s {
+        case .notDetermined: return "notDetermined"
+        case .restricted: return "restricted"
+        case .denied: return "denied"
+        case .authorizedAlways: return "authorizedAlways"
+        case .authorizedWhenInUse: return "authorizedWhenInUse"
+        @unknown default: return "unknown(\(s.rawValue))"
+        }
     }
 
     static func makePayload(from location: CLLocation) -> LocationPayload {

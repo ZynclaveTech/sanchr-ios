@@ -12,6 +12,7 @@ struct ChatDetailView: View {
     @State private var viewModel = ChatDetailViewModel()
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
+    @State private var showCameraCapture = false
     @State private var showPhotosPicker = false
     @State private var showFileImporter = false
     @State private var showContactPicker = false
@@ -66,6 +67,13 @@ struct ChatDetailView: View {
                     },
                     onRequestAction: { item in
                         switch item {
+                        case .camera:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                showCameraCapture = true
+                            }
                         case .photos:
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 showAttachmentPicker = false
@@ -73,9 +81,6 @@ struct ChatDetailView: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showPhotosPicker = true
                             }
-                        case .gif:
-                            // TODO: GIF picker (Giphy/Tenor integration)
-                            break
                         case .file:
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 showAttachmentPicker = false
@@ -156,6 +161,18 @@ struct ChatDetailView: View {
                 onCancel: { showContactPicker = false }
             )
             .ignoresSafeArea()
+        }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                onCapture: { capture in
+                    let ctx = makeAttachmentSendContext()
+                    Task { @MainActor in
+                        await viewModel.send(intent: .capturedMedia(capture), context: ctx)
+                    }
+                    showCameraCapture = false
+                },
+                onCancel: { showCameraCapture = false }
+            )
         }
         .onChange(of: selectedPhotoItems) { _, items in
             guard !items.isEmpty else { return }
