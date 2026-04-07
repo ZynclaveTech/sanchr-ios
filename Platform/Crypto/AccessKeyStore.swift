@@ -8,13 +8,6 @@ protocol AccessKeyStoreProtocol: AnyObject, Sendable {
     func deleteAll() async throws
 }
 
-struct AccessKeyEntry: Codable, Sendable {
-    let mediaId: String
-    let accessKey: Data
-    let conversationId: String
-    let createdAt: Date
-}
-
 final class AccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
     static let defaultTTL: TimeInterval = 30 * 24 * 60 * 60  // 30 days
 

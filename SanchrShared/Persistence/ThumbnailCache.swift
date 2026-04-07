@@ -1,7 +1,6 @@
 import CryptoKit
 import Foundation
 import UIKit
-import SanchrShared
 
 /// Downloads, decrypts, and caches vault item thumbnails.
 ///
@@ -12,8 +11,8 @@ import SanchrShared
 /// - Subsequent accesses hit memory → disk → network in that order.
 /// - Cache is keyed by vault item ID, not URL (URLs may change/expire).
 /// - Disk cache lives in Caches/ so the OS can evict it under storage pressure.
-actor ThumbnailCache {
-    static let shared = ThumbnailCache()
+public actor ThumbnailCache {
+    public static let shared = ThumbnailCache()
 
     private let memoryCache = NSCache<NSString, UIImage>()
     private let diskCacheDir: URL
@@ -32,7 +31,7 @@ actor ThumbnailCache {
 
     /// Returns a cached thumbnail immediately if available, otherwise fetches, decrypts, and caches.
     /// Returns nil for items without a thumbnail URL.
-    func thumbnail(for item: VaultItem) async -> UIImage? {
+    public func thumbnail(for item: VaultItem) async -> UIImage? {
         // Already have plaintext thumbnail in memory from this session's upload
         if let data = item.thumbnailData, let image = downsampleImage(data: data) {
             memoryCache.setObject(image, forKey: item.id as NSString)
@@ -74,7 +73,7 @@ actor ThumbnailCache {
     }
 
     /// Removes cached thumbnail for an item (call on delete).
-    func remove(for itemId: String) {
+    public func remove(for itemId: String) {
         memoryCache.removeObject(forKey: itemId as NSString)
         inFlightTasks.removeValue(forKey: itemId)
         let diskURL = diskCacheDir.appendingPathComponent(itemId)

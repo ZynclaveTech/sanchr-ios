@@ -1,14 +1,13 @@
 import Foundation
 import GRDB
-import SanchrShared
 
 // MARK: - Database Migration Manager
 
 /// Defines all database migrations. Each migration is idempotent and versioned.
 /// Add new migrations at the end — never modify existing ones.
-enum DatabaseSchema {
+public enum DatabaseSchema {
 
-    static var migrator: DatabaseMigrator {
+    public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
         migrator.registerMigration("v1_initial") { db in

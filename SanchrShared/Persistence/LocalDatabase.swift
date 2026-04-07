@@ -1,9 +1,8 @@
 import Foundation
 import GRDB
-import SanchrShared
 
 /// Protocol for local database operations.
-protocol LocalDatabaseProtocol: AnyObject, Sendable {
+public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     // MARK: - Messages
 
     func saveMessage(_ message: Message) async throws
@@ -53,7 +52,7 @@ protocol LocalDatabaseProtocol: AnyObject, Sendable {
 
 /// GRDB-backed local database with encrypted SQLite storage.
 /// Thread-safe via GRDB's internal WAL-mode serialization.
-final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
+public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     private enum BootstrapState {
         case freshEncrypted
         case migratedPlaintext
@@ -64,12 +63,12 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     private let dbPath: String
     private let keyProvider: LocalDatabaseKeyProviderProtocol
 
-    /// Initialize with a database file path. Creates the DB and runs migrations.
-    init(
-        path: String? = nil,
+    /// Initialize with a database file URL. Creates the DB and runs migrations.
+    public init(
+        path: URL = AppGroup.databaseURL,
         keyProvider: LocalDatabaseKeyProviderProtocol
     ) throws {
-        let dbPath = Self.resolveDatabasePath(customPath: path)
+        let dbPath = path.path
         self.dbPath = dbPath
         self.keyProvider = keyProvider
         do {
@@ -96,8 +95,8 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    convenience init(
-        path: String? = nil,
+    public convenience init(
+        path: URL = AppGroup.databaseURL,
         passphraseProvider: @escaping @Sendable () throws -> String
     ) throws {
         try self.init(
@@ -106,23 +105,42 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         )
     }
 
+    /// Test/legacy convenience: initialize from a raw filesystem path string.
+    public convenience init(
+        path: String,
+        keyProvider: LocalDatabaseKeyProviderProtocol
+    ) throws {
+        try self.init(path: URL(fileURLWithPath: path), keyProvider: keyProvider)
+    }
+
+    /// Test/legacy convenience: initialize from a raw filesystem path string.
+    public convenience init(
+        path: String,
+        passphraseProvider: @escaping @Sendable () throws -> String
+    ) throws {
+        try self.init(
+            path: URL(fileURLWithPath: path),
+            passphraseProvider: passphraseProvider
+        )
+    }
+
     // MARK: - Messages
 
-    func saveMessage(_ message: Message) async throws {
+    public func saveMessage(_ message: Message) async throws {
         try await dbPool.write { db in
             try persistMessage(message, in: db, queueAck: false)
         }
         SanchrLogger.persistence.debug("Saved message \(message.id)")
     }
 
-    func saveIncomingMessageAndQueueAck(_ message: Message) async throws {
+    public func saveIncomingMessageAndQueueAck(_ message: Message) async throws {
         try await dbPool.write { db in
             try persistMessage(message, in: db, queueAck: true)
         }
         SanchrLogger.persistence.debug("Saved incoming message \(message.id) and queued ack")
     }
 
-    func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
+    public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
         try await dbPool.read { db in
             var request = MessageRecord
                 .filter(Column("conversationId") == conversationId)
@@ -140,13 +158,13 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteMessage(id: String) async throws {
+    public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
         }
     }
 
-    func markConversationAsRead(conversationId: String, upToMessageId: String) async throws {
+    public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws {
         try await dbPool.write { db in
             try db.execute(
                 sql: "UPDATE message SET status = ? WHERE id = ?",
@@ -159,7 +177,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {
+    public func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {
         try await dbPool.write { db in
             try db.execute(
                 sql: "UPDATE message SET status = ? WHERE id = ?",
@@ -168,7 +186,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] {
+    public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] {
         try await dbPool.read { db in
             try PendingMessageAckRecord
                 .order(Column("createdAt").asc)
@@ -178,7 +196,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws {
+    public func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws {
         guard !acks.isEmpty else { return }
 
         try await dbPool.write { db in
@@ -191,7 +209,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func searchMessages(conversationId: String, query: String) async throws -> [Message] {
+    public func searchMessages(conversationId: String, query: String) async throws -> [Message] {
         try await dbPool.read { db in
             let pattern = "%\(query)%"
             let records = try MessageRecord
@@ -206,7 +224,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Conversations
 
-    func saveConversation(_ conversation: Conversation) async throws {
+    public func saveConversation(_ conversation: Conversation) async throws {
         try await dbPool.write { db in
             var record = ConversationRecord(from: conversation)
             if let existingRecord = try ConversationRecord.fetchOne(db, key: conversation.id) {
@@ -236,7 +254,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func fetchConversation(id: String) async throws -> Conversation? {
+    public func fetchConversation(id: String) async throws -> Conversation? {
         try await dbPool.read { db in
             guard let convRecord = try ConversationRecord.fetchOne(db, key: id) else {
                 return nil
@@ -261,7 +279,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func fetchConversations() async throws -> [Conversation] {
+    public func fetchConversations() async throws -> [Conversation] {
         try await dbPool.read { db in
             let conversationRecords = try ConversationRecord
                 .order(
@@ -292,7 +310,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteConversation(id: String) async throws {
+    public func deleteConversation(id: String) async throws {
         try await dbPool.write { db in
             // CASCADE handles messages and participants
             _ = try ConversationRecord.deleteOne(db, key: id)
@@ -301,14 +319,14 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Contacts
 
-    func saveContact(_ user: User) async throws {
+    public func saveContact(_ user: User) async throws {
         let record = UserRecord(from: user)
         try await dbPool.write { db in
             try record.save(db, onConflict: Database.ConflictResolution.replace)
         }
     }
 
-    func fetchContacts() async throws -> [User] {
+    public func fetchContacts() async throws -> [User] {
         try await dbPool.read { db in
             try UserRecord
                 .filter(Column("isLocalUser") == false)
@@ -318,7 +336,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func searchContacts(query: String) async throws -> [User] {
+    public func searchContacts(query: String) async throws -> [User] {
         guard !query.isEmpty else { return try await fetchContacts() }
         return try await dbPool.read { db in
             try UserRecord
@@ -332,14 +350,14 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Vault
 
-    func saveVaultItem(_ item: VaultItem) async throws {
+    public func saveVaultItem(_ item: VaultItem) async throws {
         let record = VaultItemRecord(from: item)
         try await dbPool.write { db in
             try record.save(db, onConflict: Database.ConflictResolution.replace)
         }
     }
 
-    func fetchVaultItems() async throws -> [VaultItem] {
+    public func fetchVaultItems() async throws -> [VaultItem] {
         try await dbPool.read { db in
             try VaultItemRecord
                 .order(Column("createdAt").desc)
@@ -348,7 +366,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteVaultItem(id: String) async throws {
+    public func deleteVaultItem(id: String) async throws {
         try await dbPool.write { db in
             _ = try VaultItemRecord.deleteOne(db, key: id)
         }
@@ -356,14 +374,14 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Access Keys (Media Forward Secrecy)
 
-    func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws {
+    public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws {
         let record = AccessKeyRecord(entry: entry)
         try await dbPool.write { db in
             try record.save(db, onConflict: .replace)
         }
     }
 
-    func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? {
+    public func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? {
         try await dbPool.read { db in
             guard let record = try AccessKeyRecord
                 .filter(AccessKeyRecord.Columns.mediaId == mediaId)
@@ -375,7 +393,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteAccessKeyEntry(mediaId: String) async throws {
+    public func deleteAccessKeyEntry(mediaId: String) async throws {
         try await dbPool.write { db in
             _ = try AccessKeyRecord
                 .filter(AccessKeyRecord.Columns.mediaId == mediaId)
@@ -383,7 +401,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func purgeAccessKeyEntries(olderThan cutoff: Date) async throws -> Int {
+    public func purgeAccessKeyEntries(olderThan cutoff: Date) async throws -> Int {
         try await dbPool.write { db in
             try AccessKeyRecord
                 .filter(AccessKeyRecord.Columns.createdAt < cutoff)
@@ -391,7 +409,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func deleteAllAccessKeyEntries() async throws {
+    public func deleteAllAccessKeyEntries() async throws {
         try await dbPool.write { db in
             _ = try AccessKeyRecord.deleteAll(db)
         }
@@ -399,7 +417,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Lifecycle
 
-    func hasLocalHistory() async throws -> Bool {
+    public func hasLocalHistory() async throws -> Bool {
         try await dbPool.read { db in
             let messageCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM message") ?? 0
             let conversationCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM conversation") ?? 0
@@ -407,7 +425,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot {
+    public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot {
         try await dbPool.read { db in
             let userRecords = try UserRecord.fetchAll(db)
             let conversationRecords = try ConversationRecord.fetchAll(db)
@@ -520,7 +538,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws {
+    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws {
         let tempPath = "\(dbPath).restore-\(UUID().uuidString.lowercased())"
         try Self.removeDatabaseArtifacts(at: tempPath)
 
@@ -684,7 +702,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    func purgeAllData() async throws {
+    public func purgeAllData() async throws {
         try dbPool.close()
         try Self.removeDatabaseArtifacts(at: dbPath)
         let newPassphrase = try Self.resolvePassphrase(for: dbPath, keyProvider: keyProvider)
@@ -811,7 +829,7 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         return dbDir.appendingPathComponent("sanchr.sqlite").path
     }
 
-    static func destroyDatabaseFiles(customPath: String? = nil) throws {
+    public static func destroyDatabaseFiles(customPath: String? = nil) throws {
         try removeDatabaseArtifacts(at: resolveDatabasePath(customPath: customPath))
     }
 
@@ -995,52 +1013,52 @@ final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 private final class ClosureLocalDatabaseKeyProvider: LocalDatabaseKeyProviderProtocol, @unchecked Sendable {
     private let passphraseProvider: @Sendable () throws -> String
 
-    init(passphraseProvider: @escaping @Sendable () throws -> String) {
+    public init(passphraseProvider: @escaping @Sendable () throws -> String) {
         self.passphraseProvider = passphraseProvider
     }
 
-    func resolveKeyResolution(forDatabaseAt path: String) throws -> LocalDatabaseKeyResolution {
+    public func resolveKeyResolution(forDatabaseAt path: String) throws -> LocalDatabaseKeyResolution {
         .passphrase(try passphraseProvider())
     }
 
-    func persistResolvedPassphrase(_ passphrase: String, forDatabaseAt path: String) throws {}
+    public func persistResolvedPassphrase(_ passphrase: String, forDatabaseAt path: String) throws {}
 
-    func resetDatabaseSecrets() throws {}
+    public func resetDatabaseSecrets() throws {}
 }
 
-final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
+public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     private let error: Error
 
-    init(error: Error) {
+    public init(error: Error) {
         self.error = error
     }
 
-    func saveMessage(_ message: Message) async throws { throw error }
-    func saveIncomingMessageAndQueueAck(_ message: Message) async throws { throw error }
-    func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { throw error }
-    func deleteMessage(id: String) async throws { throw error }
-    func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { throw error }
-    func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { throw error }
-    func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { throw error }
-    func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws { throw error }
-    func saveConversation(_ conversation: Conversation) async throws { throw error }
-    func fetchConversation(id: String) async throws -> Conversation? { throw error }
-    func fetchConversations() async throws -> [Conversation] { throw error }
-    func deleteConversation(id: String) async throws { throw error }
-    func saveContact(_ user: User) async throws { throw error }
-    func fetchContacts() async throws -> [User] { throw error }
-    func searchContacts(query: String) async throws -> [User] { throw error }
-    func saveVaultItem(_ item: VaultItem) async throws { throw error }
-    func fetchVaultItems() async throws -> [VaultItem] { throw error }
-    func deleteVaultItem(id: String) async throws { throw error }
-    func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
-    func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }
-    func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { throw error }
-    func deleteAccessKeyEntry(mediaId: String) async throws { throw error }
-    func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { throw error }
-    func deleteAllAccessKeyEntries() async throws { throw error }
-    func hasLocalHistory() async throws -> Bool { throw error }
-    func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
-    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
-    func purgeAllData() async throws { throw error }
+    public func saveMessage(_ message: Message) async throws { throw error }
+    public func saveIncomingMessageAndQueueAck(_ message: Message) async throws { throw error }
+    public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { throw error }
+    public func deleteMessage(id: String) async throws { throw error }
+    public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { throw error }
+    public func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { throw error }
+    public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { throw error }
+    public func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws { throw error }
+    public func saveConversation(_ conversation: Conversation) async throws { throw error }
+    public func fetchConversation(id: String) async throws -> Conversation? { throw error }
+    public func fetchConversations() async throws -> [Conversation] { throw error }
+    public func deleteConversation(id: String) async throws { throw error }
+    public func saveContact(_ user: User) async throws { throw error }
+    public func fetchContacts() async throws -> [User] { throw error }
+    public func searchContacts(query: String) async throws -> [User] { throw error }
+    public func saveVaultItem(_ item: VaultItem) async throws { throw error }
+    public func fetchVaultItems() async throws -> [VaultItem] { throw error }
+    public func deleteVaultItem(id: String) async throws { throw error }
+    public func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
+    public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }
+    public func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { throw error }
+    public func deleteAccessKeyEntry(mediaId: String) async throws { throw error }
+    public func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { throw error }
+    public func deleteAllAccessKeyEntries() async throws { throw error }
+    public func hasLocalHistory() async throws -> Bool { throw error }
+    public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
+    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
+    public func purgeAllData() async throws { throw error }
 }

@@ -1,6 +1,5 @@
 import Foundation
 import GRDB
-import SanchrShared
 
 /// GRDB Record for AccessKeyEntry persistence.
 struct AccessKeyRecord: Codable, FetchableRecord, PersistableRecord, Sendable {

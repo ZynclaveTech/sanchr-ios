@@ -1,26 +1,25 @@
 import Foundation
 import GRDB
-import SanchrShared
 
 // MARK: - User Record
 
-struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "user"
+public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "user"
 
-    var id: String
-    var phoneNumber: String
-    var displayName: String
-    var avatarURL: String?
-    var bio: String?
-    var isVerified: Bool
-    var lastSeen: Date?
-    var identityKeyFingerprint: String?
-    var status: String
-    var isLocalUser: Bool
+    public var id: String
+    public var phoneNumber: String
+    public var displayName: String
+    public var avatarURL: String?
+    public var bio: String?
+    public var isVerified: Bool
+    public var lastSeen: Date?
+    public var identityKeyFingerprint: String?
+    public var status: String
+    public var isLocalUser: Bool
 
     // MARK: - Domain Conversion
 
-    init(from user: User) {
+    public init(from user: User) {
         self.id = user.id
         self.phoneNumber = user.phoneNumber
         self.displayName = user.displayName
@@ -33,7 +32,7 @@ struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.isLocalUser = user.isLocalUser
     }
 
-    init(
+    public init(
         id: String,
         phoneNumber: String,
         displayName: String,
@@ -57,7 +56,7 @@ struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.isLocalUser = isLocalUser
     }
 
-    func toDomain() -> User {
+    public func toDomain() -> User {
         User(
             id: id,
             phoneNumber: phoneNumber,
@@ -75,26 +74,26 @@ struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
 
 // MARK: - Conversation Record
 
-struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "conversation"
+public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "conversation"
 
-    var id: String
-    var type: String
-    var unreadCount: Int
-    var isPinned: Bool
-    var isMuted: Bool
-    var isArchived: Bool
-    var disappearingMessagesDuration: Double?
-    var createdAt: Date
-    var updatedAt: Date
+    public var id: String
+    public var type: String
+    public var unreadCount: Int
+    public var isPinned: Bool
+    public var isMuted: Bool
+    public var isArchived: Bool
+    public var disappearingMessagesDuration: Double?
+    public var createdAt: Date
+    public var updatedAt: Date
     // Denormalized last message
-    var lastMessageId: String?
-    var lastMessageContent: String?
-    var lastMessageTimestamp: Date?
-    var lastMessageSenderId: String?
-    var lastMessageStatus: String?
+    public var lastMessageId: String?
+    public var lastMessageContent: String?
+    public var lastMessageTimestamp: Date?
+    public var lastMessageSenderId: String?
+    public var lastMessageStatus: String?
 
-    init(from conversation: Conversation) {
+    public init(from conversation: Conversation) {
         self.id = conversation.id
         self.type = conversation.type.rawValue
         self.unreadCount = conversation.unreadCount
@@ -114,7 +113,7 @@ struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable
         }
     }
 
-    init(
+    public init(
         id: String,
         type: String,
         unreadCount: Int,
@@ -146,7 +145,7 @@ struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable
         self.lastMessageStatus = lastMessageStatus
     }
 
-    func toDomain(participants: [User]) -> Conversation {
+    public func toDomain(participants: [User]) -> Conversation {
         var lastMessage: Message?
         if let msgId = lastMessageId,
            let contentJSON = lastMessageContent,
@@ -186,7 +185,7 @@ struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable
         return String(data: data, encoding: .utf8)
     }
 
-    static func decodeContent(_ json: String) -> Message.MessageContent? {
+    public static func decodeContent(_ json: String) -> Message.MessageContent? {
         guard let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(Message.MessageContent.self, from: data)
     }
@@ -194,29 +193,34 @@ struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, Sendable
 
 // MARK: - Conversation Participant Record
 
-struct ConversationParticipantRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "conversationParticipant"
+public struct ConversationParticipantRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "conversationParticipant"
 
-    var conversationId: String
-    var userId: String
+    public var conversationId: String
+    public var userId: String
+
+    public init(conversationId: String, userId: String) {
+        self.conversationId = conversationId
+        self.userId = userId
+    }
 }
 
 // MARK: - Message Record
 
-struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "message"
+public struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "message"
 
-    var id: String
-    var conversationId: String
-    var senderId: String
-    var timestamp: Date
-    var contentJSON: String
-    var status: String
-    var isOutgoing: Bool
-    var replyToMessageId: String?
-    var expiresAt: Date?
+    public var id: String
+    public var conversationId: String
+    public var senderId: String
+    public var timestamp: Date
+    public var contentJSON: String
+    public var status: String
+    public var isOutgoing: Bool
+    public var replyToMessageId: String?
+    public var expiresAt: Date?
 
-    init(from message: Message) {
+    public init(from message: Message) {
         self.id = message.id
         self.conversationId = message.conversationId
         self.senderId = message.senderId
@@ -228,7 +232,7 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.expiresAt = message.expiresAt
     }
 
-    init(
+    public init(
         id: String,
         conversationId: String,
         senderId: String,
@@ -250,7 +254,7 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.expiresAt = expiresAt
     }
 
-    func toDomain() -> Message {
+    public func toDomain() -> Message {
         Message(
             id: id,
             conversationId: conversationId,
@@ -264,7 +268,7 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         )
     }
 
-    static func encodeContent(_ content: Message.MessageContent) -> String {
+    public static func encodeContent(_ content: Message.MessageContent) -> String {
         guard let data = try? JSONEncoder().encode(content),
               let json = String(data: data, encoding: .utf8)
         else { return "{}" }
@@ -277,20 +281,20 @@ struct MessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     }
 }
 
-struct PendingMessageAckRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "pendingMessageAck"
+public struct PendingMessageAckRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "pendingMessageAck"
 
-    var conversationId: String
-    var messageId: String
-    var createdAt: Date
+    public var conversationId: String
+    public var messageId: String
+    public var createdAt: Date
 
-    init(from ack: PendingMessageAck) {
+    public init(from ack: PendingMessageAck) {
         self.conversationId = ack.conversationId
         self.messageId = ack.messageId
         self.createdAt = ack.createdAt
     }
 
-    func toDomain() -> PendingMessageAck {
+    public func toDomain() -> PendingMessageAck {
         PendingMessageAck(
             conversationId: conversationId,
             messageId: messageId,
@@ -301,24 +305,24 @@ struct PendingMessageAckRecord: Codable, FetchableRecord, PersistableRecord, Sen
 
 // MARK: - Vault Item Record
 
-struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
-    static let databaseTableName = "vaultItem"
+public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "vaultItem"
 
-    var id: String
-    var name: String
-    var type: String
-    var sizeBytes: Int64
-    var encryptionKey: Data
-    var encryptionIV: Data
-    var thumbnailData: Data?
-    var encryptedThumbnailURL: String?
-    var createdAt: Date
-    var updatedAt: Date
-    var isCachedLocally: Bool
-    var remoteURL: String?
-    var localURL: String?
+    public var id: String
+    public var name: String
+    public var type: String
+    public var sizeBytes: Int64
+    public var encryptionKey: Data
+    public var encryptionIV: Data
+    public var thumbnailData: Data?
+    public var encryptedThumbnailURL: String?
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var isCachedLocally: Bool
+    public var remoteURL: String?
+    public var localURL: String?
 
-    init(from item: VaultItem) {
+    public init(from item: VaultItem) {
         self.id = item.id
         self.name = item.name
         self.type = item.type.rawValue
@@ -334,7 +338,7 @@ struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.localURL = item.localURL?.absoluteString
     }
 
-    init(
+    public init(
         id: String,
         name: String,
         type: String,
@@ -364,7 +368,7 @@ struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         self.localURL = localURL
     }
 
-    func toDomain() -> VaultItem {
+    public func toDomain() -> VaultItem {
         VaultItem(
             id: id,
             name: name,
