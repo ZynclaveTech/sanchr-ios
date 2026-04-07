@@ -26,3 +26,5 @@ Thumbs.db
 
 Vendor/LibSignal/device/libsignal_ffi.a
 Vendor/LibSignal/simulator/libsignal_ffi.a
+
+build/
