@@ -202,6 +202,8 @@ targets:
         com.apple.developer.associated-domains: []
         com.apple.security.application-groups:
           - group.io.sanchr.shared
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)io.sanchr.shared
 
   SanchrTests:
     type: bundle.unit-test
