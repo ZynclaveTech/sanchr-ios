@@ -55,6 +55,25 @@ targets:
         SKIP_INSTALL: true
         BUILD_LIBRARY_FOR_DISTRIBUTION: false
 
+  SanchrShared:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: SanchrShared
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.sanchr.shared
+        PRODUCT_NAME: SanchrShared
+        DEFINES_MODULE: YES
+        SWIFT_VERSION: "6.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        ENABLE_BITCODE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+
   Sanchr:
     type: application
     platform: iOS
@@ -70,6 +89,7 @@ targets:
       - path: Resources/Fonts
     dependencies:
       - target: LibSignalClient
+      - target: SanchrShared
       - package: grpc-swift
         product: GRPC
       - package: swift-protobuf
