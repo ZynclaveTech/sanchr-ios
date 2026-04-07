@@ -2,7 +2,7 @@ import Foundation
 
 /// Typed error hierarchy for the Sanchr application.
 /// Each case maps to a user-facing message and a recovery strategy.
-enum AppError: LocalizedError, Equatable {
+public enum AppError: LocalizedError, Equatable {
     // MARK: - Network
 
     case networkUnavailable
@@ -60,7 +60,7 @@ enum AppError: LocalizedError, Equatable {
 
     // MARK: - LocalizedError
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .networkUnavailable:
             return "No internet connection. Please check your network settings."
@@ -134,7 +134,7 @@ enum AppError: LocalizedError, Equatable {
     }
 
     /// Whether this error is recoverable by retrying.
-    var isRetryable: Bool {
+    public var isRetryable: Bool {
         switch self {
         case .networkUnavailable, .serverUnreachable, .requestTimeout,
             .mediaUploadFailed, .mediaDownloadFailed, .callConnectionFailed:

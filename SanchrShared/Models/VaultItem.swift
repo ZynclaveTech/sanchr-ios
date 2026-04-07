@@ -1,38 +1,68 @@
 import Foundation
 
 /// Domain model representing an encrypted vault item (secure file storage).
-struct VaultItem: Identifiable, Codable, Hashable, Sendable {
-    let id: String
-    var name: String
-    var type: VaultItemType
-    var sizeBytes: Int64
-    var encryptionKey: Data
-    var encryptionIV: Data
-    var thumbnailData: Data?
+public struct VaultItem: Identifiable, Codable, Hashable, Sendable {
+    public let id: String
+    public var name: String
+    public var type: VaultItemType
+    public var sizeBytes: Int64
+    public var encryptionKey: Data
+    public var encryptionIV: Data
+    public var thumbnailData: Data?
     /// URL to the encrypted thumbnail blob in S3 (decrypted with encryptionKey).
-    var encryptedThumbnailURL: URL?
-    var createdAt: Date
-    var updatedAt: Date
+    public var encryptedThumbnailURL: URL?
+    public var createdAt: Date
+    public var updatedAt: Date
 
     /// Whether the item has been downloaded to the local cache.
-    var isCachedLocally: Bool
+    public var isCachedLocally: Bool
 
     /// Remote storage URL.
-    var remoteURL: URL?
+    public var remoteURL: URL?
 
     /// Local file URL (when cached).
-    var localURL: URL?
+    public var localURL: URL?
+
+    public init(
+        id: String,
+        name: String,
+        type: VaultItemType,
+        sizeBytes: Int64,
+        encryptionKey: Data,
+        encryptionIV: Data,
+        thumbnailData: Data? = nil,
+        encryptedThumbnailURL: URL? = nil,
+        createdAt: Date,
+        updatedAt: Date,
+        isCachedLocally: Bool,
+        remoteURL: URL? = nil,
+        localURL: URL? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.sizeBytes = sizeBytes
+        self.encryptionKey = encryptionKey
+        self.encryptionIV = encryptionIV
+        self.thumbnailData = thumbnailData
+        self.encryptedThumbnailURL = encryptedThumbnailURL
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isCachedLocally = isCachedLocally
+        self.remoteURL = remoteURL
+        self.localURL = localURL
+    }
 
     // MARK: - Types
 
-    enum VaultItemType: String, Codable, Hashable, Sendable {
+    public enum VaultItemType: String, Codable, Hashable, Sendable {
         case photo
         case video
         case document
         case audio
         case note
 
-        var systemImage: String {
+        public var systemImage: String {
             switch self {
             case .photo: "photo.fill"
             case .video: "video.fill"
@@ -46,7 +76,7 @@ struct VaultItem: Identifiable, Codable, Hashable, Sendable {
     // MARK: - Computed
 
     /// Human-readable file size.
-    var formattedSize: String {
+    public var formattedSize: String {
         ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
     }
 }

@@ -1,11 +1,11 @@
 import Foundation
 
-enum BackupArchive {
-    static let formatVersion: Int32 = 1
-    static let automaticBackupInterval: TimeInterval = 6 * 60 * 60
+public enum BackupArchive {
+    public static let formatVersion: Int32 = 1
+    public static let automaticBackupInterval: TimeInterval = 6 * 60 * 60
 }
 
-enum BackupArchiveFrameType: String, Codable, Sendable {
+public enum BackupArchiveFrameType: String, Codable, Sendable {
     case info
     case contact
     case conversation
@@ -13,21 +13,42 @@ enum BackupArchiveFrameType: String, Codable, Sendable {
     case vaultItem = "vault_item"
 }
 
-struct BackupArchiveRecordCounts: Codable, Equatable, Sendable {
-    var contacts: Int
-    var conversations: Int
-    var messages: Int
-    var vaultItems: Int
+public struct BackupArchiveRecordCounts: Codable, Equatable, Sendable {
+    public var contacts: Int
+    public var conversations: Int
+    public var messages: Int
+    public var vaultItems: Int
+
+    public init(contacts: Int, conversations: Int, messages: Int, vaultItems: Int) {
+        self.contacts = contacts
+        self.conversations = conversations
+        self.messages = messages
+        self.vaultItems = vaultItems
+    }
 }
 
-struct BackupArchiveSnapshot: Equatable, Sendable {
-    var info: BackupArchiveInfoFrame
-    var contacts: [BackupArchiveContactFrame]
-    var conversations: [BackupArchiveConversationFrame]
-    var messages: [BackupArchiveMessageFrame]
-    var vaultItems: [BackupArchiveVaultItemFrame]
+public struct BackupArchiveSnapshot: Equatable, Sendable {
+    public var info: BackupArchiveInfoFrame
+    public var contacts: [BackupArchiveContactFrame]
+    public var conversations: [BackupArchiveConversationFrame]
+    public var messages: [BackupArchiveMessageFrame]
+    public var vaultItems: [BackupArchiveVaultItemFrame]
 
-    var contentCounts: BackupArchiveRecordCounts {
+    public init(
+        info: BackupArchiveInfoFrame,
+        contacts: [BackupArchiveContactFrame],
+        conversations: [BackupArchiveConversationFrame],
+        messages: [BackupArchiveMessageFrame],
+        vaultItems: [BackupArchiveVaultItemFrame]
+    ) {
+        self.info = info
+        self.contacts = contacts
+        self.conversations = conversations
+        self.messages = messages
+        self.vaultItems = vaultItems
+    }
+
+    public var contentCounts: BackupArchiveRecordCounts {
         BackupArchiveRecordCounts(
             contacts: contacts.count,
             conversations: conversations.count,
@@ -41,117 +62,314 @@ private struct BackupFrameProbe: Codable {
     let type: BackupArchiveFrameType
 }
 
-struct BackupArchiveInfoFrame: Codable, Equatable, Sendable {
-    var type: BackupArchiveFrameType = .info
-    let formatVersion: Int32
-    let exportedAtMs: Int64
-    let platform: String
-    let appVersion: String
-    let contactCount: Int
-    let conversationCount: Int
-    let messageCount: Int
-    let vaultItemCount: Int
+public struct BackupArchiveInfoFrame: Codable, Equatable, Sendable {
+    public var type: BackupArchiveFrameType = .info
+    public let formatVersion: Int32
+    public let exportedAtMs: Int64
+    public let platform: String
+    public let appVersion: String
+    public let contactCount: Int
+    public let conversationCount: Int
+    public let messageCount: Int
+    public let vaultItemCount: Int
+
+    public init(
+        type: BackupArchiveFrameType = .info,
+        formatVersion: Int32,
+        exportedAtMs: Int64,
+        platform: String,
+        appVersion: String,
+        contactCount: Int,
+        conversationCount: Int,
+        messageCount: Int,
+        vaultItemCount: Int
+    ) {
+        self.type = type
+        self.formatVersion = formatVersion
+        self.exportedAtMs = exportedAtMs
+        self.platform = platform
+        self.appVersion = appVersion
+        self.contactCount = contactCount
+        self.conversationCount = conversationCount
+        self.messageCount = messageCount
+        self.vaultItemCount = vaultItemCount
+    }
 }
 
-struct BackupArchiveMediaPayload: Codable, Equatable, Sendable {
-    let url: String
-    let thumbnailURL: String?
-    let encryptionKeyBase64: String?
-    let encryptionIVBase64: String?
-    let mimeType: String?
-    let sizeBytes: Int64?
-    let caption: String?
-    let width: Int?
-    let height: Int?
-    let durationMs: Int64?
-    let fileName: String?
+public struct BackupArchiveMediaPayload: Codable, Equatable, Sendable {
+    public let url: String
+    public let thumbnailURL: String?
+    public let encryptionKeyBase64: String?
+    public let encryptionIVBase64: String?
+    public let mimeType: String?
+    public let sizeBytes: Int64?
+    public let caption: String?
+    public let width: Int?
+    public let height: Int?
+    public let durationMs: Int64?
+    public let fileName: String?
+
+    public init(
+        url: String,
+        thumbnailURL: String? = nil,
+        encryptionKeyBase64: String? = nil,
+        encryptionIVBase64: String? = nil,
+        mimeType: String? = nil,
+        sizeBytes: Int64? = nil,
+        caption: String? = nil,
+        width: Int? = nil,
+        height: Int? = nil,
+        durationMs: Int64? = nil,
+        fileName: String? = nil
+    ) {
+        self.url = url
+        self.thumbnailURL = thumbnailURL
+        self.encryptionKeyBase64 = encryptionKeyBase64
+        self.encryptionIVBase64 = encryptionIVBase64
+        self.mimeType = mimeType
+        self.sizeBytes = sizeBytes
+        self.caption = caption
+        self.width = width
+        self.height = height
+        self.durationMs = durationMs
+        self.fileName = fileName
+    }
 }
 
-struct BackupArchiveLocationPayload: Codable, Equatable, Sendable {
-    let latitude: Double
-    let longitude: Double
-    let label: String?
+public struct BackupArchiveLocationPayload: Codable, Equatable, Sendable {
+    public let latitude: Double
+    public let longitude: Double
+    public let label: String?
+
+    public init(latitude: Double, longitude: Double, label: String? = nil) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.label = label
+    }
 }
 
-struct BackupArchiveContactPayload: Codable, Equatable, Sendable {
-    let name: String
-    let phoneNumber: String
+public struct BackupArchiveContactPayload: Codable, Equatable, Sendable {
+    public let name: String
+    public let phoneNumber: String
+
+    public init(name: String, phoneNumber: String) {
+        self.name = name
+        self.phoneNumber = phoneNumber
+    }
 }
 
-struct BackupArchiveContactFrame: Codable, Equatable, Sendable {
-    var type: BackupArchiveFrameType = .contact
-    let id: String
-    let userId: String?
-    let phoneNumber: String
-    let displayName: String
-    let avatarURL: String?
-    let bio: String?
-    let isVerified: Bool
-    let lastSeenMs: Int64?
-    let status: String
-    let isLocalUser: Bool
-    let isRegistered: Bool
-    let isBlocked: Bool
-    let isFavorite: Bool
-    let lastSyncedAtMs: Int64?
+public struct BackupArchiveContactFrame: Codable, Equatable, Sendable {
+    public var type: BackupArchiveFrameType = .contact
+    public let id: String
+    public let userId: String?
+    public let phoneNumber: String
+    public let displayName: String
+    public let avatarURL: String?
+    public let bio: String?
+    public let isVerified: Bool
+    public let lastSeenMs: Int64?
+    public let status: String
+    public let isLocalUser: Bool
+    public let isRegistered: Bool
+    public let isBlocked: Bool
+    public let isFavorite: Bool
+    public let lastSyncedAtMs: Int64?
+
+    public init(
+        type: BackupArchiveFrameType = .contact,
+        id: String,
+        userId: String?,
+        phoneNumber: String,
+        displayName: String,
+        avatarURL: String?,
+        bio: String?,
+        isVerified: Bool,
+        lastSeenMs: Int64?,
+        status: String,
+        isLocalUser: Bool,
+        isRegistered: Bool,
+        isBlocked: Bool,
+        isFavorite: Bool,
+        lastSyncedAtMs: Int64?
+    ) {
+        self.type = type
+        self.id = id
+        self.userId = userId
+        self.phoneNumber = phoneNumber
+        self.displayName = displayName
+        self.avatarURL = avatarURL
+        self.bio = bio
+        self.isVerified = isVerified
+        self.lastSeenMs = lastSeenMs
+        self.status = status
+        self.isLocalUser = isLocalUser
+        self.isRegistered = isRegistered
+        self.isBlocked = isBlocked
+        self.isFavorite = isFavorite
+        self.lastSyncedAtMs = lastSyncedAtMs
+    }
 }
 
-struct BackupArchiveConversationFrame: Codable, Equatable, Sendable {
-    var type: BackupArchiveFrameType = .conversation
-    let id: String
-    let conversationType: String
-    let title: String?
-    let avatarURL: String?
-    let participantIDs: [String]
-    let lastMessageID: String?
-    let lastMessagePreview: String?
-    let lastMessageTimestampMs: Int64?
-    let lastMessageSenderID: String?
-    let lastMessageStatus: String?
-    let lastMessageContentType: String?
-    let lastMessageContentBody: String?
-    let unreadCount: Int
-    let isPinned: Bool
-    let isMuted: Bool
-    let isArchived: Bool
-    let disappearingDurationMs: Int64?
-    let createdAtMs: Int64
-    let updatedAtMs: Int64
+public struct BackupArchiveConversationFrame: Codable, Equatable, Sendable {
+    public var type: BackupArchiveFrameType = .conversation
+    public let id: String
+    public let conversationType: String
+    public let title: String?
+    public let avatarURL: String?
+    public let participantIDs: [String]
+    public let lastMessageID: String?
+    public let lastMessagePreview: String?
+    public let lastMessageTimestampMs: Int64?
+    public let lastMessageSenderID: String?
+    public let lastMessageStatus: String?
+    public let lastMessageContentType: String?
+    public let lastMessageContentBody: String?
+    public let unreadCount: Int
+    public let isPinned: Bool
+    public let isMuted: Bool
+    public let isArchived: Bool
+    public let disappearingDurationMs: Int64?
+    public let createdAtMs: Int64
+    public let updatedAtMs: Int64
+
+    public init(
+        type: BackupArchiveFrameType = .conversation,
+        id: String,
+        conversationType: String,
+        title: String?,
+        avatarURL: String?,
+        participantIDs: [String],
+        lastMessageID: String?,
+        lastMessagePreview: String?,
+        lastMessageTimestampMs: Int64?,
+        lastMessageSenderID: String?,
+        lastMessageStatus: String?,
+        lastMessageContentType: String?,
+        lastMessageContentBody: String?,
+        unreadCount: Int,
+        isPinned: Bool,
+        isMuted: Bool,
+        isArchived: Bool,
+        disappearingDurationMs: Int64?,
+        createdAtMs: Int64,
+        updatedAtMs: Int64
+    ) {
+        self.type = type
+        self.id = id
+        self.conversationType = conversationType
+        self.title = title
+        self.avatarURL = avatarURL
+        self.participantIDs = participantIDs
+        self.lastMessageID = lastMessageID
+        self.lastMessagePreview = lastMessagePreview
+        self.lastMessageTimestampMs = lastMessageTimestampMs
+        self.lastMessageSenderID = lastMessageSenderID
+        self.lastMessageStatus = lastMessageStatus
+        self.lastMessageContentType = lastMessageContentType
+        self.lastMessageContentBody = lastMessageContentBody
+        self.unreadCount = unreadCount
+        self.isPinned = isPinned
+        self.isMuted = isMuted
+        self.isArchived = isArchived
+        self.disappearingDurationMs = disappearingDurationMs
+        self.createdAtMs = createdAtMs
+        self.updatedAtMs = updatedAtMs
+    }
 }
 
-struct BackupArchiveMessageFrame: Codable, Equatable, Sendable {
-    var type: BackupArchiveFrameType = .message
-    let id: String
-    let conversationID: String
-    let senderID: String
-    let timestampMs: Int64
-    let contentType: String
-    let contentBody: String
-    let previewText: String?
-    let status: String
-    let isOutgoing: Bool
-    let replyToMessageID: String?
-    let expiresAtMs: Int64?
-    let isDeleted: Bool
+public struct BackupArchiveMessageFrame: Codable, Equatable, Sendable {
+    public var type: BackupArchiveFrameType = .message
+    public let id: String
+    public let conversationID: String
+    public let senderID: String
+    public let timestampMs: Int64
+    public let contentType: String
+    public let contentBody: String
+    public let previewText: String?
+    public let status: String
+    public let isOutgoing: Bool
+    public let replyToMessageID: String?
+    public let expiresAtMs: Int64?
+    public let isDeleted: Bool
+
+    public init(
+        type: BackupArchiveFrameType = .message,
+        id: String,
+        conversationID: String,
+        senderID: String,
+        timestampMs: Int64,
+        contentType: String,
+        contentBody: String,
+        previewText: String?,
+        status: String,
+        isOutgoing: Bool,
+        replyToMessageID: String?,
+        expiresAtMs: Int64?,
+        isDeleted: Bool
+    ) {
+        self.type = type
+        self.id = id
+        self.conversationID = conversationID
+        self.senderID = senderID
+        self.timestampMs = timestampMs
+        self.contentType = contentType
+        self.contentBody = contentBody
+        self.previewText = previewText
+        self.status = status
+        self.isOutgoing = isOutgoing
+        self.replyToMessageID = replyToMessageID
+        self.expiresAtMs = expiresAtMs
+        self.isDeleted = isDeleted
+    }
 }
 
-struct BackupArchiveVaultItemFrame: Codable, Equatable, Sendable {
-    var type: BackupArchiveFrameType = .vaultItem
-    let id: String
-    let name: String
-    let itemType: String
-    let sizeBytes: Int64
-    let encryptionKeyBase64: String
-    let encryptionIVBase64: String
-    let encryptedThumbnailURL: String?
-    let createdAtMs: Int64
-    let updatedAtMs: Int64
-    let isCachedLocally: Bool
-    let remoteURL: String?
-    let localURL: String?
+public struct BackupArchiveVaultItemFrame: Codable, Equatable, Sendable {
+    public var type: BackupArchiveFrameType = .vaultItem
+    public let id: String
+    public let name: String
+    public let itemType: String
+    public let sizeBytes: Int64
+    public let encryptionKeyBase64: String
+    public let encryptionIVBase64: String
+    public let encryptedThumbnailURL: String?
+    public let createdAtMs: Int64
+    public let updatedAtMs: Int64
+    public let isCachedLocally: Bool
+    public let remoteURL: String?
+    public let localURL: String?
+
+    public init(
+        type: BackupArchiveFrameType = .vaultItem,
+        id: String,
+        name: String,
+        itemType: String,
+        sizeBytes: Int64,
+        encryptionKeyBase64: String,
+        encryptionIVBase64: String,
+        encryptedThumbnailURL: String?,
+        createdAtMs: Int64,
+        updatedAtMs: Int64,
+        isCachedLocally: Bool,
+        remoteURL: String?,
+        localURL: String?
+    ) {
+        self.type = type
+        self.id = id
+        self.name = name
+        self.itemType = itemType
+        self.sizeBytes = sizeBytes
+        self.encryptionKeyBase64 = encryptionKeyBase64
+        self.encryptionIVBase64 = encryptionIVBase64
+        self.encryptedThumbnailURL = encryptedThumbnailURL
+        self.createdAtMs = createdAtMs
+        self.updatedAtMs = updatedAtMs
+        self.isCachedLocally = isCachedLocally
+        self.remoteURL = remoteURL
+        self.localURL = localURL
+    }
 }
 
-enum BackupArchiveSerializer {
+public enum BackupArchiveSerializer {
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -160,7 +378,7 @@ enum BackupArchiveSerializer {
 
     private static let decoder = JSONDecoder()
 
-    static func serialize(_ snapshot: BackupArchiveSnapshot) throws -> Data {
+    public static func serialize(_ snapshot: BackupArchiveSnapshot) throws -> Data {
         var lines: [Data] = []
         lines.append(try encoder.encode(snapshot.info))
         try snapshot.contacts.forEach { lines.append(try encoder.encode($0)) }
@@ -174,7 +392,7 @@ enum BackupArchiveSerializer {
         }
     }
 
-    static func deserialize(_ data: Data) throws -> BackupArchiveSnapshot {
+    public static func deserialize(_ data: Data) throws -> BackupArchiveSnapshot {
         guard let archiveString = String(data: data, encoding: .utf8) else {
             throw AppError.databaseError(reason: "Backup archive is not valid UTF-8 data")
         }

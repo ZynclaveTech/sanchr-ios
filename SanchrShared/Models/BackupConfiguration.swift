@@ -1,11 +1,27 @@
 import Foundation
 
 /// Persisted local configuration for remote encrypted backups.
-struct BackupConfiguration: Codable, Equatable, Sendable {
-    let isEnabled: Bool
-    let lineageId: String
-    let formatVersion: Int32
-    let recoveryKeyConfirmedAt: Date
-    let lastBackupAt: Date?
-    let lastBackupContentHash: String?
+public struct BackupConfiguration: Codable, Equatable, Sendable {
+    public let isEnabled: Bool
+    public let lineageId: String
+    public let formatVersion: Int32
+    public let recoveryKeyConfirmedAt: Date
+    public let lastBackupAt: Date?
+    public let lastBackupContentHash: String?
+
+    public init(
+        isEnabled: Bool,
+        lineageId: String,
+        formatVersion: Int32,
+        recoveryKeyConfirmedAt: Date,
+        lastBackupAt: Date? = nil,
+        lastBackupContentHash: String? = nil
+    ) {
+        self.isEnabled = isEnabled
+        self.lineageId = lineageId
+        self.formatVersion = formatVersion
+        self.recoveryKeyConfirmedAt = recoveryKeyConfirmedAt
+        self.lastBackupAt = lastBackupAt
+        self.lastBackupContentHash = lastBackupContentHash
+    }
 }

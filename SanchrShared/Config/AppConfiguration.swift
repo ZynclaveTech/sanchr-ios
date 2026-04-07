@@ -2,34 +2,64 @@ import Foundation
 
 /// Environment-aware configuration providing API URLs, feature flags,
 /// and build-specific settings.
-struct AppConfiguration: Sendable {
-    enum Environment: String, Sendable {
+public struct AppConfiguration: Sendable {
+    public enum Environment: String, Sendable {
         case development
         case dev
         case staging
         case production
     }
 
-    let environment: Environment
-    let grpcHost: String
-    let grpcPort: Int
-    let callHost: String
-    let callPort: Int
-    let useTLS: Bool
-    let mediaBaseURL: URL
-    let stunServers: [String]
-    let turnServers: [String]
+    public let environment: Environment
+    public let grpcHost: String
+    public let grpcPort: Int
+    public let callHost: String
+    public let callPort: Int
+    public let useTLS: Bool
+    public let mediaBaseURL: URL
+    public let stunServers: [String]
+    public let turnServers: [String]
 
     // MARK: - Feature Flags
 
-    let isVaultEnabled: Bool
-    let isVideoCallEnabled: Bool
-    let isDisappearingMessagesEnabled: Bool
-    let maxMediaUploadSizeMB: Int
+    public let isVaultEnabled: Bool
+    public let isVideoCallEnabled: Bool
+    public let isDisappearingMessagesEnabled: Bool
+    public let maxMediaUploadSizeMB: Int
+
+    public init(
+        environment: Environment,
+        grpcHost: String,
+        grpcPort: Int,
+        callHost: String,
+        callPort: Int,
+        useTLS: Bool,
+        mediaBaseURL: URL,
+        stunServers: [String],
+        turnServers: [String],
+        isVaultEnabled: Bool,
+        isVideoCallEnabled: Bool,
+        isDisappearingMessagesEnabled: Bool,
+        maxMediaUploadSizeMB: Int
+    ) {
+        self.environment = environment
+        self.grpcHost = grpcHost
+        self.grpcPort = grpcPort
+        self.callHost = callHost
+        self.callPort = callPort
+        self.useTLS = useTLS
+        self.mediaBaseURL = mediaBaseURL
+        self.stunServers = stunServers
+        self.turnServers = turnServers
+        self.isVaultEnabled = isVaultEnabled
+        self.isVideoCallEnabled = isVideoCallEnabled
+        self.isDisappearingMessagesEnabled = isDisappearingMessagesEnabled
+        self.maxMediaUploadSizeMB = maxMediaUploadSizeMB
+    }
 
     // MARK: - Factory
 
-    static var current: AppConfiguration {
+    public static var current: AppConfiguration {
         #if DEBUG
             return .dev
         #else
@@ -37,7 +67,7 @@ struct AppConfiguration: Sendable {
         #endif
     }
 
-    static let development = AppConfiguration(
+    public static let development = AppConfiguration(
         environment: .development,
         grpcHost: "localhost",
         grpcPort: 50051,
@@ -53,7 +83,7 @@ struct AppConfiguration: Sendable {
         maxMediaUploadSizeMB: 100
     )
 
-    static let dev = AppConfiguration(
+    public static let dev = AppConfiguration(
         environment: .dev,
         grpcHost: "api-dev.sanchr.com",
         grpcPort: 443,
@@ -69,7 +99,7 @@ struct AppConfiguration: Sendable {
         maxMediaUploadSizeMB: 100
     )
 
-    static let staging = AppConfiguration(
+    public static let staging = AppConfiguration(
         environment: .staging,
         grpcHost: "api-staging.sanchr.io",
         grpcPort: 443,
@@ -85,7 +115,7 @@ struct AppConfiguration: Sendable {
         maxMediaUploadSizeMB: 50
     )
 
-    static let production = AppConfiguration(
+    public static let production = AppConfiguration(
         environment: .production,
         grpcHost: "api.sanchr.io",
         grpcPort: 443,

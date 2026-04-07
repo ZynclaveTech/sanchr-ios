@@ -1,23 +1,47 @@
 import Foundation
 
 /// Domain model representing an encrypted message.
-struct Message: Identifiable, Codable, Hashable, Sendable {
-    let id: String
-    let conversationId: String
-    let senderId: String
-    let timestamp: Date
-    var content: MessageContent
-    var status: DeliveryStatus
-    var isOutgoing: Bool
-    var replyToMessageId: String?
-    var reactions: [MessageReaction] = []
+public struct Message: Identifiable, Codable, Hashable, Sendable {
+    public let id: String
+    public let conversationId: String
+    public let senderId: String
+    public let timestamp: Date
+    public var content: MessageContent
+    public var status: DeliveryStatus
+    public var isOutgoing: Bool
+    public var replyToMessageId: String?
+    public var reactions: [MessageReaction] = []
 
     /// Disappearing message timer (nil if persistent).
-    var expiresAt: Date?
+    public var expiresAt: Date?
+
+    public init(
+        id: String,
+        conversationId: String,
+        senderId: String,
+        timestamp: Date,
+        content: MessageContent,
+        status: DeliveryStatus,
+        isOutgoing: Bool,
+        replyToMessageId: String? = nil,
+        reactions: [MessageReaction] = [],
+        expiresAt: Date? = nil
+    ) {
+        self.id = id
+        self.conversationId = conversationId
+        self.senderId = senderId
+        self.timestamp = timestamp
+        self.content = content
+        self.status = status
+        self.isOutgoing = isOutgoing
+        self.replyToMessageId = replyToMessageId
+        self.reactions = reactions
+        self.expiresAt = expiresAt
+    }
 
     // MARK: - Content Types
 
-    enum MessageContent: Codable, Hashable, Sendable {
+    public enum MessageContent: Codable, Hashable, Sendable {
         case text(String)
         case image(MediaAttachment)
         case video(MediaAttachment)
@@ -28,39 +52,73 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
         case system(SystemEvent)
     }
 
-    struct MediaAttachment: Codable, Hashable, Sendable {
-        let url: URL
-        let encryptionKey: Data
-        let encryptionIV: Data
-        let mimeType: String
-        let sizeBytes: Int64
-        let thumbnailURL: URL?
-        var caption: String?
+    public struct MediaAttachment: Codable, Hashable, Sendable {
+        public let url: URL
+        public let encryptionKey: Data
+        public let encryptionIV: Data
+        public let mimeType: String
+        public let sizeBytes: Int64
+        public let thumbnailURL: URL?
+        public var caption: String?
 
         /// Width/height for images and videos.
-        var width: Int?
-        var height: Int?
+        public var width: Int?
+        public var height: Int?
 
         /// Duration in seconds for audio and video.
-        var durationSeconds: Double?
+        public var durationSeconds: Double?
 
         /// BlurHash string for instant placeholder display before media download.
-        var blurHash: String?
+        public var blurHash: String?
 
         /// Original filename for documents/files (preserved across the
         /// upload pipeline so the receiver/sender bubble can render
         /// the human-readable name even after the local URL is replaced
         /// with a `sanchr-media://<mediaId>` reference).
-        var filename: String?
+        public var filename: String?
 
         /// Voice message metadata. All optional so legacy Codable payloads
         /// without these keys decode to `nil` and continue to work.
-        var isVoiceMessage: Bool?
-        var audioDurationMs: Int?
-        var audioWaveform: [Float]?
+        public var isVoiceMessage: Bool?
+        public var audioDurationMs: Int?
+        public var audioWaveform: [Float]?
+
+        public init(
+            url: URL,
+            encryptionKey: Data,
+            encryptionIV: Data,
+            mimeType: String,
+            sizeBytes: Int64,
+            thumbnailURL: URL? = nil,
+            caption: String? = nil,
+            width: Int? = nil,
+            height: Int? = nil,
+            durationSeconds: Double? = nil,
+            blurHash: String? = nil,
+            filename: String? = nil,
+            isVoiceMessage: Bool? = nil,
+            audioDurationMs: Int? = nil,
+            audioWaveform: [Float]? = nil
+        ) {
+            self.url = url
+            self.encryptionKey = encryptionKey
+            self.encryptionIV = encryptionIV
+            self.mimeType = mimeType
+            self.sizeBytes = sizeBytes
+            self.thumbnailURL = thumbnailURL
+            self.caption = caption
+            self.width = width
+            self.height = height
+            self.durationSeconds = durationSeconds
+            self.blurHash = blurHash
+            self.filename = filename
+            self.isVoiceMessage = isVoiceMessage
+            self.audioDurationMs = audioDurationMs
+            self.audioWaveform = audioWaveform
+        }
     }
 
-    enum SystemEvent: String, Codable, Hashable, Sendable {
+    public enum SystemEvent: String, Codable, Hashable, Sendable {
         case identityKeyChanged
         case disappearingTimerChanged
         case groupCreated
@@ -71,7 +129,7 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
 
     // MARK: - Delivery Status
 
-    enum DeliveryStatus: String, Codable, Hashable, Sendable {
+    public enum DeliveryStatus: String, Codable, Hashable, Sendable {
         case sending
         case sent
         case delivered
@@ -81,15 +139,21 @@ struct Message: Identifiable, Codable, Hashable, Sendable {
 
     // MARK: - Reactions
 
-    struct MessageReaction: Codable, Hashable, Sendable {
-        let emoji: String
-        let userId: String
-        let timestamp: Date
+    public struct MessageReaction: Codable, Hashable, Sendable {
+        public let emoji: String
+        public let userId: String
+        public let timestamp: Date
+
+        public init(emoji: String, userId: String, timestamp: Date) {
+            self.emoji = emoji
+            self.userId = userId
+            self.timestamp = timestamp
+        }
     }
 
     // MARK: - Factory
 
-    static func textMessage(
+    public static func textMessage(
         id: String = UUID().uuidString,
         conversationId: String,
         senderId: String,
