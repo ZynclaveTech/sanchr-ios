@@ -64,17 +64,25 @@ final class ChatMediaResolverImpl: ChatMediaResolving, @unchecked Sendable {
         forMessageId messageId: String,
         attachment: Message.MediaAttachment
     ) async throws -> URL {
-        try await download.download(messageId: messageId, attachment: attachment)
+        if let local = Self.localFileURL(for: attachment) {
+            return local
+        }
+        return try await download.download(messageId: messageId, attachment: attachment)
     }
 
     func decryptedURLWithDisplayName(
         forMessageId messageId: String,
         attachment: Message.MediaAttachment
     ) async throws -> URL {
-        let cached = try await download.download(
-            messageId: messageId,
-            attachment: attachment
-        )
+        let cached: URL
+        if let local = Self.localFileURL(for: attachment) {
+            cached = local
+        } else {
+            cached = try await download.download(
+                messageId: messageId,
+                attachment: attachment
+            )
+        }
         guard let displayName = attachment.filename, !displayName.isEmpty else {
             return cached
         }
@@ -92,5 +100,15 @@ final class ChatMediaResolverImpl: ChatMediaResolving, @unchecked Sendable {
         }
         try FileManager.default.linkItem(at: cached, to: linked)
         return linked
+    }
+
+    /// Returns the attachment's URL if it's already a readable local
+    /// file on disk. Used for sender-side outgoing messages where the
+    /// attachment.url is a `file://` path to the cached pre-upload copy
+    /// — no decrypt pipeline needed.
+    private static func localFileURL(for attachment: Message.MediaAttachment) -> URL? {
+        guard attachment.url.isFileURL else { return nil }
+        guard FileManager.default.fileExists(atPath: attachment.url.path) else { return nil }
+        return attachment.url
     }
 }

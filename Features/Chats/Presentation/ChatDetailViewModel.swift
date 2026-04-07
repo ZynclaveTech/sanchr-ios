@@ -551,8 +551,17 @@ final class ChatDetailViewModel {
     }
 
     /// Pure formatting helper for the contact text-fallback. Exposed for tests.
+    ///
+    /// Format: `[Contact] <name>` or `[Contact] <name>|<phone>`. Phone is
+    /// appended when the stripped contact has at least one number so the
+    /// receiver's bubble viewer can offer Message-on-Sanchr / Call / SMS
+    /// / Save actions. Name-only payloads still parse for backward
+    /// compatibility with older clients.
     static func contactFallbackText(_ stripped: StrippedContact) -> String {
-        "[Contact] \(stripped.displayName)"
+        if let phone = stripped.phoneNumbers.first, !phone.isEmpty {
+            return "[Contact] \(stripped.displayName)|\(phone)"
+        }
+        return "[Contact] \(stripped.displayName)"
     }
 
     /// Pure formatting helper for the location text-fallback. Exposed for tests.
@@ -580,8 +589,23 @@ final class ChatDetailViewModel {
             : "jpg"
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).\(ext)")
+
+        // PhotosLibrarySource.loadVideo returns PickedMedia with an EMPTY
+        // `data` and a populated `fileURL` pointing at the asset on disk;
+        // `loadPhoto` does the opposite. Copy from `fileURL` when it's set,
+        // otherwise write the in-memory bytes. Writing empty Data() for
+        // a video produces a 0-byte file and crashes the upload pipeline.
+        let stagedSize: Int64
         do {
-            try item.data.write(to: tempURL)
+            if let sourceURL = item.fileURL {
+                try? FileManager.default.removeItem(at: tempURL)
+                try FileManager.default.copyItem(at: sourceURL, to: tempURL)
+                let attrs = try FileManager.default.attributesOfItem(atPath: tempURL.path)
+                stagedSize = (attrs[.size] as? Int64) ?? Int64((attrs[.size] as? Int) ?? 0)
+            } else {
+                try item.data.write(to: tempURL)
+                stagedSize = Int64(item.data.count)
+            }
         } catch {
             SanchrLogger.chat.error("Failed to stage picked media: \(error.localizedDescription)")
             return
@@ -592,7 +616,7 @@ final class ChatDetailViewModel {
             encryptionKey: Data(),
             encryptionIV: Data(),
             mimeType: item.mimeType,
-            sizeBytes: Int64(item.data.count),
+            sizeBytes: stagedSize,
             thumbnailURL: nil,
             caption: nil
         )

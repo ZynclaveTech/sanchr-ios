@@ -61,6 +61,6 @@ final class ChatDetailViewModelSendIntentTests: XCTestCase {
             emails: []
         )
         let text = ChatDetailViewModel.contactFallbackText(stripped)
-        XCTAssertEqual(text, "[Contact] Ada Lovelace")
+        XCTAssertEqual(text, "[Contact] Ada Lovelace|+14155550123")
     }
 }

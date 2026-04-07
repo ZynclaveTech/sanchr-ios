@@ -134,7 +134,7 @@ struct ChatDetailView: View {
                         }
                     }
                 )
-                .frame(height: 240)
+                .frame(height: 280)
                 .background(SanchrExportColors.background)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -1363,11 +1363,17 @@ struct MessageBubble: View {
         case .text(let text):
             if let fallback = AttachmentFallbackParser.parse(text) {
                 switch fallback {
-                case .contact(let name):
-                    // Text-parsed fallback carries a name only (no phone);
-                    // nothing actionable to fire on tap, so the bubble stays
-                    // inert until a real `.contact` message is received.
-                    contactFallbackBubble(name: name)
+                case .contact(let name, let phone):
+                    if let phone, !phone.isEmpty {
+                        contactFallbackBubble(name: name)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                onBubbleTap(.openContact(name: name, phoneNumber: phone))
+                            }
+                    } else {
+                        // Legacy payload without a phone — nothing actionable.
+                        contactFallbackBubble(name: name)
+                    }
                 case .location(let lat, let lng):
                     locationFallbackBubble(latitude: lat, longitude: lng)
                         .contentShape(Rectangle())

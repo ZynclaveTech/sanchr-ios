@@ -3,9 +3,17 @@ import SanchrShared
 @testable import Sanchr
 
 final class AttachmentFallbackParserTests: XCTestCase {
-    func testParsesContactFallback() {
+    func testParsesContactFallback_legacyNameOnly() {
         let result = AttachmentFallbackParser.parse("[Contact] Jane Doe")
-        XCTAssertEqual(result, .contact(displayName: "Jane Doe"))
+        XCTAssertEqual(result, .contact(displayName: "Jane Doe", phoneNumber: nil))
+    }
+
+    func testParsesContactFallback_withPhone() {
+        let result = AttachmentFallbackParser.parse("[Contact] Jane Doe|+15551234")
+        XCTAssertEqual(
+            result,
+            .contact(displayName: "Jane Doe", phoneNumber: "+15551234")
+        )
     }
 
     func testParsesLocationFallback() {
@@ -33,7 +41,7 @@ final class AttachmentFallbackParserTests: XCTestCase {
         let contactText = ChatDetailViewModel.contactFallbackText(stripped)
         XCTAssertEqual(
             AttachmentFallbackParser.parse(contactText),
-            .contact(displayName: "Alice Example")
+            .contact(displayName: "Alice Example", phoneNumber: "+15551234567")
         )
 
         let payload = LocationPayload(
