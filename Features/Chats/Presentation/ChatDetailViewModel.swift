@@ -188,15 +188,17 @@ final class ChatDetailViewModel {
 
     // MARK: - Send Message (E2EE)
 
-    /// Encrypts the current input text via Signal Protocol and sends to the conversation.
+    /// Sends the trimmed `inputText` via the shared `MessageSender` actor.
+    ///
+    /// `MessageSender` is the SOLE writer of outgoing message rows in the
+    /// local DB — this view model only manages the in-memory transcript and
+    /// the upload-progress dictionary the bubble UI reads. The optimistic
+    /// in-memory row is keyed on a fresh UUID; on receipt we replace it with
+    /// a `Message` built from the server-confirmed identifiers.
     func sendMessage(
         conversationId: String,
-        recipientId: String,
-        messageRepository: MessageRepositoryProtocol,
-        signalProtocol: SignalProtocolManagerProtocol,
-        chatDataSource: ChatDataSource,
-        localDatabase: LocalDatabaseProtocol,
-        sessionService: SessionService
+        sessionService: SessionService,
+        messageSender: MessageSender
     ) async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -205,8 +207,12 @@ final class ChatDetailViewModel {
         inputText = ""
         clearReply()
         isSending = true
+        defer { isSending = false }
 
-        // Optimistic UI: add message immediately with .sending status
+        // Optimistic UI: add message immediately with .sending status. The
+        // id used here lives ONLY in the in-memory transcript — the DB row
+        // MessageSender writes uses an independent local id, then is replaced
+        // by the server-confirmed row inside the actor on success.
         let optimisticMessage = Message.textMessage(
             conversationId: conversationId,
             senderId: sessionService.currentUserId ?? "unknown",
@@ -217,254 +223,158 @@ final class ChatDetailViewModel {
         appendMessageToSections(optimisticMessage)
 
         do {
-            let useCase = ChatUseCases.SendMessageUseCase(
-                signalSessionManager: signalProtocol,
-                chatDataSource: chatDataSource,
-                localDatabase: localDatabase,
-                localUserId: sessionService.currentUserId ?? "unknown"
+            let receipt = try await messageSender.sendText(text, to: conversationId)
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0
             )
-            // Wrap in auth retry so UNAUTHENTICATED errors refresh the token and retry
-            let sentMessage = try await sessionService.withAuthRetry {
-                try await useCase.execute(
-                    text: text,
-                    conversationId: conversationId,
-                    recipientId: recipientId
-                )
-            }
-            // Replace optimistic message with server-confirmed message
-            replaceMessage(id: optimisticMessage.id, with: sentMessage)
+            let confirmed = Message(
+                id: receipt.messageId,
+                conversationId: conversationId,
+                senderId: optimisticMessage.senderId,
+                timestamp: serverTimestamp,
+                content: .text(text),
+                status: .sent,
+                isOutgoing: true,
+                replyToMessageId: optimisticMessage.replyToMessageId
+            )
+            replaceMessage(id: optimisticMessage.id, with: confirmed)
             SanchrLogger.chat.info("Message sent successfully")
         } catch {
-            // Mark optimistic message as failed
             updateMessage(id: optimisticMessage.id) { $0.status = .failed }
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Send failed: \(error.localizedDescription)")
         }
-
-        isSending = false
     }
 
     // MARK: - Media Send
 
+    /// Sends a media attachment (with optional caption) via the shared
+    /// `MessageSender` actor. The actor owns the encrypt + upload + gRPC
+    /// pipeline AND the local DB writes; this view model only manages the
+    /// in-memory optimistic transcript row and the upload-progress dictionary.
     func sendMediaMessage(
         localFileURL: URL,
         mimeType: String,
         contentType: Message.MessageContent,
         conversationId: String,
-        recipientId: String,
         caption: String?,
-        messageRepository: MessageRepositoryProtocol,
-        signalProtocol: SignalProtocolManagerProtocol,
-        chatDataSource: ChatDataSource,
-        localDatabase: LocalDatabaseProtocol,
         sessionService: SessionService,
-        mediaUploadManager: MediaUploadManager,
-        mediaEncryption: MediaEncryptionProtocol
+        messageSender: MessageSender
     ) async {
         let senderId = sessionService.currentUserId ?? "unknown"
 
-        // Create optimistic message with local file URL
+        // Build the optimistic in-memory row exactly like the legacy path —
+        // including the caption applied to the underlying attachment so the
+        // bubble renders the user's text under the thumbnail immediately.
+        let optimisticContent: Message.MessageContent = {
+            guard let caption else { return contentType }
+            switch contentType {
+            case .image(var a): a.caption = caption; return .image(a)
+            case .video(var a): a.caption = caption; return .video(a)
+            case .audio(var a): a.caption = caption; return .audio(a)
+            case .document(var a): a.caption = caption; return .document(a)
+            default: return contentType
+            }
+        }()
+
         let optimisticMessage = Message(
             id: UUID().uuidString,
             conversationId: conversationId,
             senderId: senderId,
             timestamp: Date(),
-            content: contentType,
+            content: optimisticContent,
             status: .sending,
             isOutgoing: true,
             replyToMessageId: replyingToMessage?.id
         )
-
-        // Preserve the original filename across the upload pipeline so the
-        // post-upload rebuild (which replaces the local URL with a
-        // `sanchr-media://<mediaId>` reference) can still render the
-        // human-readable name in the document bubble.
-        let originalFilename: String? = {
-            switch contentType {
-            case .document(let a), .image(let a), .video(let a), .audio(let a):
-                return a.filename
-            default:
-                return nil
-            }
-        }()
-
-        // Preserve voice-message metadata across the upload pipeline. Same
-        // rationale as `originalFilename`: the post-upload rebuild reconstructs
-        // the attachment from scratch using the mediaId URL and would
-        // otherwise drop these fields, causing the bubble to render as a plain
-        // audio file instead of a voice note.
-        let preservedIsVoiceMessage: Bool?
-        let preservedAudioDurationMs: Int?
-        let preservedAudioWaveform: [Float]?
-        switch contentType {
-        case .document(let a), .image(let a), .video(let a), .audio(let a):
-            preservedIsVoiceMessage = a.isVoiceMessage
-            preservedAudioDurationMs = a.audioDurationMs
-            preservedAudioWaveform = a.audioWaveform
-        default:
-            preservedIsVoiceMessage = nil
-            preservedAudioDurationMs = nil
-            preservedAudioWaveform = nil
-        }
+        let optimisticId = optimisticMessage.id
 
         messages.append(optimisticMessage)
         appendMessageToSections(optimisticMessage)
         clearReply()
 
-        // Queue upload task
-        var uploadTask = MediaUploadTask(
-            conversationId: conversationId,
-            recipientId: recipientId,
-            localFileURL: localFileURL,
-            mimeType: mimeType,
-            caption: caption,
-            replyToMessageId: replyingToMessage?.id
-        )
-        uploadTask.optimisticMessageId = optimisticMessage.id
+        // Pluck the underlying attachment so MessageSender has the structured
+        // metadata (filename, voice-message flags, dimensions, etc.) it needs
+        // to round-trip the wire format faithfully.
+        let attachment: Message.MediaAttachment = {
+            switch contentType {
+            case .image(let a), .video(let a), .audio(let a), .document(let a):
+                return a
+            default:
+                return Message.MediaAttachment(
+                    url: localFileURL,
+                    encryptionKey: Data(),
+                    encryptionIV: Data(),
+                    mimeType: mimeType,
+                    sizeBytes: 0,
+                    thumbnailURL: nil,
+                    caption: caption
+                )
+            }
+        }()
 
-        // Wire progress updates
-        let msgId = optimisticMessage.id
-        mediaUploadManager.onTaskUpdate = { [weak self] task in
-            guard task.optimisticMessageId == msgId else { return }
-            Task { @MainActor [weak self] in
-                switch task.state {
-                case .encrypting:
-                    self?.uploadStatusLabel[msgId] = "Encrypting..."
-                    self?.uploadProgress[msgId] = 0.1
-                case .uploading(let progress):
-                    self?.uploadStatusLabel[msgId] = "Uploading..."
-                    self?.uploadProgress[msgId] = 0.1 + progress * 0.7
-                case .confirming:
-                    self?.uploadStatusLabel[msgId] = "Confirming..."
-                    self?.uploadProgress[msgId] = 0.85
-                case .sendingMessage:
-                    self?.uploadStatusLabel[msgId] = "Sending..."
-                    self?.uploadProgress[msgId] = 0.95
-                case .completed:
-                    self?.uploadProgress.removeValue(forKey: msgId)
-                    self?.uploadStatusLabel.removeValue(forKey: msgId)
-                case .failed(let error, _):
-                    self?.uploadStatusLabel[msgId] = "Failed"
-                    self?.uploadProgress.removeValue(forKey: msgId)
-                    SanchrLogger.media.error("Upload failed: \(error)")
-                case .cancelled:
-                    self?.uploadProgress.removeValue(forKey: msgId)
-                    self?.uploadStatusLabel.removeValue(forKey: msgId)
-                default:
-                    break
+        uploadStatusLabel[optimisticId] = "Encrypting..."
+        uploadProgress[optimisticId] = 0.0
+
+        do {
+            let receipt = try await messageSender.sendMedia(
+                attachment: attachment,
+                caption: caption,
+                to: conversationId
+            ) { [weak self] fraction in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.uploadProgress[optimisticId] = fraction
+                    if fraction >= 1.0 {
+                        self.uploadStatusLabel[optimisticId] = "Sending..."
+                    } else if fraction > 0 {
+                        self.uploadStatusLabel[optimisticId] = "Uploading..."
+                    }
                 }
             }
-        }
 
-        uploadTask = await mediaUploadManager.enqueue(uploadTask)
-
-        // Execute upload pipeline (runs even if user leaves screen)
-        Task.detached { [weak self] in
-            SanchrLogger.media.info("Starting upload pipeline for task \(uploadTask.id.prefix(8))")
-            guard let completedTask = await mediaUploadManager.execute(uploadTask.id) else {
-                SanchrLogger.media.error("Upload pipeline returned nil for task \(uploadTask.id.prefix(8))")
-                return
-            }
-            SanchrLogger.media.info("Upload pipeline completed: state=\(String(describing: completedTask.state))")
-
-            guard case .sendingMessage = completedTask.state,
-                  let metadata = completedTask.encryptionMetadata,
-                  let mediaId = completedTask.mediaId else {
-                SanchrLogger.media.warning("Upload task not in sendingMessage state or missing data: state=\(String(describing: completedTask.state)), hasMetadata=\(completedTask.encryptionMetadata != nil), mediaId=\(completedTask.mediaId ?? "nil")")
-                return
-            }
-
-            // Store mediaId as the URL — receiver will call GetDownloadUrl(mediaId) to get presigned GET URL
-            let mediaIdURL = URL(string: "sanchr-media://\(mediaId)")!
-            SanchrLogger.media.info("Building final message with mediaId: \(mediaId)")
-
-            // Cache the sender's local file so we never re-download our own media
-            let ext = completedTask.mimeType.contains("png") ? "png" : completedTask.mimeType.contains("video") ? "mp4" : "jpg"
+            // Cache the sender's local file under the optimistic id so the
+            // bubble never has to round-trip its own media through the
+            // download pipeline. Mirrors the legacy behaviour exactly.
+            let ext = mimeType.contains("png") ? "png"
+                : mimeType.hasPrefix("video/") ? "mp4"
+                : mimeType.hasPrefix("audio/") ? "m4a"
+                : "jpg"
             let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
                 .appendingPathComponent("MediaMessages", isDirectory: true)
             try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            let cachedFile = cacheDir.appendingPathComponent("\(optimisticMessage.id).\(ext)")
-            try? FileManager.default.copyItem(at: completedTask.localFileURL, to: cachedFile)
-            SanchrLogger.media.info("Cached sender's local file at \(cachedFile.lastPathComponent)")
+            let cachedFile = cacheDir.appendingPathComponent("\(optimisticId).\(ext)")
+            try? FileManager.default.copyItem(at: localFileURL, to: cachedFile)
 
-            // Build attachment with mediaId URL + encryption keys
-            var attachment = Message.MediaAttachment(
-                url: mediaIdURL,
-                encryptionKey: metadata.key,
-                encryptionIV: metadata.nonce,
-                mimeType: completedTask.mimeType,
-                sizeBytes: metadata.fileSize,
-                thumbnailURL: nil,
-                caption: completedTask.caption
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0
             )
-            attachment.filename = originalFilename
-            attachment.isVoiceMessage = preservedIsVoiceMessage
-            attachment.audioDurationMs = preservedAudioDurationMs
-            attachment.audioWaveform = preservedAudioWaveform
-
-            // Create message with final attachment
-            let finalMessage = Message(
-                id: optimisticMessage.id,
+            // Reuse the optimistic content for the confirmed in-memory row.
+            // The post-upload mediaId-URL swap is already persisted in the
+            // DB row MessageSender wrote; the in-memory row keeps the local
+            // file URL so the sender keeps seeing their own thumbnail
+            // instantly without a network round-trip.
+            let confirmed = Message(
+                id: receipt.messageId,
                 conversationId: conversationId,
                 senderId: senderId,
-                timestamp: Date(),
-                content: Self.contentForAttachment(attachment, mimeType: completedTask.mimeType),
-                status: .sending,
+                timestamp: serverTimestamp,
+                content: optimisticContent,
+                status: .sent,
                 isOutgoing: true,
-                replyToMessageId: completedTask.replyToMessageId
+                replyToMessageId: optimisticMessage.replyToMessageId
             )
-
-            // Send via Signal Protocol E2EE (use recipientId, not conversationId)
-            do {
-                let plaintext = try JSONEncoder().encode(finalMessage.content)
-                let contentType = completedTask.mimeType.hasPrefix("image/") ? "image"
-                    : completedTask.mimeType.hasPrefix("video/") ? "video"
-                    : completedTask.mimeType.hasPrefix("audio/") ? "audio"
-                    : "document"
-
-                let response = try await chatDataSource.sendEncryptedMessage(
-                    conversationId: conversationId,
-                    plaintext: plaintext,
-                    recipientIds: [recipientId],
-                    signalSessionManager: signalProtocol,
-                    contentType: contentType
-                )
-
-                let serverTimestamp = Date(timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000.0)
-                let sentMessage = Message(
-                    id: response.messageID.isEmpty ? finalMessage.id : response.messageID,
-                    conversationId: conversationId,
-                    senderId: senderId,
-                    timestamp: serverTimestamp,
-                    content: finalMessage.content,
-                    status: .sent,
-                    isOutgoing: true,
-                    replyToMessageId: finalMessage.replyToMessageId
-                )
-
-                try? await localDatabase.saveMessage(sentMessage)
-                await mediaUploadManager.markCompleted(uploadTask.id)
-                SanchrLogger.media.info("Media message sent: \(sentMessage.id)")
-
-                await MainActor.run {
-                    if let self {
-                        self.replaceMessage(id: optimisticMessage.id, with: sentMessage)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self?.updateMessage(id: optimisticMessage.id) { $0.status = .failed }
-                }
-                SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
-            }
+            replaceMessage(id: optimisticId, with: confirmed)
+            uploadProgress.removeValue(forKey: optimisticId)
+            uploadStatusLabel.removeValue(forKey: optimisticId)
+            SanchrLogger.media.info("Media message sent: \(receipt.messageId)")
+        } catch {
+            updateMessage(id: optimisticId) { $0.status = .failed }
+            uploadStatusLabel[optimisticId] = "Failed"
+            uploadProgress.removeValue(forKey: optimisticId)
+            errorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
         }
-    }
-
-    private nonisolated static func contentForAttachment(_ attachment: Message.MediaAttachment, mimeType: String) -> Message.MessageContent {
-        if mimeType.hasPrefix("image/") { return .image(attachment) }
-        if mimeType.hasPrefix("video/") { return .video(attachment) }
-        if mimeType.hasPrefix("audio/") { return .audio(attachment) }
-        return .document(attachment)
     }
 
     // MARK: - Attachment Intent Routing (Task 13)
@@ -476,13 +386,8 @@ final class ChatDetailViewModel {
     struct AttachmentSendContext {
         let conversationId: String
         let recipientId: String
-        let messageRepository: MessageRepositoryProtocol
-        let signalProtocol: SignalProtocolManagerProtocol
-        let chatDataSource: ChatDataSource
-        let localDatabase: LocalDatabaseProtocol
         let sessionService: SessionService
-        let mediaUploadManager: MediaUploadManager
-        let mediaEncryption: MediaEncryptionProtocol
+        let messageSender: MessageSender
     }
 
     /// Routes a user-issued `AttachmentIntent` from the attachment picker
@@ -520,15 +425,9 @@ final class ChatDetailViewModel {
                     return a
                 }()),
                 conversationId: context.conversationId,
-                recipientId: context.recipientId,
                 caption: nil,
-                messageRepository: context.messageRepository,
-                signalProtocol: context.signalProtocol,
-                chatDataSource: context.chatDataSource,
-                localDatabase: context.localDatabase,
                 sessionService: context.sessionService,
-                mediaUploadManager: context.mediaUploadManager,
-                mediaEncryption: context.mediaEncryption
+                messageSender: context.messageSender
             )
 
         case .contact(let stripped):
@@ -577,15 +476,9 @@ final class ChatDetailViewModel {
                 mimeType: "audio/mp4",
                 contentType: .audio(a),
                 conversationId: context.conversationId,
-                recipientId: context.recipientId,
                 caption: nil,
-                messageRepository: context.messageRepository,
-                signalProtocol: context.signalProtocol,
-                chatDataSource: context.chatDataSource,
-                localDatabase: context.localDatabase,
                 sessionService: context.sessionService,
-                mediaUploadManager: context.mediaUploadManager,
-                mediaEncryption: context.mediaEncryption
+                messageSender: context.messageSender
             )
         }
     }
@@ -648,15 +541,9 @@ final class ChatDetailViewModel {
             mimeType: item.mimeType,
             contentType: content,
             conversationId: context.conversationId,
-            recipientId: context.recipientId,
             caption: nil,
-            messageRepository: context.messageRepository,
-            signalProtocol: context.signalProtocol,
-            chatDataSource: context.chatDataSource,
-            localDatabase: context.localDatabase,
             sessionService: context.sessionService,
-            mediaUploadManager: context.mediaUploadManager,
-            mediaEncryption: context.mediaEncryption
+            messageSender: context.messageSender
         )
     }
 
@@ -691,15 +578,9 @@ final class ChatDetailViewModel {
             mimeType: mimeType,
             contentType: content,
             conversationId: context.conversationId,
-            recipientId: context.recipientId,
             caption: nil,
-            messageRepository: context.messageRepository,
-            signalProtocol: context.signalProtocol,
-            chatDataSource: context.chatDataSource,
-            localDatabase: context.localDatabase,
             sessionService: context.sessionService,
-            mediaUploadManager: context.mediaUploadManager,
-            mediaEncryption: context.mediaEncryption
+            messageSender: context.messageSender
         )
     }
 
@@ -707,12 +588,8 @@ final class ChatDetailViewModel {
         inputText = text
         await sendMessage(
             conversationId: context.conversationId,
-            recipientId: context.recipientId,
-            messageRepository: context.messageRepository,
-            signalProtocol: context.signalProtocol,
-            chatDataSource: context.chatDataSource,
-            localDatabase: context.localDatabase,
-            sessionService: context.sessionService
+            sessionService: context.sessionService,
+            messageSender: context.messageSender
         )
     }
 
@@ -795,12 +672,8 @@ final class ChatDetailViewModel {
 
     func retryMessage(
         _ message: Message,
-        recipientId: String,
-        messageRepository: MessageRepositoryProtocol,
-        signalProtocol: SignalProtocolManagerProtocol,
-        chatDataSource: ChatDataSource,
-        localDatabase: LocalDatabaseProtocol,
-        sessionService: SessionService
+        sessionService: SessionService,
+        messageSender: MessageSender
     ) async {
         guard message.status == .failed, case .text(let text) = message.content else { return }
 
@@ -812,12 +685,8 @@ final class ChatDetailViewModel {
         inputText = text
         await sendMessage(
             conversationId: message.conversationId,
-            recipientId: recipientId,
-            messageRepository: messageRepository,
-            signalProtocol: signalProtocol,
-            chatDataSource: chatDataSource,
-            localDatabase: localDatabase,
-            sessionService: sessionService
+            sessionService: sessionService,
+            messageSender: messageSender
         )
     }
 

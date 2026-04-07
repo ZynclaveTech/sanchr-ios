@@ -98,6 +98,44 @@ final class DependencyContainer: @unchecked Sendable {
         grpcClient: grpcClient
     )
 
+    // MARK: - Cross-Process Send Pipeline (T16/T18)
+
+    /// Cross-process file lock guarding Signal-protocol ratchet mutations on
+    /// the send path. Owned by `MessageSender` so the main app and the share
+    /// extension serialize their sends through the same on-disk sentinel.
+    @ObservationIgnored lazy var fileCoordinatorLock = FileCoordinatorLock()
+
+    /// Auth-retry adapter bridging the main-app `SessionService` to the
+    /// SanchrShared `AuthRetrying` seam consumed by the encrypted send client.
+    @ObservationIgnored lazy var authRetryingAdapter: AuthRetrying =
+        SessionServiceAuthRetryingAdapter(sessionService: sessionService)
+
+    /// Current-user adapter bridging `SessionService` to the SanchrShared
+    /// `CurrentUserProviding` seam consumed by `MessageSender`.
+    @ObservationIgnored lazy var currentUserProvider: CurrentUserProviding =
+        SessionServiceCurrentUserAdapter(sessionService: sessionService)
+
+    /// Extension-safe encrypted send client. Mirrors the legacy
+    /// `ChatDataSource.sendEncryptedMessage` path but does not depend on any
+    /// main-app types so it can be reused from the share extension.
+    @ObservationIgnored lazy var encryptedMessageSendingClient: EncryptedMessageSendingClient =
+        DefaultEncryptedMessageSendingClient(
+            grpcClient: grpcClient,
+            signalManager: signalProtocol,
+            authRetrier: authRetryingAdapter
+        )
+
+    /// SOLE outgoing-message send pipeline. `ChatDetailViewModel` and the
+    /// share-extension `ShareSendCoordinator` both call into this actor — no
+    /// other code path is allowed to write outgoing message rows.
+    @ObservationIgnored lazy var messageSender: MessageSender = MessageSender(
+        db: localDatabase,
+        uploader: mediaUploadManager,
+        encryptedSender: encryptedMessageSendingClient,
+        coordinator: fileCoordinatorLock,
+        currentUser: currentUserProvider
+    )
+
     // MARK: - Protocol Extensions (OPRF-PSI, Media Key Derivation, EKF)
 
     @ObservationIgnored lazy var oprfClient: OPRFClientProtocol = OPRFClient()
@@ -362,6 +400,23 @@ final class DependencyContainer: @unchecked Sendable {
             localDatabase: localDatabase,
             signalProtocol: signalSessionManager,
             currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId }
+        )
+        // Rebuild the cross-process send pipeline so it captures the freshly
+        // installed `signalSessionManager`. The `MessageSender` actor itself
+        // is rebuilt for the same reason — its `encryptedSender` dependency
+        // is held as a stored property and would otherwise reference the old
+        // signal manager indefinitely.
+        self.encryptedMessageSendingClient = DefaultEncryptedMessageSendingClient(
+            grpcClient: grpcClient,
+            signalManager: signalSessionManager,
+            authRetrier: authRetryingAdapter
+        )
+        self.messageSender = MessageSender(
+            db: localDatabase,
+            uploader: mediaUploadManager,
+            encryptedSender: encryptedMessageSendingClient,
+            coordinator: fileCoordinatorLock,
+            currentUser: currentUserProvider
         )
         self.realtimeService = RealtimeService(
             messageRepository: messageRepository,

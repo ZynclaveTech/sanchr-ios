@@ -856,12 +856,8 @@ struct ChatDetailView: View {
                         Task {
                             await viewModel.sendMessage(
                                 conversationId: conversation.id,
-                                recipientId: recipient?.id ?? "",
-                                messageRepository: container.messageRepository,
-                                signalProtocol: container.signalProtocol,
-                                chatDataSource: container.chatDataSource,
-                                localDatabase: container.localDatabase,
-                                sessionService: container.sessionService
+                                sessionService: container.sessionService,
+                                messageSender: container.messageSender
                             )
                         }
                     } label: {
@@ -1054,13 +1050,8 @@ struct ChatDetailView: View {
         ChatDetailViewModel.AttachmentSendContext(
             conversationId: conversation.id,
             recipientId: recipient?.id ?? "",
-            messageRepository: container.messageRepository,
-            signalProtocol: container.signalProtocol,
-            chatDataSource: container.chatDataSource,
-            localDatabase: container.localDatabase,
             sessionService: container.sessionService,
-            mediaUploadManager: container.mediaUploadManager,
-            mediaEncryption: container.mediaEncryption
+            messageSender: container.messageSender
         )
     }
 
@@ -1096,15 +1087,9 @@ struct ChatDetailView: View {
                 mimeType: "video/mp4",
                 contentType: .video(attachment),
                 conversationId: conversation.id,
-                recipientId: recipient?.id ?? "",
                 caption: nil,
-                messageRepository: container.messageRepository,
-                signalProtocol: container.signalProtocol,
-                chatDataSource: container.chatDataSource,
-                localDatabase: container.localDatabase,
                 sessionService: container.sessionService,
-                mediaUploadManager: container.mediaUploadManager,
-                mediaEncryption: container.mediaEncryption
+                messageSender: container.messageSender
             )
         } else {
             guard let imageData = try? await item.loadTransferable(type: Data.self) else { return }
@@ -1126,15 +1111,9 @@ struct ChatDetailView: View {
                 mimeType: "image/jpeg",
                 contentType: .image(attachment),
                 conversationId: conversation.id,
-                recipientId: recipient?.id ?? "",
                 caption: nil,
-                messageRepository: container.messageRepository,
-                signalProtocol: container.signalProtocol,
-                chatDataSource: container.chatDataSource,
-                localDatabase: container.localDatabase,
                 sessionService: container.sessionService,
-                mediaUploadManager: container.mediaUploadManager,
-                mediaEncryption: container.mediaEncryption
+                messageSender: container.messageSender
             )
         }
     }
