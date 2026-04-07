@@ -22,6 +22,9 @@ struct MediaGalleryView: View {
     @State private var resolvedURLs: [String: URL] = [:]
     @State private var loadError: [String: String] = [:]
     @State private var chromeVisible: Bool = true
+    @State private var toast: String?
+    @State private var saveError: String?
+    @State private var shareURL: GalleryIdentifiedURL?
 
     init(
         presentation: MediaGalleryCoordinator.GalleryPresentation,
@@ -62,6 +65,78 @@ struct MediaGalleryView: View {
             await resolveIfNeeded(at: currentIndex)
             await resolveIfNeeded(at: currentIndex + 1)
             await resolveIfNeeded(at: currentIndex - 1)
+        }
+        .alert("Couldn't save", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
+        }
+        .overlay(alignment: .bottom) {
+            if let toast {
+                Text(toast)
+                    .font(.footnote)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.black.opacity(0.8))
+                    .clipShape(Capsule())
+                    .padding(.bottom, 32)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .task(id: toast) {
+                        try? await Task.sleep(nanoseconds: 1_800_000_000)
+                        withAnimation { self.toast = nil }
+                    }
+            }
+        }
+        .sheet(item: $shareURL) { wrapped in
+            GalleryActivityView(items: [wrapped.url])
+        }
+    }
+
+    // MARK: - Overflow actions
+
+    private func currentItem() -> GalleryItem? {
+        guard presentation.items.indices.contains(currentIndex) else { return nil }
+        return presentation.items[currentIndex]
+    }
+
+    private func saveCurrentToPhotos() async {
+        guard let item = currentItem(), let url = resolvedURLs[item.id] else {
+            saveError = "The file isn't ready yet — try again in a moment."
+            return
+        }
+        do {
+            try await SaveToPhotos.save(
+                fileURL: url,
+                kind: item.kind == .video ? .video : .image
+            )
+            toast = item.kind == .video ? "Video saved to Photos" : "Image saved to Photos"
+        } catch {
+            saveError = error.localizedDescription
+        }
+    }
+
+    private func shareCurrent() {
+        guard let item = currentItem(), let url = resolvedURLs[item.id] else { return }
+        shareURL = GalleryIdentifiedURL(url: url)
+    }
+
+    private func copyCurrent() {
+        guard let item = currentItem(), let url = resolvedURLs[item.id] else { return }
+        if item.kind == .image, let image = UIImage(contentsOfFile: url.path) {
+            UIPasteboard.general.image = image
+            toast = "Image copied"
+        } else {
+            UIPasteboard.general.url = url
+            toast = "Link copied"
         }
     }
 
@@ -114,8 +189,31 @@ struct MediaGalleryView: View {
 
                 Spacer()
 
-                // Overflow slot — populated in Phase 3 (Save / Share / Copy).
-                Color.clear.frame(width: 36, height: 36).padding(.trailing, 16)
+                Menu {
+                    Button {
+                        Task { await saveCurrentToPhotos() }
+                    } label: {
+                        Label("Save to Photos", systemImage: "square.and.arrow.down")
+                    }
+                    Button {
+                        shareCurrent()
+                    } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                    Button {
+                        copyCurrent()
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(Circle())
+                }
+                .padding(.trailing, 16)
             }
             .padding(.top, 50)
 
@@ -205,4 +303,20 @@ struct MediaGalleryView: View {
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: message.timestamp, relativeTo: Date())
     }
+}
+
+/// Identifiable URL wrapper so `.sheet(item:)` can drive the share sheet.
+private struct GalleryIdentifiedURL: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// Thin `UIActivityViewController` wrapper used by the gallery's Share
+/// overflow action.
+private struct GalleryActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

@@ -246,6 +246,9 @@ targets:
         NSCameraUsageDescription: "Sanchr needs camera access for video calls and photos."
         NSMicrophoneUsageDescription: "Sanchr uses the microphone for voice messages and calls."
         NSPhotoLibraryUsageDescription: "Sanchr needs photo library access to share photos and videos."
+        NSPhotoLibraryAddUsageDescription: "Sanchr saves photos and videos from chats to your library when you tap Save."
+        LSApplicationQueriesSchemes:
+          - comgooglemaps
         NSFaceIDUsageDescription: "Use Face ID to unlock Sanchr."
         NSLocationWhenInUseUsageDescription: "Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers."
         ITSAppUsesNonExemptEncryption: false
