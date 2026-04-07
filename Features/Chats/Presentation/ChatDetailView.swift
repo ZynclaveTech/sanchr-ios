@@ -13,6 +13,8 @@ struct ChatDetailView: View {
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
     @State private var showPhotosPicker = false
+    @State private var showCameraCapture = false
+    @State private var showVaultPicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
@@ -76,20 +78,50 @@ struct ChatDetailView: View {
                 onRequestAction: { item in
                     switch item {
                     case .vault:
-                        // TODO(Task 12): present embedded vault picker
-                        break
+                        showAttachmentPicker = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            showVaultPicker = true
+                        }
                     case .file, .contact, .location:
-                        // TODO(Task 12): wire remaining action grid destinations
+                        // TODO(Task 13): wire remaining action grid destinations
                         break
                     }
                 },
                 onRequestCameraCapture: {
-                    // TODO(Task 12): present CameraCaptureViewController
+                    showAttachmentPicker = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        showCameraCapture = true
+                    }
                 }
             )
             .presentationDetents([.height(360), .large])
             .presentationDragIndicator(.visible)
             .ignoresSafeArea(edges: .bottom)
+        }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                onCapture: { capture in
+                    // TODO(Task 13): chatViewModel.send(intent: .capturedMedia(capture))
+                    print("[Camera] captured \(capture.data.count) bytes")
+                    showCameraCapture = false
+                },
+                onCancel: {
+                    showCameraCapture = false
+                }
+            )
+        }
+        .sheet(isPresented: $showVaultPicker) {
+            EmbeddedVaultPickerView(
+                onSelect: { intents in
+                    // TODO(Task 13): forward to chatViewModel
+                    print("[Vault] selected \(intents.count)")
+                    showVaultPicker = false
+                },
+                onCancel: {
+                    showVaultPicker = false
+                }
+            )
+            .presentationDetents([.large])
         }
         .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
         .onChange(of: selectedPhotoItems) { _, items in
