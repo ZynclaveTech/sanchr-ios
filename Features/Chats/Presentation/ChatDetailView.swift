@@ -1130,6 +1130,7 @@ struct MessageBubble: View {
     var isGroupedWithPrev: Bool = false
     var isGroupedWithNext: Bool = false
     var voicePlayback: VoicePlaybackController
+    var onBubbleTap: (MessageInteraction) -> Void = { _ in }
 
     private static let fileSizeFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
@@ -1231,9 +1232,16 @@ struct MessageBubble: View {
             if let fallback = AttachmentFallbackParser.parse(text) {
                 switch fallback {
                 case .contact(let name):
+                    // Text-parsed fallback carries a name only (no phone);
+                    // nothing actionable to fire on tap, so the bubble stays
+                    // inert until a real `.contact` message is received.
                     contactFallbackBubble(name: name)
                 case .location(let lat, let lng):
                     locationFallbackBubble(latitude: lat, longitude: lng)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onBubbleTap(.openLocation(latitude: lat, longitude: lng))
+                        }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -1250,6 +1258,10 @@ struct MessageBubble: View {
 
         case .image(let attachment):
             MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openMedia(messageId: message.id))
+                }
 
         case .video(let attachment):
             MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
@@ -1258,6 +1270,10 @@ struct MessageBubble: View {
                         .font(.system(size: 44))
                         .foregroundColor(.white.opacity(0.9))
                         .shadow(radius: 4)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openMedia(messageId: message.id))
                 }
 
         case .audio(let attachment):
@@ -1297,6 +1313,24 @@ struct MessageBubble: View {
                         .foregroundColor(messageTextColor.opacity(0.7))
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onBubbleTap(.openDocument(messageId: message.id))
+            }
+
+        case .location(let latitude, let longitude):
+            locationFallbackBubble(latitude: latitude, longitude: longitude)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openLocation(latitude: latitude, longitude: longitude))
+                }
+
+        case .contact(let name, let phoneNumber):
+            contactFallbackBubble(name: name)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openContact(name: name, phoneNumber: phoneNumber))
+                }
 
         default:
             Text("[Unsupported content]")

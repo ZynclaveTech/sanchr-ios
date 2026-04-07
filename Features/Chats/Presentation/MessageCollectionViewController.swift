@@ -340,7 +340,10 @@ final class MessageCollectionViewController: UIViewController {
                         hideTimestamp: item.isGroupedWithNext,
                         isGroupedWithPrev: item.isGroupedWithPrev,
                         isGroupedWithNext: item.isGroupedWithNext,
-                        voicePlayback: self?.voicePlayback ?? VoicePlaybackController()
+                        voicePlayback: self?.voicePlayback ?? VoicePlaybackController(),
+                        onBubbleTap: { [weak self] interaction in
+                            self?.onBubbleTap?(interaction)
+                        }
                     )
 
                     if !item.message.reactions.isEmpty {
