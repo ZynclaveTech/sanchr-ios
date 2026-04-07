@@ -55,25 +55,29 @@ struct LocationPreviewView: View {
             }
             .ignoresSafeArea()
 
-            HStack {
-                Button { onDismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 4, y: 2)
-                }
-                Spacer()
-                Button { showActionSheet = true } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 4, y: 2)
+            SanchrGlassCluster(spacing: 20) {
+                HStack {
+                    SanchrIconButton(
+                        systemName: "xmark",
+                        foreground: .black,
+                        background: .white,
+                        size: 36,
+                        glassTint: Color.white.opacity(0.18)
+                    ) {
+                        onDismiss()
+                    }
+
+                    Spacer()
+
+                    SanchrIconButton(
+                        systemName: "square.and.arrow.up",
+                        foreground: .black,
+                        background: .white,
+                        size: 36,
+                        glassTint: Color.white.opacity(0.18)
+                    ) {
+                        showActionSheet = true
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -84,11 +88,7 @@ struct LocationPreviewView: View {
         }
         .overlay(alignment: .bottom) {
             if let toast {
-                Text(toast)
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(Color.black.opacity(0.8))
-                    .foregroundColor(.white)
-                    .clipShape(Capsule())
+                SanchrToastBadge(text: toast)
                     .padding(.bottom, 140)
                     .task(id: toast) {
                         try? await Task.sleep(nanoseconds: 1_500_000_000)
@@ -131,19 +131,47 @@ struct LocationPreviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .foregroundColor(.white)
-                .background(SanchrColors.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .buttonStyle(.plain)
+            .modifier(LocationDirectionsStyle())
         }
         .padding(14)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(radius: 8, y: 4)
+        .modifier(LocationCardSurfaceModifier())
         .padding(.horizontal, 16)
         .padding(.bottom, 28)
     }
+}
 
+private struct LocationCardSurfaceModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .sanchrGlass(role: .viewerCard, tint: Color.white.opacity(0.08))
+        } else {
+            content
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(radius: 8, y: 4)
+        }
+    }
+}
+
+private struct LocationDirectionsStyle: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.buttonStyle(.glassProminent)
+        } else {
+            content
+                .foregroundColor(.white)
+                .background(SanchrColors.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
+private extension LocationPreviewView {
     // MARK: - Actions
 
     private func openInAppleMaps() {

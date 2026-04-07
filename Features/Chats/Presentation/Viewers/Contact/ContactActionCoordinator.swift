@@ -25,15 +25,15 @@ final class ContactActionCoordinator: ObservableObject {
     }
 
     private var contactRepository: ContactRepositoryProtocol
-    private var deviceContactMatcher: @Sendable (String) -> Bool
-    private var currentUserId: @Sendable () -> String?
-    private var phoneNormalizer: @Sendable (String) -> String
+    private var deviceContactMatcher: (String) -> Bool
+    private var currentUserId: () -> String?
+    private var phoneNormalizer: (String) -> String
 
     init(
         contactRepository: ContactRepositoryProtocol,
-        deviceContactMatcher: @escaping @Sendable (String) -> Bool,
-        currentUserId: @escaping @Sendable () -> String?,
-        phoneNormalizer: @escaping @Sendable (String) -> String
+        deviceContactMatcher: @escaping (String) -> Bool,
+        currentUserId: @escaping () -> String?,
+        phoneNormalizer: @escaping (String) -> String
     ) {
         self.contactRepository = contactRepository
         self.deviceContactMatcher = deviceContactMatcher
@@ -47,9 +47,9 @@ final class ContactActionCoordinator: ObservableObject {
     /// is available.
     func reconfigure(
         contactRepository: ContactRepositoryProtocol,
-        deviceContactMatcher: @escaping @Sendable (String) -> Bool,
-        currentUserId: @escaping @Sendable () -> String?,
-        phoneNormalizer: @escaping @Sendable (String) -> String
+        deviceContactMatcher: @escaping (String) -> Bool,
+        currentUserId: @escaping () -> String?,
+        phoneNormalizer: @escaping (String) -> String
     ) {
         self.contactRepository = contactRepository
         self.deviceContactMatcher = deviceContactMatcher

@@ -20,11 +20,11 @@ final class DocumentPreviewCoordinator: ObservableObject {
     }
 
     private var resolver: ChatMediaResolving
-    private var messageLookup: @Sendable (String) -> Message?
+    private var messageLookup: (String) -> Message?
 
     init(
         resolver: ChatMediaResolving,
-        messageLookup: @escaping @Sendable (String) -> Message?
+        messageLookup: @escaping (String) -> Message?
     ) {
         self.resolver = resolver
         self.messageLookup = messageLookup
@@ -32,7 +32,7 @@ final class DocumentPreviewCoordinator: ObservableObject {
 
     func reconfigure(
         resolver: ChatMediaResolving,
-        messageLookup: @escaping @Sendable (String) -> Message?
+        messageLookup: @escaping (String) -> Message?
     ) {
         self.resolver = resolver
         self.messageLookup = messageLookup

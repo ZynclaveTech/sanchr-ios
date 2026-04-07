@@ -261,26 +261,41 @@ struct ChatsListView: View {
 
     private var customHeader: some View {
         SanchrBrandHeader(title: "Sanchr") {
-            HStack(spacing: 10) {
-                SanchrIconButton(systemName: "camera.fill") {}
+            SanchrGlassCluster(spacing: 12) {
+                HStack(spacing: 10) {
+                    SanchrIconButton(systemName: "camera.fill") {}
 
-                Menu {
-                    Button {
-                        showNewConversation = true
-                    } label: {
-                        Label("New Chat", systemImage: "square.and.pencil")
-                    }
+                    Menu {
+                        Button {
+                            showNewConversation = true
+                        } label: {
+                            Label("New Chat", systemImage: "square.and.pencil")
+                        }
 
-                    Button {
-                        router.selectedTab = .settings
+                        Button {
+                            router.selectedTab = .settings
+                        } label: {
+                            Label("Open Settings", systemImage: "gearshape")
+                        }
                     } label: {
-                        Label("Open Settings", systemImage: "gearshape")
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .frame(width: 40, height: 40)
+                                    .sanchrGlass(
+                                        role: .toolbarButton,
+                                        interactive: true
+                                    )
+                            } else {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .frame(width: 40, height: 40)
+                            }
+                        }
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(SanchrExportColors.textPrimary)
-                        .frame(width: 40, height: 40)
                 }
             }
         }
@@ -400,19 +415,34 @@ struct ChatsListView: View {
         Button {
             showNewConversation = true
         } label: {
-            Image(systemName: "plus")
-                .font(.system(size: SanchrSpacing.fabIconSize, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
-                .background(
-                    LinearGradient(
-                        colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
-                .shadow(color: SanchrColors.primary.opacity(0.4), radius: 24, x: 0, y: 8)
+            Group {
+                if #available(iOS 26.0, *) {
+                    Image(systemName: "plus")
+                        .font(.system(size: SanchrSpacing.fabIconSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
+                        .sanchrGlass(
+                            role: .floatingAction,
+                            interactive: true,
+                            prominence: .prominent,
+                            tint: SanchrColors.primary
+                        )
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: SanchrSpacing.fabIconSize, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
+                        .background(
+                            LinearGradient(
+                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(Circle())
+                        .shadow(color: SanchrColors.primary.opacity(0.4), radius: 24, x: 0, y: 8)
+                }
+            }
         }
         .padding(.trailing, 20)
         .padding(.bottom, 20)

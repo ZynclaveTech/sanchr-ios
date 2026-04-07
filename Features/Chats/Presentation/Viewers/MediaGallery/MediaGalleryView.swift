@@ -13,18 +13,16 @@ import SanchrShared
 /// single tap.
 struct MediaGalleryView: View {
     let presentation: MediaGalleryCoordinator.GalleryPresentation
-    let resolver: ChatMediaResolving
     let onDismiss: () -> Void
 
     @State private var currentIndex: Int
     @State private var dragOffset: CGFloat = 0
     @State private var backgroundOpacity: Double = 1
-    @State private var resolvedURLs: [String: URL] = [:]
-    @State private var loadError: [String: String] = [:]
     @State private var chromeVisible: Bool = true
     @State private var toast: String?
     @State private var saveError: String?
     @State private var shareURL: GalleryIdentifiedURL?
+    @StateObject private var pageLoader: GalleryPageLoader
 
     init(
         presentation: MediaGalleryCoordinator.GalleryPresentation,
@@ -32,9 +30,9 @@ struct MediaGalleryView: View {
         onDismiss: @escaping () -> Void
     ) {
         self.presentation = presentation
-        self.resolver = resolver
         self.onDismiss = onDismiss
         self._currentIndex = State(initialValue: presentation.initialIndex)
+        self._pageLoader = StateObject(wrappedValue: GalleryPageLoader(resolver: resolver))
     }
 
     var body: some View {
@@ -45,7 +43,11 @@ struct MediaGalleryView: View {
 
             TabView(selection: $currentIndex) {
                 ForEach(Array(presentation.items.enumerated()), id: \.offset) { index, item in
-                    pageContent(item: item, index: index)
+                    GalleryPageView(
+                        item: item,
+                        isActive: index == currentIndex,
+                        loader: pageLoader
+                    )
                         .tag(index)
                 }
             }
@@ -62,9 +64,10 @@ struct MediaGalleryView: View {
             withAnimation(.easeInOut(duration: 0.2)) { chromeVisible.toggle() }
         }
         .task(id: currentIndex) {
-            await resolveIfNeeded(at: currentIndex)
-            await resolveIfNeeded(at: currentIndex + 1)
-            await resolveIfNeeded(at: currentIndex - 1)
+            pageLoader.updateWindow(
+                items: presentation.items,
+                centeredAt: currentIndex
+            )
         }
         .alert("Couldn't save", isPresented: Binding(
             get: { saveError != nil },
@@ -81,13 +84,7 @@ struct MediaGalleryView: View {
         }
         .overlay(alignment: .bottom) {
             if let toast {
-                Text(toast)
-                    .font(.footnote)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.8))
-                    .clipShape(Capsule())
+                SanchrToastBadge(text: toast)
                     .padding(.bottom, 32)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: toast) {
@@ -99,6 +96,9 @@ struct MediaGalleryView: View {
         .sheet(item: $shareURL) { wrapped in
             GalleryActivityView(items: [wrapped.url])
         }
+        .onDisappear {
+            pageLoader.cancelAll()
+        }
     }
 
     // MARK: - Overflow actions
@@ -109,7 +109,7 @@ struct MediaGalleryView: View {
     }
 
     private func saveCurrentToPhotos() async {
-        guard let item = currentItem(), let url = resolvedURLs[item.id] else {
+        guard let item = currentItem(), let url = pageLoader.url(for: item) else {
             saveError = "The file isn't ready yet — try again in a moment."
             return
         }
@@ -125,118 +125,75 @@ struct MediaGalleryView: View {
     }
 
     private func shareCurrent() {
-        guard let item = currentItem(), let url = resolvedURLs[item.id] else { return }
+        guard let item = currentItem(), let url = pageLoader.url(for: item) else { return }
         shareURL = GalleryIdentifiedURL(url: url)
     }
 
     private func copyCurrent() {
-        guard let item = currentItem(), let url = resolvedURLs[item.id] else { return }
-        if item.kind == .image, let image = UIImage(contentsOfFile: url.path) {
+        guard let item = currentItem() else { return }
+        let state = pageLoader.state(for: item)
+        if item.kind == .image, let image = state.image {
             UIPasteboard.general.image = image
             toast = "Image copied"
-        } else {
+        } else if let url = state.url {
             UIPasteboard.general.url = url
             toast = "Link copied"
         }
     }
 
     @ViewBuilder
-    private func pageContent(item: GalleryItem, index: Int) -> some View {
-        switch item.kind {
-        case .image:
-            GalleryImageView(image: resolvedImage(for: item))
-                .ignoresSafeArea()
-        case .video:
-            if let url = resolvedURLs[item.id] {
-                GalleryVideoView(
-                    url: url,
-                    isActive: .constant(index == currentIndex)
-                )
-                .ignoresSafeArea()
-            } else if let error = loadError[item.id] {
-                retryView(error: error, messageId: item.id)
-            } else {
-                ProgressView()
-                    .tint(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-    }
-
-    @ViewBuilder
     private var chromeOverlay: some View {
         VStack {
-            HStack {
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
-                }
-                .padding(.leading, 16)
-
-                Spacer()
-
-                if presentation.items.indices.contains(currentIndex) {
-                    Text(Self.titleText(for: presentation.items[currentIndex].message))
-                        .font(.footnote)
-                        .foregroundColor(.white.opacity(0.9))
-                }
-
-                Spacer()
-
-                Menu {
-                    Button {
-                        Task { await saveCurrentToPhotos() }
-                    } label: {
-                        Label("Save to Photos", systemImage: "square.and.arrow.down")
+            SanchrGlassCluster(spacing: 20) {
+                HStack {
+                    SanchrIconButton(
+                        systemName: "xmark",
+                        foreground: .white,
+                        background: Color.white.opacity(0.2),
+                        size: 36,
+                        glassTint: Color.white.opacity(0.12)
+                    ) {
+                        onDismiss()
                     }
-                    Button {
-                        shareCurrent()
-                    } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                    .padding(.leading, 16)
+
+                    Spacer()
+
+                    if presentation.items.indices.contains(currentIndex) {
+                        chromeTitlePill(
+                            text: Self.titleText(
+                                for: presentation.items[currentIndex].message
+                            )
+                        )
                     }
-                    Button {
-                        copyCurrent()
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            Task { await saveCurrentToPhotos() }
+                        } label: {
+                            Label("Save to Photos", systemImage: "square.and.arrow.down")
+                        }
+                        Button {
+                            shareCurrent()
+                        } label: {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        Button {
+                            copyCurrent()
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
                     } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
+                        galleryChromeIcon(systemName: "ellipsis")
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
+                    .padding(.trailing, 16)
                 }
-                .padding(.trailing, 16)
             }
             .padding(.top, 50)
 
             Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private func retryView(error: String, messageId: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 32))
-                .foregroundColor(.yellow)
-            Text(error)
-                .font(.footnote)
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button("Retry") {
-                loadError[messageId] = nil
-                Task { await resolveIfNeeded(at: currentIndex) }
-            }
-            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -267,42 +224,64 @@ struct MediaGalleryView: View {
             }
     }
 
-    // MARK: - Resolution
-
-    @MainActor
-    private func resolveIfNeeded(at index: Int) async {
-        guard presentation.items.indices.contains(index) else { return }
-        let item = presentation.items[index]
-        guard resolvedURLs[item.id] == nil, loadError[item.id] == nil else { return }
-        guard let attachment = Self.attachment(for: item.message) else { return }
-        do {
-            let url = try await resolver.decryptedURL(
-                forMessageId: item.id,
-                attachment: attachment
-            )
-            resolvedURLs[item.id] = url
-        } catch {
-            loadError[item.id] = error.localizedDescription
-        }
-    }
-
-    private func resolvedImage(for item: GalleryItem) -> UIImage? {
-        guard let url = resolvedURLs[item.id] else { return nil }
-        return UIImage(contentsOfFile: url.path)
-    }
-
-    private static func attachment(for message: Message) -> Message.MediaAttachment? {
-        switch message.content {
-        case .image(let a), .video(let a): return a
-        default: return nil
-        }
-    }
-
     private static func titleText(for message: Message) -> String {
+        relativeFormatter.localizedString(for: message.timestamp, relativeTo: Date())
+    }
+
+    private func galleryChromeIcon(systemName: String) -> some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .sanchrGlass(
+                        role: .toolbarButton,
+                        interactive: true,
+                        tint: Color.white.opacity(0.12)
+                    )
+            } else {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.white.opacity(0.2))
+                    .clipShape(Circle())
+            }
+        }
+    }
+
+    private func chromeTitlePill(text: String) -> some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Text(text)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.92))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .sanchrGlass(
+                        role: .toast,
+                        tint: Color.white.opacity(0.08)
+                    )
+            } else {
+                Text(text)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.92))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.35))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+}
+
+private extension MediaGalleryView {
+    static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: message.timestamp, relativeTo: Date())
-    }
+        return formatter
+    }()
 }
 
 /// Identifiable URL wrapper so `.sheet(item:)` can drive the share sheet.

@@ -52,7 +52,7 @@ struct DocumentPreviewView: UIViewControllerRepresentable {
     }
 
     final class Coordinator: NSObject,
-                              @preconcurrency QLPreviewControllerDataSource,
+                              QLPreviewControllerDataSource,
                               @preconcurrency QLPreviewControllerDelegate,
                               @preconcurrency UIDocumentInteractionControllerDelegate {
         let fileURL: URL

@@ -13,6 +13,19 @@ public enum SanchrExportMetrics {
     public static let contentSpacing: CGFloat = 20
 }
 
+public enum SanchrGlassRole: Sendable {
+    case toolbarButton
+    case chip
+    case floatingAction
+    case toast
+    case viewerCard
+}
+
+public enum SanchrGlassProminence: Sendable {
+    case regular
+    case prominent
+}
+
 public enum SanchrExportColors {
     public static let background = Color(uiColor: .systemBackground)
     public static let surface = Color(uiColor: .secondarySystemBackground)
@@ -29,6 +42,27 @@ extension View {
     public func sanchrExportBackground() -> some View {
         background(SanchrExportColors.background.ignoresSafeArea())
     }
+
+    @ViewBuilder
+    public func sanchrGlass(
+        role: SanchrGlassRole,
+        interactive: Bool = false,
+        prominence: SanchrGlassProminence = .regular,
+        tint: Color? = nil
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            modifier(
+                SanchrGlassModifier(
+                    role: role,
+                    interactive: interactive,
+                    prominence: prominence,
+                    tint: tint
+                )
+            )
+        } else {
+            self
+        }
+    }
 }
 
 public struct SanchrPrimaryCTA: ButtonStyle {
@@ -38,6 +72,79 @@ public struct SanchrPrimaryCTA: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .opacity(configuration.isPressed ? 0.96 : 1)
+    }
+}
+
+@available(iOS 26.0, *)
+private struct SanchrGlassModifier: ViewModifier {
+    let role: SanchrGlassRole
+    let interactive: Bool
+    let prominence: SanchrGlassProminence
+    let tint: Color?
+
+    func body(content: Content) -> some View {
+        switch role {
+        case .toolbarButton, .floatingAction:
+            content.glassEffect(glass, in: Circle())
+        case .chip, .toast:
+            content.glassEffect(glass, in: Capsule())
+        case .viewerCard:
+            content.glassEffect(
+                glass,
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+        }
+    }
+
+    private var glass: Glass {
+        var resolved = Glass.regular
+        let defaultTint = defaultTintForRole()
+        if let defaultTint {
+            resolved = resolved.tint(defaultTint)
+        }
+        if interactive {
+            resolved = resolved.interactive()
+        }
+        return resolved
+    }
+
+    private func defaultTintForRole() -> Color? {
+        if let tint {
+            return tint
+        }
+        guard prominence == .prominent else { return nil }
+        switch role {
+        case .toolbarButton, .chip, .viewerCard:
+            return SanchrColors.primary.opacity(0.18)
+        case .floatingAction:
+            return SanchrColors.primary
+        case .toast:
+            return Color.white.opacity(0.12)
+        }
+    }
+}
+
+public struct SanchrGlassCluster<Content: View>: View {
+    private let spacing: CGFloat?
+    private let content: Content
+
+    public init(
+        spacing: CGFloat? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    @ViewBuilder
+    public var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) {
+                content
+            }
+        } else {
+            content
+        }
     }
 }
 
@@ -122,28 +229,50 @@ public struct SanchrIconButton: View {
     public let systemName: String
     public let foreground: Color
     public let background: Color
+    public let size: CGFloat
+    public let glassTint: Color?
+    public let glassProminence: SanchrGlassProminence
     public let action: () -> Void
 
     public init(
         systemName: String,
         foreground: Color = SanchrExportColors.textSecondary,
         background: Color = .clear,
+        size: CGFloat = SanchrExportMetrics.iconButtonSize,
+        glassTint: Color? = nil,
+        glassProminence: SanchrGlassProminence = .regular,
         action: @escaping () -> Void
     ) {
         self.systemName = systemName
         self.foreground = foreground
         self.background = background
+        self.size = size
+        self.glassTint = glassTint
+        self.glassProminence = glassProminence
         self.action = action
     }
 
     public var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(foreground)
-                .frame(width: SanchrExportMetrics.iconButtonSize, height: SanchrExportMetrics.iconButtonSize)
-                .background(background)
-                .clipShape(Circle())
+            if #available(iOS 26.0, *) {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(foreground)
+                    .frame(width: size, height: size)
+                    .sanchrGlass(
+                        role: .toolbarButton,
+                        interactive: true,
+                        prominence: glassProminence,
+                        tint: glassTint
+                    )
+            } else {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(foreground)
+                    .frame(width: size, height: size)
+                    .background(background)
+                    .clipShape(Circle())
+            }
         }
         .buttonStyle(.plain)
     }
@@ -181,8 +310,7 @@ public struct SanchrSearchField<Trailing: View>: View {
         }
         .padding(.horizontal, 16)
         .frame(height: SanchrSpacing.searchBarHeight)
-        .background(Color.sanchrSearchBackground(colorScheme))
-        .clipShape(Capsule())
+        .modifier(SearchFieldBackgroundModifier(colorScheme: colorScheme))
         .overlay {
             Capsule()
                 .stroke(isFocused ? SanchrColors.accent.opacity(0.5) : Color.clear, lineWidth: 1)
@@ -204,13 +332,27 @@ public struct SanchrFilterChip: View {
 
     public var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
-                .foregroundColor(isSelected ? .white : SanchrExportColors.textSecondary)
-                .padding(.horizontal, SanchrSpacing.filterTabHPadding)
-                .frame(height: SanchrSpacing.filterTabHeight)
-                .background(isSelected ? SanchrExportColors.selectedChip : Color.sanchrChipInactive(colorScheme))
-                .clipShape(Capsule())
+            if #available(iOS 26.0, *) {
+                Text(title)
+                    .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
+                    .foregroundColor(isSelected ? .white : SanchrExportColors.textSecondary)
+                    .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                    .frame(height: SanchrSpacing.filterTabHeight)
+                    .sanchrGlass(
+                        role: .chip,
+                        interactive: true,
+                        prominence: isSelected ? .prominent : .regular,
+                        tint: isSelected ? SanchrColors.primary.opacity(0.24) : nil
+                    )
+            } else {
+                Text(title)
+                    .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
+                    .foregroundColor(isSelected ? .white : SanchrExportColors.textSecondary)
+                    .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                    .frame(height: SanchrSpacing.filterTabHeight)
+                    .background(isSelected ? SanchrExportColors.selectedChip : Color.sanchrChipInactive(colorScheme))
+                    .clipShape(Capsule())
+            }
         }
         .buttonStyle(.plain)
     }
@@ -228,19 +370,81 @@ public struct SanchrModeChip: View {
 
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: "shield.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Sanchr Mode")
-                    .font(SanchrTypography.filterTab)
+            if #available(iOS 26.0, *) {
+                HStack(spacing: 8) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Sanchr Mode")
+                        .font(SanchrTypography.filterTab)
+                }
+                .foregroundColor(isActive ? SanchrColors.primary : SanchrExportColors.textSecondary)
+                .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                .frame(height: SanchrSpacing.filterTabHeight)
+                .sanchrGlass(
+                    role: .chip,
+                    interactive: true,
+                    prominence: isActive ? .prominent : .regular,
+                    tint: isActive ? SanchrColors.primary.opacity(0.18) : nil
+                )
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Sanchr Mode")
+                        .font(SanchrTypography.filterTab)
+                }
+                .foregroundColor(isActive ? SanchrColors.primary : SanchrExportColors.textSecondary)
+                .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                .frame(height: SanchrSpacing.filterTabHeight)
+                .background(Color.sanchrChipInactive(colorScheme))
+                .clipShape(Capsule())
             }
-            .foregroundColor(isActive ? SanchrColors.primary : SanchrExportColors.textSecondary)
-            .padding(.horizontal, SanchrSpacing.filterTabHPadding)
-            .frame(height: SanchrSpacing.filterTabHeight)
-            .background(Color.sanchrChipInactive(colorScheme))
-            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+public struct SanchrToastBadge: View {
+    public let text: String
+    public let foreground: Color
+
+    public init(text: String, foreground: Color = .white) {
+        self.text = text
+        self.foreground = foreground
+    }
+
+    public var body: some View {
+        if #available(iOS 26.0, *) {
+            Text(text)
+                .font(.footnote)
+                .foregroundColor(foreground)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .sanchrGlass(role: .toast, tint: Color.white.opacity(0.14))
+        } else {
+            Text(text)
+                .font(.footnote)
+                .foregroundColor(foreground)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.black.opacity(0.8))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+private struct SearchFieldBackgroundModifier: ViewModifier {
+    let colorScheme: ColorScheme
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.sanchrGlass(role: .chip, interactive: true)
+        } else {
+            content
+                .background(Color.sanchrSearchBackground(colorScheme))
+                .clipShape(Capsule())
+        }
     }
 }
 

@@ -65,11 +65,7 @@ struct ContactActionSheet: View {
             }
             .overlay(alignment: .bottom) {
                 if let toast {
-                    Text(toast)
-                        .padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(Color.black.opacity(0.8))
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
+                    SanchrToastBadge(text: toast)
                         .padding(.bottom, 32)
                         .task(id: toast) {
                             try? await Task.sleep(nanoseconds: 1_500_000_000)

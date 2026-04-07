@@ -251,6 +251,11 @@ struct MainTabView: View {
 
     /// Configures the UITabBar appearance to match Figma design tokens.
     private func configureTabBarAppearance() {
+        if #available(iOS 26.0, *) {
+            // Let the native TabView tab bar render Liquid Glass.
+            return
+        }
+
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
 

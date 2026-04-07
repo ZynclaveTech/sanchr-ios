@@ -271,9 +271,20 @@ struct ChatDetailView: View {
         }
         .overlay {
             if documentCoordinator.isResolving {
-                Color.black.opacity(0.3)
+                Color.black.opacity(0.14)
                     .ignoresSafeArea()
-                    .overlay(ProgressView().tint(.white))
+                    .overlay {
+                        VStack(spacing: 10) {
+                            ProgressView()
+                                .tint(.white)
+                            Text("Opening document…")
+                                .font(SanchrTypography.caption)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .modifier(ChatViewerHUDModifier())
+                    }
             }
         }
         .alert("Couldn't open file", isPresented: Binding(
@@ -449,14 +460,14 @@ struct ChatDetailView: View {
     private var header: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Button {
+                SanchrIconButton(
+                    systemName: "chevron.left",
+                    foreground: .sanchrPrimary,
+                    background: SanchrExportColors.surface,
+                    size: 36
+                ) {
                     dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.sanchrPrimary)
                 }
-                .buttonStyle(.plain)
 
                 chatHeaderAvatar
 
@@ -474,53 +485,43 @@ struct ChatDetailView: View {
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: 6) {
-                    if let recipient {
-                        headerActionButton(icon: "video.fill") {
-                            Task {
-                                try? await container.startCallUseCase.execute(
-                                    recipientId: recipient.id,
-                                    recipientName: recipient.displayName,
-                                    isVideo: true
-                                )
+                SanchrGlassCluster(spacing: 12) {
+                    HStack(spacing: 6) {
+                        if let recipient {
+                            headerActionButton(icon: "video.fill") {
+                                Task {
+                                    try? await container.startCallUseCase.execute(
+                                        recipientId: recipient.id,
+                                        recipientName: recipient.displayName,
+                                        isVideo: true
+                                    )
+                                }
+                            }
+
+                            headerActionButton(icon: "phone.fill") {
+                                Task {
+                                    try? await container.startCallUseCase.execute(
+                                        recipientId: recipient.id,
+                                        recipientName: recipient.displayName,
+                                        isVideo: false
+                                    )
+                                }
                             }
                         }
 
-                        headerActionButton(icon: "phone.fill") {
-                            Task {
-                                try? await container.startCallUseCase.execute(
-                                    recipientId: recipient.id,
-                                    recipientName: recipient.displayName,
-                                    isVideo: false
-                                )
+                        headerActionButton(icon: "magnifyingglass") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.isSearching.toggle()
+                                if !viewModel.isSearching {
+                                    viewModel.clearSearch()
+                                }
                             }
                         }
-                    }
 
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.isSearching.toggle()
-                            if !viewModel.isSearching {
-                                viewModel.clearSearch()
-                            }
+                        headerActionButton(icon: "ellipsis") {
+                            showConversationInfo = true
                         }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                            .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
                     }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        showConversationInfo = true
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                            .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
@@ -603,13 +604,14 @@ struct ChatDetailView: View {
     }
 
     private func headerActionButton(icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(SanchrExportColors.textSecondary)
-                .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+        SanchrIconButton(
+            systemName: icon,
+            foreground: SanchrExportColors.textSecondary,
+            background: SanchrExportColors.surface,
+            size: SanchrSpacing.chatHeaderActionSize
+        ) {
+            action()
         }
-        .buttonStyle(.plain)
     }
 
     private var chatSearchBar: some View {
@@ -632,29 +634,45 @@ struct ChatDetailView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .background(SanchrExportColors.surfaceSoft)
-            .clipShape(Capsule())
+            .modifier(ChatSearchFieldSurfaceModifier())
 
             if !viewModel.searchResults.isEmpty {
-                HStack(spacing: 4) {
-                    Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                        .frame(minWidth: 30)
+                SanchrGlassCluster(spacing: 10) {
+                    HStack(spacing: 6) {
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
+                                    .font(SanchrTypography.captionSmall)
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .padding(.horizontal, 12)
+                                    .frame(height: 32)
+                                    .sanchrGlass(role: .chip)
+                            } else {
+                                Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
+                                    .font(SanchrTypography.captionSmall)
+                                    .foregroundColor(SanchrExportColors.textSecondary)
+                                    .frame(minWidth: 30)
+                            }
+                        }
 
-                    Button { viewModel.previousSearchResult() } label: {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-                    .buttonStyle(.plain)
+                        SanchrIconButton(
+                            systemName: "chevron.up",
+                            foreground: SanchrExportColors.textSecondary,
+                            background: SanchrExportColors.surface,
+                            size: 30
+                        ) {
+                            viewModel.previousSearchResult()
+                        }
 
-                    Button { viewModel.nextSearchResult() } label: {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textSecondary)
+                        SanchrIconButton(
+                            systemName: "chevron.down",
+                            foreground: SanchrExportColors.textSecondary,
+                            background: SanchrExportColors.surface,
+                            size: 30
+                        ) {
+                            viewModel.nextSearchResult()
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -777,13 +795,26 @@ struct ChatDetailView: View {
             issueTranscriptScroll(to: .manualBottom(sequence: nextTranscriptScrollSequence()))
         } label: {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(SanchrExportColors.textSecondary)
-                    .frame(width: 40, height: 40)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                Group {
+                    if #available(iOS 26.0, *) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: 40, height: 40)
+                            .sanchrGlass(
+                                role: .floatingAction,
+                                interactive: true
+                            )
+                    } else {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .frame(width: 40, height: 40)
+                            .background(SanchrExportColors.surface)
+                            .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    }
+                }
 
                 if newMessageCountWhileScrolled > 0 {
                     Text("\(newMessageCountWhileScrolled)")
@@ -906,9 +937,19 @@ struct ChatDetailView: View {
                             viewModel.clearReply()
                         }
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(SanchrExportColors.textTertiary)
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(SanchrExportColors.textTertiary)
+                                    .frame(width: 24, height: 24)
+                                    .sanchrGlass(role: .toolbarButton, interactive: true)
+                            } else {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(SanchrExportColors.textTertiary)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -935,12 +976,27 @@ struct ChatDetailView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: showAttachmentPicker ? "xmark" : "plus")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(SanchrColors.primary)
-                        .frame(width: 36, height: 36)
-                        .background(SanchrColors.primary.opacity(0.1))
-                        .clipShape(Circle())
+                    Group {
+                        if #available(iOS 26.0, *) {
+                            Image(systemName: showAttachmentPicker ? "xmark" : "plus")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(SanchrColors.primary)
+                                .frame(width: 36, height: 36)
+                                .sanchrGlass(
+                                    role: .floatingAction,
+                                    interactive: true,
+                                    prominence: .prominent,
+                                    tint: SanchrColors.primary.opacity(0.18)
+                                )
+                        } else {
+                            Image(systemName: showAttachmentPicker ? "xmark" : "plus")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(SanchrColors.primary)
+                                .frame(width: 36, height: 36)
+                                .background(SanchrColors.primary.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
 
@@ -996,19 +1052,34 @@ struct ChatDetailView: View {
                             )
                         }
                     } label: {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 36, height: 36)
-                            .background(
-                                LinearGradient(
-                                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .clipShape(Circle())
-                            .shadow(color: SanchrColors.primary.opacity(0.25), radius: 8, x: 0, y: 3)
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 36, height: 36)
+                                    .sanchrGlass(
+                                        role: .floatingAction,
+                                        interactive: true,
+                                        prominence: .prominent,
+                                        tint: SanchrColors.primary
+                                    )
+                            } else {
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .clipShape(Circle())
+                                    .shadow(color: SanchrColors.primary.opacity(0.25), radius: 8, x: 0, y: 3)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
@@ -2186,6 +2257,35 @@ private struct ReactionPillsView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+}
+
+private struct ChatViewerHUDModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.sanchrGlass(
+                role: .viewerCard,
+                tint: Color.white.opacity(0.1)
+            )
+        } else {
+            content
+                .background(Color.black.opacity(0.72))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+}
+
+private struct ChatSearchFieldSurfaceModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.sanchrGlass(role: .chip, interactive: true)
+        } else {
+            content
+                .background(SanchrExportColors.surfaceSoft)
+                .clipShape(Capsule())
         }
     }
 }

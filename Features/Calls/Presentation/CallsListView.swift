@@ -154,19 +154,34 @@ struct CallsListView: View {
 
     private var helpButton: some View {
         Button {} label: {
-            Image(systemName: "questionmark")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 64, height: 64)
-                .background(
-                    LinearGradient(
-                        colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
-                .shadow(color: SanchrColors.primary.opacity(0.28), radius: 24, x: 0, y: 14)
+            Group {
+                if #available(iOS 26.0, *) {
+                    Image(systemName: "questionmark")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .sanchrGlass(
+                            role: .floatingAction,
+                            interactive: true,
+                            prominence: .prominent,
+                            tint: SanchrColors.primary
+                        )
+                } else {
+                    Image(systemName: "questionmark")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .background(
+                            LinearGradient(
+                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(Circle())
+                        .shadow(color: SanchrColors.primary.opacity(0.28), radius: 24, x: 0, y: 14)
+                }
+            }
         }
         .padding(.trailing, 20)
         .padding(.bottom, 20)

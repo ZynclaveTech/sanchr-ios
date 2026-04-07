@@ -113,8 +113,7 @@ struct ActiveCallView: View {
             .foregroundColor(SanchrColors.encryptionBadgeText)
             .padding(.horizontal, SanchrSpacing.sm)
             .padding(.vertical, SanchrSpacing.xxs)
-            .background(SanchrColors.encryptionBadge)
-            .clipShape(Capsule())
+            .modifier(CallEncryptionBadgeModifier())
             Spacer()
         }
         .padding(.top, SanchrSpacing.md)
@@ -155,42 +154,44 @@ struct ActiveCallView: View {
     // MARK: - In-Call Controls
 
     private func callControls(callManager: CallManager) -> some View {
-        HStack(spacing: SanchrSpacing.xxxl) {
-            // Mute
-            CallControlButton(
-                icon: callManager.isMuted ? "mic.slash.fill" : "mic.fill",
-                label: callManager.isMuted ? "Unmute" : "Mute",
-                isActive: callManager.isMuted
-            ) {
-                callManager.toggleMute()
-            }
-
-            // Speaker
-            CallControlButton(
-                icon: callManager.isSpeakerOn ? "speaker.wave.3.fill" : "speaker.fill",
-                label: "Speaker",
-                isActive: callManager.isSpeakerOn
-            ) {
-                callManager.toggleSpeaker()
-            }
-
-            // Video toggle
-            CallControlButton(
-                icon: callManager.isVideoEnabled ? "video.fill" : "video.slash.fill",
-                label: "Video",
-                isActive: callManager.isVideoEnabled
-            ) {
-                callManager.toggleVideo()
-            }
-
-            // Flip camera (only when video is on)
-            if callManager.isVideoEnabled {
+        SanchrGlassCluster(spacing: 14) {
+            HStack(spacing: SanchrSpacing.xxxl) {
+                // Mute
                 CallControlButton(
-                    icon: "camera.rotate.fill",
-                    label: "Flip",
-                    isActive: false
+                    icon: callManager.isMuted ? "mic.slash.fill" : "mic.fill",
+                    label: callManager.isMuted ? "Unmute" : "Mute",
+                    isActive: callManager.isMuted
                 ) {
-                    callManager.switchCamera()
+                    callManager.toggleMute()
+                }
+
+                // Speaker
+                CallControlButton(
+                    icon: callManager.isSpeakerOn ? "speaker.wave.3.fill" : "speaker.fill",
+                    label: "Speaker",
+                    isActive: callManager.isSpeakerOn
+                ) {
+                    callManager.toggleSpeaker()
+                }
+
+                // Video toggle
+                CallControlButton(
+                    icon: callManager.isVideoEnabled ? "video.fill" : "video.slash.fill",
+                    label: "Video",
+                    isActive: callManager.isVideoEnabled
+                ) {
+                    callManager.toggleVideo()
+                }
+
+                // Flip camera (only when video is on)
+                if callManager.isVideoEnabled {
+                    CallControlButton(
+                        icon: "camera.rotate.fill",
+                        label: "Flip",
+                        isActive: false
+                    ) {
+                        callManager.switchCamera()
+                    }
                 }
             }
         }
@@ -351,22 +352,54 @@ struct CallControlButton: View {
             }
         }) {
             VStack(spacing: SanchrSpacing.xxs) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(isActive ? .white : .white.opacity(0.9))
-                    .frame(width: 56, height: 56)
-                    .background(
-                        isActive
-                            ? Color.sanchrPrimary
-                            : Color.white.opacity(0.15)
-                    )
-                    .clipShape(Circle())
-                    .scaleEffect(isPressed ? 0.9 : 1.0)
+                Group {
+                    if #available(iOS 26.0, *) {
+                        Image(systemName: icon)
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .scaleEffect(isPressed ? 0.9 : 1.0)
+                            .sanchrGlass(
+                                role: .floatingAction,
+                                interactive: true,
+                                prominence: isActive ? .prominent : .regular,
+                                tint: isActive ? Color.sanchrPrimary.opacity(0.3) : Color.white.opacity(0.1)
+                            )
+                    } else {
+                        Image(systemName: icon)
+                            .font(.title2)
+                            .foregroundColor(isActive ? .white : .white.opacity(0.9))
+                            .frame(width: 56, height: 56)
+                            .background(
+                                isActive
+                                    ? Color.sanchrPrimary
+                                    : Color.white.opacity(0.15)
+                            )
+                            .clipShape(Circle())
+                            .scaleEffect(isPressed ? 0.9 : 1.0)
+                    }
+                }
 
                 Text(label)
                     .font(SanchrTypography.captionSmall)
                     .foregroundColor(.white.opacity(0.7))
             }
+        }
+    }
+}
+
+private struct CallEncryptionBadgeModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.sanchrGlass(
+                role: .chip,
+                tint: Color.white.opacity(0.12)
+            )
+        } else {
+            content
+                .background(SanchrColors.encryptionBadge)
+                .clipShape(Capsule())
         }
     }
 }
