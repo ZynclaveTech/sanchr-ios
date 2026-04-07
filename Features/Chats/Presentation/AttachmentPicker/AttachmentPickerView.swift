@@ -33,8 +33,18 @@ final class AttachmentPickerView: UIView {
         layer.cornerRadius = 16
         layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
 
-        e2eeChip.text = "🛡 E2EE"
-        e2eeChip.font = .systemFont(ofSize: 11, weight: .semibold)
+        let chipFont = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        let shieldAttachment = NSTextAttachment()
+        let shieldCfg = UIImage.SymbolConfiguration(font: chipFont)
+        shieldAttachment.image = UIImage(systemName: "lock.shield.fill", withConfiguration: shieldCfg)?
+            .withTintColor(.systemPurple, renderingMode: .alwaysOriginal)
+        let chipString = NSMutableAttributedString(attachment: shieldAttachment)
+        chipString.append(NSAttributedString(
+            string: " E2EE",
+            attributes: [.font: chipFont, .foregroundColor: UIColor.systemPurple]
+        ))
+        e2eeChip.attributedText = chipString
+        e2eeChip.font = chipFont
         e2eeChip.textColor = .systemPurple
         e2eeChip.isAccessibilityElement = true
         e2eeChip.accessibilityLabel = "End-to-end encrypted"

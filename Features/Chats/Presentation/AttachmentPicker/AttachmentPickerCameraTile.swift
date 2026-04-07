@@ -6,7 +6,7 @@ import AVFoundation
 final class CameraTileCell: UICollectionViewCell {
 
     private let previewContainer = UIView()
-    private let lockGlyph = UILabel()
+    private let cameraIconView = UIImageView()
     private var previewLayer: AVCaptureVideoPreviewLayer?
 
     // nonisolated(unsafe): AVCaptureSession is thread-safe for start/stop and we
@@ -26,12 +26,13 @@ final class CameraTileCell: UICollectionViewCell {
         previewContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         contentView.addSubview(previewContainer)
 
-        lockGlyph.text = "📷"
-        lockGlyph.font = .systemFont(ofSize: 28)
-        lockGlyph.textAlignment = .center
-        lockGlyph.frame = contentView.bounds
-        lockGlyph.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        contentView.addSubview(lockGlyph)
+        let cfg = UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)
+        cameraIconView.image = UIImage(systemName: "camera.fill", withConfiguration: cfg)
+        cameraIconView.tintColor = .white
+        cameraIconView.contentMode = .center
+        cameraIconView.frame = contentView.bounds
+        cameraIconView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        contentView.addSubview(cameraIconView)
 
         startIfAuthorized()
     }
@@ -46,7 +47,7 @@ final class CameraTileCell: UICollectionViewCell {
         layer.frame = previewContainer.bounds
         previewContainer.layer.addSublayer(layer)
         previewLayer = layer
-        lockGlyph.isHidden = true
+        cameraIconView.isHidden = true
         if !Self.sharedSession.isRunning {
             DispatchQueue.global(qos: .userInitiated).async {
                 Self.sharedSession.startRunning()

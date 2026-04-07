@@ -102,11 +102,22 @@ final class PhotosLibrarySource: NSObject, PHPhotoLibraryChangeObserver {
         guard let asset = result.firstObject else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
             let opts = PHImageRequestOptions()
-            opts.deliveryMode = .opportunistic
+            // .highQualityFormat fires the result handler exactly once. .opportunistic
+            // can fire twice (low-res then high-res), which crashes CheckedContinuation.
+            opts.deliveryMode = .highQualityFormat
+            opts.resizeMode = .fast
             opts.isNetworkAccessAllowed = true
             opts.isSynchronous = false
-            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, _ in
-                cont.resume(returning: img)
+            // Defensive guard: even with .highQualityFormat, PhotoKit may invoke the
+            // handler with a degraded image followed by a final one in some edge cases
+            // (e.g. iCloud download progress). Resume only on the first non-degraded call.
+            let resumed = ContinuationGuard()
+            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, info in
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                if isDegraded { return }
+                if resumed.tryConsume() {
+                    cont.resume(returning: img)
+                }
             }
         }
     }
@@ -155,4 +166,18 @@ final class PhotosLibrarySource: NSObject, PHPhotoLibraryChangeObserver {
 
     // MARK: PHPhotoLibraryChangeObserver
     nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {}
+}
+
+/// One-shot guard so a PhotoKit result handler that may be invoked multiple times
+/// can only resume a CheckedContinuation once. Lock-protected so it is safe from
+/// any thread PhotoKit may dispatch on.
+private final class ContinuationGuard: @unchecked Sendable {
+    private let lock = NSLock()
+    private var consumed = false
+    func tryConsume() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if consumed { return false }
+        consumed = true
+        return true
+    }
 }

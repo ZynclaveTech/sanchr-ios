@@ -51,7 +51,7 @@ final class AttachmentPickerActionGrid: UIView {
 @MainActor
 final class AttachmentGridTile: UIControl {
     let item: ActionGridItem
-    private let iconLabel = UILabel()
+    private let iconView = UIImageView()
     private let titleLabel = UILabel()
     init(item: ActionGridItem) {
         self.item = item
@@ -61,14 +61,15 @@ final class AttachmentGridTile: UIControl {
         if item == .vault {
             backgroundColor = UIColor.systemPurple.withAlphaComponent(0.18)
         }
-        iconLabel.text = Self.glyph(for: item)
-        iconLabel.font = .systemFont(ofSize: 22)
-        iconLabel.textAlignment = .center
+        let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
+        iconView.image = UIImage(systemName: Self.symbolName(for: item), withConfiguration: cfg)
+        iconView.tintColor = (item == .vault) ? .systemPurple : .label
+        iconView.contentMode = .scaleAspectFit
         titleLabel.text = Self.title(for: item)
         titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
         titleLabel.textAlignment = .center
         titleLabel.textColor = .secondaryLabel
-        let stack = UIStackView(arrangedSubviews: [iconLabel, titleLabel])
+        let stack = UIStackView(arrangedSubviews: [iconView, titleLabel])
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 4
@@ -104,8 +105,13 @@ final class AttachmentGridTile: UIControl {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    static func glyph(for item: ActionGridItem) -> String {
-        switch item { case .vault: return "🔒"; case .file: return "📄"; case .contact: return "👤"; case .location: return "📍" }
+    static func symbolName(for item: ActionGridItem) -> String {
+        switch item {
+        case .vault: return "lock.shield.fill"
+        case .file: return "doc.fill"
+        case .contact: return "person.crop.circle.fill"
+        case .location: return "mappin.and.ellipse"
+        }
     }
     static func title(for item: ActionGridItem) -> String {
         switch item { case .vault: return "Vault"; case .file: return "File"; case .contact: return "Contact"; case .location: return "Location" }

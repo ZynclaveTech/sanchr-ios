@@ -122,7 +122,7 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
 @MainActor
 final class RecentPhotoCell: UICollectionViewCell {
     private let imageView = UIImageView()
-    private let selectionBadge = UILabel()
+    private let selectionBadge = UIImageView()
     private var loadTask: Task<Void, Never>?
 
     override init(frame: CGRect) {
@@ -135,11 +135,12 @@ final class RecentPhotoCell: UICollectionViewCell {
         imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         selectionBadge.frame = CGRect(x: 4, y: 4, width: 22, height: 22)
         selectionBadge.backgroundColor = .systemPurple
-        selectionBadge.textColor = .white
-        selectionBadge.textAlignment = .center
+        selectionBadge.tintColor = .white
+        selectionBadge.contentMode = .center
         selectionBadge.layer.cornerRadius = 11
         selectionBadge.layer.masksToBounds = true
-        selectionBadge.font = .systemFont(ofSize: 12, weight: .bold)
+        let badgeCfg = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+        selectionBadge.image = UIImage(systemName: "checkmark", withConfiguration: badgeCfg)
         selectionBadge.isHidden = true
         contentView.addSubview(selectionBadge)
     }
@@ -148,7 +149,8 @@ final class RecentPhotoCell: UICollectionViewCell {
     func configure(photo: RecentPhoto, isSelected: Bool, multiSelecting: Bool,
                    thumbnailLoader: @escaping @MainActor @Sendable (CGSize) async -> UIImage?) {
         selectionBadge.isHidden = !multiSelecting
-        selectionBadge.text = isSelected ? "✓" : ""
+        let badgeCfg = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+        selectionBadge.image = isSelected ? UIImage(systemName: "checkmark", withConfiguration: badgeCfg) : nil
         selectionBadge.backgroundColor = isSelected ? .systemPurple : UIColor.black.withAlphaComponent(0.3)
         imageView.image = nil
         loadTask?.cancel()
