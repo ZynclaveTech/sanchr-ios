@@ -10,6 +10,7 @@ struct SecurityView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var showChangePassword = false
+    @State private var showDeleteAccount = false
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
@@ -44,6 +45,9 @@ struct SecurityView: View {
         .navigationBarHidden(true)
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
+        }
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountConfirmationSheet()
         }
         .task {
             await viewModel.loadSettings(
@@ -356,6 +360,19 @@ struct SecurityView: View {
                 title: "Active Sessions",
                 subtitle: "1 device connected"
             )
+
+            Button {
+                showDeleteAccount = true
+            } label: {
+                featureRow(
+                    icon: "trash.fill",
+                    tint: Color(hex: 0xDC2626),
+                    background: Color(hex: 0xFEE2E2),
+                    title: "Delete Account",
+                    subtitle: "Permanently erase your account and data"
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
