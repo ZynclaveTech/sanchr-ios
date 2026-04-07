@@ -103,6 +103,13 @@ final class DependencyContainer: @unchecked Sendable {
         grpcClient: grpcClient
     )
 
+    /// Viewer-facing seam over `mediaDownloadManager` that adds a filename-
+    /// preserving hard link path for `QLPreviewController`. Viewers bind
+    /// to this protocol, not the concrete actor.
+    @ObservationIgnored lazy var chatMediaResolver: ChatMediaResolving = ChatMediaResolverImpl(
+        download: mediaDownloadManager
+    )
+
     // MARK: - Cross-Process Send Pipeline (T16/T18)
 
     /// Cross-process file lock guarding Signal-protocol ratchet mutations on
