@@ -30,11 +30,17 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
             switch m.authorizationStatus {
             case .notDetermined:
                 m.requestWhenInUseAuthorization()
+                // Once permission is granted, locationManagerDidChangeAuthorization
+                // calls startUpdatingLocation. Don't start before grant.
             case .denied, .restricted:
                 self.resume(.failure(Error.denied))
                 return
             case .authorizedWhenInUse, .authorizedAlways:
-                m.requestLocation()
+                // startUpdatingLocation is more reliable than requestLocation on
+                // simulators and cold CL daemons — requestLocation can silently
+                // do nothing if no recent fix is cached. We stop updating as soon
+                // as the first location arrives in didUpdateLocations.
+                m.startUpdatingLocation()
             @unknown default:
                 self.resume(.failure(Error.failed("unknown auth status")))
                 return
@@ -61,7 +67,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
     // MARK: Delegate
     func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
         switch m.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways: m.requestLocation()
+        case .authorizedWhenInUse, .authorizedAlways: m.startUpdatingLocation()
         case .denied, .restricted: resume(.failure(Error.denied))
         default: break
         }
@@ -69,6 +75,8 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
 
     func locationManager(_ m: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
         guard let loc = locs.last else { return }
+        // Stop updating immediately after the first usable fix.
+        m.stopUpdatingLocation()
         resume(.success(loc))
     }
 
@@ -80,6 +88,7 @@ final class LocationSource: NSObject, CLLocationManagerDelegate, @unchecked Send
         guard let cont = continuation else { return }
         continuation = nil
         timeoutTask?.cancel(); timeoutTask = nil
+        manager?.stopUpdatingLocation()
         manager?.delegate = nil
         manager = nil
         switch result {

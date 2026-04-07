@@ -100,8 +100,12 @@ struct ChatDetailView: View {
                         showAttachmentPicker = false
                         let ctx = makeAttachmentSendContext()
                         Task { @MainActor in
+                            // Bind to a local to keep the LocationSource alive
+                            // across the suspension; the CLLocationManager's
+                            // delegate is weak, so a temporary would race ARC.
+                            let source = LocationSource()
                             do {
-                                let payload = try await LocationSource().requestOneShot()
+                                let payload = try await source.requestOneShot()
                                 await viewModel.send(intent: .location(payload), context: ctx)
                             } catch {
                                 print("[AttachmentPicker] location failed: \(error)")
