@@ -27,6 +27,7 @@ struct ChatDetailView: View {
     @State private var hasPresentedInitialTranscript = false
     @State private var hasScheduledDeferredEntryTasks = false
     @State private var voicePlayback = VoicePlaybackController()
+    @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -184,6 +185,13 @@ struct ChatDetailView: View {
                     showCameraCapture = false
                 },
                 onCancel: { showCameraCapture = false }
+            )
+        }
+        .fullScreenCover(item: $galleryCoordinator.presentation) { presentation in
+            MediaGalleryView(
+                presentation: presentation,
+                resolver: container.chatMediaResolver,
+                onDismiss: { galleryCoordinator.dismiss() }
             )
         }
         .onChange(of: selectedPhotoItems) { _, items in
@@ -609,7 +617,12 @@ struct ChatDetailView: View {
                 }
             },
             onBubbleTap: { interaction in
-                viewModel.route(interaction: interaction)
+                viewModel.route(
+                    interaction: interaction,
+                    onOpenGallery: { seed in
+                        galleryCoordinator.present(seed: seed)
+                    }
+                )
             },
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled
