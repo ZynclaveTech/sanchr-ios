@@ -308,6 +308,11 @@ actor MediaUploadManager {
 /// with 0.0 at the start and 1.0 on success. Fine-grained progress will be
 /// wired up once the underlying `URLSession.upload` is migrated to the
 /// delegate-based variant (tracked separately).
+///
+/// `execute(_:)` is already an `async` entry point on the actor, so no
+/// `withCheckedThrowingContinuation` bridge is required — Swift concurrency
+/// already guarantees a single resume. This eliminates the double-resume
+/// hazard the prep plan called out for callback-based queues.
 extension MediaUploadManager: MediaUploading {
     func uploadMedia(
         localFileURL: URL,
@@ -344,7 +349,12 @@ extension MediaUploadManager: MediaUploading {
             throw AppError.mediaUploadFailed
         }
 
-        guard let mediaId = completed.mediaId, let remoteURL = completed.remoteURL else {
+        guard
+            let mediaId = completed.mediaId,
+            let remoteURL = completed.remoteURL,
+            let metadata = completed.encryptionMetadata
+        else {
+            SanchrLogger.media.error("MediaUploading adapter: completed task missing mediaId/remoteURL/encryptionMetadata")
             throw AppError.mediaUploadFailed
         }
 
@@ -354,7 +364,12 @@ extension MediaUploadManager: MediaUploading {
             mediaId: mediaId,
             remoteURL: remoteURL,
             thumbnailRemoteURL: completed.thumbnailRemoteURL,
-            encryptedFileSize: completed.encryptedFileSize
+            encryptedFileSize: completed.encryptedFileSize,
+            plaintextFileSize: metadata.fileSize,
+            encryptionKey: metadata.key,
+            encryptionNonce: metadata.nonce,
+            encryptionTag: metadata.tag,
+            plaintextDigest: metadata.digest
         )
     }
 }

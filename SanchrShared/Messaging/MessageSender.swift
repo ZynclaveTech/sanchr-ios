@@ -52,18 +52,42 @@ public struct MediaUploadOutcome: Sendable, Equatable {
     public let mediaId: String
     public let remoteURL: String
     public let thumbnailRemoteURL: String?
+    /// Size of the encrypted ciphertext blob actually PUT to S3 (used by the
+    /// receiver for download progress / range validation).
     public let encryptedFileSize: Int64
+    /// Original plaintext file size in bytes.
+    public let plaintextFileSize: Int64
+    /// 32-byte AES-256 media key (ratchet-derived) the receiver needs to
+    /// decrypt the ciphertext. Wrapped in the outgoing E2EE envelope by
+    /// `MessageSender`.
+    public let encryptionKey: Data
+    /// 12-byte AES-GCM nonce used for the encryption.
+    public let encryptionNonce: Data
+    /// 16-byte AES-GCM authentication tag.
+    public let encryptionTag: Data
+    /// SHA-256 digest of the plaintext for receiver-side integrity check.
+    public let plaintextDigest: Data
 
     public init(
         mediaId: String,
         remoteURL: String,
         thumbnailRemoteURL: String?,
-        encryptedFileSize: Int64
+        encryptedFileSize: Int64,
+        plaintextFileSize: Int64,
+        encryptionKey: Data,
+        encryptionNonce: Data,
+        encryptionTag: Data,
+        plaintextDigest: Data
     ) {
         self.mediaId = mediaId
         self.remoteURL = remoteURL
         self.thumbnailRemoteURL = thumbnailRemoteURL
         self.encryptedFileSize = encryptedFileSize
+        self.plaintextFileSize = plaintextFileSize
+        self.encryptionKey = encryptionKey
+        self.encryptionNonce = encryptionNonce
+        self.encryptionTag = encryptionTag
+        self.plaintextDigest = plaintextDigest
     }
 }
 
