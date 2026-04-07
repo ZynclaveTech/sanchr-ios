@@ -35,8 +35,6 @@ struct ShareProviders: @unchecked Sendable {
 ///         -> done            (terminal, calls onComplete)
 ///         -> error           (terminal)
 ///
-/// All non-loading/error states render stub views in this task — the real
-/// unlock / picker / composer / progress views land in T23–T27.
 enum ShareRootState: Equatable {
     case loadingPayload
     case locked
@@ -160,33 +158,3 @@ struct ShareRootView: View {
     }
 }
 
-// MARK: - Temporary stub for T26 (ShareProgressSheet)
-//
-// Replaced by the real progress sheet in the next task. Left inline here
-// so the state machine compiles between T25 and T26.
-
-struct ShareProgressSheet: View {
-    let payload: SharePayload
-    let recipients: [ShareChatSummary]
-    let caption: String?
-    let onDone: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Sending\u{2026}")
-                .font(.title3.weight(.semibold))
-            Text("Lands in the next task")
-                .font(.footnote)
-                .foregroundColor(SanchrExportColors.textSecondary)
-            Button("Done", action: onDone)
-                .buttonStyle(.borderedProminent)
-                .tint(SanchrColors.primary)
-            Button("Cancel", action: onCancel)
-                .buttonStyle(.bordered)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(uiColor: .systemBackground))
-    }
-}
