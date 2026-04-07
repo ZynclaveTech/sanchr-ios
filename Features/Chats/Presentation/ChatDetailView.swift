@@ -25,6 +25,7 @@ struct ChatDetailView: View {
     @State private var transcriptScrollCommand: TranscriptScrollCommand? = .initialBottom(sequence: 0)
     @State private var hasPresentedInitialTranscript = false
     @State private var hasScheduledDeferredEntryTasks = false
+    @State private var voicePlayback = VoicePlaybackController()
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -582,6 +583,7 @@ struct ChatDetailView: View {
     private var messagesScrollView: some View {
         MessageCollectionView(
             renderInput: transcriptRenderInput,
+            voicePlayback: voicePlayback,
             onInitialPresentation: {
                 handleInitialTranscriptPresentation()
             },
@@ -879,14 +881,25 @@ struct ChatDetailView: View {
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
                 } else {
-                    // Mic button (placeholder for voice messages)
-                    Button {} label: {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                            .frame(width: 36, height: 36)
-                    }
-                    .buttonStyle(.plain)
+                    VoiceMessageComposer(
+                        playback: voicePlayback,
+                        onActivate: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isInputFocused = false
+                                showAttachmentPicker = false
+                                showEmojiPicker = false
+                            }
+                        },
+                        onSend: { url, durationMs, waveform in
+                            let ctx = makeAttachmentSendContext()
+                            Task { @MainActor in
+                                await viewModel.send(
+                                    intent: .voice(VoiceClip(url: url, durationMs: durationMs, waveform: waveform)),
+                                    context: ctx
+                                )
+                            }
+                        }
+                    )
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1133,6 +1146,7 @@ struct MessageBubble: View {
     var hideTimestamp: Bool = false
     var isGroupedWithPrev: Bool = false
     var isGroupedWithNext: Bool = false
+    var voicePlayback: VoicePlaybackController
 
     private static let fileSizeFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
@@ -1264,13 +1278,24 @@ struct MessageBubble: View {
                 }
 
         case .audio(let attachment):
-            HStack(spacing: 10) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 20))
-                    .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
-                Text(formatDuration(attachment.durationSeconds ?? 0))
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(messageTextColor)
+            if attachment.isVoiceMessage == true,
+               let durationMs = attachment.audioDurationMs {
+                VoicePlaybackBubble(
+                    messageId: message.id,
+                    url: attachment.url,
+                    durationMs: durationMs,
+                    waveform: attachment.audioWaveform ?? [],
+                    playback: voicePlayback
+                )
+            } else {
+                HStack(spacing: 10) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 20))
+                        .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+                    Text(formatDuration(attachment.durationSeconds ?? 0))
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(messageTextColor)
+                }
             }
 
         case .document(let attachment):

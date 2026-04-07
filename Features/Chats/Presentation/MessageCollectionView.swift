@@ -21,6 +21,7 @@ struct TranscriptRenderInput {
 struct MessageCollectionView: UIViewControllerRepresentable {
 
     let renderInput: TranscriptRenderInput
+    let voicePlayback: VoicePlaybackController
     let onInitialPresentation: () -> Void
     let onReply: (Message) -> Void
     let onReact: (String, String) -> Void
@@ -32,6 +33,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> MessageCollectionViewController {
         let vc = MessageCollectionViewController()
+        vc.voicePlayback = voicePlayback
 
         vc.onReplyToMessage = { message in
             onReply(message)
@@ -69,6 +71,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ vc: MessageCollectionViewController, context: Context) {
+        vc.voicePlayback = voicePlayback
         // Re-wire callbacks in case closures captured new values
         vc.onReplyToMessage = { message in
             onReply(message)

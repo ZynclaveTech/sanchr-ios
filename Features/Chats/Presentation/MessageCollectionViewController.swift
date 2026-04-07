@@ -165,6 +165,7 @@ final class MessageCollectionViewController: UIViewController {
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
     var onInitialContentPresented: (() -> Void)?
+    var voicePlayback: VoicePlaybackController = VoicePlaybackController()
 
     // MARK: - Views
 
@@ -334,7 +335,8 @@ final class MessageCollectionViewController: UIViewController {
                         uploadLabel: item.uploadLabel,
                         hideTimestamp: item.isGroupedWithNext,
                         isGroupedWithPrev: item.isGroupedWithPrev,
-                        isGroupedWithNext: item.isGroupedWithNext
+                        isGroupedWithNext: item.isGroupedWithNext,
+                        voicePlayback: self?.voicePlayback ?? VoicePlaybackController()
                     )
 
                     if !item.message.reactions.isEmpty {
