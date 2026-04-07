@@ -294,3 +294,67 @@ actor MediaUploadManager {
         }
     }
 }
+
+// MARK: - MediaUploading conformance
+
+/// Adapts the richer `MediaUploadManager` pipeline (queue + multi-state
+/// progress + retries) to the minimal `MediaUploading` surface that
+/// `MessageSender` depends on. The adapter funnels a single file through
+/// `enqueue` + `execute`, reports the terminal 0/1 progress points, and
+/// surfaces the server identifiers in a `MediaUploadOutcome`.
+///
+/// NOTE: `MediaUploadManager.execute` currently only emits coarse state
+/// transitions, not fine-grained byte progress, so `progress` is called
+/// with 0.0 at the start and 1.0 on success. Fine-grained progress will be
+/// wired up once the underlying `URLSession.upload` is migrated to the
+/// delegate-based variant (tracked separately).
+extension MediaUploadManager: MediaUploading {
+    func uploadMedia(
+        localFileURL: URL,
+        mimeType: String,
+        conversationId: String,
+        recipientId: String,
+        progress: @Sendable (Double) -> Void
+    ) async throws -> MediaUploadOutcome {
+        progress(0.0)
+
+        let queued = enqueue(
+            MediaUploadTask(
+                conversationId: conversationId,
+                recipientId: recipientId,
+                localFileURL: localFileURL,
+                mimeType: mimeType
+            )
+        )
+
+        guard let completed = await execute(queued.id) else {
+            throw AppError.mediaUploadFailed
+        }
+
+        switch completed.state {
+        case .sendingMessage, .completed:
+            break
+        case .failed(let reason, _):
+            SanchrLogger.media.error("MediaUploading adapter: upload failed — \(reason)")
+            throw AppError.mediaUploadFailed
+        case .cancelled:
+            throw AppError.mediaUploadFailed
+        case .queued, .encrypting, .uploading, .confirming:
+            // execute() should never return in a non-terminal state.
+            throw AppError.mediaUploadFailed
+        }
+
+        guard let mediaId = completed.mediaId, let remoteURL = completed.remoteURL else {
+            throw AppError.mediaUploadFailed
+        }
+
+        progress(1.0)
+
+        return MediaUploadOutcome(
+            mediaId: mediaId,
+            remoteURL: remoteURL,
+            thumbnailRemoteURL: completed.thumbnailRemoteURL,
+            encryptedFileSize: completed.encryptedFileSize
+        )
+    }
+}
