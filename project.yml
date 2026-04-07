@@ -97,6 +97,10 @@ targets:
         LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device $(SRCROOT)/Vendor/VyncPSI/device"
         LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator $(SRCROOT)/Vendor/VyncPSI/simulator"
         OTHER_LDFLAGS: "$(inherited) -lsignal_ffi -lvync_psi -lc++"
+    preBuildScripts:
+      - name: AttachmentPicker import hygiene
+        script: '"${SRCROOT}/Scripts/check-attachment-picker-imports.sh"'
+        basedOnDependencyAnalysis: false
     info:
       path: Info.plist
       properties:
