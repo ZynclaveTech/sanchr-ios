@@ -12,6 +12,7 @@ struct ChatDetailView: View {
     @State private var viewModel = ChatDetailViewModel()
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
+    @State private var showPhotosPicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showConversationInfo = false
     @State private var isScrolledToBottom = true
@@ -60,7 +61,37 @@ struct ChatDetailView: View {
         .navigationDestination(isPresented: $showConversationInfo) {
             ConversationInfoView(conversation: conversation, recipient: recipient)
         }
-        .photosPicker(isPresented: $showAttachmentPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
+        .sheet(isPresented: $showAttachmentPicker) {
+            AttachmentPickerHost(
+                onIntent: { intent in
+                    // TODO(Task 13): route via chatViewModel.send(intent:)
+                    print("[AttachmentPicker] intent: \(intent)")
+                },
+                onRequestAllPhotos: {
+                    showAttachmentPicker = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        showPhotosPicker = true
+                    }
+                },
+                onRequestAction: { item in
+                    switch item {
+                    case .vault:
+                        // TODO(Task 12): present embedded vault picker
+                        break
+                    case .file, .contact, .location:
+                        // TODO(Task 12): wire remaining action grid destinations
+                        break
+                    }
+                },
+                onRequestCameraCapture: {
+                    // TODO(Task 12): present CameraCaptureViewController
+                }
+            )
+            .presentationDetents([.height(360), .large])
+            .presentationDragIndicator(.visible)
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
         .onChange(of: selectedPhotoItems) { _, items in
             guard !items.isEmpty else { return }
             let selectedItems = items
