@@ -124,6 +124,32 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         )
     }
 
+    /// Opens the App Group SQLCipher database from an app extension that
+    /// shares the host app's keychain access group.
+    ///
+    /// The host app's `LocalDatabaseKeyProvider` always mirrors the active
+    /// SQLCipher passphrase into the shared keychain via
+    /// `SecureStorage.saveDatabaseKey(_:)` after a successful bootstrap.
+    /// We rely on that mirror here because the extension can't link the
+    /// host's `DeviceSecretProvider` (it lives in the main app target).
+    ///
+    /// Throws `AppError.databaseUnlockFailed` if the host app has not yet
+    /// run since installation (the mirror won't exist) — callers should
+    /// surface this as "Open Sanchr first" rather than crashing.
+    public static func openForExtension() throws -> LocalDatabase {
+        let keychain = KeychainService(accessGroup: AppGroup.keychainAccessGroup)
+        let secureStorage = SecureStorage(keychain: keychain)
+        guard let passphrase = try secureStorage.readDatabaseKey(),
+              !passphrase.isEmpty
+        else {
+            throw AppError.databaseError(reason: "No SQLCipher passphrase mirrored to the shared keychain. Open Sanchr at least once before sharing.")
+        }
+        return try LocalDatabase(
+            path: AppGroup.databaseURL,
+            passphraseProvider: { passphrase }
+        )
+    }
+
     // MARK: - Messages
 
     public func saveMessage(_ message: Message) async throws {
@@ -314,6 +340,52 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         try await dbPool.write { db in
             // CASCADE handles messages and participants
             _ = try ConversationRecord.deleteOne(db, key: id)
+        }
+    }
+
+    // MARK: - Share Chat Picker
+
+    /// Lightweight chat list used by the share extension's picker. We
+    /// reuse the domain-level `fetchConversations()` walk so the share
+    /// extension sees exactly the same title, pin, and ordering semantics
+    /// as the host app without copy-pasting the participant join into
+    /// another SQL string.
+    public func fetchShareChatSummaries() async throws -> [ShareChatSummary] {
+        let conversations = try await fetchConversations()
+        return conversations
+            .filter { !$0.isArchived }
+            .map { convo in
+                ShareChatSummary(
+                    id: convo.id,
+                    title: convo.displayName,
+                    isGroup: convo.type == .group,
+                    lastMessagePreview: Self.previewText(for: convo.lastMessage),
+                    lastActivityMs: Int64(convo.lastActivityAt.timeIntervalSince1970 * 1000),
+                    isPinned: convo.isPinned,
+                    avatarURL: convo.avatarURL
+                )
+            }
+    }
+
+    private static func previewText(for message: Message?) -> String? {
+        guard let message else { return nil }
+        switch message.content {
+        case .text(let s):
+            return s
+        case .image:
+            return "Photo"
+        case .video:
+            return "Video"
+        case .audio:
+            return "Voice message"
+        case .document:
+            return "File"
+        case .location:
+            return "Location"
+        case .contact:
+            return "Contact"
+        case .system:
+            return nil
         }
     }
 

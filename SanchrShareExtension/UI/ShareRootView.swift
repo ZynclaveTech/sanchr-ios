@@ -167,22 +167,6 @@ struct ShareRootView: View {
 // their callbacks to a single button so the flow can be exercised
 // manually in the simulator.
 
-struct ShareChatPickerView: View {
-    let payload: SharePayload
-    let onCancel: () -> Void
-    let onNext: ([String]) -> Void
-
-    var body: some View {
-        ShareStubView(
-            title: "Pick a chat",
-            subtitle: "Lands in Task 24",
-            primaryLabel: "Next",
-            primaryAction: { onNext([]) },
-            secondaryAction: onCancel
-        )
-    }
-}
-
 struct ShareComposerView: View {
     let payload: SharePayload
     let selectedChatIds: [String]
