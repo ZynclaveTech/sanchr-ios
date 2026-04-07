@@ -13,6 +13,7 @@ struct ChatDetailView: View {
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
     @State private var showCameraCapture = false
+    @State private var showEmojiPicker = false
     @State private var showPhotosPicker = false
     @State private var showFileImporter = false
     @State private var showContactPicker = false
@@ -173,6 +174,13 @@ struct ChatDetailView: View {
                 },
                 onCancel: { showCameraCapture = false }
             )
+        }
+        .sheet(isPresented: $showEmojiPicker) {
+            EmojiPickerSheet { emoji in
+                viewModel.inputText.append(emoji)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: selectedPhotoItems) { _, items in
             guard !items.isEmpty else { return }
@@ -803,7 +811,10 @@ struct ChatDetailView: View {
                         .focused($isInputFocused)
 
                     if !hasInput {
-                        Button {} label: {
+                        Button {
+                            isInputFocused = false
+                            showEmojiPicker = true
+                        } label: {
                             Image(systemName: "face.smiling")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(SanchrExportColors.textTertiary)
