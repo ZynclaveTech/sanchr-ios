@@ -131,6 +131,15 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         SanchrLogger.app.info("Application didFinishLaunching")
 
+        // Run the App Group database migration BEFORE anything touches the
+        // local database. `DependencyContainer.localDatabase` is lazy and
+        // the first access opens the SQLCipher file at the App Group path;
+        // if legacy data still lives at the old Application Support path we
+        // have to copy it over first or the user will see an empty install.
+        // `runIfNeeded()` is idempotent, non-throwing, and a no-op on clean
+        // installs, so it is safe to call unconditionally on every launch.
+        AppGroupMigration.runIfNeeded()
+
         // Register background task identifiers early (before app finishes launching).
         SyncOrchestrator.registerBackgroundTasks()
 
