@@ -3,174 +3,75 @@ import UIKit
 import SanchrShared
 
 /// View modifier that prevents screenshots and screen recording by
-/// hosting content inside a hidden secure `UITextField`. When
-/// `isActive` is true, iOS marks the containing window as secure,
-/// blanking it in the app switcher and blocking screen captures.
+/// placing a secure `UITextField` as a sibling of the hosted content.
+/// When `isActive` is true and the field is part of the window's view
+/// hierarchy with `isSecureTextEntry = true`, iOS marks the window as
+/// secure — blanking it in the app switcher and blocking screenshots
+/// — without us having to reparent anything into the field's private
+/// container view.
 ///
-/// iOS 17 note: the old trick of grabbing `secureField.subviews.first`
-/// at `init` returns nil because UITextField has no subviews until
-/// it's actually in a window. This implementation instead nests the
-/// modified content inside the `UITextField` itself — the secure
-/// attribute propagates to the window once the field's view
-/// hierarchy is live.
+/// Why not reparent into `secureField.subviews.first`?
+/// The old trick nested content inside the text field's private secure
+/// container. On iOS 17 that view is opaque black and mis-propagates
+/// `isHidden` / `isUserInteractionEnabled` to children, so either the
+/// whole screen renders black or every touch is dropped. Having the
+/// secure field present in the same window is sufficient to flip the
+/// system secure flag on modern iOS, so we keep things simple.
 struct ScreenshotProtectionModifier: ViewModifier {
     let isActive: Bool
 
     func body(content: Content) -> some View {
-        SecureContentHost(isActive: isActive) {
-            content
-        }
+        content.background(
+            SecureFieldBridge(isActive: isActive)
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        )
     }
 }
 
-private struct SecureContentHost<Content: View>: UIViewControllerRepresentable {
+private struct SecureFieldBridge: UIViewRepresentable {
     let isActive: Bool
-    let content: Content
 
-    init(isActive: Bool, @ViewBuilder content: () -> Content) {
-        self.isActive = isActive
-        self.content = content()
+    func makeUIView(context: Context) -> SecureMarkerView {
+        SecureMarkerView()
     }
 
-    func makeUIViewController(context: Context) -> SecureHostController<Content> {
-        let vc = SecureHostController(rootView: content, isActive: isActive)
-        return vc
-    }
-
-    func updateUIViewController(_ vc: SecureHostController<Content>, context: Context) {
-        vc.update(rootView: content, isActive: isActive)
+    func updateUIView(_ uiView: SecureMarkerView, context: Context) {
+        uiView.setActive(isActive)
     }
 }
 
-/// UIViewController that nests a `UIHostingController` inside a
-/// `UITextField`'s secure container. Swaps the content parent when
-/// `isActive` flips so protection can be toggled at runtime without
-/// rebuilding the SwiftUI hierarchy.
-final class SecureHostController<Content: View>: UIViewController {
-    private let hostingController: UIHostingController<Content>
+/// A zero-size marker view that carries a secure `UITextField` as a
+/// subview. The field is not user-interactive and not visible; its
+/// sole purpose is to sit in the window hierarchy and flip the system
+/// secure flag when `isSecureTextEntry` is true.
+final class SecureMarkerView: UIView {
     private let secureField = UITextField()
-    private var isActive: Bool
-    private var didInstallSecureContainer = false
 
-    init(rootView: Content, isActive: Bool) {
-        self.hostingController = UIHostingController(rootView: rootView)
-        self.isActive = isActive
-        super.init(nibName: nil, bundle: nil)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        clipsToBounds = true
+
+        secureField.isSecureTextEntry = false
+        secureField.isUserInteractionEnabled = false
+        secureField.backgroundColor = .clear
+        secureField.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(secureField)
+        NSLayoutConstraint.activate([
+            secureField.widthAnchor.constraint(equalToConstant: 0),
+            secureField.heightAnchor.constraint(equalToConstant: 0),
+            secureField.topAnchor.constraint(equalTo: topAnchor),
+            secureField.leadingAnchor.constraint(equalTo: leadingAnchor),
+        ])
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .clear
-
-        // Add the hosting controller as a child first so its view is
-        // in the hierarchy regardless of `isActive`.
-        addChild(hostingController)
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        hostingController.view.backgroundColor = .clear
-        view.addSubview(hostingController.view)
-        NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-        ])
-        hostingController.didMove(toParent: self)
-
-        // Configure the secure text field. Added to the hierarchy as
-        // a zero-size sibling so it joins the window and is marked
-        // secure. Its presence is what makes iOS blank the window
-        // during a screenshot.
-        //
-        // CRITICAL: we DO NOT set `isUserInteractionEnabled = false`
-        // on the field. The secure attribute works regardless of
-        // touch delivery, but any subview the field reparents (see
-        // installSecureContainerIfPossible below) will inherit
-        // userInteractionEnabled from its new parent — disabling it
-        // here blocks every touch on the hosted SwiftUI content.
-        // Do NOT set isHidden=true — isHidden propagates to reparented
-        // subviews and would hide the hosted SwiftUI content. Instead
-        // rely on the zero-size frame + clipsToBounds to keep the field
-        // invisible while leaving the view tree interactive.
-        secureField.isSecureTextEntry = true
-        secureField.clipsToBounds = true
-        secureField.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(secureField)
-        NSLayoutConstraint.activate([
-            secureField.widthAnchor.constraint(equalToConstant: 0),
-            secureField.heightAnchor.constraint(equalToConstant: 0),
-            secureField.topAnchor.constraint(equalTo: view.topAnchor),
-            secureField.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-        ])
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        installSecureContainerIfPossible()
-        applyIsActive()
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        // The secure field's private container only populates after
-        // the field has been laid out at least once. Retry the
-        // install until it succeeds.
-        installSecureContainerIfPossible()
-    }
-
-    private func installSecureContainerIfPossible() {
-        guard !didInstallSecureContainer else { return }
-        // On iOS 17 the private secure container view is exposed as the
-        // first subview of UITextField ONLY after the field has a
-        // window. Walk the subviews defensively and reparent whichever
-        // one we find. If we don't find it, the secureField itself
-        // being in the view hierarchy still marks the window.
-        guard let container = secureField.subviews.first else {
-            // Field in window but no container yet — accept the
-            // weaker form of protection (field-only). On iOS 17+ the
-            // field-in-window alone is sufficient to blank the window
-            // on screenshot.
-            return
-        }
-        container.translatesAutoresizingMaskIntoConstraints = false
-        // Belt-and-suspenders: ensure the reparented container and its
-        // descendants remain visible and interactive regardless of any
-        // inherited state from the UITextField.
-        container.isHidden = false
-        container.isUserInteractionEnabled = true
-        view.insertSubview(container, belowSubview: hostingController.view)
-        NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: view.topAnchor),
-            container.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-        ])
-        // Reparent the hosting view INSIDE the secure container so
-        // iOS treats the hosted content as protected.
-        hostingController.view.removeFromSuperview()
-        container.addSubview(hostingController.view)
-        NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: container.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        ])
-        didInstallSecureContainer = true
-    }
-
-    func update(rootView: Content, isActive: Bool) {
-        hostingController.rootView = rootView
-        if self.isActive != isActive {
-            self.isActive = isActive
-            applyIsActive()
-        }
-    }
-
-    private func applyIsActive() {
-        // Toggle by enabling/disabling the secure text field. When
-        // disabled, iOS no longer treats the window as secure.
-        secureField.isSecureTextEntry = isActive
+    func setActive(_ active: Bool) {
+        secureField.isSecureTextEntry = active
     }
 }
 
