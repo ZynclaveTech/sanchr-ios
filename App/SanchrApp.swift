@@ -14,7 +14,9 @@ struct SanchrApp: App {
     @UIApplicationDelegateAdaptor(SanchrAppDelegate.self) private var appDelegate
     @State private var container = DependencyContainer()
     @State private var appRouter = AppRouter()
+    @State private var sanchrTheme = SanchrTheme()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +24,8 @@ struct SanchrApp: App {
                 .environment(container)
                 .environment(appRouter)
                 .environment(container.syncState)
+                .environment(\.sanchrTheme, sanchrTheme)
+                .sanchrThemed()
                 .onAppear {
                     configureFonts()
                     configureAppearance()
@@ -30,6 +34,9 @@ struct SanchrApp: App {
                     }
                 }
                 .task {
+                    if let saved = SanchrTheme.Mode(rawValue: storedThemeMode) {
+                        sanchrTheme.mode = saved
+                    }
                     do {
                         try await container.connectGRPC()
                     } catch {
