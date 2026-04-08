@@ -17,6 +17,24 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
         case offline
         case typing
         case away
+
+        /// Maps a wire-level `Vync_Messaging_PresenceStatus` to the
+        /// local `User.Status`. `.hidden` is a peer-side privacy
+        /// choice and becomes `.offline` locally so the rest of the
+        /// UI doesn't need a new case. Unknown and unspecified enum
+        /// cases also degrade to `.offline`.
+        public init(from code: Vync_Messaging_PresenceStatus) {
+            switch code {
+            case .online:
+                self = .online
+            case .offline:
+                self = .offline
+            case .hidden:
+                self = .offline
+            case .unspecified, .UNRECOGNIZED:
+                self = .offline
+            }
+        }
     }
 
     public var status: Status
