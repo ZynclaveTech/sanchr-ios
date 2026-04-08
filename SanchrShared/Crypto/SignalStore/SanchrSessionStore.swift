@@ -13,19 +13,24 @@ public final class SanchrSessionStore: SessionStore {
     private var sessions: [ProtocolAddress: SessionRecord] = [:]
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.session-store", attributes: .concurrent)
+    private let fileManager: FileManager
     private let storageDirectory: URL
 
     // MARK: - Init
 
-    public init(userId: String) {
+    public init(
+        userId: String,
+        fileManager: FileManager = .default,
+        baseDirectory: URL? = nil
+    ) {
         self.userId = userId
+        self.fileManager = fileManager
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first!
+        let base = baseDirectory
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         self.storageDirectory = base.appendingPathComponent(
             "SignalStore/\(userId)/sessions", isDirectory: true)
-        try? FileManager.default.createDirectory(
-            at: storageDirectory, withIntermediateDirectories: true)
+        try? ensureStorageDirectoryExists()
 
         loadAllFromDisk()
     }
@@ -51,6 +56,7 @@ public final class SanchrSessionStore: SessionStore {
         queue.sync(flags: .barrier) {
             sessions[address] = record
         }
+        try ensureStorageDirectoryExists()
         let data = Data(record.serialize())
         let fileURL = fileURL(for: address)
         try data.write(to: fileURL, options: .atomic)
@@ -103,6 +109,13 @@ public final class SanchrSessionStore: SessionStore {
     private func fileURL(for address: ProtocolAddress) -> URL {
         let safeName = address.name.replacingOccurrences(of: "/", with: "_")
         return storageDirectory.appendingPathComponent("\(safeName).\(address.deviceId).session")
+    }
+
+    private func ensureStorageDirectoryExists() throws {
+        try fileManager.createDirectory(
+            at: storageDirectory,
+            withIntermediateDirectories: true
+        )
     }
 
     private func loadAllFromDisk() {

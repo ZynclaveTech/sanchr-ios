@@ -13,6 +13,7 @@ public final class SanchrPreKeyStore: PreKeyStore {
     private var preKeys: [UInt32: PreKeyRecord] = [:]
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.prekey-store", attributes: .concurrent)
+    private let fileManager: FileManager
     private let storageDirectory: URL
 
     /// Tracks the next pre-key ID to avoid collisions when generating new batches.
@@ -20,15 +21,19 @@ public final class SanchrPreKeyStore: PreKeyStore {
 
     // MARK: - Init
 
-    public init(userId: String) {
+    public init(
+        userId: String,
+        fileManager: FileManager = .default,
+        baseDirectory: URL? = nil
+    ) {
         self.userId = userId
+        self.fileManager = fileManager
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first!
+        let base = baseDirectory
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         self.storageDirectory = base.appendingPathComponent(
             "SignalStore/\(userId)/prekeys", isDirectory: true)
-        try? FileManager.default.createDirectory(
-            at: storageDirectory, withIntermediateDirectories: true)
+        try? ensureStorageDirectoryExists()
 
         loadAllFromDisk()
     }
@@ -51,6 +56,7 @@ public final class SanchrPreKeyStore: PreKeyStore {
         queue.sync(flags: .barrier) {
             preKeys[id] = record
         }
+        try ensureStorageDirectoryExists()
         let data = Data(record.serialize())
         let fileURL = storageDirectory.appendingPathComponent("\(id).prekey")
         try data.write(to: fileURL, options: .atomic)
@@ -116,5 +122,12 @@ public final class SanchrPreKeyStore: PreKeyStore {
         self.nextPreKeyId = maxId + 1
         SanchrLogger.crypto.info(
             "Loaded \(self.preKeys.count) pre-keys from disk, next ID: \(self.nextPreKeyId)")
+    }
+
+    private func ensureStorageDirectoryExists() throws {
+        try fileManager.createDirectory(
+            at: storageDirectory,
+            withIntermediateDirectories: true
+        )
     }
 }

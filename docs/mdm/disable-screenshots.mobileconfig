@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Restrictions</string>
+            <key>PayloadIdentifier</key>
+            <string>io.sanchr.mdm.restrictions.screenshot</string>
+            <key>PayloadType</key>
+            <string>com.apple.applicationaccess</string>
+            <key>PayloadUUID</key>
+            <string>96914433-0CE5-458E-83F1-7921F88E4BAC</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>allowScreenShot</key>
+            <false/>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>Disables screenshots and screen recording on managed Apple devices.</string>
+    <key>PayloadDisplayName</key>
+    <string>Sanchr - Disable Screenshots</string>
+    <key>PayloadIdentifier</key>
+    <string>io.sanchr.mdm.disable-screenshots</string>
+    <key>PayloadOrganization</key>
+    <string>Sanchr</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>884F39D2-F49B-4DF4-ADAB-0A7368C76078</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

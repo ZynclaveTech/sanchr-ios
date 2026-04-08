@@ -77,7 +77,7 @@ struct SecurityView: View {
                     }
             }
 
-            Text("Hide previews, disable screenshots, and switch to a more discreet security posture.")
+            Text("Hide previews, detect screenshots after capture, and shield content during screen recording or mirroring.")
                 .font(SanchrTypography.caption)
                 .foregroundColor(.white.opacity(0.7))
 
@@ -246,7 +246,7 @@ struct SecurityView: View {
                     tint: Color(hex: 0xDC2626),
                     background: Color(hex: 0xFEE2E2),
                     title: "Screenshot Protection",
-                    subtitle: "Prevent screenshots and screen recording",
+                    subtitle: "Detect screenshots and hide content during screen recording or mirroring",
                     isOn: $viewModel.screenshotProtection
                 ) { newValue in
                     container.appLockManager.screenshotProtectionEnabled = newValue

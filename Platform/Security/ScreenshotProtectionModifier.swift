@@ -4,9 +4,11 @@ import SanchrShared
 
 /// Screenshot protection on iOS is limited to:
 ///
-/// 1. Blanking the app-switcher snapshot and screen-recording frames
-///    by having a secure `UITextField` in the window hierarchy.
-/// 2. Detecting user-initiated screenshots via
+/// 1. Blanking the app-switcher snapshot and hardening screen-recording
+///    frames by having a secure `UITextField` in the window hierarchy.
+/// 2. Redacting protected content while live capture is active
+///    (`UIScreen.isCaptured`).
+/// 3. Detecting user-initiated screenshots via
 ///    `UIApplication.userDidTakeScreenshotNotification` and surfacing
 ///    a system event to the peer (handled elsewhere).
 ///
@@ -17,15 +19,41 @@ import SanchrShared
 /// Reparenting into it broke layout and dropped touches, so we no
 /// longer attempt it.
 struct ScreenshotProtectionModifier: ViewModifier {
+    @Environment(DependencyContainer.self) private var container
     let isActive: Bool
 
     func body(content: Content) -> some View {
-        content.background(
-            SecureFieldBridge(isActive: isActive)
+        let presentation = ScreenshotProtectionPresentation(
+            isProtectionEnabled: isActive,
+            isScreenCaptureActive: container.screenCaptureMonitor.isScreenCaptureActive
+        )
+
+        ZStack {
+            content
+                .opacity(presentation.shouldRedactForLiveCapture ? 0 : 1)
+                .accessibilityHidden(presentation.shouldRedactForLiveCapture)
+
+            if presentation.shouldRedactForLiveCapture {
+                LiveCaptureRedactionOverlay()
+                    .transition(.opacity)
+            }
+        }
+        .background(
+            SecureFieldBridge(isActive: presentation.isSecureMarkerActive)
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         )
+    }
+}
+
+struct ScreenshotProtectionPresentation: Equatable {
+    let isSecureMarkerActive: Bool
+    let shouldRedactForLiveCapture: Bool
+
+    init(isProtectionEnabled: Bool, isScreenCaptureActive: Bool) {
+        self.isSecureMarkerActive = isProtectionEnabled
+        self.shouldRedactForLiveCapture = isProtectionEnabled && isScreenCaptureActive
     }
 }
 
@@ -84,11 +112,37 @@ final class SecureMarkerView: UIView {
     }
 }
 
+private struct LiveCaptureRedactionOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                Image(systemName: "record.circle")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundColor(.white)
+
+                Text("Protected content hidden")
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Text("Screen recording or mirroring is active.")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.72))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 28)
+        }
+        .allowsHitTesting(true)
+    }
+}
+
 extension View {
-    /// Applies screen-capture dimming when active. Blanks the app
-    /// switcher snapshot and screen-recording frames; user-initiated
-    /// screenshots are not blocked but are detected separately and
-    /// surfaced to the peer as a system event.
+    /// Applies secure-rendering hardening when active. Blanks the app
+    /// switcher snapshot, redacts content during live capture, and
+    /// leaves still-screenshot handling to the separate post-capture
+    /// detection flow.
     func screenshotProtection(isActive: Bool) -> some View {
         modifier(ScreenshotProtectionModifier(isActive: isActive))
     }

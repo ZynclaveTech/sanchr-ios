@@ -267,6 +267,7 @@ final class DependencyContainer: @unchecked Sendable {
     // MARK: - Security
 
     @ObservationIgnored lazy var appLockManager: AppLockManager = AppLockManager()
+    @MainActor @ObservationIgnored lazy var screenCaptureMonitor: ScreenCaptureMonitor = ScreenCaptureMonitor()
 
     @ObservationIgnored lazy var recoveryKeyManager: RecoveryKeyManagerProtocol = RecoveryKeyManager(
         secureStorage: secureStorage

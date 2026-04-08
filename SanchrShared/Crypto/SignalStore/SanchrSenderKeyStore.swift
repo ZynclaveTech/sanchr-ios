@@ -13,19 +13,24 @@ public final class SanchrSenderKeyStore: SenderKeyStore {
     private var senderKeys: [SenderKeyStoreKey: SenderKeyRecord] = [:]
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.sender-key-store", attributes: .concurrent)
+    private let fileManager: FileManager
     private let storageDirectory: URL
 
     // MARK: - Init
 
-    public init(userId: String) {
+    public init(
+        userId: String,
+        fileManager: FileManager = .default,
+        baseDirectory: URL? = nil
+    ) {
         self.userId = userId
+        self.fileManager = fileManager
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first!
+        let base = baseDirectory
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         self.storageDirectory = base.appendingPathComponent(
             "SignalStore/\(userId)/senderkeys", isDirectory: true)
-        try? FileManager.default.createDirectory(
-            at: storageDirectory, withIntermediateDirectories: true)
+        try? ensureStorageDirectoryExists()
 
         loadAllFromDisk()
     }
@@ -42,6 +47,7 @@ public final class SanchrSenderKeyStore: SenderKeyStore {
         queue.sync(flags: .barrier) {
             senderKeys[storeKey] = record
         }
+        try ensureStorageDirectoryExists()
         let data = Data(record.serialize())
         let fileURL = fileURL(for: storeKey)
         try data.write(to: fileURL, options: .atomic)
@@ -127,5 +133,12 @@ public final class SanchrSenderKeyStore: SenderKeyStore {
         if loadedCount > 0 {
             SanchrLogger.crypto.info("Loaded \(loadedCount) sender keys from disk")
         }
+    }
+
+    private func ensureStorageDirectoryExists() throws {
+        try fileManager.createDirectory(
+            at: storageDirectory,
+            withIntermediateDirectories: true
+        )
     }
 }

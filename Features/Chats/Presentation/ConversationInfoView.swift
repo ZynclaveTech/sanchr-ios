@@ -436,7 +436,7 @@ struct ConversationInfoView: View {
                     .foregroundColor(SanchrColors.primary)
                     .padding(.top, 1)
                 Text(
-                    "Sanchr Mode hides notification previews, disables screenshots, and uses darker theme for maximum privacy."
+                    "Sanchr Mode hides notification previews, detects screenshots after capture, and shields content during screen recording or mirroring."
                 )
                 .font(SanchrTypography.captionSmall)
                 .foregroundColor(SanchrExportColors.textSecondary)
@@ -1482,7 +1482,7 @@ private struct VaultMediaView: View {
                         .foregroundColor(SanchrColors.primaryDark)
                         .padding(.top, 2)
                     Text(
-                        "Vault media is encrypted at rest, can self-destruct after viewing, and screenshots are blocked while viewing."
+                        "Vault media is encrypted at rest, can self-destruct after viewing, and is hidden during screen recording or mirroring. Screenshots can still trigger an alert."
                     )
                     .font(SanchrTypography.messageBubbleText)
                     .foregroundColor(SanchrExportColors.textSecondary)
@@ -1545,8 +1545,8 @@ private struct VaultMediaView: View {
 
                 vaultToggle(
                     icon: "camera.metering.none",
-                    title: "Screenshot Alert",
-                    subtitle: "Notify the other person if you screenshot vault media",
+                    title: "Capture Protection",
+                    subtitle: "Hide vault media during screen recording or mirroring, and notify the other person if you take a screenshot",
                     isOn: Binding(
                         get: { policy.screenshotProtection },
                         set: { newValue in

@@ -23,6 +23,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
 
     private let userId: String
     private let keychain: KeychainServiceProtocol
+    private let fileManager: FileManager
 
     /// Maps a remote `ProtocolAddress` (userId.deviceId) to the identity key we trust for them.
     private var trustedIdentities: [ProtocolAddress: IdentityKey] = [:]
@@ -41,16 +42,26 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     /// File URL where verified user IDs are persisted.
     private let verifiedURL: URL
 
+    /// Directory containing the persisted trust-store artifacts.
+    private let storageDirectory: URL
+
     // MARK: - Init
 
-    public init(userId: String, keychain: KeychainServiceProtocol) {
+    public init(
+        userId: String,
+        keychain: KeychainServiceProtocol,
+        fileManager: FileManager = .default,
+        baseDirectory: URL? = nil
+    ) {
         self.userId = userId
         self.keychain = keychain
+        self.fileManager = fileManager
 
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first!
+        let base = baseDirectory
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = base.appendingPathComponent("SignalStore/\(userId)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        self.storageDirectory = dir
+        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         self.persistenceURL = dir.appendingPathComponent("trusted_identities.bin")
         self.verifiedURL = dir.appendingPathComponent("verified_identities.bin")
 
@@ -190,6 +201,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         queue.async(flags: .barrier) { [weak self] in
             guard let self else { return }
             do {
+                try self.ensureStorageDirectoryExists()
                 var entries: [[String: Data]] = []
                 for (address, identityKey) in self.trustedIdentities {
                     let addressKey = "\(address.name).\(address.deviceId)"
@@ -238,6 +250,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         queue.async(flags: .barrier) { [weak self] in
             guard let self else { return }
             do {
+                try self.ensureStorageDirectoryExists()
                 let data = try JSONEncoder().encode(Array(self.verifiedUserIds))
                 try data.write(to: self.verifiedURL, options: .atomic)
             } catch {
@@ -256,5 +269,12 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         } catch {
             SanchrLogger.crypto.error("Failed to load verified identities: \(error.localizedDescription)")
         }
+    }
+
+    private func ensureStorageDirectoryExists() throws {
+        try fileManager.createDirectory(
+            at: storageDirectory,
+            withIntermediateDirectories: true
+        )
     }
 }
