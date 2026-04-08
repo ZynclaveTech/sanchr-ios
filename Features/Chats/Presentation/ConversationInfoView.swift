@@ -17,6 +17,11 @@ struct ConversationInfoView: View {
     @State private var showDisappearingMessages = false
     @State private var showVaultMedia = false
     @State private var showWallpaper = false
+    @State private var recentMedia: [Message] = []
+    @State private var totalMediaCount: Int = 0
+    @State private var allChatMedia: [Message] = []
+    @State private var galleryPresentation: ConversationInfoGalleryPresentation?
+    @State private var showSharedContent = false
     @State private var showSearchConversation = false
     @State private var showExportChat = false
     @State private var showClearChat = false
@@ -73,6 +78,31 @@ struct ConversationInfoView: View {
         }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView(conversationId: conversation.id)
+        }
+        .navigationDestination(isPresented: $showSharedContent) {
+            SharedContentView(conversation: conversation)
+        }
+        .fullScreenCover(item: $galleryPresentation) { presentation in
+            // Reuse the bubble-viewers MediaGalleryView. Map message
+            // entries into the gallery's GalleryItem type.
+            let galleryItems = presentation.items.compactMap { msg -> GalleryItem? in
+                switch msg.content {
+                case .image: return GalleryItem(id: msg.id, kind: .image, message: msg)
+                case .video: return GalleryItem(id: msg.id, kind: .video, message: msg)
+                default: return nil
+                }
+            }
+            MediaGalleryView(
+                presentation: MediaGalleryCoordinator.GalleryPresentation(
+                    items: galleryItems,
+                    initialIndex: presentation.initialIndex
+                ),
+                resolver: container.chatMediaResolver,
+                onDismiss: { galleryPresentation = nil }
+            )
+        }
+        .task {
+            await loadRecentMediaIfNeeded()
         }
         .navigationDestination(isPresented: $showDisappearingMessages) {
             DisappearingMessagesView()
@@ -210,6 +240,7 @@ struct ConversationInfoView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
                 Spacer()
                 Button {
+                    showSharedContent = true
                 } label: {
                     Text("View All")
                         .font(SanchrTypography.messageBubbleText)
@@ -219,10 +250,7 @@ struct ConversationInfoView: View {
                 .buttonStyle(.plain)
             }
 
-            // TODO: Replace with actual media count from conversation
-            let mediaCount = 0
-
-            if mediaCount == 0 {
+            if recentMedia.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 32))
@@ -242,23 +270,20 @@ struct ConversationInfoView: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
                     spacing: 8
                 ) {
-                    ForEach(0..<3, id: \.self) { index in
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(mediaGradient(for: index))
-                            .aspectRatio(1, contentMode: .fit)
-                            .overlay {
-                                if index == 2 {
-                                    Color.black.opacity(0.4)
-                                        .clipShape(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        )
-                                        .overlay {
-                                            Text("+24")
-                                                .font(.system(size: 18, weight: .semibold))
-                                                .foregroundColor(.white)
-                                        }
-                                }
-                            }
+                    ForEach(recentMedia, id: \.id) { message in
+                        ConversationInfoMediaThumbnail(
+                            message: message,
+                            resolver: container.chatMediaResolver
+                        )
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .onTapGesture {
+                            galleryPresentation = ConversationInfoGalleryPresentation(
+                                items: allChatMedia,
+                                initialIndex: allChatMedia.firstIndex(where: { $0.id == message.id }) ?? 0
+                            )
+                        }
                     }
                 }
             }
@@ -268,6 +293,25 @@ struct ConversationInfoView: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
+    }
+
+    private func loadRecentMediaIfNeeded() async {
+        guard recentMedia.isEmpty else { return }
+        let messages = (try? await container.localDatabase.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 500
+        )) ?? []
+        let media = messages.filter { msg in
+            switch msg.content {
+            case .image, .video: return true
+            default: return false
+            }
+        }
+        let sorted = media.sorted { $0.timestamp < $1.timestamp }
+        allChatMedia = sorted
+        totalMediaCount = sorted.count
+        recentMedia = Array(sorted.suffix(6).reversed())
     }
 
     // MARK: - Section: Security & Privacy
@@ -1910,4 +1954,68 @@ private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
         return nil
     }
     return UIImage(cgImage: cgImage)
+}
+
+// MARK: - Inline media-section helpers
+
+private struct ConversationInfoGalleryPresentation: Identifiable {
+    let id = UUID()
+    let items: [Message]
+    let initialIndex: Int
+}
+
+private struct ConversationInfoMediaThumbnail: View {
+    let message: Message
+    let resolver: ChatMediaResolving
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle().fill(SanchrExportColors.surfaceSoft)
+            }
+            if isVideo {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white.opacity(0.9))
+                    .shadow(radius: 3)
+            }
+        }
+        .clipped()
+        .task(id: message.id) {
+            await loadThumbnail()
+        }
+    }
+
+    private var isVideo: Bool {
+        if case .video = message.content { return true }
+        return false
+    }
+
+    private func loadThumbnail() async {
+        guard let attachment = Self.attachment(for: message) else { return }
+        do {
+            let url = try await resolver.decryptedURL(
+                forMessageId: message.id,
+                attachment: attachment
+            )
+            if let img = UIImage(contentsOfFile: url.path) {
+                await MainActor.run { self.image = img }
+            }
+        } catch {
+            // Silent: leave the placeholder rectangle.
+        }
+    }
+
+    private static func attachment(for message: Message) -> Message.MediaAttachment? {
+        switch message.content {
+        case .image(let a), .video(let a): return a
+        default: return nil
+        }
+    }
 }
