@@ -6,150 +6,99 @@ import os
 private let screenshotLog = Logger(subsystem: "com.sanchr.app", category: "ScreenshotProtection")
 
 /// View modifier that prevents screenshots and screen recording by
-/// placing a secure `UITextField` in the window hierarchy. On iOS 17+
-/// the preferred technique is to reparent the SwiftUI content INSIDE
-/// the text field's private secure container view; falling back to a
-/// sibling field still blanks the app switcher snapshot but may not
-/// block user screenshots.
+/// adding a zero-size secure `UITextField` behind the content via
+/// `.background`. The field's presence in the window hierarchy flips
+/// the system secure flag, which blanks the app-switcher snapshot and
+/// — on most iOS versions — the screen-recording frames too. Pure
+/// user-initiated screenshots of the host screen are not fully blocked
+/// by this technique alone on iOS 17+; that requires reparenting
+/// content INSIDE the text field's private container, which wrecks
+/// SwiftUI layout when applied at arbitrary view positions.
+///
+/// Lots of os.Logger output so we can correlate on-device behavior
+/// with actual secure-flag state. Filter with:
+///   subsystem:com.sanchr.app category:ScreenshotProtection
 struct ScreenshotProtectionModifier: ViewModifier {
     let isActive: Bool
 
     func body(content: Content) -> some View {
-        SecureContentHost(isActive: isActive) { content }
+        content.background(
+            SecureFieldBridge(isActive: isActive)
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        )
     }
 }
 
-private struct SecureContentHost<Content: View>: UIViewControllerRepresentable {
+private struct SecureFieldBridge: UIViewRepresentable {
     let isActive: Bool
-    let content: Content
 
-    init(isActive: Bool, @ViewBuilder content: () -> Content) {
-        self.isActive = isActive
-        self.content = content()
+    func makeUIView(context: Context) -> SecureMarkerView {
+        let v = SecureMarkerView()
+        v.setActive(isActive, reason: "make")
+        return v
     }
 
-    func makeUIViewController(context: Context) -> SecureHostController<Content> {
-        SecureHostController(rootView: content, isActive: isActive)
-    }
-
-    func updateUIViewController(_ vc: SecureHostController<Content>, context: Context) {
-        vc.update(rootView: content, isActive: isActive)
+    func updateUIView(_ uiView: SecureMarkerView, context: Context) {
+        uiView.setActive(isActive, reason: "update")
     }
 }
 
-final class SecureHostController<Content: View>: UIViewController {
-    private let hostingController: UIHostingController<Content>
+/// A zero-size host view that carries a secure `UITextField` as its
+/// only subview. The field is inert (no interaction, no editing) but
+/// joins the window hierarchy and is toggled secure on demand.
+final class SecureMarkerView: UIView {
     private let secureField = UITextField()
-    private var isActive: Bool
-    private var didReparent = false
+    private var pendingActive: Bool = false
 
-    init(rootView: Content, isActive: Bool) {
-        self.hostingController = UIHostingController(rootView: rootView)
-        self.isActive = isActive
-        super.init(nibName: nil, bundle: nil)
-        screenshotLog.log("init isActive=\(isActive)")
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .clear
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        clipsToBounds = true
 
         secureField.isSecureTextEntry = false
         secureField.isUserInteractionEnabled = false
         secureField.backgroundColor = .clear
         secureField.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(secureField)
+        addSubview(secureField)
         NSLayoutConstraint.activate([
-            secureField.topAnchor.constraint(equalTo: view.topAnchor),
-            secureField.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            secureField.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            secureField.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            secureField.widthAnchor.constraint(equalToConstant: 0),
+            secureField.heightAnchor.constraint(equalToConstant: 0),
+            secureField.topAnchor.constraint(equalTo: topAnchor),
+            secureField.leadingAnchor.constraint(equalTo: leadingAnchor),
         ])
-
-        addChild(hostingController)
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        hostingController.view.backgroundColor = .clear
-        view.addSubview(hostingController.view)
-        NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-        ])
-        hostingController.didMove(toParent: self)
-        screenshotLog.log("viewDidLoad attached host+field isActive=\(self.isActive)")
+        screenshotLog.log("SecureMarkerView.init")
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        reparentIntoSecureContainerIfNeeded(reason: "viewWillAppear")
-        applyIsActive(reason: "viewWillAppear")
+    required init?(coder: NSCoder) { fatalError() }
+
+    func setActive(_ active: Bool, reason: String) {
+        pendingActive = active
+        secureField.isSecureTextEntry = active
+        let inWindow = secureField.window != nil
+        let windowSecureCount = countSecureFields(in: window)
+        screenshotLog.log("setActive[\(reason)] active=\(active) fieldSecure=\(self.secureField.isSecureTextEntry) inWindow=\(inWindow) windowSecureFieldCount=\(windowSecureCount)")
     }
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        reparentIntoSecureContainerIfNeeded(reason: "viewDidLayoutSubviews")
-        applyIsActive(reason: "viewDidLayoutSubviews")
-    }
-
-    override func didMove(toParent parent: UIViewController?) {
-        super.didMove(toParent: parent)
-        screenshotLog.log("didMove parent=\(parent != nil ? "yes" : "nil") window=\(self.view.window != nil ? "yes" : "nil")")
-    }
-
-    private func reparentIntoSecureContainerIfNeeded(reason: String) {
-        guard !didReparent else { return }
-        guard secureField.window != nil else {
-            screenshotLog.log("reparent skip [\(reason)] — field has no window yet subviews=\(self.secureField.subviews.count)")
-            return
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            // Reapply now that we're in a window — that's when the
+            // secure flag actually starts affecting the window.
+            secureField.isSecureTextEntry = pendingActive
         }
-        let subs = secureField.subviews
-        screenshotLog.log("reparent try [\(reason)] field subviews=\(subs.count) types=\(subs.map { String(describing: type(of: $0)) }.joined(separator: ","))")
-        guard let container = subs.first else {
-            screenshotLog.log("reparent skip [\(reason)] — no private container subview")
-            return
-        }
-
-        hostingController.view.removeFromSuperview()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.isUserInteractionEnabled = true
-        container.addSubview(hostingController.view)
-        NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: container.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        ])
-        didReparent = true
-        screenshotLog.log("reparent OK [\(reason)] container=\(String(describing: type(of: container)))")
+        let windowSecureCount = countSecureFields(in: window)
+        screenshotLog.log("didMoveToWindow window=\(self.window != nil ? "yes" : "nil") pendingActive=\(self.pendingActive) windowSecureFieldCount=\(windowSecureCount)")
     }
 
-    func update(rootView: Content, isActive: Bool) {
-        hostingController.rootView = rootView
-        if self.isActive != isActive {
-            screenshotLog.log("update isActive \(self.isActive) -> \(isActive)")
-            self.isActive = isActive
-            applyIsActive(reason: "update")
-        }
-    }
-
-    private func applyIsActive(reason: String) {
-        secureField.isSecureTextEntry = isActive
-        let windowHasSecure: Bool = {
-            guard let w = view.window else { return false }
-            return findSecureField(in: w) != nil
-        }()
-        screenshotLog.log("applyIsActive [\(reason)] isActive=\(self.isActive) field.secure=\(self.secureField.isSecureTextEntry) inWindow=\(self.secureField.window != nil) windowHasSecure=\(windowHasSecure) didReparent=\(self.didReparent)")
-    }
-
-    private func findSecureField(in view: UIView) -> UITextField? {
-        if let tf = view as? UITextField, tf.isSecureTextEntry { return tf }
-        for sub in view.subviews {
-            if let found = findSecureField(in: sub) { return found }
-        }
-        return nil
+    private func countSecureFields(in root: UIView?) -> Int {
+        guard let root else { return 0 }
+        var n = 0
+        if let tf = root as? UITextField, tf.isSecureTextEntry { n += 1 }
+        for sub in root.subviews { n += countSecureFields(in: sub) }
+        return n
     }
 }
 
