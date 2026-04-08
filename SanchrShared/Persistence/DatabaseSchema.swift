@@ -156,6 +156,17 @@ public enum DatabaseSchema {
             }
         }
 
+        migrator.registerMigration("v5_chat_vault_policy") { db in
+            try db.create(table: "chatVaultPolicy", ifNotExists: true) { t in
+                t.primaryKey("conversationId", .text).notNull()
+                    .references("conversation", onDelete: .cascade)
+                t.column("autoVaultIncoming", .boolean).notNull().defaults(to: false)
+                t.column("viewOnceOutgoing", .boolean).notNull().defaults(to: false)
+                t.column("screenshotProtection", .boolean).notNull().defaults(to: false)
+                t.column("updatedAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

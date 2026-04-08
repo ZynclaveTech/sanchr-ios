@@ -429,3 +429,48 @@ public struct ChatAppearanceOverrideRecord: Codable, FetchableRecord, Persistabl
         )
     }
 }
+
+// MARK: - Chat Vault Policy
+
+public struct ChatVaultPolicyRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "chatVaultPolicy"
+
+    public var conversationId: String
+    public var autoVaultIncoming: Bool
+    public var viewOnceOutgoing: Bool
+    public var screenshotProtection: Bool
+    public var updatedAt: Date
+
+    public init(
+        conversationId: String,
+        autoVaultIncoming: Bool,
+        viewOnceOutgoing: Bool,
+        screenshotProtection: Bool,
+        updatedAt: Date
+    ) {
+        self.conversationId = conversationId
+        self.autoVaultIncoming = autoVaultIncoming
+        self.viewOnceOutgoing = viewOnceOutgoing
+        self.screenshotProtection = screenshotProtection
+        self.updatedAt = updatedAt
+    }
+
+    public func toDomain() -> ChatVaultPolicy {
+        ChatVaultPolicy(
+            conversationId: conversationId,
+            autoVaultIncoming: autoVaultIncoming,
+            viewOnceOutgoing: viewOnceOutgoing,
+            screenshotProtection: screenshotProtection
+        )
+    }
+
+    public static func from(_ policy: ChatVaultPolicy, now: Date = Date()) -> ChatVaultPolicyRecord {
+        ChatVaultPolicyRecord(
+            conversationId: policy.conversationId,
+            autoVaultIncoming: policy.autoVaultIncoming,
+            viewOnceOutgoing: policy.viewOnceOutgoing,
+            screenshotProtection: policy.screenshotProtection,
+            updatedAt: now
+        )
+    }
+}
