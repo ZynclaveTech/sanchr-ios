@@ -1545,8 +1545,8 @@ private struct VaultMediaView: View {
 
                 vaultToggle(
                     icon: "camera.metering.none",
-                    title: "Screenshot Protection",
-                    subtitle: "Block screenshots while viewing vault media",
+                    title: "Screenshot Alert",
+                    subtitle: "Notify the other person if you screenshot vault media",
                     isOn: Binding(
                         get: { policy.screenshotProtection },
                         set: { newValue in
