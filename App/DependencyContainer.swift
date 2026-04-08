@@ -118,6 +118,22 @@ final class DependencyContainer: @unchecked Sendable {
     /// migrated to read from this same instance in Phase 3.
     @MainActor @ObservationIgnored lazy var settingsViewModel: SettingsViewModel = SettingsViewModel()
 
+    /// The single `SanchrTheme` instance shared with the SwiftUI environment
+    /// at the SanchrApp root. Assigned by `SanchrApp.body.task` BEFORE any
+    /// view reads `chatAppearance` so the resolver mirrors to the same
+    /// instance the rest of the app sees through `@Environment(\.sanchrTheme)`.
+    @MainActor var sharedTheme: SanchrTheme = SanchrTheme()
+
+    /// Resolves the wallpaper + theme for any chat from the global
+    /// settings + per-chat override store. Owned at container scope so
+    /// the @Observable propagation works for every chat-detail / picker
+    /// surface that reads from it.
+    @MainActor @ObservationIgnored lazy var chatAppearance: ChatAppearanceService = ChatAppearanceService(
+        localDatabase: localDatabase,
+        theme: sharedTheme,
+        settingsViewModel: settingsViewModel
+    )
+
     // MARK: - Cross-Process Send Pipeline (T16/T18)
 
     /// Cross-process file lock guarding Signal-protocol ratchet mutations on

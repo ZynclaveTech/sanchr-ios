@@ -34,6 +34,7 @@ struct SanchrApp: App {
                     }
                 }
                 .task {
+                    container.sharedTheme = sanchrTheme
                     if let saved = SanchrTheme.Mode(rawValue: storedThemeMode) {
                         sanchrTheme.mode = saved
                     }
