@@ -108,7 +108,7 @@ struct ConversationInfoView: View {
             DisappearingMessagesView()
         }
         .navigationDestination(isPresented: $showVaultMedia) {
-            VaultMediaView()
+            VaultMediaView(conversationId: conversation.id)
         }
         .confirmationDialog("Export Chat", isPresented: $showExportChat) {
             Button("Export with Media") {}
@@ -1461,9 +1461,16 @@ private struct DisappearingMessagesView: View {
 // MARK: - VaultMediaView
 
 private struct VaultMediaView: View {
-    @State private var autoVault = false
-    @State private var viewOnce = true
-    @State private var screenshotProtection = true
+    let conversationId: String
+
+    @Environment(DependencyContainer.self) private var container
+    @State private var policy: ChatVaultPolicy
+    @State private var isLoading: Bool = true
+
+    init(conversationId: String) {
+        self.conversationId = conversationId
+        self._policy = State(initialValue: .defaults(for: conversationId))
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1475,7 +1482,7 @@ private struct VaultMediaView: View {
                         .foregroundColor(SanchrColors.primaryDark)
                         .padding(.top, 2)
                     Text(
-                        "Vault media is protected with extra encryption and can be set to self-destruct after viewing."
+                        "Vault media is encrypted at rest, can self-destruct after viewing, and screenshots are blocked while viewing."
                     )
                     .font(SanchrTypography.messageBubbleText)
                     .foregroundColor(SanchrExportColors.textSecondary)
@@ -1496,27 +1503,79 @@ private struct VaultMediaView: View {
                 .padding(.top, 24)
                 .padding(.bottom, 20)
 
-                // Toggles
                 vaultToggle(
-                    icon: "tray.and.arrow.down.fill", title: "Auto-Vault Incoming",
-                    subtitle: "Automatically protect received media", isOn: $autoVault)
+                    icon: "tray.and.arrow.down.fill",
+                    title: "Auto-Vault Incoming",
+                    subtitle: "Automatically protect received media in this chat",
+                    isOn: Binding(
+                        get: { policy.autoVaultIncoming },
+                        set: { newValue in
+                            policy = ChatVaultPolicy(
+                                conversationId: conversationId,
+                                autoVaultIncoming: newValue,
+                                viewOnceOutgoing: policy.viewOnceOutgoing,
+                                screenshotProtection: policy.screenshotProtection
+                            )
+                            persist()
+                        }
+                    )
+                )
 
                 Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
 
                 vaultToggle(
-                    icon: "eye.fill", title: "View Once",
-                    subtitle: "Media disappears after first viewing", isOn: $viewOnce)
+                    icon: "eye.fill",
+                    title: "View Once",
+                    subtitle: "Media you send disappears after the recipient views it",
+                    isOn: Binding(
+                        get: { policy.viewOnceOutgoing },
+                        set: { newValue in
+                            policy = ChatVaultPolicy(
+                                conversationId: conversationId,
+                                autoVaultIncoming: policy.autoVaultIncoming,
+                                viewOnceOutgoing: newValue,
+                                screenshotProtection: policy.screenshotProtection
+                            )
+                            persist()
+                        }
+                    )
+                )
 
                 Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
 
                 vaultToggle(
-                    icon: "camera.metering.none", title: "Screenshot Protection",
-                    subtitle: "Prevent screenshots of vault media", isOn: $screenshotProtection)
+                    icon: "camera.metering.none",
+                    title: "Screenshot Protection",
+                    subtitle: "Block screenshots while viewing vault media",
+                    isOn: Binding(
+                        get: { policy.screenshotProtection },
+                        set: { newValue in
+                            policy = ChatVaultPolicy(
+                                conversationId: conversationId,
+                                autoVaultIncoming: policy.autoVaultIncoming,
+                                viewOnceOutgoing: policy.viewOnceOutgoing,
+                                screenshotProtection: newValue
+                            )
+                            persist()
+                        }
+                    )
+                )
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Vault Media")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await container.chatVaultPolicy.loadPolicy(conversationId: conversationId)
+            policy = container.chatVaultPolicy.effectivePolicy(for: conversationId)
+            isLoading = false
+        }
+    }
+
+    private func persist() {
+        Task {
+            await container.chatVaultPolicy.setPolicy(policy)
+        }
     }
 
     private func vaultToggle(icon: String, title: String, subtitle: String, isOn: Binding<Bool>)
