@@ -284,28 +284,14 @@ struct ConversationInfoView: View {
                 VerifySecurityCodeView(conversation: conversation)
             } label: {
                 settingsRow(
-                    icon: "qrcode",
-                    iconBg: SanchrColors.accent.opacity(0.1),
-                    iconColor: SanchrColors.accent,
-                    title: "Verify Security Code",
-                    subtitle: "Confirm end-to-end encryption"
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                VerifySecurityCodeView(conversation: conversation)
-            } label: {
-                settingsRow(
-                    icon: "touchid",
+                    icon: "lock.shield.fill",
                     iconBg: SanchrColors.primary.opacity(0.1),
                     iconColor: SanchrColors.primary,
-                    title: "Encryption Keys",
-                    subtitle: "View security fingerprint"
+                    title: "Encryption",
+                    subtitle: "Verify security code and view keys"
                 )
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
