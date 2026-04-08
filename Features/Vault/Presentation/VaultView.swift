@@ -7,7 +7,6 @@ import SanchrShared
 @MainActor
 struct VaultView: View {
     @Environment(DependencyContainer.self) private var container
-    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = VaultViewModel()
     @State private var showAddSheet = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -23,18 +22,14 @@ struct VaultView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    header
-
-                    VStack(spacing: 22) {
-                        statsRow
-                        filterTabs
-                        content
-                    }
-                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                    .padding(.top, 24)
-                    .padding(.bottom, 110)
+                VStack(spacing: 22) {
+                    statsRow
+                    filterTabs
+                    content
                 }
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                .padding(.top, 24)
+                .padding(.bottom, 110)
             }
             .refreshable {
                 await viewModel.loadItems(vaultDataSource: vaultDataSource)
@@ -43,7 +38,18 @@ struct VaultView: View {
 
             addButton
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Vault")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Select") {}
+                    Button("Sort") {}
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .sheet(isPresented: $showAddSheet) {
             addToVaultSheet
         }
@@ -71,91 +77,6 @@ struct VaultView: View {
         .task(id: viewModel.activeFilter) {
             await viewModel.loadItems(vaultDataSource: vaultDataSource)
         }
-    }
-
-    private var header: some View {
-        VStack(spacing: 18) {
-            HStack {
-                SanchrIconButton(
-                    systemName: "chevron.left",
-                    foreground: .white,
-                    background: Color.white.opacity(0.12)
-                ) {
-                    dismiss()
-                }
-
-                Spacer()
-
-                Text("Vault")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(.white)
-
-                Spacer()
-
-                Menu {
-                    Button("Select") {}
-                    Button("Sort") {}
-                } label: {
-                    Image(systemName: "ellipsis.vertical")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
-                }
-            }
-            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-            .padding(.top, 52)
-
-            HStack(spacing: 16) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.accent, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 52, height: 52)
-                    .overlay {
-                        Image(systemName: "lock.doc.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Secure Storage")
-                        .font(SanchrTypography.bodyBold)
-                        .foregroundColor(.white)
-                    Text("Self-destructing media")
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(.white.opacity(0.78))
-                }
-
-                Spacer()
-
-                Text("\(viewModel.totalItems)")
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .frame(height: 32)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(Capsule())
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(Color.white.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-            .padding(.bottom, 22)
-        }
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
     }
 
     private var statsRow: some View {

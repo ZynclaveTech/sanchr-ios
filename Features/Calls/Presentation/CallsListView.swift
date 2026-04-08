@@ -32,7 +32,15 @@ struct CallsListView: View {
                 callList
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Calls")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {} label: {
+                    Image(systemName: "magnifyingglass")
+                }
+            }
+        }
         .sanchrInteractivePopEnabled()
         .task {
             viewModel.configure(
@@ -45,8 +53,7 @@ struct CallsListView: View {
     }
 
     private var loadingState: some View {
-        VStack(spacing: 0) {
-            customHeader
+        VStack {
             Spacer()
             ProgressView()
                 .tint(.sanchrPrimary)
@@ -60,12 +67,9 @@ struct CallsListView: View {
         ZStack(alignment: .bottomTrailing) {
             List {
                 Section {
-                    customHeader
-                        .listRowInsets(EdgeInsets())
-
                     filterTabs
                         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                        .padding(.top, 10)
+                        .padding(.top, 6)
                         .padding(.bottom, 6)
                         .listRowInsets(EdgeInsets())
                 }
@@ -123,22 +127,6 @@ struct CallsListView: View {
         .background(SanchrExportColors.background)
     }
 
-    private var customHeader: some View {
-        HStack {
-            Text("Calls")
-                .font(SanchrTypography.sectionHeader)
-                .foregroundColor(SanchrExportColors.textPrimary)
-
-            Spacer()
-
-            SanchrIconButton(systemName: "magnifyingglass") {}
-        }
-        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-        .padding(.top, SanchrExportMetrics.rootTop)
-        .padding(.bottom, 8)
-        .background(SanchrExportColors.background)
-    }
-
     private var filterTabs: some View {
         HStack(spacing: 10) {
             ForEach(CallFilter.allCases) { filter in
@@ -188,9 +176,7 @@ struct CallsListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
-            customHeader
-
+        VStack {
             Spacer()
 
             VStack(spacing: 18) {

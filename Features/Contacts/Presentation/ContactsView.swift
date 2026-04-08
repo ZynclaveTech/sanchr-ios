@@ -18,7 +18,15 @@ struct ContactsView: View {
                 contactList
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Contacts")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {} label: {
+                    Image(systemName: "person.badge.plus")
+                }
+            }
+        }
         .sanchrInteractivePopEnabled()
         .refreshable {
             await viewModel.refreshContacts(
@@ -89,30 +97,13 @@ struct ContactsView: View {
     }
 
     private var loadingState: some View {
-        VStack(spacing: 0) {
-            customHeader
+        VStack {
             Spacer()
             ProgressView()
                 .tint(.sanchrPrimary)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SanchrExportColors.background)
-    }
-
-    private var customHeader: some View {
-        HStack {
-            Text("Contacts")
-                .font(SanchrTypography.sectionHeader)
-                .foregroundColor(SanchrExportColors.textPrimary)
-
-            Spacer()
-
-            SanchrIconButton(systemName: "person.badge.plus") {}
-        }
-        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-        .padding(.top, SanchrExportMetrics.rootTop)
-        .padding(.bottom, 8)
         .background(SanchrExportColors.background)
     }
 
@@ -134,9 +125,6 @@ struct ContactsView: View {
     private var contactList: some View {
         List {
             Section {
-                customHeader
-                    .listRowInsets(EdgeInsets())
-
                 searchBar
                     .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
                     .padding(.top, 6)
@@ -235,9 +223,7 @@ struct ContactsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
-            customHeader
-
+        VStack {
             Spacer()
 
             VStack(spacing: 18) {

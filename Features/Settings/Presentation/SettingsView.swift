@@ -13,7 +13,6 @@ struct SettingsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
-                header
                 profileCard
                 sanchrModeCard
                 settingsGroup(
@@ -133,7 +132,15 @@ struct SettingsView: View {
             .padding(.bottom, 24)
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {} label: {
+                    Image(systemName: "magnifyingglass")
+                }
+            }
+        }
         .sanchrInteractivePopEnabled()
         .task {
             viewModel.loadProfile(from: container.sessionService)
@@ -144,26 +151,6 @@ struct SettingsView: View {
             )
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
         }
-    }
-
-    private var header: some View {
-        HStack {
-            Color.clear
-                .frame(width: 40, height: 40)
-
-            Spacer()
-
-            Text("Settings")
-                .font(SanchrTypography.cardTitle)
-                .foregroundColor(SanchrExportColors.textPrimary)
-
-            Spacer()
-
-            SanchrIconButton(systemName: "magnifyingglass") {}
-        }
-        .padding(.top, 2)
-        .padding(.bottom, 6)
-        .background(SanchrExportColors.surface.ignoresSafeArea(edges: .top))
     }
 
     private var profileCard: some View {
