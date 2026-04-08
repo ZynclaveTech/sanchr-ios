@@ -362,7 +362,8 @@ final class DependencyContainer: @unchecked Sendable {
         signalKeyManager: signalKeyManager,
         sessionService: sessionService,
         callManager: callManager,
-        privacySettings: privacySettings
+        privacySettings: privacySettings,
+        networkMonitor: networkMonitor
     )
 
     /// Data source for call signaling gRPC operations.
@@ -491,7 +492,8 @@ final class DependencyContainer: @unchecked Sendable {
             signalKeyManager: signalKeyManager,
             sessionService: sessionService,
             callManager: callManager,
-            privacySettings: privacySettings
+            privacySettings: privacySettings,
+            networkMonitor: networkMonitor
         )
         self.syncOrchestrator = SyncOrchestrator(
             messageRepository: messageRepository,

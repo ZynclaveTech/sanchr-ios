@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import GRPC
 import SanchrShared
@@ -36,25 +37,79 @@ final class RealtimeService: @unchecked Sendable {
     private let sessionService: SessionService
     private let callManager: CallEventRouting
     private let privacySettings: PrivacySettingsCache
+    private let networkMonitor: NetworkMonitorProtocol
 
     private var streamTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private(set) var isRunning = false
     private(set) var presenceCache: [String: Vync_Messaging_PresenceUpdate] = [:]
     private var trackedPeerIds: Set<String> = []
+    private var reconnectAttempt: Int = 0
+    @ObservationIgnored private var networkCancellable: AnyCancellable?
 
     init(
         messageRepository: MessageRepositoryProtocol,
         signalKeyManager: KeyManagerProtocol,
         sessionService: SessionService,
         callManager: CallEventRouting,
-        privacySettings: PrivacySettingsCache
+        privacySettings: PrivacySettingsCache,
+        networkMonitor: NetworkMonitorProtocol
     ) {
         self.messageRepository = messageRepository
         self.signalKeyManager = signalKeyManager
         self.sessionService = sessionService
         self.callManager = callManager
         self.privacySettings = privacySettings
+        self.networkMonitor = networkMonitor
+        observeNetworkChanges()
+    }
+
+    /// Exponential backoff with 30% jitter and a 30s cap.
+    /// attempt 0 ≈ 1s, attempt 1 ≈ 2s, ..., attempt 5+ ≈ 30s (± jitter).
+    /// Made static/internal so unit tests can exercise it in isolation
+    /// without driving the whole realtime loop.
+    static func reconnectBackoff(attempt: Int) -> TimeInterval {
+        let base: Double = 1.0
+        let cap: Double = 30.0
+        let exponential = min(cap, base * pow(2.0, Double(max(0, attempt))))
+        let jitter = Double.random(in: 0...(exponential * 0.3))
+        return exponential + jitter
+    }
+
+    private func observeNetworkChanges() {
+        // `dropFirst()` is deliberate: `CurrentValueSubject` synchronously
+        // delivers the current value to every new subscriber, but we
+        // only care about real transitions here. The initial connectivity
+        // state is already handled by the app launch path (SanchrApp's
+        // scenePhase handler calls `enterForeground()` which in turn
+        // calls `start()`), so auto-starting here would cause a double
+        // stream open on every app launch.
+        networkCancellable = networkMonitor.connectivityPublisher
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] isConnected in
+                guard let self else { return }
+                if isConnected {
+                    SanchrLogger.chat.info(
+                        "realtime_reconnect: network up, resetting attempt counter"
+                    )
+                    self.reconnectAttempt = 0
+                    // Poke start() in case the stream task fell out of
+                    // its retry loop while the network was down.
+                    if self.streamTask == nil {
+                        self.start()
+                    }
+                } else {
+                    SanchrLogger.chat.info(
+                        "realtime_reconnect: network down, cancelling stream task"
+                    )
+                    // Cancel any in-flight stream/sleep so the retry loop
+                    // exits cleanly instead of hammering gRPC into a dead
+                    // socket.
+                    self.streamTask?.cancel()
+                    self.streamTask = nil
+                }
+            }
     }
 
     func start() {
@@ -71,6 +126,8 @@ final class RealtimeService: @unchecked Sendable {
                     _ = try await messageRepository.flushPendingAcks()
                     let stream = try await messageRepository.openMessageStream()
                     SanchrLogger.chat.info("Realtime message stream opened")
+                    // Successful open — reset the backoff curve.
+                    self.reconnectAttempt = 0
                     for await event in stream {
                         guard !Task.isCancelled else { break }
                         await handle(event)
@@ -94,7 +151,12 @@ final class RealtimeService: @unchecked Sendable {
                     break
                 }
 
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                let backoffSeconds = Self.reconnectBackoff(attempt: self.reconnectAttempt)
+                self.reconnectAttempt += 1
+                SanchrLogger.chat.info(
+                    "realtime_reconnect attempt=\(self.reconnectAttempt) backoff_seconds=\(String(format: "%.2f", backoffSeconds))"
+                )
+                try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
             }
 
             await MainActor.run {

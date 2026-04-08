@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import LibSignalClient
 import SanchrShared
@@ -379,5 +380,17 @@ final class MockCallEventRouter: CallEventRouting, @unchecked Sendable {
 
     func resetState() {
         resetCallCount += 1
+    }
+}
+
+// MARK: - Network
+
+final class MockNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
+    var isConnected: Bool = true
+    var connectionType: NetworkMonitor.ConnectionType = .wifi
+    let subject = CurrentValueSubject<Bool, Never>(true)
+
+    var connectivityPublisher: AnyPublisher<Bool, Never> {
+        subject.eraseToAnyPublisher()
     }
 }
