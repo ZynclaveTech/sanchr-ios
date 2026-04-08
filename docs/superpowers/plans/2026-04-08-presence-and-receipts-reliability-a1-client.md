@@ -86,8 +86,8 @@ For tests (one specific test class):
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/<TestClassName> 2>&1 | tail -10
 ```
 
@@ -95,8 +95,8 @@ For full test run:
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test 2>&1 | tail -20
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test 2>&1 | tail -20
 ```
 
 ---
@@ -262,8 +262,8 @@ cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/PrivacySettingsCacheLoadSettingsTests 2>&1 | tail -10
 ```
 
@@ -333,8 +333,8 @@ final class UserStatusFromPresenceTests: XCTestCase {
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/bin/xcodegen generate && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/UserStatusFromPresenceTests 2>&1 | grep -E "(error:|FAILED)" | head
 ```
 
@@ -389,8 +389,8 @@ Standard build verification command. Expected: `** BUILD SUCCEEDED **`.
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/UserStatusFromPresenceTests 2>&1 | tail -10
 ```
 
@@ -629,8 +629,8 @@ In `Tests/UnitTests/LocalDatabaseTests.swift`, find the existing tests and appen
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/bin/xcodegen generate && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/LocalDatabaseTests 2>&1 | tail -15
 ```
 
@@ -998,8 +998,8 @@ extension MessageRepositoryImpl {
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/bin/xcodegen generate && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/MessageRepositoryPresenceWriteThroughTests \
   -only-testing:SanchrTests/MessageRepositoryReceiptDenormTests 2>&1 | tail -15
 ```
@@ -1132,8 +1132,8 @@ Expected: `** BUILD SUCCEEDED **`.
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test 2>&1 | tail -25
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test 2>&1 | tail -25
 ```
 
 Expected: every test passes, including the 4 new test files from Tasks 2, 3, 4, and 6.
@@ -1293,8 +1293,8 @@ final class NetworkMonitorPublisherTests: XCTestCase {
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/bin/xcodegen generate && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/NetworkMonitorPublisherTests 2>&1 | tail -10
 ```
 
@@ -1517,8 +1517,8 @@ Standard build command. Expected: `** BUILD SUCCEEDED **`. If you missed a `Real
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/RealtimeServiceTests 2>&1 | tail -15
 ```
 
@@ -1608,8 +1608,8 @@ final class ReconnectBackoffTests: XCTestCase {
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && /opt/homebrew/bin/xcodegen generate && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test \
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test \
   -only-testing:SanchrTests/ReconnectBackoffTests 2>&1 | tail -10
 ```
 
@@ -1658,8 +1658,8 @@ Expected: `** BUILD SUCCEEDED **`.
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS && \
-xcodebuild -project Sanchr.xcodeproj -scheme SanchrTests \
-  -destination 'platform=iOS Simulator,name=iPhone 15' test 2>&1 | tail -25
+xcodebuild -project Sanchr.xcodeproj -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test 2>&1 | tail -25
 ```
 
 Expected: every test passes, including the 6 new test files.
