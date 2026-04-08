@@ -69,6 +69,15 @@ struct AppearanceView: View {
             if let savedMode = SanchrTheme.Mode(rawValue: storedThemeMode) {
                 theme.mode = savedMode
             }
+
+            // Hydrate the container-scoped chatAppearance with whatever
+            // we just loaded from the backend so chat detail surfaces
+            // pick up the wallpaper id without requiring the user to
+            // re-pick it after launch.
+            container.chatAppearance.setGlobal(
+                wallpaperId: viewModel.chatWallpaper.isEmpty ? "default" : viewModel.chatWallpaper,
+                appearanceMode: SanchrTheme.Mode(rawValue: viewModel.theme) ?? theme.mode
+            )
         }
     }
 
@@ -82,6 +91,10 @@ struct AppearanceView: View {
                         theme.mode = mode
                         storedThemeMode = mode.rawValue
                         viewModel.theme = mode.rawValue
+                        container.chatAppearance.setGlobal(
+                            wallpaperId: nil,
+                            appearanceMode: mode
+                        )
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     } label: {
                         HStack(spacing: 16) {
@@ -193,30 +206,34 @@ struct AppearanceView: View {
             sectionTitle("Chat Wallpaper")
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                ForEach(wallpaperOptions, id: \.1) { name, value in
+                ForEach(WallpaperPainter.allWallpapers) { wp in
                     Button {
-                        viewModel.chatWallpaper = value
+                        viewModel.chatWallpaper = wp.id
+                        container.chatAppearance.setGlobal(
+                            wallpaperId: wp.id,
+                            appearanceMode: nil
+                        )
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     } label: {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(wallpaperGradient(for: value))
+                        WallpaperPainter.background(for: wp.id)
                             .frame(height: 108)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .overlay {
-                                if viewModel.chatWallpaper == value {
+                                if viewModel.chatWallpaper == wp.id {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 24, weight: .semibold))
                                         .foregroundColor(.sanchrPrimary)
                                 }
                             }
                             .overlay(alignment: .bottomLeading) {
-                                Text(name)
+                                Text(wp.displayName)
                                     .font(SanchrTypography.captionSmall)
-                                    .foregroundColor(value == "dark_gradient" ? .white.opacity(0.9) : SanchrExportColors.textPrimary)
+                                    .foregroundColor(wp.isDark ? .white.opacity(0.9) : SanchrExportColors.textPrimary)
                                     .padding(10)
                             }
                             .overlay {
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(viewModel.chatWallpaper == value ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: viewModel.chatWallpaper == value ? 2 : 1)
+                                    .stroke(viewModel.chatWallpaper == wp.id ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 1)
                             }
                     }
                     .buttonStyle(.plain)
