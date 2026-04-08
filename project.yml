@@ -13,8 +13,10 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: targeted
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: UMTJNNPK6C
     CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
+    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
     ENABLE_USER_SCRIPT_SANDBOXING: false
 
 packages:
