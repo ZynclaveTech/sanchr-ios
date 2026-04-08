@@ -108,6 +108,15 @@ final class WindowScreenshotProtector {
         canvas.translatesAutoresizingMaskIntoConstraints = false
         canvas.isUserInteractionEnabled = true
         canvas.isHidden = false
+        // Pin the private canvas to the field edges — without this the
+        // canvas has no intrinsic size and collapses to zero, dragging
+        // the reparented root view into a sliver in the top-left.
+        NSLayoutConstraint.activate([
+            canvas.topAnchor.constraint(equalTo: field.topAnchor),
+            canvas.bottomAnchor.constraint(equalTo: field.bottomAnchor),
+            canvas.leadingAnchor.constraint(equalTo: field.leadingAnchor),
+            canvas.trailingAnchor.constraint(equalTo: field.trailingAnchor),
+        ])
 
         rootView.translatesAutoresizingMaskIntoConstraints = false
         rootView.removeFromSuperview()
