@@ -799,7 +799,12 @@ struct ChatDetailView: View {
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled
         )
-        .background(SanchrExportColors.surfaceSoft)
+        // Transparent background — the chat-level .background on the
+        // outer VStack paints either the wallpaper gradient or the
+        // surfaceSoft fallback, and the messagesScrollView must let
+        // it show through. Setting an opaque colour here would hide
+        // every wallpaper behind a flat fill.
+        .background(Color.clear)
         .overlay {
             if !hasPresentedInitialTranscript {
                 transcriptLoadingPlaceholder
