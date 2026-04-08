@@ -53,10 +53,8 @@ struct ChatDetailView: View {
     }
 
     var body: some View {
-        let wallpaperId: String = {
-            let id = container.settingsViewModel.chatWallpaper
-            return id.isEmpty ? "default" : id
-        }()
+        let appearance = container.chatAppearance.effectiveAppearance(for: conversation.id)
+        let wallpaperId = appearance.wallpaperId
         VStack(spacing: 0) {
             header
 
@@ -166,6 +164,7 @@ struct ChatDetailView: View {
             }
             .ignoresSafeArea()
         )
+        .preferredColorScheme(appearance.appearanceMode.colorScheme)
         .navigationBarHidden(true)
         .sanchrInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
@@ -343,6 +342,10 @@ struct ChatDetailView: View {
             }
         }
         .task {
+            // Cache-warm the per-chat appearance override BEFORE messages
+            // load so the first paint already reflects the override —
+            // avoids a global → override flicker.
+            await container.chatAppearance.loadOverride(conversationId: conversation.id)
             await viewModel.loadMessages(
                 conversationId: conversation.id,
                 messageRepository: container.messageRepository
