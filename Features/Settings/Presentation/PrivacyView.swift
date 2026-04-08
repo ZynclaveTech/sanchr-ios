@@ -38,7 +38,10 @@ struct PrivacyView: View {
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Privacy")
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                privacySettings: container.privacySettings
+            )
             lastSeenVisibility = viewModel.onlineStatusVisible ? "contacts" : "nobody"
         }
     }
