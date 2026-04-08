@@ -434,4 +434,132 @@ final class LocalDatabaseTests: XCTestCase {
             expiresAt: nil
         )
     }
+
+    // MARK: - Presence write-through
+
+    func testUpdateUserPresencePersistsStatusAndLastSeen() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        let seeded = User(
+            id: "peer-1",
+            phoneNumber: "+15550001000",
+            displayName: "Peer One",
+            avatarURL: nil,
+            bio: nil,
+            isVerified: false,
+            lastSeen: nil,
+            identityKeyFingerprint: nil,
+            status: .offline,
+            isLocalUser: false
+        )
+        try await database.saveContact(seeded)
+
+        let lastSeen = Date(timeIntervalSince1970: 1_750_000_500)
+        try await database.updateUserPresence(
+            userId: "peer-1",
+            status: .online,
+            lastSeen: lastSeen
+        )
+
+        let contacts = try await database.fetchContacts()
+        let stored = contacts.first(where: { $0.id == "peer-1" })
+        XCTAssertEqual(stored?.status, .online)
+        XCTAssertEqual(stored?.lastSeen, lastSeen)
+    }
+
+    func testUpdateUserPresenceClearsLastSeenWhenNil() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        let seeded = User(
+            id: "peer-2",
+            phoneNumber: "+15550001001",
+            displayName: "Peer Two",
+            avatarURL: nil,
+            bio: nil,
+            isVerified: false,
+            lastSeen: Date(timeIntervalSince1970: 1_750_000_000),
+            identityKeyFingerprint: nil,
+            status: .offline,
+            isLocalUser: false
+        )
+        try await database.saveContact(seeded)
+
+        try await database.updateUserPresence(
+            userId: "peer-2",
+            status: .online,
+            lastSeen: nil
+        )
+
+        let contacts = try await database.fetchContacts()
+        let stored = contacts.first(where: { $0.id == "peer-2" })
+        XCTAssertEqual(stored?.status, .online)
+        XCTAssertNil(stored?.lastSeen, "Online users should have lastSeen cleared")
+    }
+
+    // MARK: - Conversation denorm refresh
+
+    func testConversationLastMessageStatusUpdatesWhenMessageIdMatches() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        let baseDate = Date(timeIntervalSince1970: 1_750_000_000)
+        let conversation = makeConversation(id: "conv-denorm-1")
+        try await database.saveConversation(conversation)
+
+        let message = makeMessage(
+            id: "msg-current",
+            conversationId: conversation.id,
+            timestamp: baseDate
+        )
+        try await database.saveMessage(message)
+
+        // The denormalized lastMessageStatus starts as .sent (from the
+        // makeMessage helper).
+        try await database.updateConversationLastMessageStatusIfMatches(
+            conversationId: conversation.id,
+            messageId: "msg-current",
+            status: .read
+        )
+
+        let fetched = try await database.fetchConversation(id: conversation.id)
+        XCTAssertEqual(
+            fetched?.lastMessage?.status,
+            .read,
+            "Matching message id should promote the denormalized status"
+        )
+    }
+
+    func testConversationLastMessageStatusSkipsWhenMessageIdDiffers() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        let baseDate = Date(timeIntervalSince1970: 1_750_000_000)
+        let conversation = makeConversation(id: "conv-denorm-2")
+        try await database.saveConversation(conversation)
+
+        let currentMessage = makeMessage(
+            id: "msg-latest",
+            conversationId: conversation.id,
+            timestamp: baseDate.addingTimeInterval(60)
+        )
+        try await database.saveMessage(currentMessage)
+
+        // Receipt for an OLDER message that was replaced by the latest
+        // one. The denorm must NOT regress — the current last message
+        // is still "sent" since that's the ground truth.
+        try await database.updateConversationLastMessageStatusIfMatches(
+            conversationId: conversation.id,
+            messageId: "msg-older-and-gone",
+            status: .read
+        )
+
+        let fetched = try await database.fetchConversation(id: conversation.id)
+        XCTAssertEqual(
+            fetched?.lastMessage?.status,
+            .sent,
+            "Denorm must not regress when the receipt targets a non-current message"
+        )
+    }
 }
