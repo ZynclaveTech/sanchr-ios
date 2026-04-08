@@ -430,9 +430,32 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                     id: receipt.messageID,
                                     status: status
                                 )
+                                // Keep the chat-list double-tick in
+                                // sync: only patch the conversation's
+                                // denormalized status if the receipt
+                                // targets the CURRENT last message.
+                                try? await self.localDatabase
+                                    .updateConversationLastMessageStatusIfMatches(
+                                        conversationId: receipt.conversationID,
+                                        messageId: receipt.messageID,
+                                        status: status
+                                    )
                             }
                             continuation.yield(.receipt(receipt))
                         case .presence(let presence):
+                            // Write-through: persist presence into the
+                            // local user row so ChatsListView and
+                            // ContactsView dots come alive. Both
+                            // already read User.status / User.lastSeen,
+                            // but nothing was updating them.
+                            let mappedLastSeen: Date? = presence.lastSeen > 0
+                                ? Date(timeIntervalSince1970: TimeInterval(presence.lastSeen) / 1000.0)
+                                : nil
+                            try? await self.localDatabase.updateUserPresence(
+                                userId: presence.userID,
+                                status: User.Status(from: presence.statusCode),
+                                lastSeen: mappedLastSeen
+                            )
                             continuation.yield(.presence(presence))
                         case .preKeyCountLow(let preKeyCountLow):
                             continuation.yield(.preKeyCountLow(preKeyCountLow))
