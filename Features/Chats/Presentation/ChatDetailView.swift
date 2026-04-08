@@ -355,6 +355,10 @@ struct ChatDetailView: View {
             // load so the first paint already reflects the override —
             // avoids a global → override flicker.
             await container.chatAppearance.loadOverride(conversationId: conversation.id)
+            // Same for the per-chat vault policy so the realtime decode
+            // path's lock-protected mirror lookup hits a populated entry
+            // when subsequent messages arrive in this chat.
+            await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
             await viewModel.loadMessages(
                 conversationId: conversation.id,
                 messageRepository: container.messageRepository

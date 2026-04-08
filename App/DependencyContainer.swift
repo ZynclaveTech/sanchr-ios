@@ -134,6 +134,13 @@ final class DependencyContainer: @unchecked Sendable {
         settingsViewModel: settingsViewModel
     )
 
+    /// Per-chat vault media policy resolver. Mirrors the
+    /// chatAppearance pattern: @MainActor @Observable resolver +
+    /// lock-protected sibling for the realtime decode path.
+    @MainActor @ObservationIgnored lazy var chatVaultPolicy: ChatVaultPolicyService = ChatVaultPolicyService(
+        localDatabase: localDatabase
+    )
+
     // MARK: - Cross-Process Send Pipeline (T16/T18)
 
     /// Cross-process file lock guarding Signal-protocol ratchet mutations on
