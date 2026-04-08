@@ -1,5 +1,6 @@
 import Foundation
 import GRPC
+import UIKit
 import SanchrShared
 
 /// Protocol defining messaging operations.
@@ -363,6 +364,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         request.conversationID = message.conversationId
         _ = try? await grpcClient.messagingService.deleteMessage(request)
 
+        // Notify the chat list + detail so the bubble flips to the
+        // tombstone state without requiring a nav-away/return.
+        await MainActor.run {
+            NotificationCenter.default.postConversationStateDidChange(
+                conversationId: message.conversationId
+            )
+        }
+
         SanchrLogger.chat.info("Deleted view-once message \(messageId.prefix(8))")
     }
 
@@ -660,11 +669,28 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 default: return .document
                 }
             }()
-            _ = try await vaultRepository.uploadItem(
+            let uploadedItem = try await vaultRepository.uploadItem(
                 data: data,
                 name: attachment.filename ?? "vaulted-\(message.id).bin",
                 type: vaultType
             )
+
+            // Generate a local thumbnail blob so the Vault browser
+            // shows a preview instead of a generic placeholder. The
+            // existing VaultRepository.uploadItem doesn't set this
+            // today; we patch it onto the local cache row so the
+            // Vault tab at least has a preview immediately after
+            // auto-vaulting. Remote thumbnail upload is a separate
+            // follow-up.
+            let thumbnailData: Data? = await Self.generateThumbnailBlob(
+                fromDecryptedFile: localFile,
+                type: vaultType
+            )
+            if let thumbnailData {
+                var itemWithThumb = uploadedItem
+                itemWithThumb.thumbnailData = thumbnailData
+                try? await localDatabase.saveVaultItem(itemWithThumb)
+            }
 
             // Replace the original chat row with a tombstone.
             let tombstone = Message(
@@ -678,12 +704,50 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             )
             try? await localDatabase.deleteMessage(id: message.id)
             try? await localDatabase.saveIncomingMessageAndQueueAck(tombstone)
+
+            // Notify the chat list + detail so the bubble flips to
+            // the tombstone state without requiring a nav-away/return.
+            await MainActor.run {
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: message.conversationId
+                )
+            }
+
             SanchrLogger.chat.info("Auto-vaulted message \(message.id.prefix(8))")
         } catch {
             SanchrLogger.chat.error(
                 "Auto-vault routing failed for \(message.id.prefix(8)): \(error.localizedDescription) — leaving original row"
             )
         }
+    }
+
+    /// Generates a small JPEG thumbnail from a decrypted vault file
+    /// for the Vault browser preview. Runs off the main thread.
+    /// Returns nil for types we don't know how to preview.
+    private static func generateThumbnailBlob(
+        fromDecryptedFile fileURL: URL,
+        type: VaultItem.VaultItemType
+    ) async -> Data? {
+        await Task.detached(priority: .utility) {
+            switch type {
+            case .photo:
+                guard let image = UIImage(contentsOfFile: fileURL.path) else { return nil }
+                let targetSize = CGSize(width: 300, height: 300)
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1
+                let resized = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+                    image.draw(in: CGRect(origin: .zero, size: targetSize))
+                }
+                return resized.jpegData(compressionQuality: 0.6)
+            case .video:
+                if let poster = await MediaThumbnailGenerator.posterFrame(forVideoAt: fileURL) {
+                    return poster.jpegData(compressionQuality: 0.6)
+                }
+                return nil
+            case .document, .audio, .note:
+                return nil
+            }
+        }.value
     }
 
     private func ensureConversationShellExists(

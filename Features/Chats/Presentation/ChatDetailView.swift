@@ -385,6 +385,25 @@ struct ChatDetailView: View {
                 )
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+                conversationId == conversation.id
+            else {
+                return
+            }
+            // Reload the chat snapshot from the local DB so local-only
+            // mutations (view-once deletion tombstones, auto-vault
+            // routing replacements) flip the on-screen bubble without
+            // requiring a nav-away/return.
+            Task {
+                await viewModel.loadMessages(
+                    conversationId: conversation.id,
+                    messageRepository: container.messageRepository
+                )
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
             guard
                 let userInfo = note.userInfo,
