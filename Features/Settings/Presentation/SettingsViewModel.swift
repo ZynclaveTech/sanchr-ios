@@ -96,19 +96,29 @@ final class SettingsViewModel {
 
     // MARK: - Load Settings
 
+    /// Loads settings from the server and syncs them into both the
+    /// view model's `@State` fields and the app-wide
+    /// `PrivacySettingsCache`.
+    ///
+    /// `privacySettings` is **required** (not optional) on purpose:
+    /// forgetting it would silently leave the cache holding stale
+    /// values while the server happily echoes fresh ones, and the
+    /// local privacy gates (`canSendReadReceipts` etc.) would lie for
+    /// the rest of the session. Every screen that calls this must
+    /// thread the container-scoped cache through.
     func loadSettings(
         settingsDataSource: SettingsDataSource,
-        appLockManager: AppLockManager? = nil,
-        privacySettings: PrivacySettingsCache? = nil
+        privacySettings: PrivacySettingsCache,
+        appLockManager: AppLockManager? = nil
     ) async {
-        if let privacySettings { self.privacySettings = privacySettings }
+        self.privacySettings = privacySettings
         isLoading = true
         defer { isLoading = false }
 
         do {
             let settings = try await settingsDataSource.getSettings()
             applySettings(settings)
-            self.privacySettings?.update(from: settings)
+            privacySettings.update(from: settings)
             // Sync security prefs to local enforcement
             appLockManager?.syncFromSettings(
                 screenLock: settings.screenLockEnabled,

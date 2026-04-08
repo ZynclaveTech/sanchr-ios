@@ -62,7 +62,10 @@ struct ChatSettingsView: View {
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Chat Settings")
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                privacySettings: container.privacySettings
+            )
             container.backupCoordinator.reload()
         }
         .sheet(isPresented: $showingRecoveryKeySheet) {

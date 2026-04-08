@@ -63,7 +63,10 @@ struct AppearanceView: View {
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Appearance")
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                privacySettings: container.privacySettings
+            )
             fontStep = sliderValue(for: viewModel.fontSize)
 
             if let savedMode = SanchrTheme.Mode(rawValue: storedThemeMode) {

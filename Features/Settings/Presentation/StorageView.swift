@@ -60,7 +60,10 @@ struct StorageView: View {
             Text("This will delete local messages, media, and cached files stored on this device.")
         }
         .task {
-            await viewModel.loadSettings(settingsDataSource: settingsDataSource)
+            await viewModel.loadSettings(
+                settingsDataSource: settingsDataSource,
+                privacySettings: container.privacySettings
+            )
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
         }
     }

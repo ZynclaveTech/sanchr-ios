@@ -146,8 +146,8 @@ struct SettingsView: View {
             viewModel.loadProfile(from: container.sessionService)
             await viewModel.loadSettings(
                 settingsDataSource: settingsDataSource,
-                appLockManager: container.appLockManager,
-                privacySettings: container.privacySettings
+                privacySettings: container.privacySettings,
+                appLockManager: container.appLockManager
             )
             await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
         }

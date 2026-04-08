@@ -46,6 +46,7 @@ struct SecurityView: View {
         .task {
             await viewModel.loadSettings(
                 settingsDataSource: settingsDataSource,
+                privacySettings: container.privacySettings,
                 appLockManager: container.appLockManager
             )
         }
