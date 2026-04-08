@@ -1,15 +1,14 @@
-import SanchrShared
 @preconcurrency import AVFoundation
 import CoreImage.CIFilterBuiltins
 import CryptoKit
 import Kingfisher
+import SanchrShared
 import SwiftUI
 
 struct ConversationInfoView: View {
     let conversation: Conversation
     let recipient: User?
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @State private var refreshedRecipient: User?
     @State private var notificationsMuted = false
@@ -44,7 +43,6 @@ struct ConversationInfoView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                settingsHeader
                 profileSection
                 mediaSection
                 securitySection
@@ -57,7 +55,8 @@ struct ConversationInfoView: View {
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .navigationTitle("Chat Settings")
+        .navigationBarTitleDisplayMode(.inline)
         .sanchrInteractivePopEnabled()
         .task {
             // Fetch fresh contacts from server to get phone numbers
@@ -68,7 +67,8 @@ struct ConversationInfoView: View {
                     refreshedRecipient = fresh
                 }
             } catch {
-                SanchrLogger.chat.warning("Chat Settings: failed to refresh contacts: \(error.localizedDescription)")
+                SanchrLogger.chat.warning(
+                    "Chat Settings: failed to refresh contacts: \(error.localizedDescription)")
             }
         }
         .navigationDestination(isPresented: $showWallpaper) {
@@ -79,9 +79,6 @@ struct ConversationInfoView: View {
         }
         .navigationDestination(isPresented: $showVaultMedia) {
             VaultMediaView()
-        }
-        .sheet(isPresented: $showSearchConversation) {
-            SearchConversationView(conversationName: conversation.displayName)
         }
         .confirmationDialog("Export Chat", isPresented: $showExportChat) {
             Button("Export with Media") {}
@@ -94,51 +91,25 @@ struct ConversationInfoView: View {
             Button("Clear All Messages", role: .destructive) {}
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will permanently delete all messages in this conversation. This action cannot be undone.")
+            Text(
+                "This will permanently delete all messages in this conversation. This action cannot be undone."
+            )
         }
         .alert("Block Contact", isPresented: $showBlockContact) {
             Button("Block", role: .destructive) {}
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Blocked contacts cannot send you messages or call you. You can unblock them later from Settings.")
+            Text(
+                "Blocked contacts cannot send you messages or call you. You can unblock them later from Settings."
+            )
         }
         .alert("Report Contact", isPresented: $showReportContact) {
             Button("Report", role: .destructive) {}
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Report this contact for inappropriate behavior. We'll review your report and take appropriate action.")
-        }
-    }
-
-    private var settingsHeader: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.sanchrPrimary)
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Text("Chat Settings")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(SanchrExportColors.textPrimary)
-
-            Spacer()
-
-            Color.clear.frame(width: 40, height: 40)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(SanchrExportColors.background)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(SanchrExportColors.line)
-                .frame(height: 1)
+            Text(
+                "Report this contact for inappropriate behavior. We'll review your report and take appropriate action."
+            )
         }
     }
 
@@ -218,7 +189,7 @@ struct ConversationInfoView: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .background(
             LinearGradient(
                 colors: [SanchrColors.primary.opacity(0.05), SanchrColors.accent.opacity(0.05)],
@@ -238,7 +209,8 @@ struct ConversationInfoView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(SanchrExportColors.textPrimary)
                 Spacer()
-                Button {} label: {
+                Button {
+                } label: {
                     Text("View All")
                         .font(SanchrTypography.messageBubbleText)
                         .fontWeight(.medium)
@@ -266,28 +238,33 @@ struct ConversationInfoView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
             } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                ForEach(0..<3, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(mediaGradient(for: index))
-                        .aspectRatio(1, contentMode: .fit)
-                        .overlay {
-                            if index == 2 {
-                                Color.black.opacity(0.4)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .overlay {
-                                        Text("+24")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(.white)
-                                    }
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                    spacing: 8
+                ) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(mediaGradient(for: index))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay {
+                                if index == 2 {
+                                    Color.black.opacity(0.4)
+                                        .clipShape(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        )
+                                        .overlay {
+                                            Text("+24")
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
+                                }
                             }
-                        }
+                    }
                 }
-            }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
@@ -331,7 +308,7 @@ struct ConversationInfoView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
@@ -365,7 +342,9 @@ struct ConversationInfoView: View {
                 isOn: $mediaVisibility
             )
 
-            Button { showWallpaper = true } label: {
+            Button {
+                showWallpaper = true
+            } label: {
                 settingsRow(
                     icon: "paintpalette.fill",
                     iconBg: SanchrExportColors.surfaceSoft,
@@ -378,7 +357,7 @@ struct ConversationInfoView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
@@ -427,18 +406,22 @@ struct ConversationInfoView: View {
                     .font(.system(size: 13))
                     .foregroundColor(SanchrColors.primary)
                     .padding(.top, 1)
-                Text("Sanchr Mode hides notification previews, disables screenshots, and uses darker theme for maximum privacy.")
-                    .font(SanchrTypography.captionSmall)
-                    .foregroundColor(SanchrExportColors.textSecondary)
+                Text(
+                    "Sanchr Mode hides notification previews, disables screenshots, and uses darker theme for maximum privacy."
+                )
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
             }
             .padding(.top, 12)
             .padding(.horizontal, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .background(
             LinearGradient(
-                colors: [SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05)],
+                colors: [
+                    SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05),
+                ],
                 startPoint: .leading,
                 endPoint: .trailing
             )
@@ -452,7 +435,9 @@ struct ConversationInfoView: View {
 
     private var disappearingMessagesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { showDisappearingMessages = true } label: {
+            Button {
+                showDisappearingMessages = true
+            } label: {
                 settingsRow(
                     icon: "clock.arrow.circlepath",
                     iconBg: SanchrExportColors.surfaceSoft,
@@ -463,7 +448,9 @@ struct ConversationInfoView: View {
             }
             .buttonStyle(.plain)
 
-            Button { showVaultMedia = true } label: {
+            Button {
+                showVaultMedia = true
+            } label: {
                 settingsRow(
                     icon: "lock.shield.fill",
                     iconBg: SanchrExportColors.surfaceSoft,
@@ -476,7 +463,7 @@ struct ConversationInfoView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
@@ -486,17 +473,10 @@ struct ConversationInfoView: View {
 
     private var chatActionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { showSearchConversation = true } label: {
-                settingsRow(
-                    icon: "magnifyingglass",
-                    iconBg: SanchrExportColors.surfaceSoft,
-                    iconColor: SanchrExportColors.textSecondary,
-                    title: "Search in Conversation"
-                )
-            }
-            .buttonStyle(.plain)
 
-            Button { showExportChat = true } label: {
+            Button {
+                showExportChat = true
+            } label: {
                 settingsRow(
                     icon: "square.and.arrow.down.fill",
                     iconBg: SanchrExportColors.surfaceSoft,
@@ -508,7 +488,9 @@ struct ConversationInfoView: View {
             .buttonStyle(.plain)
             .padding(.top, 8)
 
-            Button { showClearChat = true } label: {
+            Button {
+                showClearChat = true
+            } label: {
                 settingsRow(
                     icon: "trash.fill",
                     iconBg: SanchrExportColors.surfaceSoft,
@@ -521,7 +503,7 @@ struct ConversationInfoView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
@@ -531,19 +513,23 @@ struct ConversationInfoView: View {
 
     private var dangerZoneSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { showBlockContact = true } label: {
+            Button {
+                showBlockContact = true
+            } label: {
                 dangerRow(icon: "person.fill.xmark", title: "Block Contact")
             }
             .buttonStyle(.plain)
 
-            Button { showReportContact = true } label: {
+            Button {
+                showReportContact = true
+            } label: {
                 dangerRow(icon: "flag.fill", title: "Report Contact")
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        .padding(.vertical, 16)
     }
 
     // MARK: - Reusable Helper Functions
@@ -670,7 +656,6 @@ struct ConversationInfoView: View {
 
 private struct VerifySecurityCodeView: View {
     let conversation: Conversation
-    @Environment(\.dismiss) private var dismiss
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedFingerprint = false
@@ -697,16 +682,14 @@ private struct VerifySecurityCodeView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    gradientHeader
-                    mainContent
-                }
+                mainContent
             }
             .background(SanchrExportColors.background.ignoresSafeArea())
 
             verifyFooter
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Encryption Keys")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if let recipientId = recipient?.id {
                 isVerified = container.signalProtocol.isIdentityVerified(userId: recipientId)
@@ -721,7 +704,8 @@ private struct VerifySecurityCodeView: View {
 
                     do {
                         let myKey = try container.signalProtocol.localIdentityKeyData()
-                        let theirKey = try container.signalProtocol.remoteIdentityKeyData(for: recipientId, deviceId: 1)
+                        let theirKey = try container.signalProtocol.remoteIdentityKeyData(
+                            for: recipientId, deviceId: 1)
                         let localUserId = container.signalProtocol.localUserId
 
                         let fpQR = SanchrFingerprintQR.create(
@@ -804,7 +788,8 @@ private struct VerifySecurityCodeView: View {
 
                 // Generate Signal-compatible QR fingerprint
                 let myKey = try signalProtocol.localIdentityKeyData()
-                let theirKey = try signalProtocol.remoteIdentityKeyData(for: recipientId, deviceId: 1)
+                let theirKey = try signalProtocol.remoteIdentityKeyData(
+                    for: recipientId, deviceId: 1)
                 let localUserId = signalProtocol.localUserId
 
                 let fpQR = SanchrFingerprintQR.create(
@@ -821,7 +806,7 @@ private struct VerifySecurityCodeView: View {
                 let fallbackDigits = [
                     ["28394", "75621", "94857", "63294", "12847"],
                     ["58392", "67483", "92847", "38475", "84729"],
-                    ["39485", "73829", "48573", "92847", "58392"]
+                    ["39485", "73829", "48573", "92847", "58392"],
                 ]
                 let raw = fallbackDigits.flatMap { $0 }.joined()
                 let qr = makeQRCodeImage(from: raw)
@@ -855,12 +840,6 @@ private struct VerifySecurityCodeView: View {
         }
     }
 
-    // MARK: - Gradient Header
-
-    private var gradientHeader: some View {
-        screenHeader(title: "Encryption Keys", onBack: { dismiss() })
-    }
-
     // MARK: - Main Content
 
     private var mainContent: some View {
@@ -869,7 +848,7 @@ private struct VerifySecurityCodeView: View {
             fingerprintSection
             encryptionDetailsSection
             infoCard
-            Color.clear.frame(height: 80) // space for fixed footer
+            Color.clear.frame(height: 80)  // space for fixed footer
         }
         .padding(.horizontal, 20)
         .padding(.top, 24)
@@ -884,10 +863,12 @@ private struct VerifySecurityCodeView: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text("Compare this QR code with your contact's device or verify the 60-digit code below")
-                    .font(SanchrTypography.messageBubbleText)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-                    .multilineTextAlignment(.center)
+                Text(
+                    "Compare this QR code with your contact's device or verify the 60-digit code below"
+                )
+                .font(SanchrTypography.messageBubbleText)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
             }
 
             RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -974,19 +955,23 @@ private struct VerifySecurityCodeView: View {
                         .padding(.vertical, 20)
                 } else {
                     ForEach(0..<fingerprintDigits.count, id: \.self) { row in
-                    HStack(spacing: 8) {
-                        ForEach(0..<fingerprintDigits[row].count, id: \.self) { col in
-                            Text(fingerprintDigits[row][col])
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(SanchrExportColors.textPrimary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(colorScheme == .dark ? Color(hex: 0x24243A) : Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+                        HStack(spacing: 8) {
+                            ForEach(0..<fingerprintDigits[row].count, id: \.self) { col in
+                                Text(fingerprintDigits[row][col])
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        colorScheme == .dark ? Color(hex: 0x24243A) : Color.white
+                                    )
+                                    .clipShape(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+                            }
                         }
                     }
-                }
                 }
             }
             .padding(20)
@@ -1027,14 +1012,18 @@ private struct VerifySecurityCodeView: View {
 
             encryptionDetailCard(
                 icon: "shield.fill",
-                iconBg: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xDCFCE7),
+                iconBg: colorScheme == .dark
+                    ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xDCFCE7),
                 iconColor: Color(hex: 0x16A34A),
                 title: "Verification Status",
                 subtitle: nil,
                 statusText: "Verified on Dec 8, 2024",
-                gradientStart: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.08) : Color(hex: 0xF0FDF4),
-                gradientEnd: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.05) : Color(hex: 0xECFDF5),
-                borderColor: colorScheme == .dark ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xBBF7D0)
+                gradientStart: colorScheme == .dark
+                    ? Color(hex: 0x16A34A).opacity(0.08) : Color(hex: 0xF0FDF4),
+                gradientEnd: colorScheme == .dark
+                    ? Color(hex: 0x16A34A).opacity(0.05) : Color(hex: 0xECFDF5),
+                borderColor: colorScheme == .dark
+                    ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xBBF7D0)
             )
         }
     }
@@ -1112,9 +1101,11 @@ private struct VerifySecurityCodeView: View {
                         .foregroundColor(SanchrColors.primary)
                 }
 
-            Text("If your security code matches your contact's code, your conversation is secure. No one, not even Sanchr, can read your messages.")
-                .font(SanchrTypography.messageBubbleText)
-                .foregroundColor(SanchrExportColors.textSecondary)
+            Text(
+                "If your security code matches your contact's code, your conversation is secure. No one, not even Sanchr, can read your messages."
+            )
+            .font(SanchrTypography.messageBubbleText)
+            .foregroundColor(SanchrExportColors.textSecondary)
         }
         .padding(20)
         .background(colorScheme == .dark ? Color(hex: 0x1A1A24) : Color(hex: 0xF9FAFB))
@@ -1146,44 +1137,9 @@ private struct VerifySecurityCodeView: View {
     }
 }
 
-// MARK: - Shared Screen Header Helper
-
-@ViewBuilder
-@MainActor
-private func screenHeader(title: String, onBack: @escaping () -> Void) -> some View {
-    HStack {
-        Button(action: onBack) {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundColor(.sanchrPrimary)
-                .frame(width: 40, height: 40)
-        }
-        .buttonStyle(.plain)
-
-        Spacer()
-
-        Text(title)
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundColor(SanchrExportColors.textPrimary)
-
-        Spacer()
-
-        Color.clear.frame(width: 40, height: 40)
-    }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 16)
-    .background(SanchrExportColors.background)
-    .overlay(alignment: .bottom) {
-        Rectangle()
-            .fill(SanchrExportColors.line)
-            .frame(height: 1)
-    }
-}
-
 // MARK: - WallpaperThemeView
 
 private struct WallpaperThemeView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedWallpaper = 0
     @State private var darkMode = false
 
@@ -1201,100 +1157,104 @@ private struct WallpaperThemeView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                screenHeader(title: "Wallpaper & Theme", onBack: { dismiss() })
-
-                VStack(alignment: .leading, spacing: 24) {
-                    // Theme toggle
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(SanchrExportColors.surfaceSoft)
-                            .frame(width: 40, height: 40)
-                            .overlay {
-                                Image(systemName: darkMode ? "moon.fill" : "sun.max.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(SanchrColors.primary)
-                            }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Dark Mode")
-                                .font(SanchrTypography.messageBubbleText)
-                                .fontWeight(.medium)
-                                .foregroundColor(SanchrExportColors.textPrimary)
-                            Text("Use dark theme for this chat")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(SanchrExportColors.textSecondary)
+            VStack(alignment: .leading, spacing: 24) {
+                // Theme toggle
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(SanchrExportColors.surfaceSoft)
+                        .frame(width: 40, height: 40)
+                        .overlay {
+                            Image(systemName: darkMode ? "moon.fill" : "sun.max.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(SanchrColors.primary)
                         }
 
-                        Spacer()
-
-                        Toggle("", isOn: $darkMode)
-                            .labelsHidden()
-                            .tint(.sanchrPrimary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dark Mode")
+                            .font(SanchrTypography.messageBubbleText)
+                            .fontWeight(.medium)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                        Text("Use dark theme for this chat")
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(SanchrExportColors.textSecondary)
                     }
-                    .padding(.vertical, 12)
 
-                    // Wallpaper grid
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Chat Wallpaper")
+                    Spacer()
+
+                    Toggle("", isOn: $darkMode)
+                        .labelsHidden()
+                        .tint(.sanchrPrimary)
+                }
+                .padding(.vertical, 12)
+
+                // Wallpaper grid
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Chat Wallpaper")
+                        .font(SanchrTypography.messageBubbleText)
+                        .fontWeight(.semibold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                        spacing: 12
+                    ) {
+                        ForEach(0..<wallpaperColors.count, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: wallpaperColors[index], startPoint: .topLeading,
+                                        endPoint: .bottomTrailing)
+                                )
+                                .aspectRatio(0.7, contentMode: .fit)
+                                .overlay {
+                                    if selectedWallpaper == index {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(SanchrColors.primary, lineWidth: 3)
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(SanchrColors.primary)
+                                    }
+                                }
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedWallpaper = index
+                                    }
+                                }
+                        }
+                    }
+                }
+
+                // Reset button
+                Button {
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Reset to Default")
                             .font(SanchrTypography.messageBubbleText)
                             .fontWeight(.semibold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                            ForEach(0..<wallpaperColors.count, id: \.self) { index in
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(LinearGradient(colors: wallpaperColors[index], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .aspectRatio(0.7, contentMode: .fit)
-                                    .overlay {
-                                        if selectedWallpaper == index {
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .stroke(SanchrColors.primary, lineWidth: 3)
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 24))
-                                                .foregroundColor(SanchrColors.primary)
-                                        }
-                                    }
-                                    .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedWallpaper = index
-                                        }
-                                    }
-                            }
-                        }
                     }
-
-                    // Reset button
-                    Button {} label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Reset to Default")
-                                .font(SanchrTypography.messageBubbleText)
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(SanchrColors.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(SanchrColors.primary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
+                    .foregroundColor(SanchrColors.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(SanchrColors.primary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 24)
-                .padding(.bottom, 32)
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 32)
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .navigationTitle("Wallpaper & Theme")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 // MARK: - DisappearingMessagesView
 
 private struct DisappearingMessagesView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedDuration: Int = 0
 
     private let options: [(String, String, Int)] = [
@@ -1303,96 +1263,101 @@ private struct DisappearingMessagesView: View {
         ("1 hour", "Short-lived messages", 3600),
         ("24 hours", "Daily cleanup", 86400),
         ("7 days", "Weekly cleanup", 604800),
-        ("30 days", "Monthly cleanup", 2592000),
+        ("30 days", "Monthly cleanup", 2_592_000),
     ]
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                screenHeader(title: "Disappearing Messages", onBack: { dismiss() })
+                // Info banner
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(SanchrColors.primary)
+                        .padding(.top, 2)
+                    Text(
+                        "When enabled, new messages will disappear after the selected time. This applies to both sides of the conversation."
+                    )
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                }
+                .padding(16)
+                .background(SanchrColors.primary.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
 
-                VStack(spacing: 0) {
-                    // Info banner
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(SanchrColors.primary)
-                            .padding(.top, 2)
-                        Text("When enabled, new messages will disappear after the selected time. This applies to both sides of the conversation.")
-                            .font(SanchrTypography.messageBubbleText)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-                    .padding(16)
-                    .background(SanchrColors.primary.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 20)
+                // Timer options
+                ForEach(0..<options.count, id: \.self) { index in
+                    let option = options[index]
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedDuration = option.2
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(
+                                    selectedDuration == option.2
+                                        ? SanchrColors.primary.opacity(0.1)
+                                        : SanchrExportColors.surfaceSoft
+                                )
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Image(systemName: option.2 == 0 ? "xmark" : "clock.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(
+                                            selectedDuration == option.2
+                                                ? SanchrColors.primary
+                                                : SanchrExportColors.textSecondary)
+                                }
 
-                    // Timer options
-                    ForEach(0..<options.count, id: \.self) { index in
-                        let option = options[index]
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedDuration = option.2
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(option.0)
+                                    .font(SanchrTypography.messageBubbleText)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                Text(option.1)
+                                    .font(SanchrTypography.captionSmall)
+                                    .foregroundColor(SanchrExportColors.textSecondary)
                             }
-                        } label: {
-                            HStack(spacing: 12) {
+
+                            Spacer()
+
+                            if selectedDuration == option.2 {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(SanchrColors.primary)
+                            } else {
                                 Circle()
-                                    .fill(selectedDuration == option.2 ? SanchrColors.primary.opacity(0.1) : SanchrExportColors.surfaceSoft)
-                                    .frame(width: 40, height: 40)
-                                    .overlay {
-                                        Image(systemName: option.2 == 0 ? "xmark" : "clock.fill")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(selectedDuration == option.2 ? SanchrColors.primary : SanchrExportColors.textSecondary)
-                                    }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(option.0)
-                                        .font(SanchrTypography.messageBubbleText)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(SanchrExportColors.textPrimary)
-                                    Text(option.1)
-                                        .font(SanchrTypography.captionSmall)
-                                        .foregroundColor(SanchrExportColors.textSecondary)
-                                }
-
-                                Spacer()
-
-                                if selectedDuration == option.2 {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(SanchrColors.primary)
-                                } else {
-                                    Circle()
-                                        .stroke(SanchrExportColors.line, lineWidth: 2)
-                                        .frame(width: 20, height: 20)
-                                }
+                                    .stroke(SanchrExportColors.line, lineWidth: 2)
+                                    .frame(width: 20, height: 20)
                             }
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 20)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 20)
+                    }
+                    .buttonStyle(.plain)
 
-                        if index < options.count - 1 {
-                            Rectangle()
-                                .fill(SanchrExportColors.line)
-                                .frame(height: 1)
-                                .padding(.leading, 72)
-                        }
+                    if index < options.count - 1 {
+                        Rectangle()
+                            .fill(SanchrExportColors.line)
+                            .frame(height: 1)
+                            .padding(.leading, 72)
                     }
                 }
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .navigationTitle("Disappearing Messages")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 // MARK: - VaultMediaView
 
 private struct VaultMediaView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var autoVault = false
     @State private var viewOnce = true
     @State private var screenshotProtection = true
@@ -1400,50 +1365,60 @@ private struct VaultMediaView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                screenHeader(title: "Vault Media", onBack: { dismiss() })
-
-                VStack(alignment: .leading, spacing: 0) {
-                    // Info banner
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(SanchrColors.primaryDark)
-                            .padding(.top, 2)
-                        Text("Vault media is protected with extra encryption and can be set to self-destruct after viewing.")
-                            .font(SanchrTypography.messageBubbleText)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-                    .padding(16)
-                    .background(
-                        LinearGradient(
-                            colors: [SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                // Info banner
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(SanchrColors.primaryDark)
+                        .padding(.top, 2)
+                    Text(
+                        "Vault media is protected with extra encryption and can be set to self-destruct after viewing."
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 20)
-
-                    // Toggles
-                    vaultToggle(icon: "tray.and.arrow.down.fill", title: "Auto-Vault Incoming", subtitle: "Automatically protect received media", isOn: $autoVault)
-
-                    Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
-
-                    vaultToggle(icon: "eye.fill", title: "View Once", subtitle: "Media disappears after first viewing", isOn: $viewOnce)
-
-                    Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
-
-                    vaultToggle(icon: "camera.metering.none", title: "Screenshot Protection", subtitle: "Prevent screenshots of vault media", isOn: $screenshotProtection)
+                    .font(SanchrTypography.messageBubbleText)
+                    .foregroundColor(SanchrExportColors.textSecondary)
                 }
+                .padding(16)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            SanchrColors.primaryDark.opacity(0.05),
+                            SanchrColors.primary.opacity(0.05),
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
+
+                // Toggles
+                vaultToggle(
+                    icon: "tray.and.arrow.down.fill", title: "Auto-Vault Incoming",
+                    subtitle: "Automatically protect received media", isOn: $autoVault)
+
+                Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
+
+                vaultToggle(
+                    icon: "eye.fill", title: "View Once",
+                    subtitle: "Media disappears after first viewing", isOn: $viewOnce)
+
+                Rectangle().fill(SanchrExportColors.line).frame(height: 1).padding(.leading, 72)
+
+                vaultToggle(
+                    icon: "camera.metering.none", title: "Screenshot Protection",
+                    subtitle: "Prevent screenshots of vault media", isOn: $screenshotProtection)
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationBarHidden(true)
+        .navigationTitle("Vault Media")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func vaultToggle(icon: String, title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+    private func vaultToggle(icon: String, title: String, subtitle: String, isOn: Binding<Bool>)
+        -> some View
+    {
         HStack(spacing: 12) {
             Circle()
                 .fill(SanchrExportColors.surfaceSoft)
@@ -1475,87 +1450,11 @@ private struct VaultMediaView: View {
     }
 }
 
-// MARK: - SearchConversationView
-
-private struct SearchConversationView: View {
-    let conversationName: String
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 12) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.plain)
-
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(SanchrExportColors.textTertiary)
-
-                    TextField("Search in \(conversationName)...", text: $searchText)
-                        .font(SanchrTypography.messageBubbleText)
-                        .textFieldStyle(.plain)
-                        .focused($isFocused)
-                }
-                .padding(.horizontal, 14)
-                .frame(height: 40)
-                .background(SanchrExportColors.surfaceSoft)
-                .clipShape(Capsule())
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(SanchrExportColors.line).frame(height: 1)
-            }
-
-            if searchText.isEmpty {
-                Spacer()
-                VStack(spacing: 14) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 40))
-                        .foregroundColor(SanchrExportColors.textTertiary)
-                    Text("Search messages")
-                        .font(SanchrTypography.body)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                    Text("Find messages, photos, links and more")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(SanchrExportColors.textTertiary)
-                }
-                Spacer()
-            } else {
-                // Empty results state
-                Spacer()
-                VStack(spacing: 14) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 40))
-                        .foregroundColor(SanchrExportColors.textTertiary)
-                    Text("No results found")
-                        .font(SanchrTypography.body)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                }
-                Spacer()
-            }
-        }
-        .background(SanchrExportColors.background)
-        .onAppear { isFocused = true }
-    }
-}
-
 // MARK: - Signal-Compatible Fingerprint (QR Verification)
 
 private struct SanchrFingerprintQR {
-    let myHash: Data      // 32 bytes
-    let theirHash: Data   // 32 bytes
+    let myHash: Data  // 32 bytes
+    let theirHash: Data  // 32 bytes
     let version: UInt32 = 2
 
     /// Generates fingerprint hash data using Signal's algorithm:
@@ -1571,7 +1470,9 @@ private struct SanchrFingerprintQR {
         return SanchrFingerprintQR(myHash: myHash, theirHash: theirHash)
     }
 
-    private static func computeHash(stableId: Data, publicKey: Data, iterations: UInt32 = 5200) -> Data {
+    private static func computeHash(stableId: Data, publicKey: Data, iterations: UInt32 = 5200)
+        -> Data
+    {
         // Signal: hash = SHA512(version(2 bytes BE) || publicKey || stableId)
         // Then iterate: hash = SHA512(hash || publicKey) × 5200
         // Take first 32 bytes
@@ -1622,30 +1523,47 @@ private struct SanchrFingerprintQR {
         var offset = 0
 
         // Read version
-        let scannedVersion = scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian
+        let scannedVersion = scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
+            $0.load(as: UInt32.self)
+        }.littleEndian
         offset += 4
-        SanchrLogger.crypto.info("QR verify: scanned version=\(scannedVersion), our version=\(version)")
+        SanchrLogger.crypto.info(
+            "QR verify: scanned version=\(scannedVersion), our version=\(version)")
 
         if scannedVersion != version {
             return .noMatch("Version mismatch: scanned=\(scannedVersion), ours=\(version)")
         }
 
         // Read scanned local hash
-        let scannedLocalLen = Int(scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian)
+        let scannedLocalLen = Int(
+            scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
+                $0.load(as: UInt32.self)
+            }.littleEndian)
         offset += 4
-        guard offset + scannedLocalLen <= scannedData.count else { return .noMatch("Invalid QR data") }
-        let scannedLocalHash = scannedData.subdata(in: offset..<offset+scannedLocalLen)
+        guard offset + scannedLocalLen <= scannedData.count else {
+            return .noMatch("Invalid QR data")
+        }
+        let scannedLocalHash = scannedData.subdata(in: offset..<offset + scannedLocalLen)
         offset += scannedLocalLen
 
         // Read scanned remote hash
         guard offset + 4 <= scannedData.count else { return .noMatch("Invalid QR data") }
-        let scannedRemoteLen = Int(scannedData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian)
+        let scannedRemoteLen = Int(
+            scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
+                $0.load(as: UInt32.self)
+            }.littleEndian)
         offset += 4
-        guard offset + scannedRemoteLen <= scannedData.count else { return .noMatch("Invalid QR data") }
-        let scannedRemoteHash = scannedData.subdata(in: offset..<offset+scannedRemoteLen)
+        guard offset + scannedRemoteLen <= scannedData.count else {
+            return .noMatch("Invalid QR data")
+        }
+        let scannedRemoteHash = scannedData.subdata(in: offset..<offset + scannedRemoteLen)
 
-        SanchrLogger.crypto.info("QR verify: scannedLocal=\(scannedLocalHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., scannedRemote=\(scannedRemoteHash.prefix(8).map { String(format: "%02x", $0) }.joined())...")
-        SanchrLogger.crypto.info("QR verify: ourMyHash=\(myHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., ourTheirHash=\(theirHash.prefix(8).map { String(format: "%02x", $0) }.joined())...")
+        SanchrLogger.crypto.info(
+            "QR verify: scannedLocal=\(scannedLocalHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., scannedRemote=\(scannedRemoteHash.prefix(8).map { String(format: "%02x", $0) }.joined())..."
+        )
+        SanchrLogger.crypto.info(
+            "QR verify: ourMyHash=\(myHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., ourTheirHash=\(theirHash.prefix(8).map { String(format: "%02x", $0) }.joined())..."
+        )
 
         // Cross-device verification:
         // The scanned QR was generated by the OTHER device where:
@@ -1658,7 +1576,8 @@ private struct SanchrFingerprintQR {
         let selfMatch = (scannedLocalHash == myHash && scannedRemoteHash == theirHash)
 
         if crossMatch || selfMatch {
-            SanchrLogger.crypto.info("QR verify: MATCH (\(selfMatch ? "self-scan" : "cross-device"))")
+            SanchrLogger.crypto.info(
+                "QR verify: MATCH (\(selfMatch ? "self-scan" : "cross-device"))")
             return .match
         }
 
@@ -1676,8 +1595,8 @@ private struct SanchrFingerprintQR {
     }
 }
 
-private extension UInt16 {
-    var bigEndianData: Data {
+extension UInt16 {
+    fileprivate var bigEndianData: Data {
         var value = self.bigEndian
         return Data(bytes: &value, count: 2)
     }
@@ -1756,7 +1675,8 @@ private class QRScannerViewController: UIViewController {
     private func setupCamera() {
         let session = AVCaptureSession()
         guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else { return }
+            let input = try? AVCaptureDeviceInput(device: device)
+        else { return }
 
         if session.canAddInput(input) {
             session.addInput(input)
@@ -1807,15 +1727,20 @@ private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegat
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
-        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject else { return }
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject else {
+            return
+        }
 
         // Extract raw binary data from QR codewords using Signal's approach
         if #available(iOS 17.0, *),
-           let descriptor = object.descriptor as? CIQRCodeDescriptor {
+            let descriptor = object.descriptor as? CIQRCodeDescriptor
+        {
             let codewords = descriptor.errorCorrectedPayload
             let version = descriptor.symbolVersion
             if let payload = QRByteModeParser.parse(codewords: codewords, qrVersion: version) {
-                SanchrLogger.crypto.info("QR scan: parsed \(payload.count) bytes from codewords (\(codewords.count) raw)")
+                SanchrLogger.crypto.info(
+                    "QR scan: parsed \(payload.count) bytes from codewords (\(codewords.count) raw)"
+                )
                 handler(payload)
                 return
             }
@@ -1823,7 +1748,8 @@ private class QRScannerDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegat
 
         // Fallback: use string value with Latin1 to preserve byte values
         if let stringValue = object.stringValue,
-           let data = stringValue.data(using: .isoLatin1) {
+            let data = stringValue.data(using: .isoLatin1)
+        {
             SanchrLogger.crypto.info("QR scan: fallback Latin1, \(data.count) bytes")
             handler(data)
         }
@@ -1891,7 +1817,8 @@ private enum QRByteModeParser {
 /// Generates a QR code from raw binary data (Signal ScannableFingerprint).
 private nonisolated func makeQRCodeFromBinary(_ data: Data) -> UIImage? {
     guard !data.isEmpty,
-          let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        let filter = CIFilter(name: "CIQRCodeGenerator")
+    else { return nil }
     filter.setValue(data, forKey: "inputMessage")
     filter.setValue("L", forKey: "inputCorrectionLevel")
     guard let ciImage = filter.outputImage else { return nil }
@@ -1899,15 +1826,18 @@ private nonisolated func makeQRCodeFromBinary(_ data: Data) -> UIImage? {
     let scale = 10.0
     let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
     let context = CIContext()
-    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
+    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else {
+        return nil
+    }
     return UIImage(cgImage: cgImage)
 }
 
 /// Generates a QR code from a string (fallback for safety number digits).
 private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
     guard !string.isEmpty,
-          let data = string.data(using: .utf8),
-          let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        let data = string.data(using: .utf8),
+        let filter = CIFilter(name: "CIQRCodeGenerator")
+    else { return nil }
     filter.setValue(data, forKey: "inputMessage")
     filter.setValue("M", forKey: "inputCorrectionLevel")
     guard let ciImage = filter.outputImage else { return nil }
@@ -1916,6 +1846,8 @@ private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
     let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 
     let context = CIContext()
-    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else { return nil }
+    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else {
+        return nil
+    }
     return UIImage(cgImage: cgImage)
 }
