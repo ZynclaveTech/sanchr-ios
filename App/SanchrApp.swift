@@ -25,7 +25,13 @@ struct SanchrApp: App {
                 .environment(appRouter)
                 .environment(container.syncState)
                 .environment(\.sanchrTheme, sanchrTheme)
-                .sanchrThemed()
+                // Drive preferredColorScheme directly from @AppStorage
+                // because EnvironmentKey-based injections do NOT track
+                // @Observable mutations on a class — only identity
+                // changes to the environment value re-trigger the
+                // modifier. AppearanceView writes to the same AppStorage
+                // key on every theme pick, so this bridge actually fires.
+                .preferredColorScheme(SanchrTheme.Mode(rawValue: storedThemeMode)?.colorScheme)
                 .onAppear {
                     configureFonts()
                     configureAppearance()

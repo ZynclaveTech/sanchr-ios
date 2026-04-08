@@ -1,6 +1,14 @@
 import Foundation
 import SanchrShared
 
+extension Notification.Name {
+    /// Posted by `ChatAppearanceService` on every override / global
+    /// write so views can `.onReceive` it as a belt-and-suspenders
+    /// trigger when @Observable propagation through NavigationStack
+    /// pop boundaries fails to fire.
+    static let chatAppearanceDidChange = Notification.Name("sanchr.chatAppearanceDidChange")
+}
+
 /// Single source of truth for the global ↔ per-chat wallpaper + theme
 /// merge. View code reads `effectiveAppearance(for:)` and writes through
 /// `setOverride` (per-chat) or `setGlobal` (Settings → Appearance).
@@ -47,11 +55,15 @@ final class ChatAppearanceService {
     /// Resolution: per-chat override fields beat global; nil falls back.
     func effectiveAppearance(for conversationId: String) -> ChatAppearance {
         let override = overrides[conversationId]
-        return ChatAppearance(
+        let result = ChatAppearance(
             wallpaperId: override?.wallpaperId ?? globalWallpaperId,
             appearanceMode: override?.appearanceMode ?? globalMode,
             isPerChatOverride: override != nil
         )
+        SanchrLogger.chat.debug(
+            "ChatAppearance.effective conv=\(conversationId.prefix(8)) wallpaper=\(result.wallpaperId) mode=\(result.appearanceMode.rawValue) override=\(result.isPerChatOverride) v=\(self.changeVersion)"
+        )
+        return result
     }
 
     /// Hydrate the override cache from the local database. Idempotent —
@@ -71,21 +83,42 @@ final class ChatAppearanceService {
         wallpaperId: String?,
         appearanceMode: SanchrTheme.Mode?
     ) async {
+        SanchrLogger.chat.info(
+            "ChatAppearance.setOverride conv=\(conversationId.prefix(8)) wallpaper=\(wallpaperId ?? "nil") mode=\(appearanceMode?.rawValue ?? "nil")"
+        )
         if wallpaperId == nil && appearanceMode == nil {
             try? await localDatabase.clearAppearanceOverride(conversationId: conversationId)
             overrides.removeValue(forKey: conversationId)
             loadedConversationIds.insert(conversationId)
             changeVersion &+= 1
+            SanchrLogger.chat.info("ChatAppearance.setOverride cleared, v=\(self.changeVersion)")
+            postChange(conversationId: conversationId)
             return
         }
         let override = AppearanceOverride(
             wallpaperId: wallpaperId,
             appearanceMode: appearanceMode
         )
-        try? await localDatabase.setAppearanceOverride(override, for: conversationId)
+        do {
+            try await localDatabase.setAppearanceOverride(override, for: conversationId)
+        } catch {
+            SanchrLogger.chat.error("ChatAppearance.setOverride DB write failed: \(error.localizedDescription)")
+        }
         overrides[conversationId] = override
         loadedConversationIds.insert(conversationId)
         changeVersion &+= 1
+        SanchrLogger.chat.info("ChatAppearance.setOverride persisted, v=\(self.changeVersion)")
+        postChange(conversationId: conversationId)
+    }
+
+    private func postChange(conversationId: String?) {
+        var info: [AnyHashable: Any] = [:]
+        if let conversationId { info["conversationId"] = conversationId }
+        NotificationCenter.default.post(
+            name: .chatAppearanceDidChange,
+            object: self,
+            userInfo: info
+        )
     }
 
     /// Global write. Mirrors to SettingsViewModel + SanchrTheme so the
@@ -94,6 +127,9 @@ final class ChatAppearanceService {
         wallpaperId: String?,
         appearanceMode: SanchrTheme.Mode?
     ) {
+        SanchrLogger.chat.info(
+            "ChatAppearance.setGlobal wallpaper=\(wallpaperId ?? "nil") mode=\(appearanceMode?.rawValue ?? "nil")"
+        )
         if let wallpaperId {
             globalWallpaperId = wallpaperId
             settingsViewModel.chatWallpaper = wallpaperId
@@ -103,5 +139,6 @@ final class ChatAppearanceService {
             theme.mode = appearanceMode
         }
         changeVersion &+= 1
+        postChange(conversationId: nil)
     }
 }

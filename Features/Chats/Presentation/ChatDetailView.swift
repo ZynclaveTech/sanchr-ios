@@ -28,6 +28,7 @@ struct ChatDetailView: View {
     @State private var hasPresentedInitialTranscript = false
     @State private var hasScheduledDeferredEntryTasks = false
     @State private var voicePlayback = VoicePlaybackController()
+    @State private var appearanceTick: UInt64 = 0
     @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
     @StateObject private var contactCoordinator = ContactActionCoordinator(
         contactRepository: BootstrapContactRepository(),
@@ -53,14 +54,16 @@ struct ChatDetailView: View {
     }
 
     var body: some View {
-        // Read changeVersion explicitly so SwiftUI registers an
-        // observation dependency on the resolver. @Observable propagation
-        // through method calls + private dictionaries is fragile across
-        // NavigationStack pop boundaries — the explicit counter makes
-        // body re-evaluate every time setOverride / setGlobal fires.
-        let _ = container.chatAppearance.changeVersion
+        // appearanceTick is bumped via .onReceive(.chatAppearanceDidChange)
+        // below — guarantees body re-evaluation even when @Observable
+        // propagation through NavigationStack pop boundaries fails.
+        let _ = appearanceTick
+        let version = container.chatAppearance.changeVersion
         let appearance = container.chatAppearance.effectiveAppearance(for: conversation.id)
         let wallpaperId = appearance.wallpaperId
+        let _ = SanchrLogger.chat.debug(
+            "ChatDetailView.body conv=\(conversation.id.prefix(8)) wallpaper=\(wallpaperId) v=\(version) tick=\(appearanceTick)"
+        )
         return VStack(spacing: 0) {
             header
 
@@ -171,6 +174,12 @@ struct ChatDetailView: View {
             .ignoresSafeArea()
         )
         .preferredColorScheme(appearance.appearanceMode.colorScheme)
+        .onReceive(NotificationCenter.default.publisher(for: .chatAppearanceDidChange)) { _ in
+            appearanceTick &+= 1
+            SanchrLogger.chat.debug(
+                "ChatDetailView.onReceive(.chatAppearanceDidChange) tick=\(appearanceTick)"
+            )
+        }
         .navigationBarHidden(true)
         .sanchrInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
