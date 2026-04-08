@@ -7,6 +7,19 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Sends an encrypted message to a conversation.
     func sendMessage(_ message: Message) async throws -> Message
 
+    /// Wipes a view-once message after the receiver dismissed the
+    /// gallery. Deletes the local file via MediaDownloadManager,
+    /// removes the DB row, and inserts a `.system(.viewOnceConsumed)`
+    /// tombstone with the same id+timestamp so the bubble shows as
+    /// "Viewed". Best-effort server delete is fire-and-forget.
+    func deleteViewOnceMessage(messageId: String) async throws
+
+    /// Sends a system event message into a conversation via the
+    /// existing encrypted send pipeline. Used by the gallery to
+    /// post `.screenshotDetected` back to the original sender when
+    /// a screenshot slips through ScreenshotProtectionModifier.
+    func sendSystemEvent(_ event: Message.SystemEvent, conversationId: String) async throws
+
     /// Fetches messages for a conversation with pagination.
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message]
 
@@ -315,6 +328,71 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         // Always delete locally
         try await localDatabase.deleteMessage(id: id)
+    }
+
+    func deleteViewOnceMessage(messageId: String) async throws {
+        guard let message = try await localDatabase.fetchMessageById(messageId) else {
+            SanchrLogger.chat.warning("deleteViewOnceMessage: no row for \(messageId.prefix(8))")
+            return
+        }
+        // Wipe the cached decrypted file (if any) before deleting the
+        // row so the bytes are gone before the bubble flips to the
+        // tombstone state.
+        await mediaDownloadManager.removeCachedFile(messageId: messageId)
+
+        // Delete the local DB row.
+        try? await localDatabase.deleteMessage(id: messageId)
+
+        // Insert a tombstone with the same id + timestamp so the
+        // bubble shows as "Viewed" instead of vanishing entirely.
+        let tombstone = Message(
+            id: messageId,
+            conversationId: message.conversationId,
+            senderId: message.senderId,
+            timestamp: message.timestamp,
+            content: .system(.viewOnceConsumed),
+            status: .delivered,
+            isOutgoing: message.isOutgoing
+        )
+        try? await localDatabase.saveIncomingMessageAndQueueAck(tombstone)
+
+        // Best-effort server delete (fire-and-forget). Local file is
+        // already gone so failure here is non-fatal.
+        var request = Vync_Messaging_DeleteMessageRequest()
+        request.messageID = messageId
+        request.conversationID = message.conversationId
+        _ = try? await grpcClient.messagingService.deleteMessage(request)
+
+        SanchrLogger.chat.info("Deleted view-once message \(messageId.prefix(8))")
+    }
+
+    func sendSystemEvent(_ event: Message.SystemEvent, conversationId: String) async throws {
+        SanchrLogger.chat.info("Sending system event \(event.rawValue) to \(conversationId.prefix(8))")
+        let plaintext = try JSONEncoder().encode(Message.MessageContent.system(event))
+
+        let senderId = currentUserIdProvider() ?? ""
+        guard let conversation = try await localDatabase.fetchConversation(id: conversationId) else {
+            throw AppError.sessionNotEstablished
+        }
+        let peerIds = conversation.participants
+            .map(\.id)
+            .filter { $0 != senderId }
+        guard !peerIds.isEmpty else { return }
+
+        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        for peerId in peerIds {
+            let perPeer = try await signalProtocol.encryptForAllDevices(
+                plaintext: plaintext,
+                recipientId: peerId
+            )
+            deviceMessages.append(contentsOf: perPeer)
+        }
+
+        var request = Vync_Messaging_SendMessageRequest()
+        request.conversationID = conversationId
+        request.deviceMessages = deviceMessages
+        request.contentType = "system"
+        _ = try await grpcClient.messagingService.sendMessage(request)
     }
 
     func openMessageStream() async throws -> AsyncStream<RealtimeEvent> {

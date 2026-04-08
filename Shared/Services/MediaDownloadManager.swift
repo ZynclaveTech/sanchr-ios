@@ -33,6 +33,20 @@ actor MediaDownloadManager {
         return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
+    /// Wipes the cached decrypted file for a message. No-op if the
+    /// file doesn't exist. Used by `deleteViewOnceMessage` to ensure
+    /// the bytes are gone before the bubble flips to the tombstone.
+    /// We don't know the extension here without re-reading the
+    /// attachment, so glob the directory for any file starting with
+    /// the messageId prefix and remove all matches.
+    func removeCachedFile(messageId: String) {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(atPath: cacheDir.path) else { return }
+        for entry in entries where entry.hasPrefix(messageId + ".") {
+            try? fm.removeItem(at: cacheDir.appendingPathComponent(entry))
+        }
+    }
+
     /// Download, decrypt, and cache media for a message.
     /// Handles both `sanchr-media://` (Vault mediaId) and direct HTTPS URLs.
     func download(

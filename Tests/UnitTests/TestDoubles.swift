@@ -247,6 +247,16 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         message
     }
 
+    private(set) var deleteViewOnceCalls: [String] = []
+    func deleteViewOnceMessage(messageId: String) async throws {
+        deleteViewOnceCalls.append(messageId)
+    }
+
+    private(set) var sentSystemEvents: [(Message.SystemEvent, String)] = []
+    func sendSystemEvent(_ event: Message.SystemEvent, conversationId: String) async throws {
+        sentSystemEvents.append((event, conversationId))
+    }
+
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
         []
     }
