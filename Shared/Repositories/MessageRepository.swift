@@ -102,6 +102,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
+    private let chatVaultPolicyMirror: ChatVaultPolicyMirror
+    private let vaultRepository: VaultRepositoryProtocol
+    private let mediaDownloadManager: MediaDownloadManager
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
 
@@ -109,12 +112,37 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
+        chatVaultPolicyMirror: ChatVaultPolicyMirror,
+        vaultRepository: VaultRepositoryProtocol,
+        mediaDownloadManager: MediaDownloadManager,
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
         self.signalProtocol = signalProtocol
+        self.chatVaultPolicyMirror = chatVaultPolicyMirror
+        self.vaultRepository = vaultRepository
+        self.mediaDownloadManager = mediaDownloadManager
         self.currentUserIdProvider = currentUserIdProvider
+    }
+
+    /// Returns true if the message content is something we route into
+    /// the vault when the per-chat `autoVaultIncoming` policy is on.
+    /// Text and system events stay as normal chat rows.
+    static func isVaultEligibleContent(_ content: Message.MessageContent) -> Bool {
+        switch content {
+        case .image, .video, .audio, .document: return true
+        case .text, .location, .contact, .system: return false
+        }
+    }
+
+    static func attachmentFromContent(_ content: Message.MessageContent) -> Message.MediaAttachment? {
+        switch content {
+        case .image(let a), .video(let a), .audio(let a), .document(let a):
+            return a
+        default:
+            return nil
+        }
     }
 
     func sendMessage(_ message: Message) async throws -> Message {
@@ -511,10 +539,72 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 serverTimestamp: serverTimestamp
             )
             try? await localDatabase.saveIncomingMessageAndQueueAck(message)
+
+            // If per-chat policy says auto-vault, kick off a background
+            // routing task. Routing runs OFF the decode hot path so we
+            // never block the realtime stream on a vault upload. The
+            // task succeeds → replaces the row with a `.system(.autoVaulted)`
+            // tombstone. Fails → leaves the original row in place.
+            let policy = chatVaultPolicyMirror.policy(for: envelope.conversationID)
+                ?? .defaults(for: envelope.conversationID)
+            if policy.autoVaultIncoming, Self.isVaultEligibleContent(content) {
+                Task { [weak self] in
+                    await self?.routeIncomingMessageToVault(message)
+                }
+            }
+
             return message
         } catch {
             SanchrLogger.chat.error("Failed to decrypt message: \(error)")
             return nil
+        }
+    }
+
+    /// Background auto-vault routing. Downloads the encrypted media,
+    /// uploads to the vault via the existing repository, and on success
+    /// replaces the original chat row with a `.system(.autoVaulted)`
+    /// tombstone. On failure leaves the original row in place so the
+    /// user doesn't lose the media entirely.
+    private func routeIncomingMessageToVault(_ message: Message) async {
+        guard let attachment = Self.attachmentFromContent(message.content) else { return }
+        do {
+            let localFile = try await mediaDownloadManager.download(
+                messageId: message.id,
+                attachment: attachment
+            )
+            let data = try Data(contentsOf: localFile)
+            let vaultType: VaultItem.VaultItemType = {
+                switch message.content {
+                case .image: return .photo
+                case .video: return .video
+                case .audio: return .audio
+                case .document: return .document
+                default: return .document
+                }
+            }()
+            _ = try await vaultRepository.uploadItem(
+                data: data,
+                name: attachment.filename ?? "vaulted-\(message.id).bin",
+                type: vaultType
+            )
+
+            // Replace the original chat row with a tombstone.
+            let tombstone = Message(
+                id: message.id,
+                conversationId: message.conversationId,
+                senderId: message.senderId,
+                timestamp: message.timestamp,
+                content: .system(.autoVaulted),
+                status: .delivered,
+                isOutgoing: false
+            )
+            try? await localDatabase.deleteMessage(id: message.id)
+            try? await localDatabase.saveIncomingMessageAndQueueAck(tombstone)
+            SanchrLogger.chat.info("Auto-vaulted message \(message.id.prefix(8))")
+        } catch {
+            SanchrLogger.chat.error(
+                "Auto-vault routing failed for \(message.id.prefix(8)): \(error.localizedDescription) — leaving original row"
+            )
         }
     }
 

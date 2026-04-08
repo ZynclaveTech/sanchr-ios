@@ -134,11 +134,19 @@ final class DependencyContainer: @unchecked Sendable {
         settingsViewModel: settingsViewModel
     )
 
+    /// Lock-protected mirror of the per-chat vault policy cache.
+    /// Owned at container scope (not on the @MainActor service)
+    /// because the nonisolated `messageRepository` lazy var reads it
+    /// from the realtime decode path without crossing the main actor.
+    /// `ChatVaultPolicyMirror` is `Sendable` so this is safe.
+    @ObservationIgnored lazy var chatVaultPolicyMirror = ChatVaultPolicyMirror()
+
     /// Per-chat vault media policy resolver. Mirrors the
     /// chatAppearance pattern: @MainActor @Observable resolver +
     /// lock-protected sibling for the realtime decode path.
     @MainActor @ObservationIgnored lazy var chatVaultPolicy: ChatVaultPolicyService = ChatVaultPolicyService(
-        localDatabase: localDatabase
+        localDatabase: localDatabase,
+        mirror: chatVaultPolicyMirror
     )
 
     // MARK: - Cross-Process Send Pipeline (T16/T18)
@@ -213,6 +221,9 @@ final class DependencyContainer: @unchecked Sendable {
             grpcClient: grpcClient,
             localDatabase: localDatabase,
             signalProtocol: signalSessionManager,
+            chatVaultPolicyMirror: chatVaultPolicyMirror,
+            vaultRepository: vaultRepository,
+            mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { weakSelf?.sessionService.currentUserId }
         )
     }()
@@ -449,6 +460,9 @@ final class DependencyContainer: @unchecked Sendable {
             grpcClient: grpcClient,
             localDatabase: localDatabase,
             signalProtocol: signalSessionManager,
+            chatVaultPolicyMirror: chatVaultPolicyMirror,
+            vaultRepository: vaultRepository,
+            mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId }
         )
         // Rebuild the cross-process send pipeline so it captures the freshly

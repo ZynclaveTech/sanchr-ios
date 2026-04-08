@@ -6,7 +6,7 @@ import SanchrShared
 final class ChatVaultPolicyServiceTests: XCTestCase {
 
     func test_effectivePolicy_returnsDefaultsWhenCacheCold() {
-        let service = ChatVaultPolicyService(localDatabase: StubVaultDatabase())
+        let service = ChatVaultPolicyService(localDatabase: StubVaultDatabase(), mirror: ChatVaultPolicyMirror())
         let policy = service.effectivePolicy(for: "c1")
         XCTAssertEqual(policy, .defaults(for: "c1"))
         XCTAssertNil(service.mirror.policy(for: "c1"))
@@ -20,7 +20,7 @@ final class ChatVaultPolicyServiceTests: XCTestCase {
             viewOnceOutgoing: true,
             screenshotProtection: false
         )
-        let service = ChatVaultPolicyService(localDatabase: db)
+        let service = ChatVaultPolicyService(localDatabase: db, mirror: ChatVaultPolicyMirror())
 
         await service.loadPolicy(conversationId: "c1")
 
@@ -31,7 +31,7 @@ final class ChatVaultPolicyServiceTests: XCTestCase {
     func test_loadPolicy_isIdempotent() async {
         let db = StubVaultDatabase()
         db.policies["c1"] = .defaults(for: "c1")
-        let service = ChatVaultPolicyService(localDatabase: db)
+        let service = ChatVaultPolicyService(localDatabase: db, mirror: ChatVaultPolicyMirror())
 
         await service.loadPolicy(conversationId: "c1")
         // Mutate the DB out from under the service. Second load
@@ -49,7 +49,7 @@ final class ChatVaultPolicyServiceTests: XCTestCase {
 
     func test_setPolicy_persistsAndMirrorsAndBumpsVersion() async {
         let db = StubVaultDatabase()
-        let service = ChatVaultPolicyService(localDatabase: db)
+        let service = ChatVaultPolicyService(localDatabase: db, mirror: ChatVaultPolicyMirror())
         let initialVersion = service.changeVersion
 
         let policy = ChatVaultPolicy(
@@ -67,7 +67,7 @@ final class ChatVaultPolicyServiceTests: XCTestCase {
     }
 
     func test_setPolicy_postsNotification() async {
-        let service = ChatVaultPolicyService(localDatabase: StubVaultDatabase())
+        let service = ChatVaultPolicyService(localDatabase: StubVaultDatabase(), mirror: ChatVaultPolicyMirror())
         let expectation = self.expectation(forNotification: .chatVaultPolicyDidChange, object: service)
 
         await service.setPolicy(.defaults(for: "c1"))

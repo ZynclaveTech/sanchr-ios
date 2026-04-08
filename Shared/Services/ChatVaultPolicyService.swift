@@ -13,13 +13,15 @@ final class ChatVaultPolicyService {
     private let localDatabase: LocalDatabaseProtocol
 
     /// Lock-protected mirror exposed to the background realtime
-    /// decode path. Updated by `setPolicy` and `loadPolicy` (both
-    /// @MainActor) and read by `MessageRepositoryImpl.decodeMessage`
-    /// without an actor hop.
-    let mirror = ChatVaultPolicyMirror()
+    /// decode path. Owned by `DependencyContainer` so the nonisolated
+    /// `messageRepository` lazy var can read it without crossing the
+    /// main-actor barrier; the `@MainActor` service writes through it
+    /// on every `setPolicy` / `loadPolicy`.
+    let mirror: ChatVaultPolicyMirror
 
-    init(localDatabase: LocalDatabaseProtocol) {
+    init(localDatabase: LocalDatabaseProtocol, mirror: ChatVaultPolicyMirror) {
         self.localDatabase = localDatabase
+        self.mirror = mirror
     }
 
     func effectivePolicy(for conversationId: String) -> ChatVaultPolicy {
