@@ -1295,9 +1295,16 @@ struct ChatDetailView: View {
     private func loadHeaderPreferences() async {
         do {
             let settings = try await settingsDataSource.getSettings()
+            // NOTE: presence visibility is enforced server-side via the
+            // PresenceStatus.hidden enum on the wire. Hiding *my* own
+            // presence must not stop me from seeing other people's —
+            // the peer's privacy is conveyed via peerPresenceHidden in
+            // handlePresenceUpdate. Typing, on the other hand, is a
+            // local-only courtesy: if I've disabled typing indicators
+            // for myself, I also don't want to see the other side's.
             viewModel.configurePeer(
                 recipient,
-                showsPresence: settings.onlineStatusVisible,
+                showsPresence: true,
                 showsTypingIndicators: settings.typingIndicator
             )
         } catch {
