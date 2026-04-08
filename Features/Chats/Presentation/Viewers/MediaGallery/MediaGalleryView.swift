@@ -15,6 +15,7 @@ struct MediaGalleryView: View {
     let presentation: MediaGalleryCoordinator.GalleryPresentation
     let onDismiss: () -> Void
 
+    @Environment(DependencyContainer.self) private var container
     @State private var currentIndex: Int
     @State private var dragOffset: CGFloat = 0
     @State private var backgroundOpacity: Double = 1
@@ -22,6 +23,8 @@ struct MediaGalleryView: View {
     @State private var toast: String?
     @State private var saveError: String?
     @State private var shareURL: GalleryIdentifiedURL?
+    @State private var openedViewOnceItems: Set<String> = []
+    @State private var screenshotToast: String?
     @StateObject private var pageLoader: GalleryPageLoader
 
     init(
@@ -33,6 +36,40 @@ struct MediaGalleryView: View {
         self.onDismiss = onDismiss
         self._currentIndex = State(initialValue: presentation.initialIndex)
         self._pageLoader = StateObject(wrappedValue: GalleryPageLoader(resolver: resolver))
+    }
+
+    /// True if any item in the current presentation is view-once.
+    /// We blanket-protect the gallery rather than toggling per-page
+    /// because page transitions race the screenshot block.
+    private var anyViewOnceVisible: Bool {
+        presentation.items.contains { item in
+            switch item.message.content {
+            case .image(let a), .video(let a):
+                return a.isViewOnce == true
+            default:
+                return false
+            }
+        }
+    }
+
+    /// Whether the per-chat screenshot-protection toggle is on for
+    /// the conversation this gallery is showing.
+    private var perChatScreenshotProtection: Bool {
+        guard let cid = presentation.items.first?.message.conversationId else { return false }
+        return container.chatVaultPolicy.effectivePolicy(for: cid).screenshotProtection
+    }
+
+    private func captureViewOnceIfNeeded(at index: Int) {
+        guard presentation.items.indices.contains(index) else { return }
+        let item = presentation.items[index]
+        let isViewOnce: Bool
+        switch item.message.content {
+        case .image(let a), .video(let a):
+            isViewOnce = a.isViewOnce == true
+        default:
+            isViewOnce = false
+        }
+        if isViewOnce { openedViewOnceItems.insert(item.id) }
     }
 
     var body: some View {
@@ -60,6 +97,7 @@ struct MediaGalleryView: View {
             }
         }
         .statusBarHidden(true)
+        .modifier(ScreenshotProtectionModifier(isActive: anyViewOnceVisible || perChatScreenshotProtection))
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) { chromeVisible.toggle() }
         }
@@ -68,6 +106,23 @@ struct MediaGalleryView: View {
                 items: presentation.items,
                 centeredAt: currentIndex
             )
+            captureViewOnceIfNeeded(at: currentIndex)
+        }
+        .onAppear {
+            captureViewOnceIfNeeded(at: currentIndex)
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIApplication.userDidTakeScreenshotNotification
+        )) { _ in
+            guard anyViewOnceVisible,
+                  let cid = presentation.items.first?.message.conversationId else { return }
+            screenshotToast = "Sender notified"
+            Task {
+                try? await container.messageRepository.sendSystemEvent(
+                    .screenshotDetected,
+                    conversationId: cid
+                )
+            }
         }
         .alert("Couldn't save", isPresented: Binding(
             get: { saveError != nil },
@@ -96,8 +151,35 @@ struct MediaGalleryView: View {
         .sheet(item: $shareURL) { wrapped in
             GalleryActivityView(items: [wrapped.url])
         }
+        .overlay(alignment: .top) {
+            if let screenshotToast {
+                Text(screenshotToast)
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .padding(.top, 60)
+                    .task(id: screenshotToast) {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        withAnimation { self.screenshotToast = nil }
+                    }
+            }
+        }
         .onDisappear {
             pageLoader.cancelAll()
+            // Fire delete-after-view for every view-once item the user
+            // actually paged onto during this gallery session.
+            let toDelete = openedViewOnceItems
+            openedViewOnceItems.removeAll()
+            for messageId in toDelete {
+                Task { [container] in
+                    try? await container.messageRepository.deleteViewOnceMessage(
+                        messageId: messageId
+                    )
+                }
+            }
         }
     }
 
