@@ -2013,8 +2013,14 @@ private struct ConversationInfoMediaThumbnail: View {
                 forMessageId: message.id,
                 attachment: attachment
             )
-            if let img = UIImage(contentsOfFile: url.path) {
-                await MainActor.run { self.image = img }
+            let loaded: UIImage?
+            if isVideo {
+                loaded = await MediaThumbnailGenerator.posterFrame(forVideoAt: url)
+            } else {
+                loaded = UIImage(contentsOfFile: url.path)
+            }
+            if let loaded {
+                await MainActor.run { self.image = loaded }
             }
         } catch {
             // Silent: leave the placeholder rectangle.
@@ -2026,5 +2032,28 @@ private struct ConversationInfoMediaThumbnail: View {
         case .image(let a), .video(let a): return a
         default: return nil
         }
+    }
+}
+
+/// Off-main poster-frame generator. Used by inline media thumbnails
+/// in ConversationInfoView and the Media tab in SharedContentView so
+/// they don't blindly hand a video file to UIImage(contentsOfFile:)
+/// (which dumps "createImageAtIndex... could not find plugin" errors
+/// to the console for every MP4 in the chat).
+enum MediaThumbnailGenerator {
+    static func posterFrame(forVideoAt url: URL) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            let asset = AVURLAsset(url: url)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 400, height: 400)
+            let time = CMTime(seconds: 0.1, preferredTimescale: 600)
+            do {
+                let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
+                return UIImage(cgImage: cgImage)
+            } catch {
+                return nil
+            }
+        }.value
     }
 }

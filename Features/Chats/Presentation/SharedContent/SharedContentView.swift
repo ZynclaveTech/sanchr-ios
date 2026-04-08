@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import SanchrShared
 
@@ -334,8 +335,14 @@ private struct SharedContentMediaCell: View {
                 forMessageId: message.id,
                 attachment: attachment
             )
-            if let img = UIImage(contentsOfFile: url.path) {
-                await MainActor.run { self.image = img }
+            let loaded: UIImage?
+            if isVideo {
+                loaded = await MediaThumbnailGenerator.posterFrame(forVideoAt: url)
+            } else {
+                loaded = UIImage(contentsOfFile: url.path)
+            }
+            if let loaded {
+                await MainActor.run { self.image = loaded }
             }
         } catch {
             // Silent: leave the placeholder rectangle.
