@@ -53,6 +53,10 @@ struct ChatDetailView: View {
     }
 
     var body: some View {
+        let wallpaperId: String = {
+            let id = container.settingsViewModel.chatWallpaper
+            return id.isEmpty ? "default" : id
+        }()
         VStack(spacing: 0) {
             header
 
@@ -148,7 +152,20 @@ struct ChatDetailView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .background(
+            Group {
+                // For the default wallpaper id (or empty/legacy), keep the
+                // existing systemGroupedBackground so dark mode users see
+                // the dark surface they expect. Once a non-default
+                // wallpaper is picked, paint the gradient instead.
+                if wallpaperId == "default" {
+                    SanchrExportColors.surfaceSoft
+                } else {
+                    WallpaperPainter.background(for: wallpaperId)
+                }
+            }
+            .ignoresSafeArea()
+        )
         .navigationBarHidden(true)
         .sanchrInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)

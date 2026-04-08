@@ -110,6 +110,14 @@ final class DependencyContainer: @unchecked Sendable {
         download: mediaDownloadManager
     )
 
+    /// Container-scoped settings view model. Holds the global chat wallpaper
+    /// id, theme, and other appearance preferences. Currently the canonical
+    /// instance for `ChatAppearanceService` (Phase 2) which mirrors writes
+    /// from `AppearanceView` and the per-chat `WallpaperThemeView` here.
+    /// Existing per-screen `@State SettingsViewModel()` instances are
+    /// migrated to read from this same instance in Phase 3.
+    @MainActor @ObservationIgnored lazy var settingsViewModel: SettingsViewModel = SettingsViewModel()
+
     // MARK: - Cross-Process Send Pipeline (T16/T18)
 
     /// Cross-process file lock guarding Signal-protocol ratchet mutations on
