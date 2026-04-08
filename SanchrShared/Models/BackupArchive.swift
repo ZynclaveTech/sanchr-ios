@@ -587,6 +587,10 @@ public enum BackupArchiveContentCodec {
             return "Member removed"
         case .screenshotDetected:
             return "Screenshot detected"
+        case .viewOnceConsumed:
+            return "Viewed"
+        case .autoVaulted:
+            return "Auto-vaulted media"
         }
     }
 

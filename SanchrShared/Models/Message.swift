@@ -83,6 +83,15 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         public var audioDurationMs: Int?
         public var audioWaveform: [Float]?
 
+        /// View-once flag set by the sender when the per-chat
+        /// `viewOnceOutgoing` policy is on. Receiver enforces by
+        /// applying ScreenshotProtectionModifier on the gallery and
+        /// deleting the local row + cached file on dismiss.
+        /// Encoded inside the encrypted envelope — server is blind.
+        /// Optional so legacy `Codable` payloads without the key
+        /// continue to decode (default nil = standard behavior).
+        public var isViewOnce: Bool?
+
         public init(
             url: URL,
             encryptionKey: Data,
@@ -98,7 +107,8 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
             filename: String? = nil,
             isVoiceMessage: Bool? = nil,
             audioDurationMs: Int? = nil,
-            audioWaveform: [Float]? = nil
+            audioWaveform: [Float]? = nil,
+            isViewOnce: Bool? = nil
         ) {
             self.url = url
             self.encryptionKey = encryptionKey
@@ -115,6 +125,7 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
             self.isVoiceMessage = isVoiceMessage
             self.audioDurationMs = audioDurationMs
             self.audioWaveform = audioWaveform
+            self.isViewOnce = isViewOnce
         }
     }
 
@@ -125,6 +136,8 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         case memberAdded
         case memberRemoved
         case screenshotDetected
+        case viewOnceConsumed
+        case autoVaulted
     }
 
     // MARK: - Delivery Status
