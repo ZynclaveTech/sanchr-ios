@@ -176,7 +176,10 @@ final class DependencyContainer: @unchecked Sendable {
         uploader: mediaUploadManager,
         encryptedSender: encryptedMessageSendingClient,
         coordinator: fileCoordinatorLock,
-        currentUser: currentUserProvider
+        currentUser: currentUserProvider,
+        vaultPolicyResolver: MainAppVaultPolicyResolver(
+            serviceProvider: { [unowned self] in self.chatVaultPolicy }
+        )
     )
 
     // MARK: - Protocol Extensions (OPRF-PSI, Media Key Derivation, EKF)
@@ -463,7 +466,10 @@ final class DependencyContainer: @unchecked Sendable {
             uploader: mediaUploadManager,
             encryptedSender: encryptedMessageSendingClient,
             coordinator: fileCoordinatorLock,
-            currentUser: currentUserProvider
+            currentUser: currentUserProvider,
+            vaultPolicyResolver: MainAppVaultPolicyResolver(
+            serviceProvider: { [unowned self] in self.chatVaultPolicy }
+        )
         )
         self.realtimeService = RealtimeService(
             messageRepository: messageRepository,

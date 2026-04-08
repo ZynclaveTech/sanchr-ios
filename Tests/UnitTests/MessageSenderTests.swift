@@ -200,7 +200,8 @@ final class MessageSenderTests: XCTestCase {
             uploader: uploader,
             encryptedSender: sender,
             coordinator: makeLock(),
-            currentUser: user
+            currentUser: user,
+            vaultPolicyResolver: NoopVaultPolicyResolver()
         )
         return (ms, db, uploader, sender, user)
     }

@@ -163,6 +163,7 @@ public actor MessageSender {
     private let encryptedSender: EncryptedMessageSendingClient
     private let coordinator: FileCoordinatorLock
     private let currentUser: CurrentUserProviding
+    private let vaultPolicyResolver: VaultPolicyResolving
     private let logger: MessageSenderLogging
 
     // MARK: Init
@@ -173,6 +174,7 @@ public actor MessageSender {
         encryptedSender: EncryptedMessageSendingClient,
         coordinator: FileCoordinatorLock,
         currentUser: CurrentUserProviding,
+        vaultPolicyResolver: VaultPolicyResolving,
         logger: MessageSenderLogging = NoopMessageSenderLogger()
     ) {
         self.db = db
@@ -180,6 +182,7 @@ public actor MessageSender {
         self.encryptedSender = encryptedSender
         self.coordinator = coordinator
         self.currentUser = currentUser
+        self.vaultPolicyResolver = vaultPolicyResolver
         self.logger = logger
     }
 
@@ -315,6 +318,12 @@ public actor MessageSender {
             guard let mediaIdURL = URL(string: "sanchr-media://\(uploadOutcome.mediaId)") else {
                 throw AppError.mediaUploadFailed
             }
+            // Read the per-chat vault policy. When viewOnceOutgoing is
+            // on, stamp isViewOnce: true on the rebuilt attachment so
+            // the receiver's gallery enforces single-view + delete-on-
+            // dismiss. The flag rides inside the encrypted envelope —
+            // server is blind.
+            let vaultPolicy = await vaultPolicyResolver.policy(for: chatId)
             var uploadedAttachment = Message.MediaAttachment(
                 url: mediaIdURL,
                 encryptionKey: uploadOutcome.encryptionKey,
@@ -330,7 +339,8 @@ public actor MessageSender {
                 filename: attachment.filename,
                 isVoiceMessage: attachment.isVoiceMessage,
                 audioDurationMs: attachment.audioDurationMs,
-                audioWaveform: attachment.audioWaveform
+                audioWaveform: attachment.audioWaveform,
+                isViewOnce: vaultPolicy.viewOnceOutgoing ? true : nil
             )
             // Defensive: caption setter on the rebuilt struct (already set
             // via init, but mirrors the old code path explicitly).
