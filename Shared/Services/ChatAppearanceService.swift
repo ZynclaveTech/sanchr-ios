@@ -16,6 +16,13 @@ final class ChatAppearanceService {
     var globalWallpaperId: String
     var globalMode: SanchrTheme.Mode
 
+    /// Bumped on every override / global write so consumers (notably
+    /// `ChatDetailView`) can read it inside their `body` to register an
+    /// unambiguous observation. @Observable propagation through method
+    /// calls + private dictionaries is fragile across NavigationStack
+    /// pop boundaries; this counter makes the dependency explicit.
+    var changeVersion: UInt64 = 0
+
     private var overrides: [String: AppearanceOverride] = [:]
     private var loadedConversationIds: Set<String> = []
 
@@ -68,6 +75,7 @@ final class ChatAppearanceService {
             try? await localDatabase.clearAppearanceOverride(conversationId: conversationId)
             overrides.removeValue(forKey: conversationId)
             loadedConversationIds.insert(conversationId)
+            changeVersion &+= 1
             return
         }
         let override = AppearanceOverride(
@@ -77,6 +85,7 @@ final class ChatAppearanceService {
         try? await localDatabase.setAppearanceOverride(override, for: conversationId)
         overrides[conversationId] = override
         loadedConversationIds.insert(conversationId)
+        changeVersion &+= 1
     }
 
     /// Global write. Mirrors to SettingsViewModel + SanchrTheme so the
@@ -93,5 +102,6 @@ final class ChatAppearanceService {
             globalMode = appearanceMode
             theme.mode = appearanceMode
         }
+        changeVersion &+= 1
     }
 }

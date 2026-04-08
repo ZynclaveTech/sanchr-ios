@@ -275,7 +275,6 @@ struct ConversationInfoView: View {
                             message: message,
                             resolver: container.chatMediaResolver
                         )
-                        .aspectRatio(1, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .onTapGesture {
@@ -1971,22 +1970,32 @@ private struct ConversationInfoMediaThumbnail: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Rectangle().fill(SanchrExportColors.surfaceSoft)
-            }
-            if isVideo {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white.opacity(0.9))
-                    .shadow(radius: 3)
+        // GeometryReader pins the image to the cell's actual bounds so
+        // .scaledToFill has a frame to fill instead of overflowing the
+        // RoundedRectangle clip. The outer aspectRatio gives the
+        // GeometryReader a square layout slot.
+        GeometryReader { geo in
+            ZStack {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(SanchrExportColors.surfaceSoft)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+                if isVideo {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.9))
+                        .shadow(radius: 3)
+                }
             }
         }
-        .clipped()
+        .aspectRatio(1, contentMode: .fit)
         .task(id: message.id) {
             await loadThumbnail()
         }

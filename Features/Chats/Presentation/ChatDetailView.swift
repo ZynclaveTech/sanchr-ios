@@ -53,9 +53,15 @@ struct ChatDetailView: View {
     }
 
     var body: some View {
+        // Read changeVersion explicitly so SwiftUI registers an
+        // observation dependency on the resolver. @Observable propagation
+        // through method calls + private dictionaries is fragile across
+        // NavigationStack pop boundaries — the explicit counter makes
+        // body re-evaluate every time setOverride / setGlobal fires.
+        let _ = container.chatAppearance.changeVersion
         let appearance = container.chatAppearance.effectiveAppearance(for: conversation.id)
         let wallpaperId = appearance.wallpaperId
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             header
 
             if viewModel.isSearching {
