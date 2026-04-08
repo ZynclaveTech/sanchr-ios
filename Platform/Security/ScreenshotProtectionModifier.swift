@@ -82,8 +82,19 @@ final class SecureHostController<Content: View>: UIViewController {
         // a zero-size sibling so it joins the window and is marked
         // secure. Its presence is what makes iOS blank the window
         // during a screenshot.
+        //
+        // CRITICAL: we DO NOT set `isUserInteractionEnabled = false`
+        // on the field. The secure attribute works regardless of
+        // touch delivery, but any subview the field reparents (see
+        // installSecureContainerIfPossible below) will inherit
+        // userInteractionEnabled from its new parent — disabling it
+        // here blocks every touch on the hosted SwiftUI content.
+        // Do NOT set isHidden=true — isHidden propagates to reparented
+        // subviews and would hide the hosted SwiftUI content. Instead
+        // rely on the zero-size frame + clipsToBounds to keep the field
+        // invisible while leaving the view tree interactive.
         secureField.isSecureTextEntry = true
-        secureField.isUserInteractionEnabled = false
+        secureField.clipsToBounds = true
         secureField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(secureField)
         NSLayoutConstraint.activate([
@@ -123,6 +134,11 @@ final class SecureHostController<Content: View>: UIViewController {
             return
         }
         container.translatesAutoresizingMaskIntoConstraints = false
+        // Belt-and-suspenders: ensure the reparented container and its
+        // descendants remain visible and interactive regardless of any
+        // inherited state from the UITextField.
+        container.isHidden = false
+        container.isUserInteractionEnabled = true
         view.insertSubview(container, belowSubview: hostingController.view)
         NSLayoutConstraint.activate([
             container.topAnchor.constraint(equalTo: view.topAnchor),
