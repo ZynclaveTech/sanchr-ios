@@ -48,6 +48,16 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws
     func clearAppearanceOverride(conversationId: String) async throws
 
+    // MARK: - Chat Vault Policy
+
+    func fetchVaultPolicy(conversationId: String) async throws -> ChatVaultPolicy?
+    func setVaultPolicy(_ policy: ChatVaultPolicy) async throws
+    func clearVaultPolicy(conversationId: String) async throws
+
+    // MARK: - Message Lookup
+
+    func fetchMessageById(_ messageId: String) async throws -> Message?
+
     // MARK: - Lifecycle
 
     func hasLocalHistory() async throws -> Bool
@@ -530,6 +540,41 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             try ChatAppearanceOverrideRecord
                 .filter(Column("conversationId") == conversationId)
                 .deleteAll(db)
+        }
+    }
+
+    // MARK: - Chat Vault Policy
+
+    public func fetchVaultPolicy(conversationId: String) async throws -> ChatVaultPolicy? {
+        try await dbPool.read { db in
+            try ChatVaultPolicyRecord
+                .fetchOne(db, key: conversationId)?
+                .toDomain()
+        }
+    }
+
+    public func setVaultPolicy(_ policy: ChatVaultPolicy) async throws {
+        try await dbPool.write { db in
+            let record = ChatVaultPolicyRecord.from(policy)
+            try record.save(db, onConflict: Database.ConflictResolution.replace)
+        }
+    }
+
+    public func clearVaultPolicy(conversationId: String) async throws {
+        _ = try await dbPool.write { db in
+            try ChatVaultPolicyRecord
+                .filter(Column("conversationId") == conversationId)
+                .deleteAll(db)
+        }
+    }
+
+    // MARK: - Message Lookup
+
+    public func fetchMessageById(_ messageId: String) async throws -> Message? {
+        try await dbPool.read { db in
+            try MessageRecord
+                .fetchOne(db, key: messageId)?
+                .toDomain()
         }
     }
 
@@ -1178,6 +1223,10 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func fetchAppearanceOverride(conversationId: String) async throws -> AppearanceOverride? { throw error }
     public func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws { throw error }
     public func clearAppearanceOverride(conversationId: String) async throws { throw error }
+    public func fetchVaultPolicy(conversationId: String) async throws -> ChatVaultPolicy? { throw error }
+    public func setVaultPolicy(_ policy: ChatVaultPolicy) async throws { throw error }
+    public func clearVaultPolicy(conversationId: String) async throws { throw error }
+    public func fetchMessageById(_ messageId: String) async throws -> Message? { throw error }
     public func hasLocalHistory() async throws -> Bool { throw error }
     public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }

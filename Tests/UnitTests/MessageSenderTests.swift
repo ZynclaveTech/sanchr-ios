@@ -44,6 +44,10 @@ extension LocalDatabaseProtocol {
     public func fetchAppearanceOverride(conversationId: String) async throws -> AppearanceOverride? { FakeDBUnused.crash() }
     public func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws { FakeDBUnused.crash() }
     public func clearAppearanceOverride(conversationId: String) async throws { FakeDBUnused.crash() }
+    public func fetchVaultPolicy(conversationId: String) async throws -> ChatVaultPolicy? { FakeDBUnused.crash() }
+    public func setVaultPolicy(_ policy: ChatVaultPolicy) async throws { FakeDBUnused.crash() }
+    public func clearVaultPolicy(conversationId: String) async throws { FakeDBUnused.crash() }
+    public func fetchMessageById(_ messageId: String) async throws -> Message? { FakeDBUnused.crash() }
     // Lifecycle
     public func hasLocalHistory() async throws -> Bool { FakeDBUnused.crash() }
     public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { FakeDBUnused.crash() }
