@@ -58,12 +58,9 @@ struct ChatDetailView: View {
         // below — guarantees body re-evaluation even when @Observable
         // propagation through NavigationStack pop boundaries fails.
         let _ = appearanceTick
-        let version = container.chatAppearance.changeVersion
+        let _ = container.chatAppearance.changeVersion
         let appearance = container.chatAppearance.effectiveAppearance(for: conversation.id)
         let wallpaperId = appearance.wallpaperId
-        let _ = SanchrLogger.chat.debug(
-            "ChatDetailView.body conv=\(conversation.id.prefix(8)) wallpaper=\(wallpaperId) v=\(version) tick=\(appearanceTick)"
-        )
         return VStack(spacing: 0) {
             header
 
@@ -176,9 +173,6 @@ struct ChatDetailView: View {
         .preferredColorScheme(appearance.appearanceMode.colorScheme)
         .onReceive(NotificationCenter.default.publisher(for: .chatAppearanceDidChange)) { _ in
             appearanceTick &+= 1
-            SanchrLogger.chat.debug(
-                "ChatDetailView.onReceive(.chatAppearanceDidChange) tick=\(appearanceTick)"
-            )
         }
         .navigationBarHidden(true)
         .sanchrInteractivePopEnabled()

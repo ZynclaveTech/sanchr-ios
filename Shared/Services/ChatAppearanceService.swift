@@ -55,15 +55,11 @@ final class ChatAppearanceService {
     /// Resolution: per-chat override fields beat global; nil falls back.
     func effectiveAppearance(for conversationId: String) -> ChatAppearance {
         let override = overrides[conversationId]
-        let result = ChatAppearance(
+        return ChatAppearance(
             wallpaperId: override?.wallpaperId ?? globalWallpaperId,
             appearanceMode: override?.appearanceMode ?? globalMode,
             isPerChatOverride: override != nil
         )
-        SanchrLogger.chat.debug(
-            "ChatAppearance.effective conv=\(conversationId.prefix(8)) wallpaper=\(result.wallpaperId) mode=\(result.appearanceMode.rawValue) override=\(result.isPerChatOverride) v=\(self.changeVersion)"
-        )
-        return result
     }
 
     /// Hydrate the override cache from the local database. Idempotent —
@@ -83,15 +79,11 @@ final class ChatAppearanceService {
         wallpaperId: String?,
         appearanceMode: SanchrTheme.Mode?
     ) async {
-        SanchrLogger.chat.info(
-            "ChatAppearance.setOverride conv=\(conversationId.prefix(8)) wallpaper=\(wallpaperId ?? "nil") mode=\(appearanceMode?.rawValue ?? "nil")"
-        )
         if wallpaperId == nil && appearanceMode == nil {
             try? await localDatabase.clearAppearanceOverride(conversationId: conversationId)
             overrides.removeValue(forKey: conversationId)
             loadedConversationIds.insert(conversationId)
             changeVersion &+= 1
-            SanchrLogger.chat.info("ChatAppearance.setOverride cleared, v=\(self.changeVersion)")
             postChange(conversationId: conversationId)
             return
         }
@@ -107,7 +99,6 @@ final class ChatAppearanceService {
         overrides[conversationId] = override
         loadedConversationIds.insert(conversationId)
         changeVersion &+= 1
-        SanchrLogger.chat.info("ChatAppearance.setOverride persisted, v=\(self.changeVersion)")
         postChange(conversationId: conversationId)
     }
 
@@ -127,9 +118,6 @@ final class ChatAppearanceService {
         wallpaperId: String?,
         appearanceMode: SanchrTheme.Mode?
     ) {
-        SanchrLogger.chat.info(
-            "ChatAppearance.setGlobal wallpaper=\(wallpaperId ?? "nil") mode=\(appearanceMode?.rawValue ?? "nil")"
-        )
         if let wallpaperId {
             globalWallpaperId = wallpaperId
             settingsViewModel.chatWallpaper = wallpaperId
