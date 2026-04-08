@@ -64,6 +64,18 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws
     func purgeAllData() async throws
+
+    // MARK: - User Presence
+
+    func updateUserPresence(userId: String, status: User.Status, lastSeen: Date?) async throws
+
+    // MARK: - Conversation Denormalized Status
+
+    func updateConversationLastMessageStatusIfMatches(
+        conversationId: String,
+        messageId: String,
+        status: Message.DeliveryStatus
+    ) async throws
 }
 
 /// GRDB-backed local database with encrypted SQLite storage.
@@ -215,6 +227,40 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             try db.execute(
                 sql: "UPDATE conversation SET unreadCount = 0 WHERE id = ?",
                 arguments: [conversationId]
+            )
+        }
+    }
+
+    // MARK: - User Presence
+
+    public func updateUserPresence(
+        userId: String,
+        status: User.Status,
+        lastSeen: Date?
+    ) async throws {
+        try await dbPool.write { db in
+            try db.execute(
+                sql: "UPDATE user SET status = ?, lastSeen = ? WHERE id = ?",
+                arguments: [status.rawValue, lastSeen, userId]
+            )
+        }
+    }
+
+    // MARK: - Conversation Denormalized Status
+
+    public func updateConversationLastMessageStatusIfMatches(
+        conversationId: String,
+        messageId: String,
+        status: Message.DeliveryStatus
+    ) async throws {
+        try await dbPool.write { db in
+            try db.execute(
+                sql: """
+                UPDATE conversation
+                SET lastMessageStatus = ?
+                WHERE id = ? AND lastMessageId = ?
+                """,
+                arguments: [status.rawValue, conversationId, messageId]
             )
         }
     }
@@ -1231,4 +1277,14 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func updateUserPresence(
+        userId: String,
+        status: User.Status,
+        lastSeen: Date?
+    ) async throws { throw error }
+    public func updateConversationLastMessageStatusIfMatches(
+        conversationId: String,
+        messageId: String,
+        status: Message.DeliveryStatus
+    ) async throws { throw error }
 }
