@@ -146,6 +146,16 @@ public enum DatabaseSchema {
             )
         }
 
+        migrator.registerMigration("v4_chat_appearance_overrides") { db in
+            try db.create(table: "chatAppearanceOverride", ifNotExists: true) { t in
+                t.primaryKey("conversationId", .text).notNull()
+                    .references("conversation", onDelete: .cascade)
+                t.column("wallpaperId", .text)
+                t.column("appearanceMode", .text)
+                t.column("updatedAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

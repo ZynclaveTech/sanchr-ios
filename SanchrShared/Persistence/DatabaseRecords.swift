@@ -386,3 +386,46 @@ public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Send
         )
     }
 }
+
+// MARK: - Chat Appearance Overrides
+
+public struct ChatAppearanceOverrideRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "chatAppearanceOverride"
+
+    public var conversationId: String
+    public var wallpaperId: String?
+    public var appearanceMode: String?
+    public var updatedAt: Date
+
+    public init(
+        conversationId: String,
+        wallpaperId: String?,
+        appearanceMode: String?,
+        updatedAt: Date
+    ) {
+        self.conversationId = conversationId
+        self.wallpaperId = wallpaperId
+        self.appearanceMode = appearanceMode
+        self.updatedAt = updatedAt
+    }
+
+    public func toDomain() -> AppearanceOverride {
+        AppearanceOverride(
+            wallpaperId: wallpaperId,
+            appearanceMode: appearanceMode.flatMap(SanchrTheme.Mode.init(rawValue:))
+        )
+    }
+
+    public static func from(
+        conversationId: String,
+        override: AppearanceOverride,
+        now: Date = Date()
+    ) -> ChatAppearanceOverrideRecord {
+        ChatAppearanceOverrideRecord(
+            conversationId: conversationId,
+            wallpaperId: override.wallpaperId,
+            appearanceMode: override.appearanceMode?.rawValue,
+            updatedAt: now
+        )
+    }
+}

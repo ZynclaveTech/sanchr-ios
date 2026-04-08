@@ -41,6 +41,9 @@ extension LocalDatabaseProtocol {
     public func deleteAccessKeyEntry(mediaId: String) async throws { FakeDBUnused.crash() }
     public func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { FakeDBUnused.crash() }
     public func deleteAllAccessKeyEntries() async throws { FakeDBUnused.crash() }
+    public func fetchAppearanceOverride(conversationId: String) async throws -> AppearanceOverride? { FakeDBUnused.crash() }
+    public func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws { FakeDBUnused.crash() }
+    public func clearAppearanceOverride(conversationId: String) async throws { FakeDBUnused.crash() }
     // Lifecycle
     public func hasLocalHistory() async throws -> Bool { FakeDBUnused.crash() }
     public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { FakeDBUnused.crash() }

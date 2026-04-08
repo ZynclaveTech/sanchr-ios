@@ -42,6 +42,12 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func purgeAccessKeyEntries(olderThan: Date) async throws -> Int
     func deleteAllAccessKeyEntries() async throws
 
+    // MARK: - Chat Appearance Overrides
+
+    func fetchAppearanceOverride(conversationId: String) async throws -> AppearanceOverride?
+    func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws
+    func clearAppearanceOverride(conversationId: String) async throws
+
     // MARK: - Lifecycle
 
     func hasLocalHistory() async throws -> Bool
@@ -484,6 +490,46 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func deleteAllAccessKeyEntries() async throws {
         try await dbPool.write { db in
             _ = try AccessKeyRecord.deleteAll(db)
+        }
+    }
+
+    // MARK: - Chat Appearance Overrides
+
+    public func fetchAppearanceOverride(
+        conversationId: String
+    ) async throws -> AppearanceOverride? {
+        try await dbPool.read { db in
+            try ChatAppearanceOverrideRecord
+                .fetchOne(db, key: conversationId)?
+                .toDomain()
+        }
+    }
+
+    public func setAppearanceOverride(
+        _ override: AppearanceOverride,
+        for conversationId: String
+    ) async throws {
+        // No-op-erasure: an all-nil override is meaningless. Delete the
+        // row instead of persisting an empty pair so `fetchAppearanceOverride`
+        // returns nil and the resolver falls back cleanly to global.
+        if override.wallpaperId == nil && override.appearanceMode == nil {
+            try await clearAppearanceOverride(conversationId: conversationId)
+            return
+        }
+        try await dbPool.write { db in
+            let record = ChatAppearanceOverrideRecord.from(
+                conversationId: conversationId,
+                override: override
+            )
+            try record.save(db, onConflict: Database.ConflictResolution.replace)
+        }
+    }
+
+    public func clearAppearanceOverride(conversationId: String) async throws {
+        _ = try await dbPool.write { db in
+            try ChatAppearanceOverrideRecord
+                .filter(Column("conversationId") == conversationId)
+                .deleteAll(db)
         }
     }
 
@@ -1129,6 +1175,9 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func deleteAccessKeyEntry(mediaId: String) async throws { throw error }
     public func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { throw error }
     public func deleteAllAccessKeyEntries() async throws { throw error }
+    public func fetchAppearanceOverride(conversationId: String) async throws -> AppearanceOverride? { throw error }
+    public func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws { throw error }
+    public func clearAppearanceOverride(conversationId: String) async throws { throw error }
     public func hasLocalHistory() async throws -> Bool { throw error }
     public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
