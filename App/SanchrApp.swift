@@ -106,6 +106,12 @@ struct SanchrApp: App {
             container.realtimeService.enterBackground()
             SanchrLogger.sync.info("App entered background, scheduled background tasks")
 
+            // Stop the vault EKF scheduler. A best-effort purge will run on
+            // next foreground.
+            Task {
+                await container.stopVaultEKFScheduler()
+            }
+
         case .active:
             // Check app lock
             lockManager.appDidBecomeActive()
@@ -118,6 +124,11 @@ struct SanchrApp: App {
                 Task {
                     await container.syncOrchestrator.startSync()
                 }
+            }
+
+            // Start the vault EKF scheduler (idempotent).
+            Task {
+                await container.startVaultEKFScheduler()
             }
 
         case .inactive:

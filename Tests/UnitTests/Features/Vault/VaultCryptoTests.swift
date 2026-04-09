@@ -296,6 +296,63 @@ final class VaultCryptoTests: XCTestCase {
         XCTAssertNotNil(hot, "recently-touched entry must survive")
     }
 
+    // MARK: - VaultEKFScheduler
+
+    func test_vaultEKFScheduler_tickCallsPurgeExpired() async throws {
+        let spyStore = SpyAccessKeyStore()
+        let scheduler = VaultEKFScheduler(
+            accessKeyStore: spyStore,
+            tickInterval: 60  // irrelevant — we call tick() directly
+        )
+
+        XCTAssertEqual(spyStore.purgeCallCount, 0)
+        try await scheduler.tick()
+        XCTAssertEqual(spyStore.purgeCallCount, 1)
+        try await scheduler.tick()
+        XCTAssertEqual(spyStore.purgeCallCount, 2)
+    }
+
+    func test_vaultEKFScheduler_accessPathTakesPriorityOverPurge() async throws {
+        // The scheduler must NOT run a purge while an access is in flight.
+        // We simulate: start a purge task that blocks inside the spy store,
+        // then try to withAccess { } — the access should wait briefly but
+        // never deadlock.
+        let spyStore = GatedSpyAccessKeyStore()
+        let scheduler = VaultEKFScheduler(
+            accessKeyStore: spyStore,
+            tickInterval: 60
+        )
+
+        // Start a purge that will block until we release it.
+        let purgeTask = Task {
+            try await scheduler.tick()
+        }
+
+        // Small yield so the purge task begins holding the lock.
+        try await Task.sleep(nanoseconds: 10_000_000)
+        XCTAssertTrue(
+            spyStore.purgeInProgress,
+            "purge should be in progress while its gate is held"
+        )
+
+        // Start an access path. It should block until the purge releases.
+        let accessStartTime = Date()
+        let accessTask = Task {
+            try await scheduler.withAccess { Date() }
+        }
+
+        // Release the purge gate.
+        try await Task.sleep(nanoseconds: 10_000_000)
+        spyStore.releasePurge()
+
+        let accessFinishTime = try await accessTask.value
+        try await purgeTask.value
+
+        let waited = accessFinishTime.timeIntervalSince(accessStartTime)
+        XCTAssertGreaterThan(waited, 0.005, "access should have waited for purge to release")
+        XCTAssertEqual(spyStore.purgeCallCount, 1)
+    }
+
     // MARK: - Test helpers
 
     private func makeInMemoryAccessKeyStore(
@@ -341,5 +398,90 @@ final class InMemoryKeyProvider: LocalDatabaseKeyProviderProtocol, @unchecked Se
 
     func resetDatabaseSecrets() throws {
         // No-op: each test instance is ephemeral.
+    }
+}
+
+// MARK: - AccessKeyStore spies for scheduler tests
+
+/// Simple spy that counts calls to `purgeExpired()`. Other methods are no-ops.
+final class SpyAccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _purgeCallCount = 0
+    var purgeCallCount: Int {
+        withLock { _purgeCallCount }
+    }
+
+    // Non-async helpers so NSLock is never held across an `await`.
+    private func withLock<T>(_ body: () -> T) -> T {
+        lock.lock(); defer { lock.unlock() }
+        return body()
+    }
+
+    func store(mediaId: String, accessKey: Data, conversationId: String, kind: AccessKeyEntry.Kind) async throws {}
+    func retrieve(mediaId: String) async throws -> Data? { nil }
+    func retrieveEntry(mediaId: String) async throws -> AccessKeyEntry? { nil }
+    func touch(mediaId: String) async throws {}
+    func getAndTouch(mediaId: String) async throws -> Data? { nil }
+    func deleteAll() async throws {}
+
+    func purgeExpired() async throws -> Int {
+        withLock { _purgeCallCount += 1 }
+        return 0
+    }
+}
+
+/// Gated spy that blocks inside `purgeExpired()` until `releasePurge()` is
+/// called. Used to test access-vs-purge mutual exclusion.
+final class GatedSpyAccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _purgeCallCount = 0
+    private var _inProgress = false
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+
+    var purgeCallCount: Int {
+        withLock { _purgeCallCount }
+    }
+    var purgeInProgress: Bool {
+        withLock { _inProgress }
+    }
+
+    // Non-async helper so NSLock is never held across an `await`.
+    private func withLock<T>(_ body: () -> T) -> T {
+        lock.lock(); defer { lock.unlock() }
+        return body()
+    }
+
+    func releasePurge() {
+        let ks: [CheckedContinuation<Void, Never>] = withLock {
+            let snapshot = continuations
+            continuations.removeAll()
+            return snapshot
+        }
+        for k in ks { k.resume() }
+    }
+
+    func store(mediaId: String, accessKey: Data, conversationId: String, kind: AccessKeyEntry.Kind) async throws {}
+    func retrieve(mediaId: String) async throws -> Data? { nil }
+    func retrieveEntry(mediaId: String) async throws -> AccessKeyEntry? { nil }
+    func touch(mediaId: String) async throws {}
+    func getAndTouch(mediaId: String) async throws -> Data? { nil }
+    func deleteAll() async throws {}
+
+    func purgeExpired() async throws -> Int {
+        withLock {
+            _purgeCallCount += 1
+            _inProgress = true
+        }
+
+        await withCheckedContinuation { (k: CheckedContinuation<Void, Never>) in
+            withLock {
+                continuations.append(k)
+            }
+        }
+
+        withLock {
+            _inProgress = false
+        }
+        return 0
     }
 }

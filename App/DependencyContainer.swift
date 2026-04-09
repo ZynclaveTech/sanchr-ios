@@ -199,6 +199,9 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var accessKeyStore: AccessKeyStoreProtocol =
         AccessKeyStore(localDatabase: localDatabase)
 
+    @ObservationIgnored lazy var vaultEKFScheduler: VaultEKFScheduler =
+        VaultEKFScheduler(accessKeyStore: accessKeyStore)
+
     @ObservationIgnored lazy var discoveryRepository: DiscoveryRepositoryProtocol =
         DiscoveryRepository(grpcClient: grpcClient, oprfClient: oprfClient)
 
@@ -626,5 +629,19 @@ final class DependencyContainer: @unchecked Sendable {
                 "Signal state rebootstrap after restore failed: \(error.localizedDescription)"
             )
         }
+    }
+
+    // MARK: - Vault EKF Scheduler Lifecycle
+
+    /// Called from the SanchrApp scene-phase handler on foreground.
+    /// Starts the vault EKF scheduler. Idempotent.
+    func startVaultEKFScheduler() async {
+        await vaultEKFScheduler.start()
+    }
+
+    /// Called from the SanchrApp scene-phase handler on background.
+    /// Stops the vault EKF scheduler. Idempotent.
+    func stopVaultEKFScheduler() async {
+        await vaultEKFScheduler.stop()
     }
 }
