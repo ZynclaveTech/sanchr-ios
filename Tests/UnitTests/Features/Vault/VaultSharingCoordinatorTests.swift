@@ -261,6 +261,143 @@ final class VaultSharingCoordinatorTests: XCTestCase {
         XCTAssertEqual(tempURL.lastPathComponent, "untitled")
     }
 
+    // MARK: - shareToChat (Flow B1)
+
+    func test_shareToChat_photoItem_buildsPhotoAttachmentAndCallsSendMedia() async throws {
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("photo-bytes".utf8))
+        let sender = SpyMessageSender()
+        sender.sendResult = .success(
+            MessageSendReceipt(
+                chatId: "conv-1",
+                messageId: "msg-1",
+                serverTimestampMs: 1_712_700_000_000
+            )
+        )
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: sender
+        )
+        let photo = Self.makeVaultItem(
+            id: "p1",
+            name: "photo.jpg",
+            type: .photo,
+            sizeBytes: 11
+        )
+
+        let outcome = try await coordinator.shareToChat(
+            item: photo,
+            conversationId: "conv-1"
+        )
+
+        XCTAssertEqual(outcome.conversationId, "conv-1")
+        XCTAssertEqual(outcome.bytesUploaded, 11)
+        XCTAssertEqual(sender.sendCalls.count, 1)
+        let call = try XCTUnwrap(sender.sendCalls.first)
+        XCTAssertEqual(call.chatId, "conv-1")
+        XCTAssertEqual(call.attachment.mimeType, "image/jpeg")
+        XCTAssertEqual(call.attachment.filename, "photo.jpg")
+        XCTAssertEqual(call.attachment.sizeBytes, 11)
+        XCTAssertNil(call.caption)
+
+        // Temp file is cleaned up on success.
+        let shareRoot = Self.shareRoot()
+        if FileManager.default.fileExists(atPath: shareRoot.path) {
+            let contents = (try? FileManager.default.contentsOfDirectory(
+                at: shareRoot, includingPropertiesForKeys: nil
+            )) ?? []
+            XCTAssertEqual(
+                contents.count, 0,
+                "successful share must clean up its UUID subdirectory"
+            )
+        }
+    }
+
+    func test_shareToChat_documentItem_buildsFileAttachmentWithPDFMime() async throws {
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("pdf-bytes".utf8))
+        let sender = SpyMessageSender()
+        sender.sendResult = .success(
+            MessageSendReceipt(
+                chatId: "conv-2",
+                messageId: "msg-2",
+                serverTimestampMs: 1_712_700_000_000
+            )
+        )
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: sender
+        )
+        let doc = Self.makeVaultItem(
+            id: "d1",
+            name: "report.pdf",
+            type: .document,
+            sizeBytes: 9
+        )
+
+        _ = try await coordinator.shareToChat(item: doc, conversationId: "conv-2")
+
+        let call = try XCTUnwrap(sender.sendCalls.first)
+        XCTAssertEqual(call.attachment.mimeType, "application/pdf")
+        XCTAssertEqual(call.attachment.filename, "report.pdf")
+    }
+
+    func test_shareToChat_sendFailure_cleansTempDir_leavesVaultUntouched() async {
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("x".utf8))
+        let sender = SpyMessageSender()
+        sender.sendResult = .failure(
+            AppError.grpcError(code: 13, message: "gRPC broke")
+        )
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: sender
+        )
+        let item = Self.makeVaultItem(id: "f", name: "f.jpg", type: .photo, sizeBytes: 1)
+
+        do {
+            _ = try await coordinator.shareToChat(item: item, conversationId: "c")
+            XCTFail("expected throw")
+        } catch {
+            // Expected
+        }
+
+        XCTAssertEqual(vaultRepo.downloadedIds, ["f"])
+        // Verify the vault-share directory has no leftover UUID subdirs.
+        let shareRoot = Self.shareRoot()
+        if FileManager.default.fileExists(atPath: shareRoot.path) {
+            let contents = (try? FileManager.default.contentsOfDirectory(
+                at: shareRoot, includingPropertiesForKeys: nil
+            )) ?? []
+            XCTAssertEqual(
+                contents.count, 0,
+                "failed share must clean up its UUID subdirectory"
+            )
+        }
+    }
+
+    func test_reshareToCurrentChat_delegatesToSameSendPipeline() async throws {
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("x".utf8))
+        let sender = SpyMessageSender()
+        sender.sendResult = .success(
+            MessageSendReceipt(chatId: "c", messageId: "m", serverTimestampMs: 0)
+        )
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: sender
+        )
+        let item = Self.makeVaultItem(id: "r", name: "r.pdf", type: .document, sizeBytes: 1)
+
+        let outcome = try await coordinator.reshareToCurrentChat(
+            item: item,
+            conversationId: "c"
+        )
+
+        XCTAssertEqual(outcome.conversationId, "c")
+        XCTAssertEqual(sender.sendCalls.count, 1)
+    }
+
     // MARK: - Helpers
 
     private static func shareRoot() -> URL {
@@ -328,8 +465,10 @@ final class SpyVaultRepository: VaultRepositoryProtocol, @unchecked Sendable {
 /// Surrogate `VaultMessageSending` implementation used in Task 1 tests
 /// where the coordinator's share-to-chat path is not exercised. Any
 /// call to `sendMedia` is a bug — fatalError guards against that.
-/// Task 5 replaces this with a real `SpyMessageSender` when
-/// `shareToChat` lands.
+/// Task 5 adds `SpyMessageSender` alongside this for tests that DO
+/// exercise the share-to-chat path; this surrogate stays in place so
+/// pre-existing Task 1 tests continue to catch accidental sendMedia
+/// calls.
 final class UnusedMessageSender: VaultMessageSending, @unchecked Sendable {
     func sendMedia(
         attachment: Message.MediaAttachment,
@@ -338,5 +477,50 @@ final class UnusedMessageSender: VaultMessageSending, @unchecked Sendable {
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> MessageSendReceipt {
         fatalError("UnusedMessageSender.sendMedia called in Task 1 tests")
+    }
+}
+
+// MARK: - SpyMessageSender
+
+/// Recording test double for `VaultMessageSending` used by the Task 5
+/// share-to-chat tests. Each call to `sendMedia` is appended to
+/// `sendCalls`, and the configured `sendResult` decides whether the
+/// call succeeds with a `MessageSendReceipt` or throws.
+///
+/// Thread safety: no lock around `sendCalls` because all callers run
+/// on `@MainActor` and calls are serialized through the coordinator
+/// actor. This matches how `SpyPhotosSaver` in
+/// `VaultViewModelShareTests.swift` is written.
+final class SpyMessageSender: VaultMessageSending, @unchecked Sendable {
+    struct Call: Sendable {
+        let attachment: Message.MediaAttachment
+        let caption: String?
+        let chatId: String
+    }
+
+    enum SendResult {
+        case success(MessageSendReceipt)
+        case failure(Error)
+    }
+
+    var sendResult: SendResult = .success(
+        MessageSendReceipt(chatId: "", messageId: "", serverTimestampMs: 0)
+    )
+    private(set) var sendCalls: [Call] = []
+
+    func sendMedia(
+        attachment: Message.MediaAttachment,
+        caption: String?,
+        to chatId: String,
+        progress: @Sendable @escaping (Double) -> Void
+    ) async throws -> MessageSendReceipt {
+        sendCalls.append(Call(attachment: attachment, caption: caption, chatId: chatId))
+        switch sendResult {
+        case .success(let receipt):
+            progress(1.0)
+            return receipt
+        case .failure(let error):
+            throw error
+        }
     }
 }
