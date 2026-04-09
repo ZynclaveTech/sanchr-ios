@@ -272,6 +272,7 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var sessionService: SessionService = SessionService(
         secureStorage: secureStorage,
         authRepository: authRepository,
+        privacySettings: privacySettings,
         cleanup: {
             nonisolated(unsafe) weak var weakSelf = self
             await weakSelf?.wipeLocalSessionArtifacts()

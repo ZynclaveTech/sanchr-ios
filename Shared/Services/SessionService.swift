@@ -9,6 +9,7 @@ final class SessionService: @unchecked Sendable {
     private let authRepository: AuthRepositoryProtocol
     private let cleanup: @Sendable () async -> Void
     private let deepWipe: @Sendable () async -> Void
+    private let privacySettings: PrivacySettingsCache
 
     /// Whether the user is currently authenticated.
     private(set) var isAuthenticated: Bool = false
@@ -43,11 +44,13 @@ final class SessionService: @unchecked Sendable {
     init(
         secureStorage: SecureStorageProtocol,
         authRepository: AuthRepositoryProtocol,
+        privacySettings: PrivacySettingsCache,
         cleanup: @escaping @Sendable () async -> Void = {},
         deepWipe: @escaping @Sendable () async -> Void = {}
     ) {
         self.secureStorage = secureStorage
         self.authRepository = authRepository
+        self.privacySettings = privacySettings
         self.cleanup = cleanup
         self.deepWipe = deepWipe
         restorePersistedSession()
@@ -240,6 +243,7 @@ final class SessionService: @unchecked Sendable {
 
     @MainActor
     private func clearSessionState() {
+        privacySettings.clear()
         isAuthenticated = false
         currentUserId = nil
         currentDisplayName = nil
