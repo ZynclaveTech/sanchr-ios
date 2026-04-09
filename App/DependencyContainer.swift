@@ -79,6 +79,8 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var mediaEncryption: MediaEncryptionProtocol = MediaEncryptor()
 
+    @ObservationIgnored lazy var photosSaver: PhotosSaving = PhotosSaver()
+
     @ObservationIgnored lazy var mediaChainState: MediaChainState = {
         let deviceSecret = try! deviceSecretProvider.mediaAccessSecret()
         // Mirror the derived media-access secret into the shared keychain so
