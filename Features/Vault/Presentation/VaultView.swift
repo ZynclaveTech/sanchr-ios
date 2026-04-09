@@ -7,9 +7,10 @@ import SanchrShared
 @MainActor
 struct VaultView: View {
     @Environment(DependencyContainer.self) private var container
+    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = VaultViewModel()
     @State private var showAddSheet = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
 
     private var vaultDataSource: VaultDataSource {
@@ -39,15 +40,63 @@ struct VaultView: View {
 
             addButton
         }
-        .navigationTitle("Vault")
+        .navigationTitle(viewModel.isSelectMode ? selectModeTitle : "Vault")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button("Select") {}
-                    Button("Sort") {}
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+            if viewModel.isSelectMode {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        viewModel.exitSelectMode()
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Select all") {
+                            viewModel.selectAllVisible()
+                        }
+                        if !viewModel.selectedItemIds.isEmpty {
+                            Button("Delete \(viewModel.selectedItemIds.count) item\(viewModel.selectedItemIds.count == 1 ? "" : "s")", role: .destructive) {
+                                Task {
+                                    await viewModel.deleteSelectedItems(
+                                        vaultDataSource: vaultDataSource,
+                                        localDatabase: container.localDatabase
+                                    )
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            viewModel.enterSelectMode()
+                        } label: {
+                            Label("Select", systemImage: "checkmark.circle")
+                        }
+
+                        Menu {
+                            ForEach(VaultViewModel.SortOrder.allCases) { order in
+                                Button {
+                                    viewModel.changeSort(order)
+                                } label: {
+                                    HStack {
+                                        Text(order.displayName)
+                                        if viewModel.activeSort == order {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Sort", systemImage: "arrow.up.arrow.down")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
                 }
             }
         }
@@ -57,30 +106,52 @@ struct VaultView: View {
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.pdf, .plainText, .spreadsheet, .presentation, .data, .archive, .item],
-            allowsMultipleSelection: false
+            allowsMultipleSelection: true
         ) { result in
-            guard case .success(let urls) = result, let url = urls.first else { return }
+            guard case .success(let urls) = result, !urls.isEmpty else { return }
             Task {
-                guard url.startAccessingSecurityScopedResource() else { return }
-                defer { url.stopAccessingSecurityScopedResource() }
-                if let data = try? Data(contentsOf: url) {
-                    await viewModel.uploadItem(
-                        data: data,
-                        fileName: url.lastPathComponent,
-                        mediaType: "file",
-                        vaultDataSource: vaultDataSource,
-                        mediaManager: container.mediaManager
-                    )
+                // Load every selected file into memory eagerly. We hold
+                // each security-scoped resource only for the duration of
+                // the `Data(contentsOf:)` read; the upload dispatcher
+                // then operates on the in-memory bytes.
+                var specs: [VaultViewModel.UploadSpec] = []
+                for url in urls {
+                    guard url.startAccessingSecurityScopedResource() else { continue }
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    if let data = try? Data(contentsOf: url) {
+                        specs.append(
+                            VaultViewModel.UploadSpec(
+                                fileName: url.lastPathComponent,
+                                mediaType: "file",
+                                data: data
+                            )
+                        )
+                    }
                 }
+                await viewModel.enqueueUploads(
+                    specs,
+                    vaultDataSource: vaultDataSource,
+                    mediaManager: container.mediaManager
+                )
             }
         }
-        .task(id: viewModel.activeFilter) {
+        .task {
+            // One-shot initial fetch. Filter changes are purely client-side
+            // via `filteredItems` — no reload needed.
             await viewModel.loadItems(
                 vaultDataSource: vaultDataSource,
                 accessKeyStore: container.accessKeyStore,
                 mediaEncryption: container.mediaEncryption
             )
         }
+    }
+
+    private var selectModeTitle: String {
+        if viewModel.selectedItemIds.isEmpty {
+            return "Select items"
+        }
+        let count = viewModel.selectedItemIds.count
+        return "\(count) selected"
     }
 
     private var statsRow: some View {
@@ -123,44 +194,52 @@ struct VaultView: View {
 
     @ViewBuilder
     private var content: some View {
+        VStack(spacing: 16) {
+            // Upload progress cards are hoisted above the main content
+            // branching so the user sees feedback on the very first upload
+            // (when the items list is still empty). One card per active or
+            // failed upload.
+            if !viewModel.uploads.isEmpty {
+                VStack(spacing: 12) {
+                    ForEach(viewModel.uploads) { task in
+                        uploadProgressCard(for: task)
+                    }
+                }
+            }
+
+            mainContentBranch
+        }
+    }
+
+    @ViewBuilder
+    private var mainContentBranch: some View {
         if viewModel.isLoading {
             ProgressView()
                 .tint(.sanchrPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 48)
-        } else if viewModel.items.isEmpty {
-            emptyState
+        } else if viewModel.filteredItems.isEmpty {
+            // While uploading the first item, suppress the empty state so
+            // the upload progress card above is the only thing visible.
+            if !viewModel.isUploading {
+                emptyState
+            }
         } else {
+            let visible = viewModel.filteredItems
             LazyVStack(spacing: 16) {
-                ForEach(viewModel.items) { item in
-                    VaultItemCard(
-                        item: item,
-                        onDelete: {
-                            Task {
-                                await viewModel.deleteItem(
-                                    item,
-                                    vaultDataSource: vaultDataSource,
-                                    localDatabase: container.localDatabase
-                                )
-                            }
-                        },
-                        onShare: {}
-                    )
-                    .onAppear {
-                        if item.id == viewModel.items.last?.id {
-                            Task {
-                                await viewModel.loadMore(
-                                    vaultDataSource: vaultDataSource,
-                                    accessKeyStore: container.accessKeyStore,
-                                    mediaEncryption: container.mediaEncryption
-                                )
+                ForEach(visible) { item in
+                    selectableCard(for: item)
+                        .onAppear {
+                            if item.id == visible.last?.id {
+                                Task {
+                                    await viewModel.loadMore(
+                                        vaultDataSource: vaultDataSource,
+                                        accessKeyStore: container.accessKeyStore,
+                                        mediaEncryption: container.mediaEncryption
+                                    )
+                                }
                             }
                         }
-                    }
-                }
-
-                if viewModel.isUploading {
-                    uploadProgressView
                 }
 
                 if viewModel.isLoadingMore {
@@ -172,16 +251,48 @@ struct VaultView: View {
         }
     }
 
+    @ViewBuilder
+    private func selectableCard(for item: VaultItem) -> some View {
+        let isSelected = viewModel.selectedItemIds.contains(item.id)
+
+        HStack(spacing: 12) {
+            if viewModel.isSelectMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(
+                        isSelected ? SanchrColors.primary : SanchrExportColors.textTertiary
+                    )
+                    .transition(.opacity.combined(with: .scale))
+            }
+
+            VaultItemCard(
+                item: item,
+                onDelete: {
+                    Task {
+                        await viewModel.deleteItem(
+                            item,
+                            vaultDataSource: vaultDataSource,
+                            localDatabase: container.localDatabase
+                        )
+                    }
+                },
+                onShare: {}
+            )
+            .contentShape(Rectangle())
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if viewModel.isSelectMode {
+                viewModel.toggleSelection(for: item.id)
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: viewModel.isSelectMode)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 18) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(emptyStateGradient)
                 .frame(height: 220)
                 .overlay {
                     VStack(spacing: 14) {
@@ -201,20 +312,90 @@ struct VaultView: View {
         }
     }
 
-    private var uploadProgressView: some View {
+    /// Dark-mode-aware gradient for the empty-state card. Light mode keeps the
+    /// original pale indigo → cyan wash; dark mode uses a subtle elevated
+    /// surface pair so the card reads as a panel against the dark background
+    /// instead of a blinding light tile.
+    private var emptyStateGradient: LinearGradient {
+        let colors: [Color] =
+            colorScheme == .dark
+                ? [Color(hex: 0x1E1B3A), Color(hex: 0x0F2033)]
+                : [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)]
+        return LinearGradient(
+            colors: colors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    @ViewBuilder
+    private func uploadProgressCard(for task: VaultViewModel.UploadTask) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Uploading to Vault")
-                .font(SanchrTypography.bodyBold)
-                .foregroundColor(SanchrExportColors.textPrimary)
-            ProgressView(value: viewModel.uploadProgress)
-                .tint(.sanchrPrimary)
-            Text("\(Int(viewModel.uploadProgress * 100))% complete")
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrExportColors.textSecondary)
+            HStack(spacing: 10) {
+                Image(systemName: mediaTypeIcon(for: task.mediaType))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(SanchrColors.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(task.fileName)
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(uploadSubtitle(for: task.state))
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+                Spacer()
+                if case .failed = task.state {
+                    Button {
+                        viewModel.dismissFailedUpload(id: task.id)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(SanchrExportColors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            switch task.state {
+            case .pending:
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(.sanchrPrimary)
+            case .uploading(let progress):
+                ProgressView(value: progress)
+                    .tint(.sanchrPrimary)
+            case .failed:
+                // No progress bar on failed rows — the xmark dismiss
+                // button is the affordance.
+                EmptyView()
+            }
         }
         .padding(18)
         .background(SanchrExportColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func uploadSubtitle(for state: VaultViewModel.UploadTask.State) -> String {
+        switch state {
+        case .pending:
+            return "Queued"
+        case .uploading(let progress):
+            return "\(Int(progress * 100))% uploaded"
+        case .failed(let message):
+            return "Failed: \(message)"
+        }
+    }
+
+    private func mediaTypeIcon(for mediaType: String) -> String {
+        switch mediaType {
+        case "photo": return "photo.fill"
+        case "video": return "video.fill"
+        case "audio": return "waveform"
+        case "note": return "note.text"
+        default: return "doc.fill"
+        }
     }
 
     private var addButton: some View {
@@ -248,14 +429,15 @@ struct VaultView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 PhotosPicker(
-                    selection: $selectedPhotoItem,
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: 0,  // 0 = unlimited
                     matching: .any(of: [.images, .videos])
                 ) {
                     VaultSheetRow(
                         icon: "photo.on.rectangle.fill",
                         tint: SanchrColors.primary,
-                        title: "Photo or Video",
-                        subtitle: "Select from your library"
+                        title: "Photos or Videos",
+                        subtitle: "Select one or more from your library"
                     )
                 }
 
@@ -285,24 +467,37 @@ struct VaultView: View {
             }
         }
         .presentationDetents([.medium])
-        .onChange(of: selectedPhotoItem) { _, newValue in
-            guard let newValue else { return }
+        .onChange(of: selectedPhotoItems) { _, newValue in
+            guard !newValue.isEmpty else { return }
+
+            // Snapshot and clear the selection immediately so the picker
+            // doesn't re-fire on the same batch if the user bounces back.
+            let batch = newValue
+            selectedPhotoItems = []
 
             Task {
-                let isVideo = newValue.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
-                let ext = isVideo ? "mp4" : "jpg"
-                let mediaType = isVideo ? "video" : "photo"
+                var specs: [VaultViewModel.UploadSpec] = []
+                for item in batch {
+                    let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
+                    let ext = isVideo ? "mp4" : "jpg"
+                    let mediaType = isVideo ? "video" : "photo"
 
-                if let data = try? await newValue.loadTransferable(type: Data.self) {
-                    showAddSheet = false
-                    await viewModel.uploadItem(
-                        data: data,
-                        fileName: "vault_\(UUID().uuidString.prefix(8)).\(ext)",
-                        mediaType: mediaType,
-                        vaultDataSource: vaultDataSource,
-                        mediaManager: container.mediaManager
-                    )
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        specs.append(
+                            VaultViewModel.UploadSpec(
+                                fileName: "vault_\(UUID().uuidString.prefix(8)).\(ext)",
+                                mediaType: mediaType,
+                                data: data
+                            )
+                        )
+                    }
                 }
+                showAddSheet = false
+                await viewModel.enqueueUploads(
+                    specs,
+                    vaultDataSource: vaultDataSource,
+                    mediaManager: container.mediaManager
+                )
             }
         }
     }
@@ -385,11 +580,32 @@ struct VaultItemCard: View {
 
     @State private var thumbnail: UIImage?
 
+    /// Human-friendly sliding-TTL expiry label. Uses
+    /// `AccessKeyStore.defaultTTL` (currently 30 days) as the ceiling, then
+    /// rounds to the coarsest unit that still reads cleanly (e.g. "29d",
+    /// "5h", "45m", "Expiring soon"). "Sliding" is an honest word because
+    /// the TTL refreshes on every access — the countdown the user sees is
+    /// "time since last open" + TTL, not a hard deadline.
     private var expiryText: String {
-        let remaining = (30 * 24 * 3600) - Date().timeIntervalSince(item.createdAt)
+        let ttl = AccessKeyStore.defaultTTL
+        let elapsed = Date().timeIntervalSince(item.createdAt)
+        let remaining = ttl - elapsed
+
         guard remaining > 0 else { return "Expired" }
-        let hours = Int(remaining / 3600)
-        return "Expires in \(hours)h"
+
+        let days = Int(remaining / 86_400)
+        let hours = Int(remaining / 3_600)
+        let minutes = Int(remaining / 60)
+
+        if days >= 1 {
+            return "\(days)d left"
+        } else if hours >= 1 {
+            return "\(hours)h left"
+        } else if minutes >= 1 {
+            return "\(minutes)m left"
+        } else {
+            return "Expiring soon"
+        }
     }
 
     var body: some View {
@@ -435,20 +651,6 @@ struct VaultItemCard: View {
                     .background(Color.black.opacity(0.55))
                     .clipShape(Capsule())
                     .padding(14)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 10, weight: .bold))
-                    Text(ttlText)
-                        .font(SanchrTypography.captionSmall)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .frame(height: 28)
-                .background(iconTint)
-                .clipShape(Capsule())
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             VStack(alignment: .leading, spacing: 14) {
@@ -532,21 +734,6 @@ struct VaultItemCard: View {
             return "Audio"
         case .note:
             return "Note"
-        }
-    }
-
-    private var ttlText: String {
-        switch item.type {
-        case .photo:
-            return "24h"
-        case .video:
-            return "48h"
-        case .document:
-            return "72h"
-        case .audio:
-            return "24h"
-        case .note:
-            return "12h"
         }
     }
 
