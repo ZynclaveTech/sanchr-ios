@@ -7,21 +7,12 @@ import SanchrShared
 struct PrivacyView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
-    @State private var lastSeenVisibility = "nobody"
-    @State private var aboutVisibility = "everyone"
-    @State private var disappearingDefault = "24h"
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
     }
 
     private let visibilityOptions = ["everyone", "contacts", "nobody"]
-    private let disappearingOptions = [
-        ("Off", "off"),
-        ("24 hours", "24h"),
-        ("7 days", "7d"),
-        ("90 days", "90d"),
-    ]
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -42,7 +33,6 @@ struct PrivacyView: View {
                 settingsDataSource: settingsDataSource,
                 privacySettings: container.privacySettings
             )
-            lastSeenVisibility = viewModel.onlineStatusVisible ? "contacts" : "nobody"
         }
     }
 
@@ -60,20 +50,6 @@ struct PrivacyView: View {
             sectionTitle("Account Privacy")
 
             Menu {
-                visibilityMenuSelection(for: $lastSeenVisibility, syncsToBackend: false)
-            } label: {
-                cardRow(
-                    icon: "clock.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
-                    title: "Last Seen",
-                    subtitle: displayVisibility(lastSeenVisibility),
-                    trailing: AnyView(chevron)
-                )
-            }
-            .buttonStyle(.plain)
-
-            Menu {
                 visibilityMenuSelection(for: $viewModel.profilePhotoVisibility, syncsToBackend: true)
             } label: {
                 cardRow(
@@ -82,20 +58,6 @@ struct PrivacyView: View {
                     background: Color(hex: 0xECFEFF),
                     title: "Profile Photo",
                     subtitle: displayVisibility(viewModel.profilePhotoVisibility),
-                    trailing: AnyView(chevron)
-                )
-            }
-            .buttonStyle(.plain)
-
-            Menu {
-                visibilityMenuSelection(for: $aboutVisibility, syncsToBackend: false)
-            } label: {
-                cardRow(
-                    icon: "info.circle.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
-                    title: "About",
-                    subtitle: displayVisibility(aboutVisibility),
                     trailing: AnyView(chevron)
                 )
             }
@@ -159,24 +121,6 @@ struct PrivacyView: View {
                     background: Color(hex: 0xECFEFF),
                     title: "Secret Vault",
                     subtitle: "Hide sensitive files and chats",
-                    trailing: AnyView(chevron)
-                )
-            }
-            .buttonStyle(.plain)
-
-            Menu {
-                ForEach(disappearingOptions, id: \.1) { name, value in
-                    Button(name) {
-                        disappearingDefault = value
-                    }
-                }
-            } label: {
-                cardRow(
-                    icon: "timer",
-                    tint: Color(hex: 0xEA580C),
-                    background: Color(hex: 0xFFEDD5),
-                    title: "Disappearing Messages",
-                    subtitle: disappearingOptions.first(where: { $0.1 == disappearingDefault })?.0 ?? "Off",
                     trailing: AnyView(chevron)
                 )
             }
