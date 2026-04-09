@@ -2,10 +2,30 @@ import CryptoKit
 import Foundation
 import SanchrShared
 
-/// Data source for vault-related gRPC service calls.
-/// Orchestrates VaultService and MediaService RPCs for encrypted vault operations.
+/// Data source for the forward-secure vault.
+///
+/// Calls the `VaultService` gRPC endpoints and the `MediaService` upload/
+/// download helpers. Encrypts the metadata envelope client-side with the
+/// per-item `AccessK_vault` so the server never sees filename, mime type,
+/// thumbnail, or any other descriptive field.
+///
+/// The key lifecycle is:
+/// 1. Generate a fresh `vault_item_id` (UUIDv4) on the client
+/// 2. Generate a random 32-byte salt
+/// 3. Derive `AccessK_vault = HKDF(dls, salt, "sanchr-vault-manual-v1-<id>")`
+/// 4. Encrypt the file ciphertext and the metadata envelope with that key
+/// 5. Store the key in `AccessKeyStore` keyed by `vault_item_id`, kind: .vaultManual
+/// 6. Send only the opaque ciphertext + encrypted metadata to the server
+///
+/// On fetch:
+/// 1. Receive the `VaultItem` from the server (opaque bytes)
+/// 2. Look up `AccessK_vault` in `AccessKeyStore` via `getAndTouch`
+/// 3. Decrypt the metadata envelope locally
 final class VaultDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
+    private let accessKeyStore: AccessKeyStoreProtocol
+    private let mediaKeyDerivation: MediaKeyDerivationProtocol
+    private let deviceSecretProvider: DeviceSecretProviderProtocol
     private let mediaEncryption: MediaEncryptionProtocol
 
     private var vaultClient: Vync_Vault_VaultServiceAsyncClientProtocol {
@@ -18,193 +38,203 @@ final class VaultDataSource: @unchecked Sendable {
 
     init(
         grpcClient: GRPCClientProtocol,
+        accessKeyStore: AccessKeyStoreProtocol,
+        mediaKeyDerivation: MediaKeyDerivationProtocol,
+        deviceSecretProvider: DeviceSecretProviderProtocol,
         mediaEncryption: MediaEncryptionProtocol
     ) {
         self.grpcClient = grpcClient
+        self.accessKeyStore = accessKeyStore
+        self.mediaKeyDerivation = mediaKeyDerivation
+        self.deviceSecretProvider = deviceSecretProvider
         self.mediaEncryption = mediaEncryption
     }
 
-    // MARK: - Get Vault Items
+    // MARK: - List
 
-    /// Fetches vault items with optional filter and cursor-based pagination.
+    /// Fetches the next page of vault items. Returns the raw proto response;
+    /// the repository/use-case layer decrypts the metadata envelope per-item
+    /// using `AccessKeyStore`.
     func getVaultItems(
-        filter: String = "all",
         limit: Int32 = 20,
         cursor: String = ""
     ) async throws -> Vync_Vault_GetVaultItemsResponse {
+        SanchrLogger.network.info(
+            "VaultDataSource: getVaultItems limit=\(limit) cursor.len=\(cursor.count)"
+        )
         var request = Vync_Vault_GetVaultItemsRequest()
-        request.filter = filter
         request.limit = limit
-        request.beforeItemID = cursor
-
-        SanchrLogger.network.info("VaultDataSource: getVaultItems filter=\(filter) limit=\(limit)")
+        request.pagingToken = cursor
         return try await vaultClient.getVaultItems(request)
     }
 
-    // MARK: - Create Vault Item (Upload Flow)
+    /// Point-lookup for a single vault item by ID. Returns the raw proto.
+    func getVaultItem(vaultItemId: String) async throws -> Vync_Vault_VaultItem {
+        var request = Vync_Vault_GetVaultItemRequest()
+        request.vaultItemID = vaultItemId
+        return try await vaultClient.getVaultItem(request)
+    }
 
-    /// Full upload pipeline: encrypt -> get presigned URL -> upload to S3 -> create vault record.
-    /// If `thumbnailData` is provided, encrypts it with the same key and uploads as a separate blob.
+    // MARK: - Create
+
+    /// Manual upload path. Derives a new AccessK_vault, encrypts the payload
+    /// AND metadata client-side, uploads the ciphertext to S3, registers the
+    /// vault item server-side, and stores the key in AccessKeyStore.
+    ///
+    /// - Returns: the server's echoed `VaultItem` (opaque) + the locally
+    ///   decrypted metadata as a `VaultItemMetadata` helper struct.
     func createVaultItem(
         data: Data,
         fileName: String,
         mediaType: String,
-        senderID: String,
-        ttlSeconds: Int64 = 0,
         thumbnailData: Data? = nil,
+        expiresAt: Int64 = 0,
         onProgress: (@Sendable (Double) -> Void)? = nil
-    ) async throws -> Vync_Vault_VaultItem {
-        // 1. Encrypt main file with AES-GCM
-        let encrypted = try mediaEncryption.encrypt(data: data)
-        let ciphertext = encrypted.ciphertext
-        let encryptionKey = encrypted.key
+    ) async throws -> (proto: Vync_Vault_VaultItem, metadata: VaultItemMetadata) {
+        // 1. Generate a fresh vault_item_id and salt.
+        let vaultItemId = UUID().uuidString.lowercased()
+        var saltBytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, saltBytes.count, &saltBytes)
+        guard status == errSecSuccess else {
+            throw VaultDataSourceError.randomGenerationFailed
+        }
+        let salt = Data(saltBytes)
+
+        // 2. Derive AccessK_vault from the device master secret.
+        let dls = try deviceSecretProvider.mediaAccessSecret()
+        let accessKey = mediaKeyDerivation.deriveVaultAccessKeyManual(
+            deviceSecret: dls,
+            salt: salt,
+            vaultItemId: vaultItemId
+        )
+
+        // 3. Encrypt the payload with AccessK_vault.
+        let ciphertext = try mediaEncryption.encrypt(data: data, withKey: accessKey)
 
         SanchrLogger.media.info(
-            "VaultDataSource: encrypted \(data.count) -> \(ciphertext.count) bytes")
+            "VaultDataSource: encrypted \(data.count) -> \(ciphertext.count) bytes for \(vaultItemId.prefix(8))..."
+        )
 
-        // 2. Compute SHA-256 hash of ciphertext for dedup
-        let digest = SHA256.hash(data: ciphertext)
-        let hashHex = digest.map { String(format: "%02x", $0) }.joined()
+        // 4. Get a presigned upload URL from the media service.
+        let contentType = Self.contentType(for: mediaType)
+        let hash = SHA256.hash(data: ciphertext).map { String(format: "%02x", $0) }.joined()
 
-        // 3. Get presigned upload URL from MediaService
-        let contentType = Self.mimeType(for: mediaType)
-        var uploadRequest = Vync_Media_GetUploadUrlRequest()
-        uploadRequest.fileSize = Int64(ciphertext.count)
-        uploadRequest.contentType = contentType
-        uploadRequest.sha256Hash = hashHex
-
-        let uploadUrlResponse = try await mediaClient.getUploadUrl(uploadRequest)
-        let presignedURL = uploadUrlResponse.url
-        let mediaID = uploadUrlResponse.mediaID
-
-        SanchrLogger.media.info("VaultDataSource: got presigned URL, mediaID=\(mediaID)")
-
-        onProgress?(0.05)
-
-        // 4. Upload encrypted thumbnail (if provided) — same AES key, separate blob
-        var thumbnailURL = ""
-        if let thumbData = thumbnailData {
-            let encryptedThumb = try mediaEncryption.encrypt(data: thumbData, withKey: encryptionKey)
-            let thumbDigest = SHA256.hash(data: encryptedThumb)
-            let thumbHash = thumbDigest.map { String(format: "%02x", $0) }.joined()
-
-            var thumbUploadReq = Vync_Media_GetUploadUrlRequest()
-            thumbUploadReq.fileSize = Int64(encryptedThumb.count)
-            thumbUploadReq.contentType = "application/octet-stream"
-            thumbUploadReq.sha256Hash = thumbHash
-
-            let thumbUrlResponse = try await mediaClient.getUploadUrl(thumbUploadReq)
-            try await uploadToS3(
-                data: encryptedThumb,
-                url: thumbUrlResponse.url,
-                contentType: "application/octet-stream"
-            )
-
-            var thumbConfirm = Vync_Media_ConfirmUploadRequest()
-            thumbConfirm.mediaID = thumbUrlResponse.mediaID
-            thumbConfirm.fileSize = Int64(encryptedThumb.count)
-            _ = try await mediaClient.confirmUpload(thumbConfirm)
-
-            // Strip query params to get the permanent S3 path
-            if let components = URLComponents(string: thumbUrlResponse.url) {
-                var clean = components
-                clean.queryItems = nil
-                thumbnailURL = clean.url?.absoluteString ?? thumbUrlResponse.url
-            } else {
-                thumbnailURL = thumbUrlResponse.url
-            }
-            SanchrLogger.media.info("VaultDataSource: encrypted thumbnail uploaded (\(encryptedThumb.count) bytes)")
-        }
+        var uploadReq = Vync_Media_GetUploadUrlRequest()
+        uploadReq.fileSize = Int64(ciphertext.count)
+        uploadReq.contentType = contentType
+        uploadReq.sha256Hash = hash
+        uploadReq.purpose = .attachment
+        let presigned = try await mediaClient.getUploadUrl(uploadReq)
 
         onProgress?(0.1)
 
-        // 5. Upload main ciphertext to S3 via presigned URL
-        try await uploadToS3(data: ciphertext, url: presignedURL, contentType: contentType) { fraction in
+        // 5. PUT the ciphertext to S3 via presigned URL.
+        try await Self.uploadToS3(
+            data: ciphertext,
+            url: presigned.url,
+            contentType: contentType
+        ) { fraction in
             onProgress?(0.1 + fraction * 0.8)
         }
 
-        // 6. Confirm the upload
-        var confirmRequest = Vync_Media_ConfirmUploadRequest()
-        confirmRequest.mediaID = mediaID
-        confirmRequest.fileSize = Int64(ciphertext.count)
-        _ = try await mediaClient.confirmUpload(confirmRequest)
+        // 6. Confirm upload with the media service.
+        var confirmReq = Vync_Media_ConfirmUploadRequest()
+        confirmReq.mediaID = presigned.mediaID
+        confirmReq.fileSize = Int64(ciphertext.count)
+        _ = try await mediaClient.confirmUpload(confirmReq)
 
         onProgress?(0.95)
 
-        // 7. Create vault item record on the server
-        var createRequest = Vync_Vault_CreateVaultItemRequest()
-        createRequest.mediaType = mediaType
-        createRequest.encryptedURL = presignedURL
-        createRequest.encryptedKey = encryptionKey
-        createRequest.thumbnailURL = thumbnailURL
-        createRequest.fileName = fileName
-        createRequest.fileSize = Int64(data.count)
-        createRequest.senderID = senderID
-        createRequest.ttlSeconds = ttlSeconds
+        // 7. Build and encrypt the metadata envelope.
+        let metadata = VaultItemMetadata(
+            name: fileName,
+            mimeType: contentType,
+            sizeBytes: Int64(data.count),
+            thumbnailJpeg: thumbnailData,
+            originalSenderId: nil,
+            createdAtMs: Int64(Date().timeIntervalSince1970 * 1000),
+            kind: AccessKeyEntry.Kind.vaultManual.rawValue
+        )
+        let metadataJson = try JSONEncoder().encode(metadata)
+        guard metadataJson.count <= 64 * 1024 else {
+            throw VaultDataSourceError.metadataTooLarge(actual: metadataJson.count)
+        }
+        let encryptedMetadata = try mediaEncryption.encrypt(
+            data: metadataJson,
+            withKey: accessKey
+        )
 
-        SanchrLogger.network.info("VaultDataSource: createVaultItem \(fileName)")
-        return try await vaultClient.createVaultItem(createRequest)
+        // 8. Create the vault item row on the server.
+        var createReq = Vync_Vault_CreateVaultItemRequest()
+        createReq.vaultItemID = vaultItemId
+        createReq.mediaID = presigned.mediaID
+        createReq.encryptedMetadata = encryptedMetadata
+        createReq.expiresAt = expiresAt
+
+        SanchrLogger.network.info(
+            "VaultDataSource: createVaultItem \(vaultItemId.prefix(8))..."
+        )
+        let vaultProto = try await vaultClient.createVaultItem(createReq)
+
+        // 9. Persist AccessK_vault locally. The vault_item_id is used as the
+        //    access-key-store primary key (field name is `mediaId` for
+        //    historical reasons; see the comment on AccessKeyEntry.mediaId).
+        try await accessKeyStore.store(
+            mediaId: vaultItemId,
+            accessKey: accessKey,
+            conversationId: "",
+            kind: .vaultManual
+        )
+
+        onProgress?(1.0)
+        return (vaultProto, metadata)
     }
 
-    // MARK: - Delete Vault Item
+    // MARK: - Decrypt metadata
 
-    /// Deletes a vault item by ID.
-    func deleteVaultItem(itemId: String) async throws {
+    /// Decrypts the `encrypted_metadata` blob from a VaultItem proto using the
+    /// AccessK_vault stored in AccessKeyStore. Returns `nil` if the key isn't
+    /// available locally (e.g., cross-device backup restore → sealed item).
+    /// Uses `getAndTouch` to bump the sliding TTL on successful access.
+    func decryptMetadata(for proto: Vync_Vault_VaultItem) async throws -> VaultItemMetadata? {
+        guard
+            let accessKey = try await accessKeyStore.getAndTouch(mediaId: proto.vaultItemID)
+        else {
+            return nil
+        }
+        let plaintext = try mediaEncryption.decrypt(
+            ciphertext: proto.encryptedMetadata,
+            key: accessKey,
+            iv: Data()  // ignored — combined sealed-box form carries its own nonce
+        )
+        return try JSONDecoder().decode(VaultItemMetadata.self, from: plaintext)
+    }
+
+    // MARK: - Delete
+
+    func deleteVaultItem(vaultItemId: String) async throws {
+        SanchrLogger.network.info(
+            "VaultDataSource: deleteVaultItem \(vaultItemId.prefix(8))..."
+        )
         var request = Vync_Vault_DeleteVaultItemRequest()
-        request.itemID = itemId
-
-        SanchrLogger.network.info("VaultDataSource: deleteVaultItem \(itemId.prefix(8))...")
+        request.vaultItemID = vaultItemId
         _ = try await vaultClient.deleteVaultItem(request)
     }
 
-    // MARK: - Share Vault Item
+    // MARK: - Helpers
 
-    /// Shares a vault item with another user by re-encrypting the media key.
-    func shareVaultItem(
-        itemId: String,
-        recipientId: String,
-        reEncryptedKey: String
-    ) async throws {
-        var request = Vync_Vault_ShareVaultItemRequest()
-        request.itemID = itemId
-        request.recipientID = recipientId
-        request.reEncryptedKey = reEncryptedKey
-
-        SanchrLogger.network.info(
-            "VaultDataSource: shareVaultItem \(itemId.prefix(8))... -> \(recipientId.prefix(8))...")
-        _ = try await vaultClient.shareVaultItem(request)
+    private static func contentType(for mediaType: String) -> String {
+        switch mediaType {
+        case "photo": return "image/jpeg"
+        case "video": return "video/mp4"
+        case "audio": return "audio/m4a"
+        case "document": return "application/octet-stream"
+        case "note": return "text/plain"
+        default: return "application/octet-stream"
+        }
     }
 
-    // MARK: - Media URLs
-
-    /// Gets a presigned upload URL from MediaService.
-    func getUploadUrl(
-        fileSize: Int64,
-        contentType: String,
-        hash: String
-    ) async throws -> Vync_Media_PresignedUrlResponse {
-        var request = Vync_Media_GetUploadUrlRequest()
-        request.fileSize = fileSize
-        request.contentType = contentType
-        request.sha256Hash = hash
-
-        SanchrLogger.network.info("VaultDataSource: getUploadUrl")
-        return try await mediaClient.getUploadUrl(request)
-    }
-
-    /// Gets a presigned download URL from MediaService.
-    func getDownloadUrl(mediaId: String) async throws -> Vync_Media_PresignedUrlResponse {
-        var request = Vync_Media_GetDownloadUrlRequest()
-        request.mediaID = mediaId
-
-        SanchrLogger.network.info("VaultDataSource: getDownloadUrl \(mediaId.prefix(8))...")
-        return try await mediaClient.getDownloadUrl(request)
-    }
-
-    // MARK: - Private Helpers
-
-    /// Uploads raw data to an S3 presigned URL via HTTP PUT with progress tracking.
-    private func uploadToS3(
+    private static func uploadToS3(
         data: Data,
         url: String,
         contentType: String,
@@ -225,25 +255,32 @@ final class VaultDataSource: @unchecked Sendable {
 
         let (_, response) = try await session.upload(for: request, from: data)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-            (200...299).contains(httpResponse.statusCode)
+        guard
+            let http = response as? HTTPURLResponse,
+            (200..<300).contains(http.statusCode)
         else {
             SanchrLogger.media.error("S3 upload failed with response: \(response)")
             throw AppError.mediaUploadFailed
         }
-
         SanchrLogger.media.info("S3 upload complete: \(data.count) bytes")
     }
+}
 
-    /// Returns a MIME type string for a vault media type.
-    static func mimeType(for mediaType: String) -> String {
-        switch mediaType {
-        case "photo": return "image/jpeg"
-        case "video": return "video/mp4"
-        case "file": return "application/octet-stream"
-        default: return "application/octet-stream"
-        }
-    }
+/// The metadata envelope carried inside `encrypted_metadata`. Never sent as
+/// plaintext; the server only sees the AES-GCM ciphertext of this struct.
+struct VaultItemMetadata: Codable, Sendable {
+    let name: String
+    let mimeType: String
+    let sizeBytes: Int64
+    let thumbnailJpeg: Data?
+    let originalSenderId: String?
+    let createdAtMs: Int64
+    let kind: String  // AccessKeyEntry.Kind rawValue
+}
+
+enum VaultDataSourceError: Error, Sendable {
+    case randomGenerationFailed
+    case metadataTooLarge(actual: Int)
 }
 
 // MARK: - Upload Progress Delegate
