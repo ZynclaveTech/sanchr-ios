@@ -841,10 +841,8 @@ final class ChatDetailViewModel {
     func sendTypingIndicator(
         conversationId: String,
         isTyping: Bool,
-        messageRepository: MessageRepositoryProtocol,
-        canSend: Bool
+        messageRepository: MessageRepositoryProtocol
     ) async {
-        guard canSend else { return }
         do {
             try await messageRepository.sendTypingIndicator(
                 conversationId: conversationId,
@@ -858,8 +856,7 @@ final class ChatDetailViewModel {
     func handleInputTextChanged(
         _ newValue: String,
         conversationId: String,
-        messageRepository: MessageRepositoryProtocol,
-        canSend: Bool
+        messageRepository: MessageRepositoryProtocol
     ) {
         typingIdleTask?.cancel()
         let hasText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -868,8 +865,7 @@ final class ChatDetailViewModel {
             Task {
                 await stopTypingIndicator(
                     conversationId: conversationId,
-                    messageRepository: messageRepository,
-                    canSend: canSend
+                    messageRepository: messageRepository
                 )
             }
             return
@@ -880,8 +876,7 @@ final class ChatDetailViewModel {
                 await setTypingIndicator(
                     true,
                     conversationId: conversationId,
-                    messageRepository: messageRepository,
-                    canSend: canSend
+                    messageRepository: messageRepository
                 )
             }
         }
@@ -891,24 +886,21 @@ final class ChatDetailViewModel {
             guard !Task.isCancelled else { return }
             await self?.stopTypingIndicator(
                 conversationId: conversationId,
-                messageRepository: messageRepository,
-                canSend: canSend
+                messageRepository: messageRepository
             )
         }
     }
 
     func stopTypingIndicator(
         conversationId: String,
-        messageRepository: MessageRepositoryProtocol,
-        canSend: Bool
+        messageRepository: MessageRepositoryProtocol
     ) async {
         typingIdleTask?.cancel()
         typingIdleTask = nil
         await setTypingIndicator(
             false,
             conversationId: conversationId,
-            messageRepository: messageRepository,
-            canSend: canSend
+            messageRepository: messageRepository
         )
     }
 
@@ -1024,16 +1016,14 @@ final class ChatDetailViewModel {
     private func setTypingIndicator(
         _ isTyping: Bool,
         conversationId: String,
-        messageRepository: MessageRepositoryProtocol,
-        canSend: Bool
+        messageRepository: MessageRepositoryProtocol
     ) async {
         guard typingIndicatorIsActive != isTyping else { return }
         typingIndicatorIsActive = isTyping
         await sendTypingIndicator(
             conversationId: conversationId,
             isTyping: isTyping,
-            messageRepository: messageRepository,
-            canSend: canSend
+            messageRepository: messageRepository
         )
     }
 

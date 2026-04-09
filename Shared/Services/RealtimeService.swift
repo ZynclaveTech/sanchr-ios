@@ -184,9 +184,7 @@ final class RealtimeService: @unchecked Sendable {
         start()
         startHeartbeatLoop()
         Task {
-            if privacySettings.canSendPresence {
-                try? await sendPresenceHeartbeat(.foreground)
-            }
+            try? await sendPresenceHeartbeat(.foreground)
             await refreshPresenceSnapshot(for: Array(trackedPeerIds))
         }
     }
@@ -200,9 +198,7 @@ final class RealtimeService: @unchecked Sendable {
         }
 
         Task {
-            if privacySettings.canSendPresence {
-                try? await sendPresenceHeartbeat(.background)
-            }
+            try? await sendPresenceHeartbeat(.background)
             try? await Task.sleep(nanoseconds: 200_000_000)
             stop()
         }
@@ -361,7 +357,6 @@ final class RealtimeService: @unchecked Sendable {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard !Task.isCancelled, sessionService.isAuthenticated else { return }
-                guard privacySettings.canSendPresence else { continue }
                 try? await sendPresenceHeartbeat(.foreground)
             }
         }

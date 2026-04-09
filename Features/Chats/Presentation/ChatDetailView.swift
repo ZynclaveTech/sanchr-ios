@@ -380,8 +380,7 @@ struct ChatDetailView: View {
             Task {
                 await viewModel.stopTypingIndicator(
                     conversationId: conversation.id,
-                    messageRepository: container.messageRepository,
-                    canSend: container.privacySettings.canSendTypingIndicators
+                    messageRepository: container.messageRepository
                 )
             }
         }
@@ -416,19 +415,12 @@ struct ChatDetailView: View {
 
             viewModel.handleRealtimeMessage(message)
 
-            // Auto-mark incoming messages as read — gate receipt sending on privacy setting
+            // Auto-mark incoming messages as read — repo gates receipts internally.
             Task {
-                if container.privacySettings.canSendReadReceipts {
-                    try? await container.messageRepository.markAsRead(
-                        conversationId: conversation.id,
-                        upToMessageId: message.id
-                    )
-                } else {
-                    try? await container.messageRepository.markAsReadLocally(
-                        conversationId: conversation.id,
-                        upToMessageId: message.id
-                    )
-                }
+                try? await container.messageRepository.markAsRead(
+                    conversationId: conversation.id,
+                    upToMessageId: message.id
+                )
                 NotificationCenter.default.postConversationStateDidChange(
                     conversationId: conversation.id
                 )
@@ -472,8 +464,7 @@ struct ChatDetailView: View {
             viewModel.handleInputTextChanged(
                 newValue,
                 conversationId: conversation.id,
-                messageRepository: container.messageRepository,
-                canSend: container.privacySettings.canSendTypingIndicators
+                messageRepository: container.messageRepository
             )
         }
         .onChange(of: isInputFocused) { _, focused in
@@ -482,8 +473,7 @@ struct ChatDetailView: View {
                 Task {
                     await viewModel.stopTypingIndicator(
                         conversationId: conversation.id,
-                        messageRepository: container.messageRepository,
-                        canSend: container.privacySettings.canSendTypingIndicators
+                        messageRepository: container.messageRepository
                     )
                 }
             } else {
@@ -1218,17 +1208,11 @@ struct ChatDetailView: View {
     private func markConversationAsReadIfNeeded() async {
         guard let lastMessageId = viewModel.messages.last?.id else { return }
 
-        if container.privacySettings.canSendReadReceipts {
-            try? await container.messageRepository.markAsRead(
-                conversationId: conversation.id,
-                upToMessageId: lastMessageId
-            )
-        } else {
-            try? await container.messageRepository.markAsReadLocally(
-                conversationId: conversation.id,
-                upToMessageId: lastMessageId
-            )
-        }
+        // Repo gates receipts internally — falls through to local-only when disabled.
+        try? await container.messageRepository.markAsRead(
+            conversationId: conversation.id,
+            upToMessageId: lastMessageId
+        )
 
         NotificationCenter.default.postConversationStateDidChange(
             conversationId: conversation.id
