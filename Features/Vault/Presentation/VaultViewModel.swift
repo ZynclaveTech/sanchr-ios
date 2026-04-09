@@ -73,6 +73,22 @@ final class VaultViewModel {
         }
     }
 
+    // MARK: - Share State
+
+    /// State for the save/share state machine. `nil` means idle.
+    ///
+    /// Task 4 introduces `.saving` and `.exportingToFiles` for Flow A.
+    /// Task 6 adds the Flow B / B1 / B2 cases
+    /// (.choosingDestination, .pickingConversation,
+    /// .confirmingLargeReupload, .sendingToChat, .preparingShare,
+    /// .externalSharing).
+    enum ShareState: Sendable {
+        /// Downloading + writing temp file for a photo/video → Photos.
+        case saving(VaultItem)
+        /// Temp file ready, showing the Files export picker.
+        case exportingToFiles(VaultItem, tempURL: URL)
+    }
+
     // MARK: - State
 
     var items: [VaultItem] = []
@@ -106,6 +122,14 @@ final class VaultViewModel {
 
     /// Pagination cursor (opaque, provided by the server).
     private var cursor: String = ""
+
+    // Share / Save state (Flow A). Task 6 extends the state machine
+    // for Flow B / Flow B1 / Flow B2.
+    var shareState: ShareState?
+
+    /// Transient toast shown in the vault view after a save/share
+    /// completes. Consumed exactly once via `takeShareCompletionToast`.
+    var shareCompletionToast: String?
 
     // MARK: - Computed
 
@@ -245,6 +269,121 @@ final class VaultViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Save (Flow A)
+
+    /// Flow A entry point. Auto-routes by type:
+    /// - `.photo` / `.video` → download + PhotosSaver
+    /// - `.document` / `.audio` / `.note` → download + write temp file,
+    ///   set shareState to `.exportingToFiles` so the view presents
+    ///   `UIDocumentPickerViewController(forExporting:)`.
+    ///
+    /// No-op if `shareState != nil` (a save or share is already in
+    /// flight). The concurrency guard prevents double-taps from
+    /// re-downloading the same bytes.
+    ///
+    /// Dependencies are passed per-call rather than injected at init
+    /// to match the existing style of `loadItems` / `loadMore`. Task 6
+    /// extends this pattern for Flow B.
+    func requestSave(
+        _ item: VaultItem,
+        vaultRepository: VaultRepositoryProtocol,
+        photosSaver: PhotosSaving
+    ) async {
+        guard shareState == nil else {
+            SanchrLogger.vault.info("requestSave: ignored — shareState is set")
+            return
+        }
+
+        shareState = .saving(item)
+        // Clear the .saving state on exit via defer. If we transition
+        // to .exportingToFiles before returning, that assignment takes
+        // precedence and the guard below leaves it alone.
+        defer {
+            if case .saving = shareState { shareState = nil }
+        }
+
+        let data: Data
+        do {
+            data = try await vaultRepository.downloadItem(id: item.id)
+        } catch {
+            errorMessage = error.localizedDescription
+            SanchrLogger.vault.error("requestSave: download failed: \(error.localizedDescription)")
+            return
+        }
+
+        switch item.type {
+        case .photo, .video:
+            do {
+                try await photosSaver.save(
+                    data: data,
+                    mediaType: item.type,
+                    suggestedFilename: item.name.isEmpty ? "vault-item" : item.name
+                )
+                shareCompletionToast = "Saved to Photos"
+            } catch let photosError as PhotosSaverError {
+                switch photosError {
+                case .unsupportedMediaType:
+                    // Defensive fallthrough: shouldn't happen for
+                    // .photo/.video, but if it does, route to Files
+                    // instead of surfacing a confusing error.
+                    routeToFilesExport(item: item, data: data)
+                case .permissionDenied, .tempWriteFailed, .saveFailed:
+                    errorMessage = photosError.localizedDescription
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+
+        case .document, .audio, .note:
+            routeToFilesExport(item: item, data: data)
+        }
+    }
+
+    /// Writes the downloaded bytes to a temp file and transitions to
+    /// `.exportingToFiles`. The view presents
+    /// `UIDocumentPickerViewController(forExporting:)` which takes
+    /// ownership of the temp URL (iOS copies on import).
+    private func routeToFilesExport(item: VaultItem, data: Data) {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vault-save-\(UUID().uuidString)", isDirectory: true)
+        let filename = item.name.isEmpty ? "vault-item" : item.name
+        let tempURL = tempDir.appendingPathComponent(filename)
+
+        do {
+            try FileManager.default.createDirectory(
+                at: tempDir,
+                withIntermediateDirectories: true
+            )
+            try data.write(to: tempURL, options: .atomic)
+        } catch {
+            errorMessage = "Couldn't prepare file for save: \(error.localizedDescription)"
+            return
+        }
+
+        shareState = .exportingToFiles(item, tempURL: tempURL)
+    }
+
+    /// Called by the view when `UIDocumentPickerViewController`
+    /// dismisses (success or cancel). Clears the share state and
+    /// deletes the temp file's enclosing directory.
+    func didFinishFilesExport(for item: VaultItem, tempURL: URL, success: Bool) {
+        let tempDir = tempURL.deletingLastPathComponent()
+        try? FileManager.default.removeItem(at: tempDir)
+        if success {
+            shareCompletionToast = "Saved"
+        }
+        shareState = nil
+    }
+
+    /// Consumes and returns the transient completion toast. Called by
+    /// the view each render; the toast is displayed for a couple of
+    /// seconds and then cleared.
+    func takeShareCompletionToast() -> String? {
+        let toast = shareCompletionToast
+        shareCompletionToast = nil
+        return toast
     }
 
     // MARK: - Private helpers
