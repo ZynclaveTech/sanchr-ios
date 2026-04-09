@@ -128,6 +128,139 @@ final class VaultSharingCoordinatorTests: XCTestCase {
         )
     }
 
+    // MARK: - safeFileName security + sanitization
+
+    func test_safeFileName_emptyName_returnsUntitled() {
+        let item = Self.makeVaultItem(id: "e", name: "", type: .document, sizeBytes: 1)
+        XCTAssertEqual(VaultSharingCoordinator.safeFileName(for: item), "untitled")
+    }
+
+    func test_safeFileName_pathTraversalName_returnsUntitled() {
+        let dotDot = Self.makeVaultItem(id: "d", name: "..", type: .document, sizeBytes: 1)
+        XCTAssertEqual(VaultSharingCoordinator.safeFileName(for: dotDot), "untitled")
+
+        let dot = Self.makeVaultItem(id: "d2", name: ".", type: .document, sizeBytes: 1)
+        XCTAssertEqual(VaultSharingCoordinator.safeFileName(for: dot), "untitled")
+    }
+
+    func test_safeFileName_stripsBackslashAndSlash() {
+        let item = Self.makeVaultItem(
+            id: "b",
+            name: "foo\\bar/baz.pdf",
+            type: .document,
+            sizeBytes: 1
+        )
+        XCTAssertEqual(
+            VaultSharingCoordinator.safeFileName(for: item),
+            "foo-bar-baz.pdf"
+        )
+    }
+
+    func test_safeFileName_stripsControlCharacters() {
+        let item = Self.makeVaultItem(
+            id: "c",
+            name: "foo\tbar\nbaz\u{7F}.txt",
+            type: .document,
+            sizeBytes: 1
+        )
+        XCTAssertEqual(
+            VaultSharingCoordinator.safeFileName(for: item),
+            "foo-bar-baz-.txt"
+        )
+    }
+
+    func test_safeFileName_stripsLeadingDots() {
+        let item = Self.makeVaultItem(
+            id: "l",
+            name: "...DS_Store",
+            type: .document,
+            sizeBytes: 1
+        )
+        XCTAssertEqual(
+            VaultSharingCoordinator.safeFileName(for: item),
+            "DS_Store"
+        )
+    }
+
+    func test_safeFileName_truncatesOversizedName_preservingExtension() {
+        // 500 bytes of 'a' + ".pdf" = 504 total. After truncation, should
+        // be 200 bytes total, ending in ".pdf".
+        let longBase = String(repeating: "a", count: 500)
+        let item = Self.makeVaultItem(
+            id: "t",
+            name: "\(longBase).pdf",
+            type: .document,
+            sizeBytes: 1
+        )
+        let result = VaultSharingCoordinator.safeFileName(for: item)
+        XCTAssertLessThanOrEqual(result.utf8.count, 200)
+        XCTAssertTrue(result.hasSuffix(".pdf"), "extension must be preserved")
+    }
+
+    // MARK: - prepareForExternalShare failure paths
+
+    func test_prepareForExternalShare_traversalName_containedInSubdirectory() async throws {
+        // Defense in depth: `safeFileName` strips separators so the
+        // sanitized name becomes a single path component that cannot
+        // escape the UUID subdirectory. Verify that the resolved
+        // absolute path is strictly rooted under vault-share/.
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("pwn".utf8))
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: UnusedMessageSender()
+        )
+        let item = Self.makeVaultItem(
+            id: "e",
+            name: "../../evil.pdf",
+            type: .document,
+            sizeBytes: 3
+        )
+
+        let tempURL = try await coordinator.prepareForExternalShare(item: item)
+        defer { try? FileManager.default.removeItem(at: tempURL.deletingLastPathComponent()) }
+
+        // The sanitized filename must not contain any unescaped path
+        // separators — a `/` or `\` in the last-path-component would
+        // mean `appendingPathComponent` split it into a nested path.
+        let lastComponent = tempURL.lastPathComponent
+        XCTAssertFalse(
+            lastComponent.contains("/"),
+            "sanitized filename must not contain '/': got \(lastComponent)"
+        )
+        XCTAssertFalse(
+            lastComponent.contains("\\"),
+            "sanitized filename must not contain '\\': got \(lastComponent)"
+        )
+
+        // Strict containment: the standardized absolute path must start
+        // with the standardized vault-share root path. This is the real
+        // security invariant — even if the sanitized filename contained
+        // `..` substrings, there's no `/` to act as a path separator so
+        // the filesystem treats it as a single component.
+        let standardizedPath = tempURL.standardizedFileURL.path
+        let shareRootPath = Self.shareRoot().standardizedFileURL.path
+        XCTAssertTrue(
+            standardizedPath.hasPrefix(shareRootPath + "/"),
+            "temp file must remain under \(shareRootPath): \(standardizedPath)"
+        )
+    }
+
+    func test_prepareForExternalShare_emptyName_writesUntitledFile() async throws {
+        let vaultRepo = SpyVaultRepository()
+        vaultRepo.downloadResult = .success(Data("x".utf8))
+        let coordinator = VaultSharingCoordinator(
+            vaultRepository: vaultRepo,
+            messageSender: UnusedMessageSender()
+        )
+        let item = Self.makeVaultItem(id: "empty", name: "", type: .document, sizeBytes: 1)
+
+        let tempURL = try await coordinator.prepareForExternalShare(item: item)
+        defer { try? FileManager.default.removeItem(at: tempURL.deletingLastPathComponent()) }
+
+        XCTAssertEqual(tempURL.lastPathComponent, "untitled")
+    }
+
     // MARK: - Helpers
 
     private static func shareRoot() -> URL {

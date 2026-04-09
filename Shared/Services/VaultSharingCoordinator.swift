@@ -13,7 +13,7 @@ import SanchrShared
 /// rejected by Swift 6 (a `public` coordinator init cannot take an
 /// internal parameter). Internal is the correct scope: every call site
 /// lives inside the `Sanchr` target.
-protocol VaultMessageSending: AnyObject, Sendable {
+protocol VaultMessageSending: Sendable {
     func sendMedia(
         attachment: Message.MediaAttachment,
         caption: String?,
@@ -66,7 +66,12 @@ protocol VaultSharingCoordinating: Sendable {
 /// - Successful external share: caller invokes `cleanupTempFile(at:)`
 ///   from `UIActivityViewController`'s completion handler.
 /// - Successful chat share: coordinator cleans up in a `defer` after
-///   `messageSender.sendMedia` returns (Task 5).
+///   `messageSender.sendMedia` returns. The chat send pipeline copies
+///   bytes into `Documents/attachments/` before returning, so the
+///   temp file is free to delete at that point (verified in Task 1 by
+///   reading `MessageSender.sendMedia`). If that invariant ever
+///   breaks, the send will fail with a missing-file error and the
+///   vault item will stay intact — we never delete from the vault.
 /// - Failed download: the UUID subdirectory is torn down before the
 ///   error is rethrown.
 /// - App crash mid-share: `sweepOrphanedTempFiles()` runs on launch
@@ -132,7 +137,13 @@ actor VaultSharingCoordinator: VaultSharingCoordinating {
     }
 
     /// Deletes a temp file AND its enclosing UUID subdirectory. Safe to
-    /// call with a nonexistent path — logs a warning and returns.
+    /// call with a nonexistent path.
+    ///
+    /// Errors are logged as warnings, not thrown — the caller is a
+    /// `UIActivityViewController` completion handler where nothing
+    /// actionable can be done with a cleanup failure. Any leftover
+    /// files are reaped by `sweepOrphanedTempFiles()` on next app
+    /// launch, which is the ultimate backstop for this design.
     func cleanupTempFile(at url: URL) {
         let subdirectory = url.deletingLastPathComponent()
         do {
@@ -201,14 +212,66 @@ actor VaultSharingCoordinator: VaultSharingCoordinating {
     }
 
     /// Returns a filename that's safe to use as a filesystem last-path
-    /// component. Strips path separators and null bytes, and replaces
-    /// empty names with "untitled".
-    private static func safeFileName(for item: VaultItem) -> String {
-        let raw = item.name.isEmpty ? "untitled" : item.name
-        let cleaned = raw
-            .replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: "\0", with: "")
-        return cleaned
+    /// component inside a per-share UUID subdirectory.
+    ///
+    /// Mitigations:
+    /// - Path traversal via `..` or `.` as the whole name → `"untitled"`
+    /// - Embedded separators `/` and `\` → `-` (Windows/SMB share targets
+    ///   treat `\` as a separator even though APFS accepts it)
+    /// - C0 control characters (`\0`..`\u{1F}`, `\u{7F}`) → `-` (cause
+    ///   display corruption in many share targets)
+    /// - Leading dots → stripped (would create hidden files on iOS/macOS)
+    /// - Empty result after sanitization → `"untitled"`
+    /// - Length > 200 UTF-8 bytes → truncated extension-preserving. APFS
+    ///   caps a single path component at 255 bytes; 200 leaves headroom
+    ///   for the UUID subdirectory path and any recipient-app renaming.
+    ///
+    /// Called at each `prepareForExternalShare` / `shareToChat` entry
+    /// point. Task 5's share-to-chat pipeline reuses the same sanitized
+    /// name as the `Message.MediaAttachment.filename`, which lands in
+    /// persisted database rows — a path-traversal character landing
+    /// there is worse than landing in `/tmp`.
+    static func safeFileName(for item: VaultItem) -> String {
+        let raw = item.name
+
+        // 1. Reject pathological whole-names.
+        if raw.isEmpty || raw == "." || raw == ".." {
+            return "untitled"
+        }
+
+        // 2. Strip path separators, nulls, and C0 control characters.
+        let sanitized = String(raw.unicodeScalars.map { scalar -> Character in
+            if scalar == "/" || scalar == "\\" {
+                return "-"
+            }
+            if scalar.value < 0x20 || scalar.value == 0x7F {
+                return "-"
+            }
+            return Character(scalar)
+        })
+
+        // 3. Strip leading dots so we don't create hidden files.
+        var trimmed = sanitized
+        while trimmed.hasPrefix(".") { trimmed.removeFirst() }
+        if trimmed.isEmpty { return "untitled" }
+
+        // 4. Cap at 200 UTF-8 bytes, extension-preserving.
+        let maxBytes = 200
+        if trimmed.utf8.count <= maxBytes { return trimmed }
+
+        let nsTrimmed = trimmed as NSString
+        let ext = nsTrimmed.pathExtension
+        let base = nsTrimmed.deletingPathExtension
+        let extBudget = ext.isEmpty ? 0 : ext.utf8.count + 1  // +1 for the dot
+        let baseBudget = max(1, maxBytes - extBudget)
+
+        var truncatedBase = base
+        while truncatedBase.utf8.count > baseBudget && !truncatedBase.isEmpty {
+            truncatedBase.removeLast()
+        }
+        if truncatedBase.isEmpty { return "untitled" }
+
+        return ext.isEmpty ? truncatedBase : "\(truncatedBase).\(ext)"
     }
 
     /// Creates a new UUID subdirectory under the vault-share root and
