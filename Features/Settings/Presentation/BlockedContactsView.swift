@@ -59,10 +59,6 @@ struct BlockedContactsView: View {
                             .padding(16)
                             .background(SanchrExportColors.surface)
                             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                            }
                         }
                     }
                     .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
