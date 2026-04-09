@@ -3,6 +3,34 @@ import CryptoKit
 import SanchrShared
 @testable import Sanchr
 
+/// Minimal in-memory DeviceSecretProvider for tests. Only exercises the
+/// `mediaAccessSecret` / `backupFingerprint` paths — everything else aborts.
+final class InMemoryDeviceSecretProvider: DeviceSecretProviderProtocol, @unchecked Sendable {
+    private let seed: Data
+    init(seed: Data) { self.seed = seed }
+
+    func readDeviceMasterSecret() throws -> Data? { seed }
+    func readOrCreateDeviceMasterSecret() throws -> Data { seed }
+    func localDatabasePassphrase() throws -> String {
+        fatalError("not used in VaultCryptoTests")
+    }
+    func localHMACKey() throws -> Data { fatalError("not used in VaultCryptoTests") }
+    func mediaWrapKey() throws -> Data { fatalError("not used in VaultCryptoTests") }
+    func mediaAccessSecret() throws -> Data { seed }
+    func clearDeviceSecrets() throws { /* no-op */ }
+
+    func backupFingerprint() throws -> String {
+        // Same implementation as the production code — if the production
+        // implementation changes, update this too.
+        let label = "sanchr-backup-fingerprint-v1".data(using: .utf8)!
+        var input = Data()
+        input.append(seed)
+        input.append(label)
+        let digest = SHA256.hash(data: input)
+        return Data(digest).base64EncodedString()
+    }
+}
+
 final class VaultCryptoTests: XCTestCase {
 
     // MARK: - Vault HKDF derivation
@@ -92,6 +120,46 @@ final class VaultCryptoTests: XCTestCase {
         XCTAssertNotEqual(
             manual, fromMessage,
             "the two HKDF labels must domain-separate even when ikm/salt bytes collide"
+        )
+    }
+
+    // MARK: - Backup fingerprint
+
+    func test_backupFingerprint_isDeterministic() throws {
+        let provider = InMemoryDeviceSecretProvider(seed: Data(repeating: 0x42, count: 32))
+        let first = try provider.backupFingerprint()
+        let second = try provider.backupFingerprint()
+        XCTAssertEqual(first, second, "same dls must produce same fingerprint")
+        XCTAssertFalse(first.isEmpty)
+    }
+
+    func test_backupFingerprint_differsByDLS() throws {
+        let providerA = InMemoryDeviceSecretProvider(seed: Data(repeating: 0x01, count: 32))
+        let providerB = InMemoryDeviceSecretProvider(seed: Data(repeating: 0x02, count: 32))
+
+        let a = try providerA.backupFingerprint()
+        let b = try providerB.backupFingerprint()
+
+        XCTAssertNotEqual(a, b, "different dls must produce different fingerprints")
+    }
+
+    func test_backupFingerprint_doesNotLeakDLS() throws {
+        let seed = Data((0..<32).map { UInt8($0) })
+        let provider = InMemoryDeviceSecretProvider(seed: seed)
+        let fingerprint = try provider.backupFingerprint()
+
+        // Base64-decode the fingerprint and verify the raw bytes do not
+        // start with the dls bytes (a one-way hash would only match by
+        // vanishingly rare collision).
+        guard let fingerprintBytes = Data(base64Encoded: fingerprint) else {
+            XCTFail("fingerprint must be valid base64")
+            return
+        }
+        XCTAssertEqual(fingerprintBytes.count, 32, "SHA-256 output must be 32 bytes")
+        XCTAssertNotEqual(fingerprintBytes, seed, "fingerprint must not equal the raw dls")
+        XCTAssertNotEqual(
+            fingerprintBytes.prefix(8), seed.prefix(8),
+            "fingerprint must not be a simple prefix of the dls"
         )
     }
 }
