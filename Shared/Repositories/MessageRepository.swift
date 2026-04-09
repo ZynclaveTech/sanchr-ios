@@ -121,6 +121,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let mediaDownloadManager: MediaDownloadManager
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
+    private let privacyGate: MessagingPrivacyGate
 
     init(
         grpcClient: GRPCClientProtocol,
@@ -129,7 +130,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         chatVaultPolicyMirror: ChatVaultPolicyMirror,
         vaultRepository: VaultRepositoryProtocol,
         mediaDownloadManager: MediaDownloadManager,
-        currentUserIdProvider: @escaping @Sendable () -> String? = { nil }
+        currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
+        privacySettings: PrivacySettingsCache
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
@@ -138,6 +140,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.vaultRepository = vaultRepository
         self.mediaDownloadManager = mediaDownloadManager
         self.currentUserIdProvider = currentUserIdProvider
+        self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
     }
 
     /// Returns true if the message content is something we route into
@@ -294,6 +297,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     func markAsRead(conversationId: String, upToMessageId: String) async throws {
+        switch privacyGate.decide(.readReceipt) {
+        case .suppress:
+            try await markAsReadLocally(
+                conversationId: conversationId,
+                upToMessageId: upToMessageId
+            )
+            SanchrLogger.chat.info(
+                "markAsRead gated by privacy settings — local-only for \(conversationId.prefix(8))"
+            )
+            return
+        case .allow:
+            break
+        }
+
         SanchrLogger.chat.info("Marking messages as read in \(conversationId) up to \(upToMessageId)")
 
         var request = Vync_Messaging_ReceiptRequest()
@@ -490,6 +507,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {
+        guard privacyGate.decide(.typingIndicator) == .allow else { return }
+
         SanchrLogger.chat.info("Sending typing indicator: \(isTyping) for \(conversationId)")
 
         var typingIndicator = Vync_Messaging_TypingIndicator()
@@ -506,6 +525,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         deviceState: Vync_Messaging_DevicePresenceState,
         sentAtMs: Int64
     ) async throws {
+        guard privacyGate.decide(.presenceHeartbeat) == .allow else { return }
+
         var heartbeat = Vync_Messaging_PresenceHeartbeat()
         heartbeat.deviceState = deviceState
         heartbeat.sentAtMs = sentAtMs
