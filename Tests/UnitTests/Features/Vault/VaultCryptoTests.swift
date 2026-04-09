@@ -162,4 +162,25 @@ final class VaultCryptoTests: XCTestCase {
             "fingerprint must not be a simple prefix of the dls"
         )
     }
+
+    func test_backupFingerprint_productionMatchesReference() throws {
+        // Guards against drift between the production DeviceSecretProvider
+        // and the InMemoryDeviceSecretProvider test helper. Both are expected
+        // to produce identical fingerprints for the same seed — if either
+        // implementation changes and the other doesn't, this test fails.
+        let knownSecret = Data(repeating: 0x77, count: 32)
+        let storage = MockSecureStorage()
+        storage.deviceMasterSecret = knownSecret
+
+        let production = DeviceSecretProvider(secureStorage: storage)
+        let reference = InMemoryDeviceSecretProvider(seed: knownSecret)
+
+        let productionFingerprint = try production.backupFingerprint()
+        let referenceFingerprint = try reference.backupFingerprint()
+
+        XCTAssertEqual(
+            productionFingerprint, referenceFingerprint,
+            "production and reference backupFingerprint must agree"
+        )
+    }
 }
