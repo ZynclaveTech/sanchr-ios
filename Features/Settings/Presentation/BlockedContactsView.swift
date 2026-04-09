@@ -17,7 +17,7 @@ struct BlockedContactsView: View {
                 } else if blockedIDs.isEmpty {
                     VStack(spacing: 12) {
                         Circle()
-                            .fill(Color(hex: 0xF3F4F6))
+                            .fill(SanchrExportColors.surfaceMuted)
                             .frame(width: 72, height: 72)
                             .overlay {
                                 Image(systemName: "hand.raised.slash.fill")
@@ -37,7 +37,7 @@ struct BlockedContactsView: View {
                         ForEach(blockedIDs, id: \.self) { userId in
                             HStack(spacing: 14) {
                                 Circle()
-                                    .fill(Color(hex: 0xFEE2E2))
+                                    .fill(SanchrExportColors.surfaceMuted)
                                     .frame(width: 42, height: 42)
                                     .overlay {
                                         Image(systemName: "person.fill")

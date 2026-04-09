@@ -54,8 +54,6 @@ struct PrivacyView: View {
             } label: {
                 cardRow(
                     icon: "person.crop.circle.fill",
-                    tint: SanchrColors.accent,
-                    background: Color(hex: 0xECFEFF),
                     title: "Profile Photo",
                     subtitle: displayVisibility(viewModel.profilePhotoVisibility),
                     trailing: AnyView(chevron)
@@ -64,7 +62,7 @@ struct PrivacyView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 14) {
-                iconTile(systemName: "checkmark.message.fill", tint: Color(hex: 0x16A34A), background: Color(hex: 0xDCFCE7))
+                iconTile(systemName: "checkmark.message.fill")
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Read Receipts")
@@ -99,8 +97,6 @@ struct PrivacyView: View {
             } label: {
                 cardRow(
                     icon: "lock.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
                     title: "App Lock",
                     subtitle: "Biometric and timeout controls",
                     trailing: AnyView(chevron)
@@ -113,8 +109,6 @@ struct PrivacyView: View {
             } label: {
                 cardRow(
                     icon: "lock.doc.fill",
-                    tint: SanchrColors.accent,
-                    background: Color(hex: 0xECFEFF),
                     title: "Secret Vault",
                     subtitle: "Hide sensitive files and chats",
                     trailing: AnyView(chevron)
@@ -131,8 +125,6 @@ struct PrivacyView: View {
             VStack(spacing: 0) {
                 stackedToggleRow(
                     icon: "dot.radiowaves.left.and.right",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
                     title: "Online Status",
                     subtitle: "Let trusted contacts know when you're active",
                     isOn: $viewModel.onlineStatusVisible
@@ -145,8 +137,6 @@ struct PrivacyView: View {
 
                 stackedToggleRow(
                     icon: "keyboard.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
                     title: "Typing Indicators",
                     subtitle: "Show when you're composing a message",
                     isOn: $viewModel.typingIndicator
@@ -170,8 +160,6 @@ struct PrivacyView: View {
             } label: {
                 cardRow(
                     icon: "hand.raised.fill",
-                    tint: Color(hex: 0xDC2626),
-                    background: Color(hex: 0xFEE2E2),
                     title: "Blocked contacts",
                     subtitle: "Review and unblock people at any time",
                     trailing: AnyView(chevron)
@@ -190,14 +178,12 @@ struct PrivacyView: View {
 
     private func cardRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         trailing: AnyView
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -219,15 +205,13 @@ struct PrivacyView: View {
 
     private func stackedToggleRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         isOn: Binding<Bool>,
         onChange: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -250,7 +234,7 @@ struct PrivacyView: View {
         .padding(.vertical, 12)
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
+    private func iconTile(systemName: String) -> some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(SanchrExportColors.surfaceMuted)
             .frame(width: 42, height: 42)
