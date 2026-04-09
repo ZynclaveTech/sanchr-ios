@@ -411,6 +411,16 @@ final class DependencyContainer: @unchecked Sendable {
 
     init() {
         // Eagerly start network monitoring if needed.
+
+        // Vault share temp-file sweep. Runs detached at utility priority
+        // so it doesn't block startup — any orphans from a crashed share
+        // are cleaned up before the user touches the vault view. The
+        // entire vault-share/ directory is removed unconditionally: no
+        // valid share spans an app restart, so there's nothing to
+        // preserve.
+        Task.detached(priority: .utility) {
+            await VaultSharingCoordinator.sweepOrphanedTempFiles()
+        }
     }
 
     private func makeLocalDatabase() -> LocalDatabaseProtocol {
