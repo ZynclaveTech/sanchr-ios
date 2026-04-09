@@ -257,6 +257,15 @@ final class DependencyContainer: @unchecked Sendable {
         ekfScheduler: vaultEKFScheduler
     )
 
+    /// Coordinator for the vault save/share flows. Owns the download
+    /// → write-temp-file → cleanup pipeline used by Flow A (Save),
+    /// Flow B1 (share to chat), Flow B2 (share outside Sanchr), and
+    /// Flow C (chat attachment picker → vault item reshare).
+    @ObservationIgnored lazy var vaultSharingCoordinator: VaultSharingCoordinating = VaultSharingCoordinator(
+        vaultRepository: vaultRepository,
+        messageSender: messageSender
+    )
+
     // MARK: - Services
 
     @ObservationIgnored lazy var sessionService: SessionService = SessionService(

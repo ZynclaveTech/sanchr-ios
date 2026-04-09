@@ -165,6 +165,78 @@ struct VaultView: View {
                 }
             }
         }
+        // Share destination chooser (Flow B entry). Bound to
+        // shareState == .choosingDestination. User picks "Share in
+        // chat" → chooseShareInChat (Task 9 lands the picker) or
+        // "Share outside Sanchr" → chooseShareOutside which downloads
+        // via the coordinator and transitions to .externalSharing.
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    if case .choosingDestination = viewModel.shareState { return true }
+                    return false
+                },
+                set: { presented in
+                    if !presented, case .choosingDestination = viewModel.shareState {
+                        viewModel.cancelShare()
+                    }
+                }
+            )
+        ) {
+            if case .choosingDestination(let item) = viewModel.shareState {
+                VaultShareDestinationSheet(
+                    item: item,
+                    onShareInChat: {
+                        viewModel.chooseShareInChat(for: item)
+                    },
+                    onShareOutside: {
+                        Task {
+                            await viewModel.chooseShareOutside(
+                                for: item,
+                                sharingCoordinator: container.vaultSharingCoordinator
+                            )
+                        }
+                    },
+                    onCancel: {
+                        viewModel.cancelShare()
+                    }
+                )
+            }
+        }
+        // External share sheet (Flow B2 terminal). Bound to
+        // shareState == .externalSharing. Presents the iOS stock
+        // UIActivityViewController wrapped by VaultActivityView. On
+        // completion (success or cancel) cleans up the temp file and
+        // clears share state.
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    if case .externalSharing = viewModel.shareState { return true }
+                    return false
+                },
+                set: { presented in
+                    if !presented, case .externalSharing(let item, let tempURL) = viewModel.shareState {
+                        viewModel.didFinishExternalShare(
+                            for: item,
+                            tempURL: tempURL,
+                            completed: false,
+                            sharingCoordinator: container.vaultSharingCoordinator
+                        )
+                    }
+                }
+            )
+        ) {
+            if case .externalSharing(let item, let tempURL) = viewModel.shareState {
+                VaultActivityView(items: [tempURL]) { completed in
+                    viewModel.didFinishExternalShare(
+                        for: item,
+                        tempURL: tempURL,
+                        completed: completed,
+                        sharingCoordinator: container.vaultSharingCoordinator
+                    )
+                }
+            }
+        }
         // Transient completion toast ("Saved to Photos" / "Saved").
         // Auto-clears after ~2.5s via takeShareCompletionToast. The
         // id: modifier forces SwiftUI to rebuild the view on each new
