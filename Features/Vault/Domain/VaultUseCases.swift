@@ -57,7 +57,10 @@ enum VaultUseCases {
 
         private func decryptToItem(_ proto: Vync_Vault_VaultItem) async throws -> VaultItem? {
             let vaultItemId = proto.vaultItemID
-            guard let accessKey = try await accessKeyStore.retrieve(mediaId: vaultItemId) else {
+            // GetVaultItems runs on user-initiated vault browse paths
+            // (VaultViewModel.loadItems); every successful list is an access
+            // event that should bump the 30-day sliding TTL.
+            guard let accessKey = try await accessKeyStore.getAndTouch(mediaId: vaultItemId) else {
                 return nil  // sealed — hidden from UI list
             }
             let metadataJson = try mediaEncryption.decrypt(

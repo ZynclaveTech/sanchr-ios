@@ -212,10 +212,15 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
     /// Decrypts a single proto item's metadata envelope and returns a domain
     /// `VaultItem`. Persists a sealed stub (and returns it so the caller can
     /// filter on `.status`) if the AccessK_vault is missing.
+    ///
+    /// Uses `getAndTouch` so the sliding TTL bumps whenever the user refreshes
+    /// the vault list (VaultView `.refreshable` -> `fetchItems`). Without this,
+    /// browsing the vault without tapping individual items would eventually
+    /// reap every key at the 30-day mark.
     private func decryptToItem(_ proto: Vync_Vault_VaultItem) async throws -> VaultItem? {
         let vaultItemId = proto.vaultItemID
 
-        guard let accessKey = try await accessKeyStore.retrieve(mediaId: vaultItemId) else {
+        guard let accessKey = try await accessKeyStore.getAndTouch(mediaId: vaultItemId) else {
             // Sealed item: persist a stub so forensic/restore tooling can
             // reason about it via fetchAllVaultItems.
             let sealedStub = VaultItem(

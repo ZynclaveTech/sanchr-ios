@@ -16,16 +16,16 @@ protocol SyncOrchestratorProtocol: AnyObject, Sendable {
 }
 
 /// Orchestrates background sync: pending messages, conversations, contacts,
-/// vault expiry cleanup, pre-key replenishment, and badge count updates.
+/// pre-key replenishment, and badge count updates.
 ///
 /// Uses `BGTaskScheduler` to register two task types:
-/// - A `BGProcessingTask` for full sync (messages, conversations, keys, vault cleanup).
+/// - A `BGProcessingTask` for full sync (messages, conversations, keys, backup).
 /// - A `BGAppRefreshTask` for lightweight message-only sync.
 final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
 
     // MARK: - Task Identifiers
 
-    /// Background processing task: full sync including conversations, keys, vault.
+    /// Background processing task: full sync including conversations, keys, and backup.
     static let syncTaskId = "com.sanchr.sync.messages"
 
     /// Background app refresh task: lightweight message-only sync.
@@ -35,11 +35,9 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
 
     private let messageRepository: MessageRepositoryProtocol
     private let contactRepository: ContactRepositoryProtocol
-    private let vaultRepository: VaultRepositoryProtocol
     private let signalKeyManager: KeyManagerProtocol
     private let sessionService: SessionService
     private let networkMonitor: NetworkMonitorProtocol
-    private let localDatabase: LocalDatabaseProtocol
     private let realtimeService: RealtimeService
     private let backupCoordinator: BackupCoordinator
     let syncState: SyncState
@@ -55,22 +53,18 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     init(
         messageRepository: MessageRepositoryProtocol,
         contactRepository: ContactRepositoryProtocol,
-        vaultRepository: VaultRepositoryProtocol,
         signalKeyManager: KeyManagerProtocol,
         sessionService: SessionService,
         networkMonitor: NetworkMonitorProtocol,
-        localDatabase: LocalDatabaseProtocol,
         realtimeService: RealtimeService,
         backupCoordinator: BackupCoordinator,
         syncState: SyncState
     ) {
         self.messageRepository = messageRepository
         self.contactRepository = contactRepository
-        self.vaultRepository = vaultRepository
         self.signalKeyManager = signalKeyManager
         self.sessionService = sessionService
         self.networkMonitor = networkMonitor
-        self.localDatabase = localDatabase
         self.realtimeService = realtimeService
         self.backupCoordinator = backupCoordinator
         self.syncState = syncState
@@ -187,7 +181,6 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
             let messageCount = try await syncPendingMessages()
             try await refreshConversations()
             try await replenishPreKeysIfNeeded()
-            try await cleanExpiredVaultItems()
             await backupCoordinator.performScheduledBackupIfNeeded()
             await updateBadgeCount()
 
@@ -212,7 +205,7 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     // MARK: - BGTask Handlers
 
     /// Main sync handler for `BGProcessingTask`.
-    /// Performs a full sync: token refresh, messages, conversations, keys, vault cleanup, badge.
+    /// Performs a full sync: token refresh, messages, conversations, keys, backup, badge.
     func performSync(task: BGProcessingTask) async {
         SanchrLogger.sync.info("BGProcessingTask: starting full sync")
 
@@ -237,13 +230,10 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
                 // Phase 4: Check and replenish pre-keys
                 try await orchestrator.replenishPreKeysIfNeeded()
 
-                // Phase 5: Clean expired vault items locally
-                try await orchestrator.cleanExpiredVaultItems()
-
-                // Phase 6: Opportunistic encrypted backup when due
+                // Phase 5: Opportunistic encrypted backup when due
                 await orchestrator.backupCoordinator.performScheduledBackupIfNeeded()
 
-                // Phase 7: Update badge count
+                // Phase 6: Update badge count
                 await orchestrator.updateBadgeCount()
 
                 orchestrator.syncState.markSyncCompleted(messageCount: messageCount)
@@ -330,30 +320,6 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     private func replenishPreKeysIfNeeded() async throws {
         SanchrLogger.sync.info("Checking pre-key count")
         try await signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
-    }
-
-    /// Removes expired vault items from the local database.
-    private func cleanExpiredVaultItems() async throws {
-        SanchrLogger.sync.info("Cleaning expired vault items")
-
-        let items = try await vaultRepository.fetchItems()
-        var removedCount = 0
-
-        for item in items {
-            // Remove items older than 30 days that are only cached locally
-            // and no longer referenced on the server.
-            if item.isCachedLocally,
-                item.remoteURL == nil,
-                item.updatedAt.timeIntervalSinceNow < -(30 * 24 * 60 * 60)
-            {
-                try await localDatabase.deleteVaultItem(id: item.id)
-                removedCount += 1
-            }
-        }
-
-        if removedCount > 0 {
-            SanchrLogger.sync.info("Removed \(removedCount) expired vault item(s)")
-        }
     }
 
     /// Refreshes the auth token if it is expiring within 5 minutes.

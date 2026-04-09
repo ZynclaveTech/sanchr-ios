@@ -188,21 +188,17 @@ final class VaultViewModel {
 
     // MARK: - Upload
 
-    /// TODO(Task 10): The view model still drives the upload path, but the
-    /// `senderID` parameter is gone (the new forward-secure vault doesn't
-    /// need it — the manual upload path derives its own AccessK_vault from
-    /// the device master secret). The VaultView call sites still pass
-    /// `senderID:` for now; that parameter is accepted and ignored so the
-    /// view compiles. Task 10 removes the parameter from the call sites.
+    /// Drives the manual upload path from the vault UI. The new
+    /// forward-secure vault derives its own `AccessK_vault` from the device
+    /// master secret, so the view model does not need (and no longer
+    /// accepts) a `senderID` argument.
     func uploadItem(
         data: Data,
         fileName: String,
         mediaType: String,
-        senderID: String,
         vaultDataSource: VaultDataSource,
         mediaManager: MediaManagerProtocol
     ) async {
-        _ = senderID  // accepted and ignored — see docstring
         isUploading = true
         uploadProgress = 0.0
         defer {

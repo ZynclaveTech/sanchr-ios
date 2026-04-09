@@ -10,17 +10,20 @@ actor MediaDownloadManager {
     private let mediaEncryption: MediaEncryptionProtocol
     private let accessKeyStore: AccessKeyStoreProtocol
     private let grpcClient: GRPCClientProtocol
+    private let vaultEKFScheduler: VaultEKFScheduler
     private let cacheDir: URL
     private var inFlight: Set<String> = []
 
     init(
         mediaEncryption: MediaEncryptionProtocol,
         accessKeyStore: AccessKeyStoreProtocol,
-        grpcClient: GRPCClientProtocol
+        grpcClient: GRPCClientProtocol,
+        vaultEKFScheduler: VaultEKFScheduler
     ) {
         self.mediaEncryption = mediaEncryption
         self.accessKeyStore = accessKeyStore
         self.grpcClient = grpcClient
+        self.vaultEKFScheduler = vaultEKFScheduler
 
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDir = caches.appendingPathComponent("MediaMessages", isDirectory: true)
@@ -119,17 +122,33 @@ actor MediaDownloadManager {
                 key: attachment.encryptionKey,
                 iv: attachment.encryptionIV
             )
-        // TODO(vault-e2ee Task 7): migrate to getAndTouch(mediaId:) so the
-        // sliding TTL engages for message-media re-accesses.
-        } else if let mediaId = extractMediaId(from: attachment),
-                  let accessKey = try await accessKeyStore.retrieve(mediaId: mediaId) {
-            // Re-access path: use device-local AccessK
-            SanchrLogger.media.info("Using AccessK for re-access of \(mediaId.prefix(8))")
-            plaintext = try mediaEncryption.decrypt(
-                ciphertext: encryptedData,
-                key: accessKey,
-                iv: attachment.encryptionIV
-            )
+        } else if let mediaId = extractMediaId(from: attachment) {
+            // Re-access path: use device-local AccessK for chat media that
+            // no longer carries an E2EE message key (view-once re-opens,
+            // restored backups, etc.). Held inside the EKF access lock for
+            // the duration of getAndTouch + decrypt so a scheduled purge
+            // cannot race with the live decrypt, and bumped via
+            // `getAndTouch` so each re-access refreshes the 30-day sliding
+            // TTL on the stored AccessK.
+            let store = self.accessKeyStore
+            let crypto = self.mediaEncryption
+            let iv = attachment.encryptionIV
+            plaintext = try await vaultEKFScheduler.withAccess { () -> Data in
+                guard let accessKey = try await store.getAndTouch(mediaId: mediaId) else {
+                    SanchrLogger.media.error(
+                        "No AccessK available for re-access of \(mediaId.prefix(8))"
+                    )
+                    throw AppError.mediaDownloadFailed
+                }
+                SanchrLogger.media.info(
+                    "Using AccessK for re-access of \(mediaId.prefix(8))"
+                )
+                return try crypto.decrypt(
+                    ciphertext: encryptedData,
+                    key: accessKey,
+                    iv: iv
+                )
+            }
         } else {
             SanchrLogger.media.error("No decryption key available (E2EE key empty, no AccessK)")
             throw AppError.mediaDownloadFailed

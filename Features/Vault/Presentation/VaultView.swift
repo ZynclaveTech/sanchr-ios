@@ -68,7 +68,6 @@ struct VaultView: View {
                         data: data,
                         fileName: url.lastPathComponent,
                         mediaType: "file",
-                        senderID: container.sessionService.currentUserId ?? "",
                         vaultDataSource: vaultDataSource,
                         mediaManager: container.mediaManager
                     )
@@ -300,7 +299,6 @@ struct VaultView: View {
                         data: data,
                         fileName: "vault_\(UUID().uuidString.prefix(8)).\(ext)",
                         mediaType: mediaType,
-                        senderID: container.sessionService.currentUserId ?? "",
                         vaultDataSource: vaultDataSource,
                         mediaManager: container.mediaManager
                     )

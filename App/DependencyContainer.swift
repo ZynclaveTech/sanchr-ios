@@ -100,7 +100,8 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var mediaDownloadManager = MediaDownloadManager(
         mediaEncryption: mediaEncryption,
         accessKeyStore: accessKeyStore,
-        grpcClient: grpcClient
+        grpcClient: grpcClient,
+        vaultEKFScheduler: vaultEKFScheduler
     )
 
     /// Viewer-facing seam over `mediaDownloadManager` that adds a filename-
@@ -314,11 +315,9 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var syncOrchestrator: SyncOrchestrator = SyncOrchestrator(
         messageRepository: messageRepository,
         contactRepository: contactRepository,
-        vaultRepository: vaultRepository,
         signalKeyManager: signalKeyManager,
         sessionService: sessionService,
         networkMonitor: networkMonitor,
-        localDatabase: localDatabase,
         realtimeService: realtimeService,
         backupCoordinator: backupCoordinator,
         syncState: syncState
@@ -513,11 +512,9 @@ final class DependencyContainer: @unchecked Sendable {
         self.syncOrchestrator = SyncOrchestrator(
             messageRepository: messageRepository,
             contactRepository: contactRepository,
-            vaultRepository: vaultRepository,
             signalKeyManager: signalKeyManager,
             sessionService: sessionService,
             networkMonitor: networkMonitor,
-            localDatabase: localDatabase,
             realtimeService: realtimeService,
             backupCoordinator: backupCoordinator,
             syncState: syncState

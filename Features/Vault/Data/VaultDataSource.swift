@@ -190,26 +190,6 @@ final class VaultDataSource: @unchecked Sendable {
         return (vaultProto, metadata)
     }
 
-    // MARK: - Decrypt metadata
-
-    /// Decrypts the `encrypted_metadata` blob from a VaultItem proto using the
-    /// AccessK_vault stored in AccessKeyStore. Returns `nil` if the key isn't
-    /// available locally (e.g., cross-device backup restore → sealed item).
-    /// Uses `getAndTouch` to bump the sliding TTL on successful access.
-    func decryptMetadata(for proto: Vync_Vault_VaultItem) async throws -> VaultItemMetadata? {
-        guard
-            let accessKey = try await accessKeyStore.getAndTouch(mediaId: proto.vaultItemID)
-        else {
-            return nil
-        }
-        let plaintext = try mediaEncryption.decrypt(
-            ciphertext: proto.encryptedMetadata,
-            key: accessKey,
-            iv: Data()  // ignored — combined sealed-box form carries its own nonce
-        )
-        return try JSONDecoder().decode(VaultItemMetadata.self, from: plaintext)
-    }
-
     // MARK: - Delete
 
     func deleteVaultItem(vaultItemId: String) async throws {
