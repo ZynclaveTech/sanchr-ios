@@ -142,7 +142,8 @@ public actor MediaUploadManager {
             try await accessKeyStore.store(
                 mediaId: task.id,
                 accessKey: accessKey,
-                conversationId: task.conversationId
+                conversationId: task.conversationId,
+                kind: .messageMedia
             )
 
             task.encryptedFileURL = encryptedURL

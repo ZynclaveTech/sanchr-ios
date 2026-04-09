@@ -5,16 +5,20 @@ import GRDB
 struct AccessKeyRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "accessKeyEntry"
 
-    let mediaId: String
+    let mediaId: String           // Primary key
     let accessKey: Data
     let conversationId: String
+    let kind: String              // Stored as String for future forward-compat
     let createdAt: Date
+    let lastAccessedAt: Date
 
     enum Columns {
         static let mediaId = Column(CodingKeys.mediaId)
         static let accessKey = Column(CodingKeys.accessKey)
         static let conversationId = Column(CodingKeys.conversationId)
+        static let kind = Column(CodingKeys.kind)
         static let createdAt = Column(CodingKeys.createdAt)
+        static let lastAccessedAt = Column(CodingKeys.lastAccessedAt)
     }
 }
 
@@ -23,7 +27,9 @@ extension AccessKeyRecord {
         self.mediaId = entry.mediaId
         self.accessKey = entry.accessKey
         self.conversationId = entry.conversationId
+        self.kind = entry.kind.rawValue
         self.createdAt = entry.createdAt
+        self.lastAccessedAt = entry.lastAccessedAt
     }
 
     func toEntry() -> AccessKeyEntry {
@@ -31,7 +37,9 @@ extension AccessKeyRecord {
             mediaId: mediaId,
             accessKey: accessKey,
             conversationId: conversationId,
-            createdAt: createdAt
+            kind: AccessKeyEntry.Kind(rawValue: kind) ?? .messageMedia,
+            createdAt: createdAt,
+            lastAccessedAt: lastAccessedAt
         )
     }
 }

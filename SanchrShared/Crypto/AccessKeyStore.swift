@@ -1,9 +1,37 @@
 import Foundation
 
 public protocol AccessKeyStoreProtocol: AnyObject, Sendable {
-    func store(mediaId: String, accessKey: Data, conversationId: String) async throws
+    /// Store a new entry. `createdAt` and `lastAccessedAt` are both stamped
+    /// to the current time.
+    func store(
+        mediaId: String,
+        accessKey: Data,
+        conversationId: String,
+        kind: AccessKeyEntry.Kind
+    ) async throws
+
+    /// Retrieve the raw key bytes if the entry exists AND is not expired.
+    /// Does NOT bump `lastAccessedAt` — use `getAndTouch` on decrypt paths.
     func retrieve(mediaId: String) async throws -> Data?
+
+    /// Retrieve the full entry, including metadata. Only used by tests and
+    /// introspection code; production decrypt paths use `getAndTouch`.
+    func retrieveEntry(mediaId: String) async throws -> AccessKeyEntry?
+
+    /// Bump `lastAccessedAt` to `now()`. A separate method from `retrieve`
+    /// so callers can decide whether the access was "successful" (decrypt
+    /// worked) before extending the TTL.
+    func touch(mediaId: String) async throws
+
+    /// Atomic `retrieve + touch` — the canonical entry point for decrypt
+    /// paths. Returns `nil` if the entry is missing or expired.
+    func getAndTouch(mediaId: String) async throws -> Data?
+
+    /// Delete every entry whose sliding TTL has elapsed. Returns the count
+    /// of purged entries.
     func purgeExpired() async throws -> Int
+
+    /// Wipe the whole store. Used on sign-out or vault reset.
     func deleteAll() async throws
 }
 
@@ -12,33 +40,73 @@ public final class AccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
 
     private let localDatabase: LocalDatabaseProtocol
     private let ttl: TimeInterval
+    private let clock: @Sendable () -> Date
 
-    public init(localDatabase: LocalDatabaseProtocol, ttl: TimeInterval = AccessKeyStore.defaultTTL) {
+    public init(
+        localDatabase: LocalDatabaseProtocol,
+        ttl: TimeInterval = AccessKeyStore.defaultTTL,
+        clock: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.localDatabase = localDatabase
         self.ttl = ttl
+        self.clock = clock
     }
 
-    public func store(mediaId: String, accessKey: Data, conversationId: String) async throws {
+    public func store(
+        mediaId: String,
+        accessKey: Data,
+        conversationId: String,
+        kind: AccessKeyEntry.Kind
+    ) async throws {
+        let now = clock()
         let entry = AccessKeyEntry(
-            mediaId: mediaId, accessKey: accessKey,
-            conversationId: conversationId, createdAt: Date())
+            mediaId: mediaId,
+            accessKey: accessKey,
+            conversationId: conversationId,
+            kind: kind,
+            createdAt: now,
+            lastAccessedAt: now
+        )
         try await localDatabase.saveAccessKeyEntry(entry)
     }
 
     public func retrieve(mediaId: String) async throws -> Data? {
-        guard let entry = try await localDatabase.fetchAccessKeyEntry(mediaId: mediaId) else {
-            return nil
-        }
-        let age = Date().timeIntervalSince(entry.createdAt)
-        if age > ttl {
-            try await localDatabase.deleteAccessKeyEntry(mediaId: mediaId)
+        guard let entry = try await retrieveEntry(mediaId: mediaId) else {
             return nil
         }
         return entry.accessKey
     }
 
+    public func retrieveEntry(mediaId: String) async throws -> AccessKeyEntry? {
+        guard let entry = try await localDatabase.fetchAccessKeyEntry(mediaId: mediaId) else {
+            return nil
+        }
+        // Sliding expiry check: if both anchors are older than ttl, treat
+        // as absent and let a background purge reap it.
+        let anchor = max(entry.createdAt, entry.lastAccessedAt)
+        if clock().timeIntervalSince(anchor) > ttl {
+            return nil
+        }
+        return entry
+    }
+
+    public func touch(mediaId: String) async throws {
+        try await localDatabase.updateAccessKeyEntryLastAccessed(
+            mediaId: mediaId,
+            lastAccessedAt: clock()
+        )
+    }
+
+    public func getAndTouch(mediaId: String) async throws -> Data? {
+        guard let entry = try await retrieveEntry(mediaId: mediaId) else {
+            return nil
+        }
+        try await touch(mediaId: mediaId)
+        return entry.accessKey
+    }
+
     public func purgeExpired() async throws -> Int {
-        let cutoff = Date().addingTimeInterval(-ttl)
+        let cutoff = clock().addingTimeInterval(-ttl)
         return try await localDatabase.purgeAccessKeyEntries(olderThan: cutoff)
     }
 

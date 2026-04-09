@@ -183,4 +183,163 @@ final class VaultCryptoTests: XCTestCase {
             "production and reference backupFingerprint must agree"
         )
     }
+
+    // MARK: - AccessKeyEntry.Kind + sliding TTL
+
+    func test_AccessKeyEntry_hasKindField() {
+        let entry = AccessKeyEntry(
+            mediaId: "test-id",
+            accessKey: Data(repeating: 0, count: 32),
+            conversationId: "conv-id",
+            kind: .vaultManual,
+            createdAt: Date(),
+            lastAccessedAt: Date()
+        )
+        XCTAssertEqual(entry.kind, .vaultManual)
+    }
+
+    func test_AccessKeyEntryKind_allCases() {
+        let all = AccessKeyEntry.Kind.allCases
+        XCTAssertEqual(Set(all.map(\.rawValue)), [
+            "messageMedia", "vaultAutoVaulted", "vaultManual",
+        ])
+    }
+
+    func test_accessKeyStore_touchBumpsLastAccessedAt() async throws {
+        // Use a fake clock for determinism — GRDB's Date encoding may have
+        // sub-second precision loss depending on format, so a real 20ms
+        // sleep is not reliable across CI. The fake clock jumps by 1 hour.
+        let fakeClock = MutableClock(now: Date())
+        let store = try makeInMemoryAccessKeyStore(clock: fakeClock)
+        let mediaId = "store-touch-test"
+
+        try await store.store(
+            mediaId: mediaId,
+            accessKey: Data(repeating: 0xAA, count: 32),
+            conversationId: "conv",
+            kind: .vaultManual
+        )
+
+        let before = try await store.retrieveEntry(mediaId: mediaId)!
+
+        // Jump the clock forward 1 hour and touch — bump must be observable.
+        fakeClock.now = fakeClock.now.addingTimeInterval(3600)
+        try await store.touch(mediaId: mediaId)
+
+        let after = try await store.retrieveEntry(mediaId: mediaId)!
+
+        XCTAssertGreaterThan(after.lastAccessedAt, before.lastAccessedAt)
+        XCTAssertEqual(before.createdAt, after.createdAt, "createdAt must not move")
+    }
+
+    func test_accessKeyStore_getAndTouch_returnsKey_andBumpsAccess() async throws {
+        // Use a fake clock for the same reason as the touch test.
+        let fakeClock = MutableClock(now: Date())
+        let store = try makeInMemoryAccessKeyStore(clock: fakeClock)
+        let mediaId = "get-and-touch-test"
+        let key = Data(repeating: 0xBB, count: 32)
+
+        try await store.store(
+            mediaId: mediaId,
+            accessKey: key,
+            conversationId: "conv",
+            kind: .vaultManual
+        )
+
+        let before = try await store.retrieveEntry(mediaId: mediaId)!
+
+        // Jump the clock forward 1 hour so getAndTouch's bump is observable.
+        fakeClock.now = fakeClock.now.addingTimeInterval(3600)
+
+        let fetched = try await store.getAndTouch(mediaId: mediaId)
+        XCTAssertEqual(fetched, key)
+
+        let after = try await store.retrieveEntry(mediaId: mediaId)!
+        XCTAssertGreaterThan(after.lastAccessedAt, before.lastAccessedAt)
+    }
+
+    func test_purgeExpired_respectsLastAccessedAt() async throws {
+        let fakeClock = MutableClock(now: Date())
+        let store = try makeInMemoryAccessKeyStore(clock: fakeClock)
+
+        // Old entry, never touched — should be purged
+        try await store.store(
+            mediaId: "stale",
+            accessKey: Data(repeating: 0x01, count: 32),
+            conversationId: "conv",
+            kind: .vaultManual
+        )
+
+        // Old entry, touched recently — should NOT be purged
+        try await store.store(
+            mediaId: "hot",
+            accessKey: Data(repeating: 0x02, count: 32),
+            conversationId: "conv",
+            kind: .vaultManual
+        )
+
+        // Jump forward 29 days and touch "hot"
+        fakeClock.now = fakeClock.now.addingTimeInterval(29 * 24 * 60 * 60)
+        try await store.touch(mediaId: "hot")
+
+        // Jump forward another 2 days (total 31 from creation).
+        // "stale" is 31 days old since createdAt/lastAccessedAt.
+        // "hot" is 2 days old since lastAccessedAt.
+        fakeClock.now = fakeClock.now.addingTimeInterval(2 * 24 * 60 * 60)
+
+        let purgedCount = try await store.purgeExpired()
+        XCTAssertEqual(purgedCount, 1, "only the stale entry should be purged")
+
+        let stale = try await store.retrieveEntry(mediaId: "stale")
+        let hot = try await store.retrieveEntry(mediaId: "hot")
+        XCTAssertNil(stale, "stale entry must be gone")
+        XCTAssertNotNil(hot, "recently-touched entry must survive")
+    }
+
+    // MARK: - Test helpers
+
+    private func makeInMemoryAccessKeyStore(
+        clock: MutableClock = MutableClock(now: Date())
+    ) throws -> AccessKeyStore {
+        let db = try InMemoryLocalDatabase.make()
+        return AccessKeyStore(localDatabase: db, clock: { clock.now })
+    }
+}
+
+/// Mutable clock for deterministic time-travel tests. The @unchecked Sendable
+/// is safe because tests synchronize access externally.
+final class MutableClock: @unchecked Sendable {
+    var now: Date
+    init(now: Date) { self.now = now }
+}
+
+/// In-memory GRDB-backed LocalDatabase for tests. Uses SQLCipher's `:memory:`
+/// path so the whole database lives only in RAM. Falls back to a temp file
+/// if `:memory:` initialization fails due to keychain mirror path issues.
+enum InMemoryLocalDatabase {
+    static func make() throws -> LocalDatabaseProtocol {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sanchr-test-\(UUID().uuidString).sqlite")
+        let keyProvider = InMemoryKeyProvider()
+        return try LocalDatabase(path: url, keyProvider: keyProvider)
+    }
+}
+
+/// Test-only LocalDatabaseKeyProviderProtocol implementation. Generates a
+/// random passphrase per instance so concurrent tests don't collide, and
+/// stores no state in the keychain.
+final class InMemoryKeyProvider: LocalDatabaseKeyProviderProtocol, @unchecked Sendable {
+    private let passphrase = "test-passphrase-" + UUID().uuidString
+
+    func resolveKeyResolution(forDatabaseAt path: String) throws -> LocalDatabaseKeyResolution {
+        .passphrase(passphrase)
+    }
+
+    func persistResolvedPassphrase(_ passphrase: String, forDatabaseAt path: String) throws {
+        // No-op: tests use per-instance temp databases, no keychain mirror needed.
+    }
+
+    func resetDatabaseSecrets() throws {
+        // No-op: each test instance is ephemeral.
+    }
 }

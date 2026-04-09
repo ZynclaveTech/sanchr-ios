@@ -38,6 +38,7 @@ extension LocalDatabaseProtocol {
     // Access keys
     public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { FakeDBUnused.crash() }
     public func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { FakeDBUnused.crash() }
+    public func updateAccessKeyEntryLastAccessed(mediaId: String, lastAccessedAt: Date) async throws { FakeDBUnused.crash() }
     public func deleteAccessKeyEntry(mediaId: String) async throws { FakeDBUnused.crash() }
     public func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { FakeDBUnused.crash() }
     public func deleteAllAccessKeyEntries() async throws { FakeDBUnused.crash() }

@@ -167,6 +167,35 @@ public enum DatabaseSchema {
             }
         }
 
+        migrator.registerMigration("v6_vault_e2ee_access_key_extensions") { db in
+            // Add kind and lastAccessedAt columns to accessKeyEntry. Existing
+            // rows (from v3) get defaults: kind='messageMedia' (only producer
+            // before this migration was the message-media D2 path), and
+            // lastAccessedAt=createdAt (no prior access-tracking signal).
+            try db.alter(table: "accessKeyEntry") { t in
+                t.add(column: "kind", .text)
+                    .notNull()
+                    .defaults(to: "messageMedia")
+                t.add(column: "lastAccessedAt", .datetime)
+            }
+
+            // Backfill lastAccessedAt. We can't use a .defaults(to: Column("createdAt"))
+            // pattern in GRDB's AlterTable DSL, so we run an explicit UPDATE.
+            try db.execute(sql: """
+                UPDATE accessKeyEntry
+                SET lastAccessedAt = createdAt
+                WHERE lastAccessedAt IS NULL
+                """)
+
+            // Supporting index for the sliding-TTL purge query.
+            try db.create(
+                index: "idx_accessKeyEntry_lastAccessedAt",
+                on: "accessKeyEntry",
+                columns: ["lastAccessedAt"],
+                ifNotExists: true
+            )
+        }
+
         return migrator
     }
 }

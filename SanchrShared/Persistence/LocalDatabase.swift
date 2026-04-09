@@ -38,6 +38,7 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
 
     func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws
     func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry?
+    func updateAccessKeyEntryLastAccessed(mediaId: String, lastAccessedAt: Date) async throws
     func deleteAccessKeyEntry(mediaId: String) async throws
     func purgeAccessKeyEntries(olderThan: Date) async throws -> Int
     func deleteAllAccessKeyEntries() async throws
@@ -527,6 +528,22 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
+    public func updateAccessKeyEntryLastAccessed(
+        mediaId: String,
+        lastAccessedAt: Date
+    ) async throws {
+        try await dbPool.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE accessKeyEntry
+                    SET lastAccessedAt = ?
+                    WHERE mediaId = ?
+                    """,
+                arguments: [lastAccessedAt, mediaId]
+            )
+        }
+    }
+
     public func deleteAccessKeyEntry(mediaId: String) async throws {
         try await dbPool.write { db in
             _ = try AccessKeyRecord
@@ -537,9 +554,19 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     public func purgeAccessKeyEntries(olderThan cutoff: Date) async throws -> Int {
         try await dbPool.write { db in
-            try AccessKeyRecord
-                .filter(AccessKeyRecord.Columns.createdAt < cutoff)
-                .deleteAll(db)
+            // Sliding TTL: purge where MAX(createdAt, lastAccessedAt) < cutoff.
+            // SQLite doesn't have GREATEST; emulate with a CASE expression.
+            try db.execute(
+                sql: """
+                    DELETE FROM accessKeyEntry
+                    WHERE CASE
+                        WHEN lastAccessedAt > createdAt THEN lastAccessedAt
+                        ELSE createdAt
+                    END < ?
+                    """,
+                arguments: [cutoff]
+            )
+            return db.changesCount
         }
     }
 
@@ -1263,6 +1290,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
     public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }
     public func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { throw error }
+    public func updateAccessKeyEntryLastAccessed(mediaId: String, lastAccessedAt: Date) async throws { throw error }
     public func deleteAccessKeyEntry(mediaId: String) async throws { throw error }
     public func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { throw error }
     public func deleteAllAccessKeyEntries() async throws { throw error }

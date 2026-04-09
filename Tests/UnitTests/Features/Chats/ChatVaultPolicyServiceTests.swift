@@ -115,6 +115,7 @@ private final class StubVaultDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func deleteVaultItem(id: String) async throws { fatalError() }
     func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { fatalError() }
     func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { fatalError() }
+    func updateAccessKeyEntryLastAccessed(mediaId: String, lastAccessedAt: Date) async throws { fatalError() }
     func deleteAccessKeyEntry(mediaId: String) async throws { fatalError() }
     func purgeAccessKeyEntries(olderThan: Date) async throws -> Int { fatalError() }
     func deleteAllAccessKeyEntries() async throws { fatalError() }
