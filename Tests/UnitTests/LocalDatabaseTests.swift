@@ -355,11 +355,18 @@ final class LocalDatabaseTests: XCTestCase {
         try await sourceDatabase.saveConversation(conversation)
         try await sourceDatabase.saveMessage(message)
 
-        let snapshot = try await sourceDatabase.exportBackupSnapshot(currentUserId: "local-user")
+        let snapshot = try await sourceDatabase.exportBackupSnapshot(
+            currentUserId: "local-user",
+            fingerprint: "test-fingerprint"
+        )
 
         let restorePath = makeTemporaryDatabasePath()
         let restoredDatabase = try LocalDatabase(path: restorePath, passphraseProvider: { "restore-passphrase" })
-        try await restoredDatabase.restoreBackupSnapshot(snapshot, currentUserId: "local-user")
+        try await restoredDatabase.restoreBackupSnapshot(
+            snapshot,
+            currentUserId: "local-user",
+            localFingerprint: "test-fingerprint"
+        )
 
         let restoredConversations = try await restoredDatabase.fetchConversations()
         let restoredMessages = try await restoredDatabase.fetchMessages(

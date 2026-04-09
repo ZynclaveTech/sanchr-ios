@@ -63,8 +63,8 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     // MARK: - Lifecycle
 
     func hasLocalHistory() async throws -> Bool
-    func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot
-    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws
+    func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot
+    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
     // MARK: - User Presence
@@ -675,7 +675,7 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot {
+    public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot {
         try await dbPool.read { db in
             let userRecords = try UserRecord.fetchAll(db)
             let conversationRecords = try ConversationRecord.fetchAll(db)
@@ -750,13 +750,34 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 )
             }
 
-            // TODO(Task 9): rewrite once BackupArchiveVaultItemFrame is
-            // updated to the forward-secure shape (mediaId, status, no
-            // plaintext key/IV). Temporarily emit an empty vault item array
-            // so the backup export builds. Sealed-item rows and AccessKey
-            // rows will be carried in their own frame types in Task 9.
-            _ = vaultRecords
-            let vaultItems: [BackupArchiveVaultItemFrame] = []
+            // Build forward-secure vault frames. For each live vault item,
+            // look up its AccessKeyEntry to get the sliding-TTL anchors and
+            // the kind. Items whose access key is missing are skipped —
+            // they're invalid state and shouldn't exist on a healthy device.
+            var vaultItems: [BackupArchiveVaultItemFrame] = []
+            for record in vaultRecords where record.status == "live" {
+                guard
+                    let accessKeyRow = try AccessKeyRecord
+                        .filter(AccessKeyRecord.Columns.mediaId == record.mediaId)
+                        .fetchOne(db)
+                else {
+                    SanchrLogger.persistence.warning(
+                        "exportBackupSnapshot: live vault item \(record.id.prefix(8)) has no access key entry; skipping"
+                    )
+                    continue
+                }
+                vaultItems.append(
+                    BackupArchiveVaultItemFrame(
+                        id: record.id,
+                        mediaId: record.mediaId,
+                        encryptedMetadata: Data(),
+                        createdAtMs: Int64(accessKeyRow.createdAt.timeIntervalSince1970 * 1000),
+                        lastAccessedAtMs: Int64(accessKeyRow.lastAccessedAt.timeIntervalSince1970 * 1000),
+                        createdOnDevice: fingerprint,
+                        kind: accessKeyRow.kind
+                    )
+                )
+            }
 
             let info = BackupArchiveInfoFrame(
                 formatVersion: BackupArchive.formatVersion,
@@ -779,7 +800,7 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws {
+    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws {
         let tempPath = "\(dbPath).restore-\(UUID().uuidString.lowercased())"
         try Self.removeDatabaseArtifacts(at: tempPath)
 
@@ -900,11 +921,33 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 }
 
                 for vaultItem in snapshot.vaultItems {
-                    // TODO(Task 9): rewrite once BackupArchiveVaultItemFrame
-                    // is updated to the forward-secure shape (mediaId, status,
-                    // no plaintext key/IV). Commented out temporarily to
-                    // unblock the build.
-                    _ = vaultItem
+                    let isSameDevice = vaultItem.createdOnDevice == localFingerprint
+                    let status: String = isSameDevice ? "live" : "sealed"
+
+                    // Build a minimal VaultItemRecord. On same-device restore
+                    // the UI will re-populate name/type/size via the next
+                    // VaultRepository.fetchItems() sync (metadata lives on the
+                    // server and is decrypted client-side using the local
+                    // AccessK_vault). On cross-device restore the item stays
+                    // sealed — name/type/size are placeholders because the
+                    // encrypted_metadata blob is keyed with a dls we don't
+                    // have.
+                    let record = VaultItemRecord(
+                        id: vaultItem.id,
+                        mediaId: vaultItem.mediaId,
+                        name: "",
+                        type: "document",
+                        sizeBytes: 0,
+                        thumbnailData: nil,
+                        encryptedThumbnailURL: nil,
+                        createdAt: Date(timeIntervalSince1970: TimeInterval(vaultItem.createdAtMs) / 1000),
+                        updatedAt: Date(timeIntervalSince1970: TimeInterval(vaultItem.createdAtMs) / 1000),
+                        isCachedLocally: false,
+                        remoteURL: nil,
+                        localURL: nil,
+                        status: status
+                    )
+                    try record.save(db, onConflict: .replace)
                 }
             }
 
@@ -1297,8 +1340,8 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func clearVaultPolicy(conversationId: String) async throws { throw error }
     public func fetchMessageById(_ messageId: String) async throws -> Message? { throw error }
     public func hasLocalHistory() async throws -> Bool { throw error }
-    public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { throw error }
-    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { throw error }
+    public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
+    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
     public func updateUserPresence(
         userId: String,

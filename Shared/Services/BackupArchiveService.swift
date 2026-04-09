@@ -45,15 +45,18 @@ protocol BackupArchiveServiceProtocol: Sendable {
 actor BackupArchiveService: BackupArchiveServiceProtocol {
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
+    private let deviceSecretProvider: DeviceSecretProviderProtocol
     private let session: URLSession
 
     init(
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
+        deviceSecretProvider: DeviceSecretProviderProtocol,
         session: URLSession = .shared
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
+        self.deviceSecretProvider = deviceSecretProvider
         self.session = session
     }
 
@@ -70,7 +73,11 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             throw AppError.backupFailed(reason: "Backup keys are unavailable for this account.")
         }
 
-        let snapshot = try await localDatabase.exportBackupSnapshot(currentUserId: currentUserId)
+        let fingerprint = try deviceSecretProvider.backupFingerprint()
+        let snapshot = try await localDatabase.exportBackupSnapshot(
+            currentUserId: currentUserId,
+            fingerprint: fingerprint
+        )
         let archiveData = try BackupArchiveSerializer.serialize(snapshot)
         let contentHash = Self.sha256Hex(archiveData)
 
@@ -157,7 +164,12 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
 
         let plaintext = try Self.decryptArchive(ciphertext, aesKey: aesKey, iv: iv)
         let snapshot = try BackupArchiveSerializer.deserialize(plaintext)
-        try await localDatabase.restoreBackupSnapshot(snapshot, currentUserId: currentUserId)
+        let localFingerprint = try deviceSecretProvider.backupFingerprint()
+        try await localDatabase.restoreBackupSnapshot(
+            snapshot,
+            currentUserId: currentUserId,
+            localFingerprint: localFingerprint
+        )
 
         return BackupRestoreOutcome(
             lineageID: selected.lineageID,

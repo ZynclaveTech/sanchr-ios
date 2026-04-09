@@ -325,47 +325,32 @@ public struct BackupArchiveMessageFrame: Codable, Equatable, Sendable {
 
 public struct BackupArchiveVaultItemFrame: Codable, Equatable, Sendable {
     public var type: BackupArchiveFrameType = .vaultItem
-    public let id: String
-    public let name: String
-    public let itemType: String
-    public let sizeBytes: Int64
-    public let encryptionKeyBase64: String
-    public let encryptionIVBase64: String
-    public let encryptedThumbnailURL: String?
-    public let createdAtMs: Int64
-    public let updatedAtMs: Int64
-    public let isCachedLocally: Bool
-    public let remoteURL: String?
-    public let localURL: String?
+    public let id: String                    // vault_item_id (UUIDv4)
+    public let mediaId: String                // reference to media_objects
+    public let encryptedMetadata: Data        // opaque AES-GCM ciphertext, usually empty (metadata re-fetched from server)
+    public let createdAtMs: Int64             // access-key-entry createdAt anchor
+    public let lastAccessedAtMs: Int64        // access-key-entry lastAccessedAt anchor
+    public let createdOnDevice: String        // SHA256(dls || "sanchr-backup-fingerprint-v1")
+    public let kind: String                    // AccessKeyEntry.Kind.rawValue: "messageMedia" | "vaultAutoVaulted" | "vaultManual"
 
     public init(
         type: BackupArchiveFrameType = .vaultItem,
         id: String,
-        name: String,
-        itemType: String,
-        sizeBytes: Int64,
-        encryptionKeyBase64: String,
-        encryptionIVBase64: String,
-        encryptedThumbnailURL: String?,
+        mediaId: String,
+        encryptedMetadata: Data = Data(),
         createdAtMs: Int64,
-        updatedAtMs: Int64,
-        isCachedLocally: Bool,
-        remoteURL: String?,
-        localURL: String?
+        lastAccessedAtMs: Int64,
+        createdOnDevice: String,
+        kind: String
     ) {
         self.type = type
         self.id = id
-        self.name = name
-        self.itemType = itemType
-        self.sizeBytes = sizeBytes
-        self.encryptionKeyBase64 = encryptionKeyBase64
-        self.encryptionIVBase64 = encryptionIVBase64
-        self.encryptedThumbnailURL = encryptedThumbnailURL
+        self.mediaId = mediaId
+        self.encryptedMetadata = encryptedMetadata
         self.createdAtMs = createdAtMs
-        self.updatedAtMs = updatedAtMs
-        self.isCachedLocally = isCachedLocally
-        self.remoteURL = remoteURL
-        self.localURL = localURL
+        self.lastAccessedAtMs = lastAccessedAtMs
+        self.createdOnDevice = createdOnDevice
+        self.kind = kind
     }
 }
 

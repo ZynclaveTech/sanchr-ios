@@ -52,8 +52,8 @@ extension LocalDatabaseProtocol {
     public func fetchMessageById(_ messageId: String) async throws -> Message? { FakeDBUnused.crash() }
     // Lifecycle
     public func hasLocalHistory() async throws -> Bool { FakeDBUnused.crash() }
-    public func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { FakeDBUnused.crash() }
-    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { FakeDBUnused.crash() }
+    public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { FakeDBUnused.crash() }
+    public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { FakeDBUnused.crash() }
     public func purgeAllData() async throws { FakeDBUnused.crash() }
     // Presence / denormalized conversation status
     public func updateUserPresence(userId: String, status: User.Status, lastSeen: Date?) async throws { FakeDBUnused.crash() }

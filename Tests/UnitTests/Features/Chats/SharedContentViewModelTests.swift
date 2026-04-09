@@ -166,7 +166,7 @@ private final class StubFetchDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func setAppearanceOverride(_ override: AppearanceOverride, for conversationId: String) async throws { fatalError() }
     func clearAppearanceOverride(conversationId: String) async throws { fatalError() }
     func hasLocalHistory() async throws -> Bool { fatalError() }
-    func exportBackupSnapshot(currentUserId: String?) async throws -> BackupArchiveSnapshot { fatalError() }
-    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?) async throws { fatalError() }
+    func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { fatalError() }
+    func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { fatalError() }
     func purgeAllData() async throws { fatalError() }
 }
