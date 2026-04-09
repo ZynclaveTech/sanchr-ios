@@ -135,6 +135,58 @@ struct VaultView: View {
                 )
             }
         }
+        // Files export sheet. Bound to shareState == .exportingToFiles
+        // via a computed binding. On dismiss, cleanup runs regardless
+        // of success/cancel.
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    if case .exportingToFiles = viewModel.shareState { return true }
+                    return false
+                },
+                set: { presented in
+                    if !presented, case .exportingToFiles(let item, let tempURL) = viewModel.shareState {
+                        viewModel.didFinishFilesExport(
+                            for: item,
+                            tempURL: tempURL,
+                            success: false
+                        )
+                    }
+                }
+            )
+        ) {
+            if case .exportingToFiles(let item, let tempURL) = viewModel.shareState {
+                VaultFilesExportView(tempURL: tempURL) { success in
+                    viewModel.didFinishFilesExport(
+                        for: item,
+                        tempURL: tempURL,
+                        success: success
+                    )
+                }
+            }
+        }
+        // Transient completion toast ("Saved to Photos" / "Saved").
+        // Auto-clears after ~2.5s via takeShareCompletionToast. The
+        // id: modifier forces SwiftUI to rebuild the view on each new
+        // toast so the auto-clear task reruns.
+        .overlay(alignment: .top) {
+            if let toast = viewModel.shareCompletionToast {
+                Text(toast)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .id(toast)
+                    .task(id: toast) {
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        _ = viewModel.takeShareCompletionToast()
+                    }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.shareCompletionToast)
         .task {
             // One-shot initial fetch. Filter changes are purely client-side
             // via `filteredItems` — no reload needed.
@@ -276,7 +328,18 @@ struct VaultView: View {
                         )
                     }
                 },
-                onShare: {}
+                onShare: {
+                    viewModel.requestShare(item)
+                },
+                onSave: {
+                    Task {
+                        await viewModel.requestSave(
+                            item,
+                            vaultRepository: container.vaultRepository,
+                            photosSaver: container.photosSaver
+                        )
+                    }
+                }
             )
             .contentShape(Rectangle())
         }
@@ -577,6 +640,7 @@ struct VaultItemCard: View {
     let item: VaultItem
     var onDelete: () -> Void = {}
     var onShare: () -> Void = {}
+    var onSave: () -> Void = {}
 
     @State private var thumbnail: UIImage?
 
@@ -677,8 +741,10 @@ struct VaultItemCard: View {
                     Spacer()
 
                     Menu {
-                        Button("Save") {}
-                        Button("Share", action: onShare)
+                        // Save and Share live on the footer action row.
+                        // The three-dot menu keeps only destructive
+                        // actions so the card's overflow doesn't
+                        // duplicate the primary affordances.
                         Button("Delete", role: .destructive, action: onDelete)
                     } label: {
                         Image(systemName: "ellipsis")
@@ -692,8 +758,18 @@ struct VaultItemCard: View {
 
                 HStack {
                     HStack(spacing: 18) {
-                        VaultActionButton(icon: "square.and.arrow.down", title: "Save", tint: SanchrColors.primary)
-                        VaultActionButton(icon: "square.and.arrow.up", title: "Share", tint: SanchrExportColors.textSecondary)
+                        VaultActionButton(
+                            icon: "square.and.arrow.down",
+                            title: "Save",
+                            tint: SanchrColors.primary,
+                            action: onSave
+                        )
+                        VaultActionButton(
+                            icon: "square.and.arrow.up",
+                            title: "Share",
+                            tint: SanchrExportColors.textSecondary,
+                            action: onShare
+                        )
                     }
 
                     Spacer()
@@ -776,19 +852,60 @@ struct VaultItemCard: View {
     }
 }
 
+/// `UIViewControllerRepresentable` wrapper around
+/// `UIDocumentPickerViewController(forExporting:)` used for the Files
+/// export path of the Save flow. Invokes `onDismiss(success)` when the
+/// picker closes — success==true means the user picked a destination,
+/// false means they cancelled. Either way the view model cleans up the
+/// temp directory on receipt of the callback.
+private struct VaultFilesExportView: UIViewControllerRepresentable {
+    let tempURL: URL
+    let onDismiss: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onDismiss: onDismiss)
+    }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forExporting: [tempURL], asCopy: true)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onDismiss: (Bool) -> Void
+        init(onDismiss: @escaping (Bool) -> Void) { self.onDismiss = onDismiss }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            onDismiss(true)
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            onDismiss(false)
+        }
+    }
+}
+
 private struct VaultActionButton: View {
     let icon: String
     let title: String
     let tint: Color
+    var action: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.sanchrPrimary)
-            Text(title)
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrExportColors.textSecondary)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.sanchrPrimary)
+                Text(title)
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 }
