@@ -119,6 +119,8 @@ actor MediaDownloadManager {
                 key: attachment.encryptionKey,
                 iv: attachment.encryptionIV
             )
+        // TODO(vault-e2ee Task 7): migrate to getAndTouch(mediaId:) so the
+        // sliding TTL engages for message-media re-accesses.
         } else if let mediaId = extractMediaId(from: attachment),
                   let accessKey = try await accessKeyStore.retrieve(mediaId: mediaId) {
             // Re-access path: use device-local AccessK

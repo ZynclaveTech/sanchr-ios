@@ -23,8 +23,15 @@ public protocol AccessKeyStoreProtocol: AnyObject, Sendable {
     /// worked) before extending the TTL.
     func touch(mediaId: String) async throws
 
-    /// Atomic `retrieve + touch` — the canonical entry point for decrypt
-    /// paths. Returns `nil` if the entry is missing or expired.
+    /// Convenience `retrieve + touch` — the canonical entry point for
+    /// decrypt paths. Returns `nil` if the entry is missing or expired.
+    ///
+    /// NOT transactionally atomic: issues a read then a separate write.
+    /// Under concurrent `purgeExpired()` / `deleteAccessKeyEntry()` the
+    /// touch may silently no-op, but the returned key is always a valid
+    /// snapshot at the time of the read. Safe for the sliding-TTL model
+    /// because any race outcome preserves the security property
+    /// (`lastAccessedAt` only ever moves forward or the entry vanishes).
     func getAndTouch(mediaId: String) async throws -> Data?
 
     /// Delete every entry whose sliding TTL has elapsed. Returns the count

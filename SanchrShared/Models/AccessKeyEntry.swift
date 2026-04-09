@@ -29,9 +29,11 @@ public struct AccessKeyEntry: Codable, Sendable {
 
     public let createdAt: Date
 
-    /// Bumped on every successful decrypt via `touch()` or `getAndTouch()`.
+    /// Bumped by the store on every successful decrypt via `touch()` or
+    /// `getAndTouch()`. In-memory copies are immutable — to observe an
+    /// updated value, re-fetch via `AccessKeyStoreProtocol.retrieveEntry`.
     /// Effective expiry is `GREATEST(createdAt, lastAccessedAt) + 30 days`.
-    public var lastAccessedAt: Date
+    public let lastAccessedAt: Date
 
     public init(
         mediaId: String,
