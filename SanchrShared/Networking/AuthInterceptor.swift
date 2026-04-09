@@ -171,10 +171,10 @@ extension AuthInterceptorFactory: Vync_Notifications_NotificationServiceClientIn
 // MARK: - VaultService Interceptors
 
 extension AuthInterceptorFactory: Vync_Vault_VaultServiceClientInterceptorFactoryProtocol {
-    public func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>] { makeInterceptors() }
     public func makeCreateVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>] { makeInterceptors() }
+    public func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>] { makeInterceptors() }
+    public func makeGetVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>] { makeInterceptors() }
     public func makeDeleteVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>] { makeInterceptors() }
-    public func makeShareVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>] { makeInterceptors() }
 }
 
 // MARK: - BackupService Interceptors

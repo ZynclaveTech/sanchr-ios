@@ -32,6 +32,7 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
 
     func saveVaultItem(_ item: VaultItem) async throws
     func fetchVaultItems() async throws -> [VaultItem]
+    func fetchAllVaultItems() async throws -> [VaultItem]
     func deleteVaultItem(id: String) async throws
 
     // MARK: - Access Keys (Media Forward Secrecy)
@@ -492,7 +493,20 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
+    /// Fetches live vault items only. Sealed items are hidden from the UI
+    /// by design — see spec Section 4. Callers that need sealed items
+    /// (e.g. backup export) should use `fetchAllVaultItems()`.
     public func fetchVaultItems() async throws -> [VaultItem] {
+        try await dbPool.read { db in
+            try VaultItemRecord
+                .filter(Column("status") == "live")
+                .order(Column("createdAt").desc)
+                .fetchAll(db)
+                .map { $0.toDomain() }
+        }
+    }
+
+    public func fetchAllVaultItems() async throws -> [VaultItem] {
         try await dbPool.read { db in
             try VaultItemRecord
                 .order(Column("createdAt").desc)
@@ -736,22 +750,13 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 )
             }
 
-            let vaultItems = vaultRecords.map { record in
-                BackupArchiveVaultItemFrame(
-                    id: record.id,
-                    name: record.name,
-                    itemType: record.type,
-                    sizeBytes: record.sizeBytes,
-                    encryptionKeyBase64: record.encryptionKey.base64EncodedString(),
-                    encryptionIVBase64: record.encryptionIV.base64EncodedString(),
-                    encryptedThumbnailURL: record.encryptedThumbnailURL,
-                    createdAtMs: Int64(record.createdAt.timeIntervalSince1970 * 1000),
-                    updatedAtMs: Int64(record.updatedAt.timeIntervalSince1970 * 1000),
-                    isCachedLocally: record.isCachedLocally,
-                    remoteURL: record.remoteURL,
-                    localURL: record.localURL
-                )
-            }
+            // TODO(Task 9): rewrite once BackupArchiveVaultItemFrame is
+            // updated to the forward-secure shape (mediaId, status, no
+            // plaintext key/IV). Temporarily emit an empty vault item array
+            // so the backup export builds. Sealed-item rows and AccessKey
+            // rows will be carried in their own frame types in Task 9.
+            _ = vaultRecords
+            let vaultItems: [BackupArchiveVaultItemFrame] = []
 
             let info = BackupArchiveInfoFrame(
                 formatVersion: BackupArchive.formatVersion,
@@ -895,22 +900,11 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 }
 
                 for vaultItem in snapshot.vaultItems {
-                    let record = VaultItemRecord(
-                        id: vaultItem.id,
-                        name: vaultItem.name,
-                        type: vaultItem.itemType,
-                        sizeBytes: vaultItem.sizeBytes,
-                        encryptionKey: Data(base64Encoded: vaultItem.encryptionKeyBase64) ?? Data(),
-                        encryptionIV: Data(base64Encoded: vaultItem.encryptionIVBase64) ?? Data(),
-                        thumbnailData: nil,
-                        encryptedThumbnailURL: vaultItem.encryptedThumbnailURL,
-                        createdAt: Date(timeIntervalSince1970: TimeInterval(vaultItem.createdAtMs) / 1000),
-                        updatedAt: Date(timeIntervalSince1970: TimeInterval(vaultItem.updatedAtMs) / 1000),
-                        isCachedLocally: vaultItem.isCachedLocally,
-                        remoteURL: vaultItem.remoteURL,
-                        localURL: vaultItem.localURL
-                    )
-                    try record.save(db, onConflict: .replace)
+                    // TODO(Task 9): rewrite once BackupArchiveVaultItemFrame
+                    // is updated to the forward-secure shape (mediaId, status,
+                    // no plaintext key/IV). Commented out temporarily to
+                    // unblock the build.
+                    _ = vaultItem
                 }
             }
 
@@ -1286,6 +1280,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func searchContacts(query: String) async throws -> [User] { throw error }
     public func saveVaultItem(_ item: VaultItem) async throws { throw error }
     public func fetchVaultItems() async throws -> [VaultItem] { throw error }
+    public func fetchAllVaultItems() async throws -> [VaultItem] { throw error }
     public func deleteVaultItem(id: String) async throws { throw error }
     public func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
     public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }

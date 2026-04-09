@@ -196,6 +196,30 @@ public enum DatabaseSchema {
             )
         }
 
+        migrator.registerMigration("v7_vault_items_forward_secure") { db in
+            // Drop the plaintext-key columns from vaultItem and add the
+            // forward-secure shape:
+            // - mediaId: TEXT, references the media_objects row
+            // - status: TEXT ('live' or 'sealed'), defaults to 'live'
+            //
+            // iOS 17+ ships SQLite 3.35+ which supports ALTER TABLE DROP
+            // COLUMN natively, so the raw-SQL form works on all deployment
+            // targets for this project.
+            try db.execute(sql: "ALTER TABLE vaultItem DROP COLUMN encryptionKey")
+            try db.execute(sql: "ALTER TABLE vaultItem DROP COLUMN encryptionIV")
+            try db.execute(sql: "ALTER TABLE vaultItem ADD COLUMN mediaId TEXT NOT NULL DEFAULT ''")
+            try db.execute(sql: "ALTER TABLE vaultItem ADD COLUMN status TEXT NOT NULL DEFAULT 'live'")
+
+            // Index on (status, createdAt) so the UI list query that filters
+            // out sealed items uses an index.
+            try db.create(
+                index: "idx_vaultItem_status_createdAt",
+                on: "vaultItem",
+                columns: ["status", "createdAt"],
+                ifNotExists: true
+            )
+        }
+
         return migrator
     }
 }

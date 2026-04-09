@@ -309,11 +309,10 @@ public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Send
     public static let databaseTableName = "vaultItem"
 
     public var id: String
+    public var mediaId: String
     public var name: String
     public var type: String
     public var sizeBytes: Int64
-    public var encryptionKey: Data
-    public var encryptionIV: Data
     public var thumbnailData: Data?
     public var encryptedThumbnailURL: String?
     public var createdAt: Date
@@ -321,44 +320,44 @@ public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Send
     public var isCachedLocally: Bool
     public var remoteURL: String?
     public var localURL: String?
+    public var status: String
 
     public init(from item: VaultItem) {
         self.id = item.id
+        self.mediaId = item.mediaId
         self.name = item.name
         self.type = item.type.rawValue
         self.sizeBytes = item.sizeBytes
-        self.encryptionKey = item.encryptionKey
-        self.encryptionIV = item.encryptionIV
-        self.thumbnailData = nil
+        self.thumbnailData = item.thumbnailData
         self.encryptedThumbnailURL = item.encryptedThumbnailURL?.absoluteString
         self.createdAt = item.createdAt
         self.updatedAt = item.updatedAt
         self.isCachedLocally = item.isCachedLocally
         self.remoteURL = item.remoteURL?.absoluteString
         self.localURL = item.localURL?.absoluteString
+        self.status = item.status.rawValue
     }
 
     public init(
         id: String,
+        mediaId: String,
         name: String,
         type: String,
         sizeBytes: Int64,
-        encryptionKey: Data,
-        encryptionIV: Data,
         thumbnailData: Data?,
         encryptedThumbnailURL: String?,
         createdAt: Date,
         updatedAt: Date,
         isCachedLocally: Bool,
         remoteURL: String?,
-        localURL: String?
+        localURL: String?,
+        status: String = "live"
     ) {
         self.id = id
+        self.mediaId = mediaId
         self.name = name
         self.type = type
         self.sizeBytes = sizeBytes
-        self.encryptionKey = encryptionKey
-        self.encryptionIV = encryptionIV
         self.thumbnailData = thumbnailData
         self.encryptedThumbnailURL = encryptedThumbnailURL
         self.createdAt = createdAt
@@ -366,23 +365,24 @@ public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Send
         self.isCachedLocally = isCachedLocally
         self.remoteURL = remoteURL
         self.localURL = localURL
+        self.status = status
     }
 
     public func toDomain() -> VaultItem {
         VaultItem(
             id: id,
+            mediaId: mediaId,
             name: name,
             type: VaultItem.VaultItemType(rawValue: type) ?? .document,
             sizeBytes: sizeBytes,
-            encryptionKey: encryptionKey,
-            encryptionIV: encryptionIV,
-            thumbnailData: nil,
+            thumbnailData: thumbnailData,
             encryptedThumbnailURL: encryptedThumbnailURL.flatMap { URL(string: $0) },
             createdAt: createdAt,
             updatedAt: updatedAt,
             isCachedLocally: isCachedLocally,
             remoteURL: remoteURL.flatMap { URL(string: $0) },
-            localURL: localURL.flatMap { URL(string: $0) }
+            localURL: localURL.flatMap { URL(string: $0) },
+            status: VaultItem.VaultItemStatus(rawValue: status) ?? .live
         )
     }
 }

@@ -49,27 +49,13 @@ public actor ThumbnailCache {
             return image
         }
 
-        // No encrypted thumbnail URL — nothing to fetch
-        guard let url = item.encryptedThumbnailURL, !item.encryptionKey.isEmpty else {
-            return nil
-        }
-
-        // Deduplicate in-flight requests
-        if let existing = inFlightTasks[item.id] {
-            return await existing.value
-        }
-
-        let itemId = item.id
-        let encryptionKey = item.encryptionKey
-        let task = Task<UIImage?, Never> { [weak self] in
-            guard let self else { return nil }
-            let image = await self.fetchAndDecrypt(url: url, key: encryptionKey, itemId: itemId)
-            await self.clearInFlight(for: itemId)
-            return image
-        }
-        inFlightTasks[item.id] = task
-
-        return await task.value
+        // TODO(Task 7+): rewire the encrypted-thumbnail fetch path to pull
+        // AccessK_vault from AccessKeyStore instead of a field on VaultItem.
+        // Until then, items whose thumbnail lives only in S3 (no session-
+        // local plaintext and no cached copy) will fall through to nil —
+        // the UI gracefully renders a placeholder in that case.
+        _ = item.encryptedThumbnailURL
+        return nil
     }
 
     /// Removes cached thumbnail for an item (call on delete).
