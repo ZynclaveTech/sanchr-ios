@@ -230,7 +230,8 @@ final class DependencyContainer: @unchecked Sendable {
             chatVaultPolicyMirror: chatVaultPolicyMirror,
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
-            currentUserIdProvider: { weakSelf?.sessionService.currentUserId }
+            currentUserIdProvider: { weakSelf?.sessionService.currentUserId },
+            privacySettings: privacySettings
         )
     }()
 
@@ -500,7 +501,8 @@ final class DependencyContainer: @unchecked Sendable {
             chatVaultPolicyMirror: chatVaultPolicyMirror,
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
-            currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId }
+            currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId },
+            privacySettings: privacySettings
         )
         // Rebuild the cross-process send pipeline so it captures the freshly
         // installed `signalSessionManager`. The `MessageSender` actor itself
