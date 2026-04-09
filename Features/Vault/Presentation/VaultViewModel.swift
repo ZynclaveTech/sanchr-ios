@@ -77,16 +77,39 @@ final class VaultViewModel {
 
     /// State for the save/share state machine. `nil` means idle.
     ///
-    /// Task 4 introduces `.saving` and `.exportingToFiles` for Flow A.
-    /// Task 6 adds the Flow B / B1 / B2 cases
-    /// (.choosingDestination, .pickingConversation,
-    /// .confirmingLargeReupload, .sendingToChat, .preparingShare,
-    /// .externalSharing).
+    /// Flow A (`requestSave`) uses `.saving` and `.exportingToFiles`.
+    /// Flow B / B1 / B2 (`requestShare`) uses `.choosingDestination`,
+    /// `.pickingConversation`, `.confirmingLargeReupload`,
+    /// `.sendingToChat`, `.preparingShare`, and `.externalSharing`.
     enum ShareState: Sendable {
-        /// Downloading + writing temp file for a photo/video → Photos.
+        /// Flow A: downloading + writing temp file for a photo/video → Photos.
         case saving(VaultItem)
-        /// Temp file ready, showing the Files export picker.
+        /// Flow A: temp file ready, showing the Files export picker.
         case exportingToFiles(VaultItem, tempURL: URL)
+
+        /// Flow B: showing the two-row share destination chooser.
+        case choosingDestination(VaultItem)
+
+        /// Flow B1: showing the conversation picker.
+        case pickingConversation(VaultItem)
+        /// Flow B1: showing the 25MB re-upload confirmation alert.
+        case confirmingLargeReupload(
+            VaultItem,
+            conversationId: String,
+            conversationName: String,
+            sizeBytes: Int64
+        )
+        /// Flow B1: sending to a chat (in flight).
+        case sendingToChat(
+            VaultItem,
+            conversationId: String,
+            conversationName: String
+        )
+
+        /// Flow B2: coordinator is downloading + writing the temp file.
+        case preparingShare(VaultItem)
+        /// Flow B2: temp file ready, showing the iOS activity view.
+        case externalSharing(VaultItem, tempURL: URL)
     }
 
     // MARK: - State
@@ -123,8 +146,9 @@ final class VaultViewModel {
     /// Pagination cursor (opaque, provided by the server).
     private var cursor: String = ""
 
-    // Share / Save state (Flow A). Task 6 extends the state machine
-    // for Flow B / Flow B1 / Flow B2.
+    /// Current position in the save/share state machine. `nil` means
+    /// idle. Flow A drives `.saving` / `.exportingToFiles`; Flow B
+    /// drives the rest.
     var shareState: ShareState?
 
     /// Transient toast shown in the vault view after a save/share
@@ -384,6 +408,155 @@ final class VaultViewModel {
         let toast = shareCompletionToast
         shareCompletionToast = nil
         return toast
+    }
+
+    // MARK: - Share (Flow B)
+
+    /// Flow B entry point. Shows the two-row destination chooser.
+    ///
+    /// No-op if another save or share is already in flight (guards
+    /// against double-tap and prevents two competing state machines).
+    func requestShare(_ item: VaultItem) {
+        guard shareState == nil else {
+            SanchrLogger.vault.info("requestShare: ignored — shareState is set")
+            return
+        }
+        shareState = .choosingDestination(item)
+    }
+
+    /// User picked "Share in chat" in the destination chooser.
+    /// Transitions to the conversation picker.
+    func chooseShareInChat(for item: VaultItem) {
+        shareState = .pickingConversation(item)
+    }
+
+    /// User picked "Share outside Sanchr" in the destination chooser.
+    /// Downloads via the coordinator and transitions to
+    /// `.externalSharing` with a temp URL. The view presents
+    /// `VaultActivityView` bound to that URL.
+    ///
+    /// On download failure, surfaces via `errorMessage` and clears the
+    /// state.
+    func chooseShareOutside(
+        for item: VaultItem,
+        sharingCoordinator: VaultSharingCoordinating
+    ) async {
+        shareState = .preparingShare(item)
+        do {
+            let tempURL = try await sharingCoordinator.prepareForExternalShare(item: item)
+            shareState = .externalSharing(item, tempURL: tempURL)
+        } catch {
+            errorMessage = error.localizedDescription
+            shareState = nil
+        }
+    }
+
+    /// Called by the view when `UIActivityViewController` dismisses.
+    /// Cleans up the temp file via the coordinator and clears the
+    /// share state. Sets the completion toast only on success.
+    func didFinishExternalShare(
+        for item: VaultItem,
+        tempURL: URL,
+        completed: Bool,
+        sharingCoordinator: VaultSharingCoordinating
+    ) {
+        Task {
+            await sharingCoordinator.cleanupTempFile(at: tempURL)
+        }
+        if completed {
+            shareCompletionToast = "Shared"
+        }
+        shareState = nil
+    }
+
+    /// User picked a conversation in the picker. Checks size against
+    /// the 25 MB threshold; if under, proceeds directly; if over,
+    /// transitions to `.confirmingLargeReupload`.
+    func confirmConversation(
+        conversationId: String,
+        conversationName: String,
+        for item: VaultItem,
+        sharingCoordinator: VaultSharingCoordinating
+    ) async {
+        let threshold: Int64 = 25 * 1024 * 1024
+        if item.sizeBytes > threshold {
+            shareState = .confirmingLargeReupload(
+                item,
+                conversationId: conversationId,
+                conversationName: conversationName,
+                sizeBytes: item.sizeBytes
+            )
+            return
+        }
+        await performShareToChat(
+            item: item,
+            conversationId: conversationId,
+            conversationName: conversationName,
+            sharingCoordinator: sharingCoordinator
+        )
+    }
+
+    /// User confirmed the 25 MB alert. Proceeds with the share.
+    /// Reads the item + conversation info directly out of the
+    /// `.confirmingLargeReupload` state so the caller doesn't have to
+    /// re-pass them.
+    func confirmLargeReupload(
+        sharingCoordinator: VaultSharingCoordinating
+    ) async {
+        guard case .confirmingLargeReupload(let item, let cid, let cname, _) = shareState else {
+            return
+        }
+        await performShareToChat(
+            item: item,
+            conversationId: cid,
+            conversationName: cname,
+            sharingCoordinator: sharingCoordinator
+        )
+    }
+
+    /// User cancelled the 25 MB alert. Returns to the conversation
+    /// picker so they can pick a different chat (or cancel entirely).
+    func cancelLargeReupload() {
+        guard case .confirmingLargeReupload(let item, _, _, _) = shareState else {
+            return
+        }
+        shareState = .pickingConversation(item)
+    }
+
+    /// User dismissed the destination chooser or the conversation
+    /// picker without picking anything. Clears share state entirely.
+    func cancelShare() {
+        shareState = nil
+    }
+
+    // MARK: - Private share helpers
+
+    /// Single choke point for calling the coordinator's shareToChat.
+    /// Both the ≤25MB direct path and the >25MB confirmed path route
+    /// through here so the toast-message and state-clear logic stays
+    /// DRY.
+    private func performShareToChat(
+        item: VaultItem,
+        conversationId: String,
+        conversationName: String,
+        sharingCoordinator: VaultSharingCoordinating
+    ) async {
+        shareState = .sendingToChat(
+            item,
+            conversationId: conversationId,
+            conversationName: conversationName
+        )
+        do {
+            _ = try await sharingCoordinator.shareToChat(
+                item: item,
+                conversationId: conversationId
+            )
+            shareCompletionToast = "Sent to \(conversationName)"
+            shareState = nil
+        } catch {
+            errorMessage = error.localizedDescription
+            shareState = nil
+        }
     }
 
     // MARK: - Private helpers
