@@ -22,7 +22,59 @@ import SwiftProtobuf
 // that was used to generate this file.
 fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
-  public typealias Version = _2
+  typealias Version = _2
+}
+
+public struct Vync_Vault_CreateVaultItemRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Client-generated UUIDv4 for idempotent crash recovery. Server uses this as
+  /// the primary key; retries with the same ID are a no-op that return the
+  /// existing row.
+  public var vaultItemID: String = String()
+
+  /// UUID of an already-uploaded media_object (via MediaService.GetUploadUrl +
+  /// ConfirmUpload). The caller MUST own this media_id or the request is
+  /// rejected.
+  public var mediaID: String = String()
+
+  /// Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side with
+  /// AccessK_vault. Contains name, mime type, size, thumbnail, sender id, etc.
+  /// Server treats this as an opaque byte string. Max 64 KiB; exceeding this
+  /// returns INVALID_ARGUMENT.
+  public var encryptedMetadata: Data = Data()
+
+  /// Client-computed expiry hint (Unix millis). Used by the server-side orphan
+  /// sweep for lifecycle management. Not cryptographically enforced.
+  public var expiresAt: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Vault_VaultItem: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var vaultItemID: String = String()
+
+  public var mediaID: String = String()
+
+  public var encryptedMetadata: Data = Data()
+
+  /// Server-stamped Unix millis.
+  public var createdAt: Int64 = 0
+
+  /// Unix millis. Echoes the value from CreateVaultItemRequest.expires_at.
+  public var expiresAt: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 public struct Vync_Vault_GetVaultItemsRequest: Sendable {
@@ -30,13 +82,11 @@ public struct Vync_Vault_GetVaultItemsRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// "all", "photo", "video", "file"
-  public var filter: String = String()
-
+  /// Page size, 1..=100. Zero or negative values default to 20.
   public var limit: Int32 = 0
 
-  /// pagination cursor
-  public var beforeItemID: String = String()
+  /// Opaque paging cursor from a previous response's `next_cursor`.
+  public var pagingToken: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -50,71 +100,20 @@ public struct Vync_Vault_GetVaultItemsResponse: Sendable {
 
   public var items: [Vync_Vault_VaultItem] = []
 
-  public var totalPhotos: Int32 = 0
-
-  public var totalVideos: Int32 = 0
-
-  public var totalFiles: Int32 = 0
+  /// Empty string when no more pages. Forward this value as the next request's paging_token.
+  public var nextCursor: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Vault_CreateVaultItemRequest: Sendable {
+public struct Vync_Vault_GetVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// "photo", "video", "file"
-  public var mediaType: String = String()
-
-  /// S3 URL to encrypted blob
-  public var encryptedURL: String = String()
-
-  /// AES key, E2EE encrypted for this user
-  public var encryptedKey: Data = Data()
-
-  public var thumbnailURL: String = String()
-
-  public var fileName: String = String()
-
-  public var fileSize: Int64 = 0
-
-  public var senderID: String = String()
-
-  /// expiry duration
-  public var ttlSeconds: Int64 = 0
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Vync_Vault_VaultItem: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var itemID: String = String()
-
-  public var mediaType: String = String()
-
-  public var encryptedURL: String = String()
-
-  public var encryptedKey: Data = Data()
-
-  public var thumbnailURL: String = String()
-
-  public var fileName: String = String()
-
-  public var fileSize: Int64 = 0
-
-  public var senderID: String = String()
-
-  public var expiresAt: Int64 = 0
-
-  public var createdAt: Int64 = 0
+  public var vaultItemID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -126,7 +125,7 @@ public struct Vync_Vault_DeleteVaultItemRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var itemID: String = String()
+  public var vaultItemID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -143,40 +142,13 @@ public struct Vync_Vault_DeleteVaultItemResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_ShareVaultItemRequest: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var itemID: String = String()
-
-  public var recipientID: String = String()
-
-  /// item key re-encrypted for recipient's public key (client-provided, required)
-  public var reEncryptedKey: String = String()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Vync_Vault_ShareVaultItemResponse: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "vync.vault"
 
-extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}filter\0\u{1}limit\0\u{3}before_item_id\0")
+extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CreateVaultItemRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}expires_at\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{b}ttl_seconds\0\u{c}\u{5}\u{1}\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -184,31 +156,121 @@ extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf.
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.filter) }()
-      case 2: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.beforeItemID) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.vaultItemID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.mediaID) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.encryptedMetadata) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.expiresAt) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.filter.isEmpty {
-      try visitor.visitSingularStringField(value: self.filter, fieldNumber: 1)
+    if !self.vaultItemID.isEmpty {
+      try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
+    if !self.mediaID.isEmpty {
+      try visitor.visitSingularStringField(value: self.mediaID, fieldNumber: 2)
+    }
+    if !self.encryptedMetadata.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedMetadata, fieldNumber: 3)
+    }
+    if self.expiresAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.expiresAt, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Vault_CreateVaultItemRequest, rhs: Vync_Vault_CreateVaultItemRequest) -> Bool {
+    if lhs.vaultItemID != rhs.vaultItemID {return false}
+    if lhs.mediaID != rhs.mediaID {return false}
+    if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
+    if lhs.expiresAt != rhs.expiresAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VaultItem"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}created_at\0\u{3}expires_at\0\u{b}item_id\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{9}\u{1}\u{c}\u{a}\u{1}")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.vaultItemID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.mediaID) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.encryptedMetadata) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.createdAt) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.expiresAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.vaultItemID.isEmpty {
+      try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
+    }
+    if !self.mediaID.isEmpty {
+      try visitor.visitSingularStringField(value: self.mediaID, fieldNumber: 2)
+    }
+    if !self.encryptedMetadata.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedMetadata, fieldNumber: 3)
+    }
+    if self.createdAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.createdAt, fieldNumber: 4)
+    }
+    if self.expiresAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.expiresAt, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Vault_VaultItem, rhs: Vync_Vault_VaultItem) -> Bool {
+    if lhs.vaultItemID != rhs.vaultItemID {return false}
+    if lhs.mediaID != rhs.mediaID {return false}
+    if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
+    if lhs.createdAt != rhs.createdAt {return false}
+    if lhs.expiresAt != rhs.expiresAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0\u{3}paging_token\0\u{b}filter\0\u{b}before_item_id\0\u{c}\u{3}\u{1}")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.pagingToken) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.limit != 0 {
-      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 2)
+      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 1)
     }
-    if !self.beforeItemID.isEmpty {
-      try visitor.visitSingularStringField(value: self.beforeItemID, fieldNumber: 3)
+    if !self.pagingToken.isEmpty {
+      try visitor.visitSingularStringField(value: self.pagingToken, fieldNumber: 2)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Vync_Vault_GetVaultItemsRequest, rhs: Vync_Vault_GetVaultItemsRequest) -> Bool {
-    if lhs.filter != rhs.filter {return false}
     if lhs.limit != rhs.limit {return false}
-    if lhs.beforeItemID != rhs.beforeItemID {return false}
+    if lhs.pagingToken != rhs.pagingToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -216,7 +278,7 @@ extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf.
 
 extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{3}total_photos\0\u{3}total_videos\0\u{3}total_files\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{3}next_cursor\0\u{b}total_photos\0\u{b}total_videos\0\u{b}total_files\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -225,9 +287,7 @@ extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
-      case 2: try { try decoder.decodeSingularInt32Field(value: &self.totalPhotos) }()
-      case 3: try { try decoder.decodeSingularInt32Field(value: &self.totalVideos) }()
-      case 4: try { try decoder.decodeSingularInt32Field(value: &self.totalFiles) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.nextCursor) }()
       default: break
       }
     }
@@ -237,31 +297,23 @@ extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf
     if !self.items.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 1)
     }
-    if self.totalPhotos != 0 {
-      try visitor.visitSingularInt32Field(value: self.totalPhotos, fieldNumber: 2)
-    }
-    if self.totalVideos != 0 {
-      try visitor.visitSingularInt32Field(value: self.totalVideos, fieldNumber: 3)
-    }
-    if self.totalFiles != 0 {
-      try visitor.visitSingularInt32Field(value: self.totalFiles, fieldNumber: 4)
+    if !self.nextCursor.isEmpty {
+      try visitor.visitSingularStringField(value: self.nextCursor, fieldNumber: 2)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Vync_Vault_GetVaultItemsResponse, rhs: Vync_Vault_GetVaultItemsResponse) -> Bool {
     if lhs.items != rhs.items {return false}
-    if lhs.totalPhotos != rhs.totalPhotos {return false}
-    if lhs.totalVideos != rhs.totalVideos {return false}
-    if lhs.totalFiles != rhs.totalFiles {return false}
+    if lhs.nextCursor != rhs.nextCursor {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CreateVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_type\0\u{3}encrypted_url\0\u{3}encrypted_key\0\u{3}thumbnail_url\0\u{3}file_name\0\u{3}file_size\0\u{3}sender_id\0\u{3}ttl_seconds\0")
+extension Vync_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -269,131 +321,21 @@ extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobu
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.mediaType) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.encryptedURL) }()
-      case 3: try { try decoder.decodeSingularBytesField(value: &self.encryptedKey) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.thumbnailURL) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.fileName) }()
-      case 6: try { try decoder.decodeSingularInt64Field(value: &self.fileSize) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self.senderID) }()
-      case 8: try { try decoder.decodeSingularInt64Field(value: &self.ttlSeconds) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.vaultItemID) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.mediaType.isEmpty {
-      try visitor.visitSingularStringField(value: self.mediaType, fieldNumber: 1)
-    }
-    if !self.encryptedURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.encryptedURL, fieldNumber: 2)
-    }
-    if !self.encryptedKey.isEmpty {
-      try visitor.visitSingularBytesField(value: self.encryptedKey, fieldNumber: 3)
-    }
-    if !self.thumbnailURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.thumbnailURL, fieldNumber: 4)
-    }
-    if !self.fileName.isEmpty {
-      try visitor.visitSingularStringField(value: self.fileName, fieldNumber: 5)
-    }
-    if self.fileSize != 0 {
-      try visitor.visitSingularInt64Field(value: self.fileSize, fieldNumber: 6)
-    }
-    if !self.senderID.isEmpty {
-      try visitor.visitSingularStringField(value: self.senderID, fieldNumber: 7)
-    }
-    if self.ttlSeconds != 0 {
-      try visitor.visitSingularInt64Field(value: self.ttlSeconds, fieldNumber: 8)
+    if !self.vaultItemID.isEmpty {
+      try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_CreateVaultItemRequest, rhs: Vync_Vault_CreateVaultItemRequest) -> Bool {
-    if lhs.mediaType != rhs.mediaType {return false}
-    if lhs.encryptedURL != rhs.encryptedURL {return false}
-    if lhs.encryptedKey != rhs.encryptedKey {return false}
-    if lhs.thumbnailURL != rhs.thumbnailURL {return false}
-    if lhs.fileName != rhs.fileName {return false}
-    if lhs.fileSize != rhs.fileSize {return false}
-    if lhs.senderID != rhs.senderID {return false}
-    if lhs.ttlSeconds != rhs.ttlSeconds {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".VaultItem"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}item_id\0\u{3}media_type\0\u{3}encrypted_url\0\u{3}encrypted_key\0\u{3}thumbnail_url\0\u{3}file_name\0\u{3}file_size\0\u{3}sender_id\0\u{3}expires_at\0\u{3}created_at\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.itemID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.mediaType) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.encryptedURL) }()
-      case 4: try { try decoder.decodeSingularBytesField(value: &self.encryptedKey) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.thumbnailURL) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.fileName) }()
-      case 7: try { try decoder.decodeSingularInt64Field(value: &self.fileSize) }()
-      case 8: try { try decoder.decodeSingularStringField(value: &self.senderID) }()
-      case 9: try { try decoder.decodeSingularInt64Field(value: &self.expiresAt) }()
-      case 10: try { try decoder.decodeSingularInt64Field(value: &self.createdAt) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.itemID.isEmpty {
-      try visitor.visitSingularStringField(value: self.itemID, fieldNumber: 1)
-    }
-    if !self.mediaType.isEmpty {
-      try visitor.visitSingularStringField(value: self.mediaType, fieldNumber: 2)
-    }
-    if !self.encryptedURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.encryptedURL, fieldNumber: 3)
-    }
-    if !self.encryptedKey.isEmpty {
-      try visitor.visitSingularBytesField(value: self.encryptedKey, fieldNumber: 4)
-    }
-    if !self.thumbnailURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.thumbnailURL, fieldNumber: 5)
-    }
-    if !self.fileName.isEmpty {
-      try visitor.visitSingularStringField(value: self.fileName, fieldNumber: 6)
-    }
-    if self.fileSize != 0 {
-      try visitor.visitSingularInt64Field(value: self.fileSize, fieldNumber: 7)
-    }
-    if !self.senderID.isEmpty {
-      try visitor.visitSingularStringField(value: self.senderID, fieldNumber: 8)
-    }
-    if self.expiresAt != 0 {
-      try visitor.visitSingularInt64Field(value: self.expiresAt, fieldNumber: 9)
-    }
-    if self.createdAt != 0 {
-      try visitor.visitSingularInt64Field(value: self.createdAt, fieldNumber: 10)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Vync_Vault_VaultItem, rhs: Vync_Vault_VaultItem) -> Bool {
-    if lhs.itemID != rhs.itemID {return false}
-    if lhs.mediaType != rhs.mediaType {return false}
-    if lhs.encryptedURL != rhs.encryptedURL {return false}
-    if lhs.encryptedKey != rhs.encryptedKey {return false}
-    if lhs.thumbnailURL != rhs.thumbnailURL {return false}
-    if lhs.fileName != rhs.fileName {return false}
-    if lhs.fileSize != rhs.fileSize {return false}
-    if lhs.senderID != rhs.senderID {return false}
-    if lhs.expiresAt != rhs.expiresAt {return false}
-    if lhs.createdAt != rhs.createdAt {return false}
+  public static func ==(lhs: Vync_Vault_GetVaultItemRequest, rhs: Vync_Vault_GetVaultItemRequest) -> Bool {
+    if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -401,7 +343,7 @@ extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 
 extension Vync_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}item_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -409,21 +351,21 @@ extension Vync_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobu
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.itemID) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.vaultItemID) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.itemID.isEmpty {
-      try visitor.visitSingularStringField(value: self.itemID, fieldNumber: 1)
+    if !self.vaultItemID.isEmpty {
+      try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Vync_Vault_DeleteVaultItemRequest, rhs: Vync_Vault_DeleteVaultItemRequest) -> Bool {
-    if lhs.itemID != rhs.itemID {return false}
+    if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -443,65 +385,6 @@ extension Vync_Vault_DeleteVaultItemResponse: SwiftProtobuf.Message, SwiftProtob
   }
 
   public static func ==(lhs: Vync_Vault_DeleteVaultItemResponse, rhs: Vync_Vault_DeleteVaultItemResponse) -> Bool {
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Vync_Vault_ShareVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ShareVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}item_id\0\u{3}recipient_id\0\u{3}re_encrypted_key\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.itemID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.recipientID) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.reEncryptedKey) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.itemID.isEmpty {
-      try visitor.visitSingularStringField(value: self.itemID, fieldNumber: 1)
-    }
-    if !self.recipientID.isEmpty {
-      try visitor.visitSingularStringField(value: self.recipientID, fieldNumber: 2)
-    }
-    if !self.reEncryptedKey.isEmpty {
-      try visitor.visitSingularStringField(value: self.reEncryptedKey, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Vync_Vault_ShareVaultItemRequest, rhs: Vync_Vault_ShareVaultItemRequest) -> Bool {
-    if lhs.itemID != rhs.itemID {return false}
-    if lhs.recipientID != rhs.recipientID {return false}
-    if lhs.reEncryptedKey != rhs.reEncryptedKey {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Vync_Vault_ShareVaultItemResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ShareVaultItemResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Vync_Vault_ShareVaultItemResponse, rhs: Vync_Vault_ShareVaultItemResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

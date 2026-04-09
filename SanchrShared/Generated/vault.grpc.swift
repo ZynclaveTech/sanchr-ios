@@ -11,53 +11,46 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
+/// Forward-secure vault, compliant with the research paper "Threat-Driven
+/// Extensions to the Signal Protocol" — Defense 2.
+///
+/// Contract:
+///   - The server NEVER sees a plaintext AES key for a vault item.
+///   - Metadata (file name, mime type, thumbnail, etc.) is encrypted client-side
+///     and passed to the server as an opaque `encrypted_metadata` blob.
+///   - Vault item IDs are client-generated UUIDv4 for idempotent crash recovery.
+///   - Sharing is intentionally absent. It will return in a future round with
+///     a proper cryptographic re-wrap design.
+///
 /// Usage: instantiate `Vync_Vault_VaultServiceClient`, then call methods of this protocol to make API calls.
 public protocol Vync_Vault_VaultServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
   var interceptors: Vync_Vault_VaultServiceClientInterceptorFactoryProtocol? { get }
-
-  func getVaultItems(
-    _ request: Vync_Vault_GetVaultItemsRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>
 
   func createVaultItem(
     _ request: Vync_Vault_CreateVaultItemRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>
 
+  func getVaultItems(
+    _ request: Vync_Vault_GetVaultItemsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>
+
+  func getVaultItem(
+    _ request: Vync_Vault_GetVaultItemRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>
+
   func deleteVaultItem(
     _ request: Vync_Vault_DeleteVaultItemRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>
-
-  func shareVaultItem(
-    _ request: Vync_Vault_ShareVaultItemRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>
 }
 
 extension Vync_Vault_VaultServiceClientProtocol {
   public var serviceName: String {
     return "vync.vault.VaultService"
-  }
-
-  /// Unary call to GetVaultItems
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to GetVaultItems.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func getVaultItems(
-    _ request: Vync_Vault_GetVaultItemsRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse> {
-    return self.makeUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
-    )
   }
 
   /// Unary call to CreateVaultItem
@@ -78,6 +71,42 @@ extension Vync_Vault_VaultServiceClientProtocol {
     )
   }
 
+  /// Unary call to GetVaultItems
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetVaultItems.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getVaultItems(
+    _ request: Vync_Vault_GetVaultItemsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to GetVaultItem
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetVaultItem.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getVaultItem(
+    _ request: Vync_Vault_GetVaultItemRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem> {
+    return self.makeUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItem.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemInterceptors() ?? []
+    )
+  }
+
   /// Unary call to DeleteVaultItem
   ///
   /// - Parameters:
@@ -93,24 +122,6 @@ extension Vync_Vault_VaultServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? []
-    )
-  }
-
-  /// Unary call to ShareVaultItem
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to ShareVaultItem.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func shareVaultItem(
-    _ request: Vync_Vault_ShareVaultItemRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse> {
-    return self.makeUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.shareVaultItem.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeShareVaultItemInterceptors() ?? []
     )
   }
 }
@@ -172,30 +183,40 @@ public struct Vync_Vault_VaultServiceNIOClient: Vync_Vault_VaultServiceClientPro
   }
 }
 
+/// Forward-secure vault, compliant with the research paper "Threat-Driven
+/// Extensions to the Signal Protocol" — Defense 2.
+///
+/// Contract:
+///   - The server NEVER sees a plaintext AES key for a vault item.
+///   - Metadata (file name, mime type, thumbnail, etc.) is encrypted client-side
+///     and passed to the server as an opaque `encrypted_metadata` blob.
+///   - Vault item IDs are client-generated UUIDv4 for idempotent crash recovery.
+///   - Sharing is intentionally absent. It will return in a future round with
+///     a proper cryptographic re-wrap design.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public protocol Vync_Vault_VaultServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Vync_Vault_VaultServiceClientInterceptorFactoryProtocol? { get }
-
-  func makeGetVaultItemsCall(
-    _ request: Vync_Vault_GetVaultItemsRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>
 
   func makeCreateVaultItemCall(
     _ request: Vync_Vault_CreateVaultItemRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>
 
+  func makeGetVaultItemsCall(
+    _ request: Vync_Vault_GetVaultItemsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>
+
+  func makeGetVaultItemCall(
+    _ request: Vync_Vault_GetVaultItemRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>
+
   func makeDeleteVaultItemCall(
     _ request: Vync_Vault_DeleteVaultItemRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>
-
-  func makeShareVaultItemCall(
-    _ request: Vync_Vault_ShareVaultItemRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -206,18 +227,6 @@ extension Vync_Vault_VaultServiceAsyncClientProtocol {
 
   public var interceptors: Vync_Vault_VaultServiceClientInterceptorFactoryProtocol? {
     return nil
-  }
-
-  public func makeGetVaultItemsCall(
-    _ request: Vync_Vault_GetVaultItemsRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
-    )
   }
 
   public func makeCreateVaultItemCall(
@@ -232,6 +241,30 @@ extension Vync_Vault_VaultServiceAsyncClientProtocol {
     )
   }
 
+  public func makeGetVaultItemsCall(
+    _ request: Vync_Vault_GetVaultItemsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
+    )
+  }
+
+  public func makeGetVaultItemCall(
+    _ request: Vync_Vault_GetVaultItemRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItem.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemInterceptors() ?? []
+    )
+  }
+
   public func makeDeleteVaultItemCall(
     _ request: Vync_Vault_DeleteVaultItemRequest,
     callOptions: CallOptions? = nil
@@ -243,34 +276,10 @@ extension Vync_Vault_VaultServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? []
     )
   }
-
-  public func makeShareVaultItemCall(
-    _ request: Vync_Vault_ShareVaultItemRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.shareVaultItem.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeShareVaultItemInterceptors() ?? []
-    )
-  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 extension Vync_Vault_VaultServiceAsyncClientProtocol {
-  public func getVaultItems(
-    _ request: Vync_Vault_GetVaultItemsRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Vync_Vault_GetVaultItemsResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
-    )
-  }
-
   public func createVaultItem(
     _ request: Vync_Vault_CreateVaultItemRequest,
     callOptions: CallOptions? = nil
@@ -283,6 +292,30 @@ extension Vync_Vault_VaultServiceAsyncClientProtocol {
     )
   }
 
+  public func getVaultItems(
+    _ request: Vync_Vault_GetVaultItemsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Vault_GetVaultItemsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? []
+    )
+  }
+
+  public func getVaultItem(
+    _ request: Vync_Vault_GetVaultItemRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Vault_VaultItem {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItem.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetVaultItemInterceptors() ?? []
+    )
+  }
+
   public func deleteVaultItem(
     _ request: Vync_Vault_DeleteVaultItemRequest,
     callOptions: CallOptions? = nil
@@ -292,18 +325,6 @@ extension Vync_Vault_VaultServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? []
-    )
-  }
-
-  public func shareVaultItem(
-    _ request: Vync_Vault_ShareVaultItemRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Vync_Vault_ShareVaultItemResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Vync_Vault_VaultServiceClientMetadata.Methods.shareVaultItem.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeShareVaultItemInterceptors() ?? []
     )
   }
 }
@@ -327,17 +348,17 @@ public struct Vync_Vault_VaultServiceAsyncClient: Vync_Vault_VaultServiceAsyncCl
 
 public protocol Vync_Vault_VaultServiceClientInterceptorFactoryProtocol: Sendable {
 
-  /// - Returns: Interceptors to use when invoking 'getVaultItems'.
-  func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>]
-
   /// - Returns: Interceptors to use when invoking 'createVaultItem'.
   func makeCreateVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>]
 
+  /// - Returns: Interceptors to use when invoking 'getVaultItems'.
+  func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getVaultItem'.
+  func makeGetVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>]
+
   /// - Returns: Interceptors to use when invoking 'deleteVaultItem'.
   func makeDeleteVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'shareVaultItem'.
-  func makeShareVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>]
 }
 
 public enum Vync_Vault_VaultServiceClientMetadata {
@@ -345,249 +366,37 @@ public enum Vync_Vault_VaultServiceClientMetadata {
     name: "VaultService",
     fullName: "vync.vault.VaultService",
     methods: [
-      Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems,
       Vync_Vault_VaultServiceClientMetadata.Methods.createVaultItem,
+      Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItems,
+      Vync_Vault_VaultServiceClientMetadata.Methods.getVaultItem,
       Vync_Vault_VaultServiceClientMetadata.Methods.deleteVaultItem,
-      Vync_Vault_VaultServiceClientMetadata.Methods.shareVaultItem,
     ]
   )
 
   public enum Methods {
-    internal static let getVaultItems = GRPCMethodDescriptor(
-      name: "GetVaultItems",
-      path: "/vync.vault.VaultService/GetVaultItems",
-      type: GRPCCallType.unary
-    )
-
-    internal static let createVaultItem = GRPCMethodDescriptor(
+    public static let createVaultItem = GRPCMethodDescriptor(
       name: "CreateVaultItem",
       path: "/vync.vault.VaultService/CreateVaultItem",
       type: GRPCCallType.unary
     )
 
-    internal static let deleteVaultItem = GRPCMethodDescriptor(
-      name: "DeleteVaultItem",
-      path: "/vync.vault.VaultService/DeleteVaultItem",
-      type: GRPCCallType.unary
-    )
-
-    internal static let shareVaultItem = GRPCMethodDescriptor(
-      name: "ShareVaultItem",
-      path: "/vync.vault.VaultService/ShareVaultItem",
-      type: GRPCCallType.unary
-    )
-  }
-}
-
-/// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Vault_VaultServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? { get }
-
-  func getVaultItems(request: Vync_Vault_GetVaultItemsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_GetVaultItemsResponse>
-
-  func createVaultItem(request: Vync_Vault_CreateVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_VaultItem>
-
-  func deleteVaultItem(request: Vync_Vault_DeleteVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_DeleteVaultItemResponse>
-
-  func shareVaultItem(request: Vync_Vault_ShareVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_ShareVaultItemResponse>
-}
-
-extension Vync_Vault_VaultServiceProvider {
-  public var serviceName: Substring {
-    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor.fullName[...]
-  }
-
-  /// Determines, calls and returns the appropriate request handler, depending on the request's method.
-  /// Returns nil for methods not handled by this service.
-  public func handle(
-    method name: Substring,
-    context: CallHandlerContext
-  ) -> GRPCServerHandlerProtocol? {
-    switch name {
-    case "GetVaultItems":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_GetVaultItemsResponse>(),
-        interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? [],
-        userFunction: self.getVaultItems(request:context:)
-      )
-
-    case "CreateVaultItem":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_CreateVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
-        interceptors: self.interceptors?.makeCreateVaultItemInterceptors() ?? [],
-        userFunction: self.createVaultItem(request:context:)
-      )
-
-    case "DeleteVaultItem":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_DeleteVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_DeleteVaultItemResponse>(),
-        interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? [],
-        userFunction: self.deleteVaultItem(request:context:)
-      )
-
-    case "ShareVaultItem":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_ShareVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_ShareVaultItemResponse>(),
-        interceptors: self.interceptors?.makeShareVaultItemInterceptors() ?? [],
-        userFunction: self.shareVaultItem(request:context:)
-      )
-
-    default:
-      return nil
-    }
-  }
-}
-
-/// To implement a server, implement an object which conforms to this protocol.
-@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Vault_VaultServiceAsyncProvider: CallHandlerProvider, Sendable {
-  static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? { get }
-
-  func getVaultItems(
-    request: Vync_Vault_GetVaultItemsRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Vault_GetVaultItemsResponse
-
-  func createVaultItem(
-    request: Vync_Vault_CreateVaultItemRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Vault_VaultItem
-
-  func deleteVaultItem(
-    request: Vync_Vault_DeleteVaultItemRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Vault_DeleteVaultItemResponse
-
-  func shareVaultItem(
-    request: Vync_Vault_ShareVaultItemRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Vault_ShareVaultItemResponse
-}
-
-@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Vault_VaultServiceAsyncProvider {
-  public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor
-  }
-
-  public var serviceName: Substring {
-    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor.fullName[...]
-  }
-
-  public var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? {
-    return nil
-  }
-
-  public func handle(
-    method name: Substring,
-    context: CallHandlerContext
-  ) -> GRPCServerHandlerProtocol? {
-    switch name {
-    case "GetVaultItems":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_GetVaultItemsResponse>(),
-        interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? [],
-        wrapping: { try await self.getVaultItems(request: $0, context: $1) }
-      )
-
-    case "CreateVaultItem":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_CreateVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
-        interceptors: self.interceptors?.makeCreateVaultItemInterceptors() ?? [],
-        wrapping: { try await self.createVaultItem(request: $0, context: $1) }
-      )
-
-    case "DeleteVaultItem":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_DeleteVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_DeleteVaultItemResponse>(),
-        interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? [],
-        wrapping: { try await self.deleteVaultItem(request: $0, context: $1) }
-      )
-
-    case "ShareVaultItem":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Vault_ShareVaultItemRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Vault_ShareVaultItemResponse>(),
-        interceptors: self.interceptors?.makeShareVaultItemInterceptors() ?? [],
-        wrapping: { try await self.shareVaultItem(request: $0, context: $1) }
-      )
-
-    default:
-      return nil
-    }
-  }
-}
-
-public protocol Vync_Vault_VaultServiceServerInterceptorFactoryProtocol: Sendable {
-
-  /// - Returns: Interceptors to use when handling 'getVaultItems'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetVaultItemsInterceptors() -> [ServerInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>]
-
-  /// - Returns: Interceptors to use when handling 'createVaultItem'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeCreateVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>]
-
-  /// - Returns: Interceptors to use when handling 'deleteVaultItem'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeleteVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>]
-
-  /// - Returns: Interceptors to use when handling 'shareVaultItem'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeShareVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_ShareVaultItemRequest, Vync_Vault_ShareVaultItemResponse>]
-}
-
-public enum Vync_Vault_VaultServiceServerMetadata {
-  public static let serviceDescriptor = GRPCServiceDescriptor(
-    name: "VaultService",
-    fullName: "vync.vault.VaultService",
-    methods: [
-      Vync_Vault_VaultServiceServerMetadata.Methods.getVaultItems,
-      Vync_Vault_VaultServiceServerMetadata.Methods.createVaultItem,
-      Vync_Vault_VaultServiceServerMetadata.Methods.deleteVaultItem,
-      Vync_Vault_VaultServiceServerMetadata.Methods.shareVaultItem,
-    ]
-  )
-
-  public enum Methods {
-    internal static let getVaultItems = GRPCMethodDescriptor(
+    public static let getVaultItems = GRPCMethodDescriptor(
       name: "GetVaultItems",
       path: "/vync.vault.VaultService/GetVaultItems",
       type: GRPCCallType.unary
     )
 
-    internal static let createVaultItem = GRPCMethodDescriptor(
-      name: "CreateVaultItem",
-      path: "/vync.vault.VaultService/CreateVaultItem",
+    public static let getVaultItem = GRPCMethodDescriptor(
+      name: "GetVaultItem",
+      path: "/vync.vault.VaultService/GetVaultItem",
       type: GRPCCallType.unary
     )
 
-    internal static let deleteVaultItem = GRPCMethodDescriptor(
+    public static let deleteVaultItem = GRPCMethodDescriptor(
       name: "DeleteVaultItem",
       path: "/vync.vault.VaultService/DeleteVaultItem",
       type: GRPCCallType.unary
     )
-
-    internal static let shareVaultItem = GRPCMethodDescriptor(
-      name: "ShareVaultItem",
-      path: "/vync.vault.VaultService/ShareVaultItem",
-      type: GRPCCallType.unary
-    )
   }
 }
+
