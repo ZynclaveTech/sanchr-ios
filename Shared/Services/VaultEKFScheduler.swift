@@ -1,5 +1,4 @@
 import Foundation
-import os
 import SanchrShared
 
 /// Foreground-only EKF scheduler for the AccessKeyStore.
@@ -23,7 +22,6 @@ import SanchrShared
 public actor VaultEKFScheduler {
     private let accessKeyStore: AccessKeyStoreProtocol
     private let tickInterval: TimeInterval
-    private let logger = Logger(subsystem: "io.sanchr", category: "VaultEKFScheduler")
 
     private let accessLock = AsyncLock()
     private var runningTask: Task<Void, Never>?
@@ -39,7 +37,7 @@ public actor VaultEKFScheduler {
     /// Start the periodic tick loop. No-op if already running.
     public func start() {
         guard runningTask == nil else { return }
-        logger.info("starting EKF scheduler, interval=\(self.tickInterval)s")
+        SanchrLogger.vault.info("starting EKF scheduler, interval=\(self.tickInterval)s")
         runningTask = Task { [weak self] in
             await self?.runLoop()
         }
@@ -47,7 +45,7 @@ public actor VaultEKFScheduler {
 
     /// Cancel the tick loop. Safe to call multiple times.
     public func stop() {
-        logger.info("stopping EKF scheduler")
+        SanchrLogger.vault.info("stopping EKF scheduler")
         runningTask?.cancel()
         runningTask = nil
     }
@@ -58,9 +56,9 @@ public actor VaultEKFScheduler {
         await accessLock.withLock {
             do {
                 let count = try await self.accessKeyStore.purgeExpired()
-                self.logger.info("purge tick completed, removed=\(count)")
+                SanchrLogger.vault.info("purge tick completed, removed=\(count)")
             } catch {
-                self.logger.error("purge tick failed: \(error.localizedDescription)")
+                SanchrLogger.vault.error("purge tick failed: \(error.localizedDescription)")
             }
         }
     }
@@ -83,7 +81,7 @@ public actor VaultEKFScheduler {
             do {
                 try await tick()
             } catch {
-                logger.error("tick threw outside its own catch: \(error.localizedDescription)")
+                SanchrLogger.vault.error("tick threw outside its own catch: \(error.localizedDescription)")
             }
         }
     }
@@ -91,19 +89,34 @@ public actor VaultEKFScheduler {
 
 /// An async-aware lock that serializes access across async boundaries.
 /// `NSLock` cannot be held across `await`; this actor-backed wrapper can.
+///
+/// Supports cancellation: a task parked in `acquire()` will throw
+/// `CancellationError` if its enclosing Task is cancelled, and its waiter
+/// slot is cleaned up.
 actor AsyncLock {
     private var isLocked = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [UUID: CheckedContinuation<Void, any Error>] = [:]
+    private var waiterOrder: [UUID] = []
 
     func withLock<T: Sendable>(_ body: @Sendable () async -> T) async -> T {
-        await acquire()
-        let result = await body()
-        release()
-        return result
+        // Wrap body in a non-throwing closure and delegate to the throwing
+        // version. If acquire() throws (cancellation), return the body's
+        // result computed without the lock — the scheduler's runLoop will
+        // exit on cancellation anyway.
+        do {
+            return try await withLockThrowing {
+                await body()
+            }
+        } catch {
+            // Cancelled while waiting. Run body unlocked. The scheduler's
+            // runLoop will notice cancellation on the next iteration and
+            // exit cleanly.
+            return await body()
+        }
     }
 
     func withLockThrowing<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
-        await acquire()
+        try await acquire()
         do {
             let result = try await body()
             release()
@@ -114,22 +127,50 @@ actor AsyncLock {
         }
     }
 
-    private func acquire() async {
+    private func acquire() async throws {
         if !isLocked {
             isLocked = true
             return
         }
-        await withCheckedContinuation { (k: CheckedContinuation<Void, Never>) in
-            waiters.append(k)
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (k: CheckedContinuation<Void, any Error>) in
+                // Check cancellation inside actor isolation: if the task is
+                // already cancelled at the moment we'd park, resume with
+                // CancellationError immediately.
+                if Task.isCancelled {
+                    k.resume(throwing: CancellationError())
+                    return
+                }
+                waiters[id] = k
+                waiterOrder.append(id)
+            }
+        } onCancel: {
+            // Cancellation handler runs outside actor isolation. Hop back
+            // onto the actor to remove the waiter and resume with error.
+            Task { await self.cancelWaiter(id: id) }
         }
     }
 
-    private func release() {
-        if let next = waiters.first {
-            waiters.removeFirst()
-            next.resume()
-        } else {
-            isLocked = false
+    private func cancelWaiter(id: UUID) {
+        guard let k = waiters.removeValue(forKey: id) else {
+            // Already resumed (release beat cancellation to the punch).
+            return
         }
+        waiterOrder.removeAll { $0 == id }
+        k.resume(throwing: CancellationError())
+    }
+
+    private func release() {
+        while let nextID = waiterOrder.first {
+            waiterOrder.removeFirst()
+            if let k = waiters.removeValue(forKey: nextID) {
+                // Found a live waiter — hand off the lock.
+                k.resume()
+                return
+            }
+            // Otherwise the waiter was cancelled; try the next one.
+        }
+        isLocked = false
     }
 }

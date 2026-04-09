@@ -312,11 +312,12 @@ final class VaultCryptoTests: XCTestCase {
         XCTAssertEqual(spyStore.purgeCallCount, 2)
     }
 
-    func test_vaultEKFScheduler_accessPathTakesPriorityOverPurge() async throws {
-        // The scheduler must NOT run a purge while an access is in flight.
-        // We simulate: start a purge task that blocks inside the spy store,
-        // then try to withAccess { } — the access should wait briefly but
-        // never deadlock.
+    func test_vaultEKFScheduler_serializesAccessAndPurge() async throws {
+        // The scheduler must serialize access and purge through the
+        // shared AsyncLock — neither can run while the other holds the
+        // lock. We simulate: start a purge task that blocks inside the
+        // spy store, then try to withAccess { } — the access should wait
+        // for the purge to release, then proceed, without deadlock.
         let spyStore = GatedSpyAccessKeyStore()
         let scheduler = VaultEKFScheduler(
             accessKeyStore: spyStore,

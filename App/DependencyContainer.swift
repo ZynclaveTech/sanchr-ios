@@ -634,9 +634,12 @@ final class DependencyContainer: @unchecked Sendable {
     // MARK: - Vault EKF Scheduler Lifecycle
 
     /// Called from the SanchrApp scene-phase handler on foreground.
-    /// Starts the vault EKF scheduler. Idempotent.
+    /// Starts the vault EKF scheduler and fires an immediate purge tick.
+    /// The tick provides best-effort cleanup for apps that only foreground
+    /// briefly (<15 min, shorter than the scheduler's interval). Idempotent.
     func startVaultEKFScheduler() async {
         await vaultEKFScheduler.start()
+        try? await vaultEKFScheduler.tick()
     }
 
     /// Called from the SanchrApp scene-phase handler on background.
