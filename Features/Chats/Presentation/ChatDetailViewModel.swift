@@ -455,6 +455,7 @@ final class ChatDetailViewModel {
         let recipientId: String
         let sessionService: SessionService
         let messageSender: MessageSender
+        let vaultSharingCoordinator: VaultSharingCoordinating
     }
 
     /// Routes a user-issued `AttachmentIntent` from the attachment picker
@@ -510,12 +511,28 @@ final class ChatDetailViewModel {
             await sendTextFallback(Self.locationFallbackText(payload), context: context)
 
         case .vaultItem(let item):
-            // TODO(Task 13+): wire vault re-send pipeline. Vault items already
-            // live on the server with their own encryption metadata, so we
-            // need a dedicated re-send path that does not re-upload bytes.
-            SanchrLogger.chat.warning(
-                "send(intent: .vaultItem) not yet implemented for item \(item.id.prefix(8))"
-            )
+            // Flow C: user picked a vault item from the chat attachment
+            // picker. The forward-secure vault rewrite made it
+            // impossible to cross-reference a vault item from a chat
+            // (the recipient has no AccessK_vault for it), so the only
+            // technically sound path is download + re-upload as a
+            // fresh chat attachment. VaultSharingCoordinator owns that
+            // pipeline; here we just delegate and surface any error
+            // into `errorMessage`.
+            do {
+                _ = try await context.vaultSharingCoordinator.reshareToCurrentChat(
+                    item: item,
+                    conversationId: context.conversationId
+                )
+                SanchrLogger.chat.info(
+                    "vault reshare: sent \(item.id.prefix(8)) to \(context.conversationId.prefix(8))"
+                )
+            } catch {
+                errorMessage = error.localizedDescription
+                SanchrLogger.chat.error(
+                    "vault reshare failed for \(item.id.prefix(8)): \(error.localizedDescription)"
+                )
+            }
 
         case .voice(let clip):
             // Voice notes flow through the same media upload pipeline as any

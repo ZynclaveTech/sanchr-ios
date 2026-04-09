@@ -1321,7 +1321,8 @@ struct ChatDetailView: View {
             conversationId: conversation.id,
             recipientId: recipient?.id ?? "",
             sessionService: container.sessionService,
-            messageSender: container.messageSender
+            messageSender: container.messageSender,
+            vaultSharingCoordinator: container.vaultSharingCoordinator
         )
     }
 
