@@ -34,6 +34,7 @@ extension LocalDatabaseProtocol {
     // Vault
     public func saveVaultItem(_ item: VaultItem) async throws { FakeDBUnused.crash() }
     public func fetchVaultItems() async throws -> [VaultItem] { FakeDBUnused.crash() }
+    public func fetchAllVaultItems() async throws -> [VaultItem] { FakeDBUnused.crash() }
     public func deleteVaultItem(id: String) async throws { FakeDBUnused.crash() }
     // Access keys
     public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { FakeDBUnused.crash() }

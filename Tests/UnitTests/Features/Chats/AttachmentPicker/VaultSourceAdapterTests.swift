@@ -4,36 +4,62 @@ import SanchrShared
 
 @MainActor
 final class VaultSourceAdapterTests: XCTestCase {
-    func test_loadAll_delegatesToGetVaultItemsWithAllFilter() async throws {
+    func test_loadAll_delegatesToGetVaultItemsWithNoFilter() async throws {
         let spy = SpyGetVaultItems()
         let source = VaultSource(getVaultItems: spy)
         _ = try await source.loadAll()
-        XCTAssertEqual(spy.receivedFilter, "all")
         XCTAssertEqual(spy.receivedLimit, 100)
         XCTAssertEqual(spy.receivedCursor, "")
     }
 
-    func test_load_withFilter_passesThrough() async throws {
+    func test_load_withFilter_appliesClientSideFilter() async throws {
         let spy = SpyGetVaultItems()
         let source = VaultSource(getVaultItems: spy)
-        _ = try await source.load(filter: "photo")
-        XCTAssertEqual(spy.receivedFilter, "photo")
+        // Seed two items of different types so the client-side filter is
+        // observable. The picker's load(filter:) scans and returns only
+        // matching types because the server-side filter is gone (metadata
+        // is encrypted client-side in the forward-secure design).
+        let photo = VaultItem(
+            id: "photo-1",
+            mediaId: "m1",
+            name: "photo",
+            type: .photo,
+            sizeBytes: 10,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        let video = VaultItem(
+            id: "video-1",
+            mediaId: "m2",
+            name: "video",
+            type: .video,
+            sizeBytes: 20,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        spy.nextResult = VaultUseCases.GetVaultItems.Result(
+            items: [photo, video],
+            nextCursor: ""
+        )
+
+        let result = try await source.load(filter: "photo")
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.type, .photo)
         XCTAssertEqual(spy.receivedLimit, 100)
     }
 }
 
 private final class SpyGetVaultItems: VaultItemsLoading, @unchecked Sendable {
-    var receivedFilter: String?
     var receivedLimit: Int32?
     var receivedCursor: String?
+    var nextResult: VaultUseCases.GetVaultItems.Result = .init(items: [], nextCursor: "")
+
     func execute(
-        filter: String,
         limit: Int32,
         cursor: String
-    ) async throws -> (items: [VaultItem], totalPhotos: Int32, totalVideos: Int32, totalFiles: Int32) {
-        receivedFilter = filter
+    ) async throws -> VaultUseCases.GetVaultItems.Result {
         receivedLimit = limit
         receivedCursor = cursor
-        return (items: [], totalPhotos: 0, totalVideos: 0, totalFiles: 0)
+        return nextResult
     }
 }

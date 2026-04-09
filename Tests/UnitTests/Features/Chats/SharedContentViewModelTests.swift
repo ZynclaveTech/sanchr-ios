@@ -154,6 +154,7 @@ private final class StubFetchDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func searchContacts(query: String) async throws -> [User] { fatalError() }
     func saveVaultItem(_ item: VaultItem) async throws { fatalError() }
     func fetchVaultItems() async throws -> [VaultItem] { fatalError() }
+    func fetchAllVaultItems() async throws -> [VaultItem] { fatalError() }
     func deleteVaultItem(id: String) async throws { fatalError() }
     func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { fatalError() }
     func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { fatalError() }
