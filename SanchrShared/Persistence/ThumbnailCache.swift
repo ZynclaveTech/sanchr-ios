@@ -1,24 +1,26 @@
-import CryptoKit
 import Foundation
 import UIKit
 
 /// Downloads, decrypts, and caches vault item thumbnails.
 ///
-/// Architecture (Signal-style):
-/// - Thumbnails are encrypted with the same AES-256-GCM key as the main vault file.
-/// - On first access, the encrypted blob is downloaded from S3, decrypted client-side,
-///   and cached both in memory (NSCache) and on disk (Caches directory).
-/// - Subsequent accesses hit memory → disk → network in that order.
-/// - Cache is keyed by vault item ID, not URL (URLs may change/expire).
-/// - Disk cache lives in Caches/ so the OS can evict it under storage pressure.
+/// Architecture (Signal-style, post forward-secure rewrite):
+/// - Thumbnails travel inside the encrypted_metadata envelope of each vault
+///   item. The client decrypts the envelope once per fetch using
+///   AccessK_vault from AccessKeyStore, and the resulting JPEG bytes land
+///   on VaultItem.thumbnailData.
+/// - The first call to `thumbnail(for:)` downsamples the plaintext bytes,
+///   caches them in memory (NSCache) and on disk (Caches directory), and
+///   returns the resulting UIImage.
+/// - Subsequent accesses hit memory → disk → nil in that order. Items
+///   without a thumbnailData blob (e.g. sealed restores, or types that
+///   don't have thumbnails) return nil so the UI can render a placeholder.
+/// - Disk cache lives in Caches/ so the OS can evict it under storage
+///   pressure.
 public actor ThumbnailCache {
     public static let shared = ThumbnailCache()
 
     private let memoryCache = NSCache<NSString, UIImage>()
     private let diskCacheDir: URL
-
-    /// Tracks in-flight downloads to avoid duplicate requests for the same item.
-    private var inFlightTasks: [String: Task<UIImage?, Never>] = [:]
 
     private init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -29,10 +31,12 @@ public actor ThumbnailCache {
 
     // MARK: - Public API
 
-    /// Returns a cached thumbnail immediately if available, otherwise fetches, decrypts, and caches.
-    /// Returns nil for items without a thumbnail URL.
+    /// Returns a cached thumbnail immediately if available, otherwise
+    /// downsamples the item's plaintext thumbnail bytes and caches them.
+    /// Returns nil for items without a thumbnail blob.
     public func thumbnail(for item: VaultItem) async -> UIImage? {
         // Already have plaintext thumbnail in memory from this session's upload
+        // or from the decrypted metadata envelope on fetch.
         if let data = item.thumbnailData, let image = downsampleImage(data: data) {
             memoryCache.setObject(image, forKey: item.id as NSString)
             return image
@@ -49,65 +53,17 @@ public actor ThumbnailCache {
             return image
         }
 
-        // TODO(Task 7+): rewire the encrypted-thumbnail fetch path to pull
-        // AccessK_vault from AccessKeyStore instead of a field on VaultItem.
-        // Until then, items whose thumbnail lives only in S3 (no session-
-        // local plaintext and no cached copy) will fall through to nil —
-        // the UI gracefully renders a placeholder in that case.
-        _ = item.encryptedThumbnailURL
         return nil
     }
 
     /// Removes cached thumbnail for an item (call on delete).
     public func remove(for itemId: String) {
         memoryCache.removeObject(forKey: itemId as NSString)
-        inFlightTasks.removeValue(forKey: itemId)
         let diskURL = diskCacheDir.appendingPathComponent(itemId)
         try? FileManager.default.removeItem(at: diskURL)
     }
 
     // MARK: - Private
-
-    private func clearInFlight(for itemId: String) {
-        inFlightTasks.removeValue(forKey: itemId)
-    }
-
-    private nonisolated func fetchAndDecrypt(url: URL, key: Data, itemId: String) async -> UIImage? {
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                SanchrLogger.media.error("ThumbnailCache: download failed for \(itemId)")
-                return nil
-            }
-
-            // Decrypt with the vault item's AES key
-            let sealedBox = try AES.GCM.SealedBox(combined: data)
-            let symmetricKey = SymmetricKey(data: key)
-            let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
-
-            guard let image = self.downsampleImage(data: plaintext) else {
-                SanchrLogger.media.error("ThumbnailCache: decrypted data is not a valid image for \(itemId)")
-                return nil
-            }
-
-            // Cache to disk (nonisolated-safe — disk ops don't need actor)
-            let diskURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("vault-thumbnails", isDirectory: true)
-                .appendingPathComponent(itemId)
-            try? plaintext.write(to: diskURL, options: .atomic)
-
-            SanchrLogger.media.info("ThumbnailCache: fetched + decrypted thumbnail for \(itemId)")
-            return image
-        } catch {
-            SanchrLogger.media.error("ThumbnailCache: fetch/decrypt failed for \(itemId): \(error)")
-            return nil
-        }
-    }
-
-    private func saveToDisk(_ data: Data, for itemId: String) {
-        let url = diskCacheDir.appendingPathComponent(itemId)
-        try? data.write(to: url, options: .atomic)
-    }
 
     private func loadFromDisk(for itemId: String) -> UIImage? {
         let url = diskCacheDir.appendingPathComponent(itemId)

@@ -3,23 +3,19 @@ import SanchrShared
 
 /// View model for the vault screen.
 ///
-/// NOTE(Task 10): This view model is temporarily stubbed to keep the build
-/// green during the forward-secure vault migration. The old signatures are
-/// preserved so call sites in `VaultView` compile, but the bodies are
-/// minimal — they either delegate to the new `VaultUseCases` with the
-/// decrypted metadata path or they no-op until Task 10 rewrites the view
-/// model around a `vaultRepository` / container-level source-of-truth.
+/// Drives the vault UI's list/filter/upload/delete state. The load path uses
+/// `VaultUseCases.GetVaultItems` which decrypts each item's metadata envelope
+/// client-side using the per-item `AccessK_vault` from `AccessKeyStore`.
+/// Sealed items (missing access key — i.e. restored from a cross-device
+/// backup) are filtered out by the use case layer and never reach the UI.
 ///
-/// In particular:
-/// - `totalPhotos` / `totalVideos` / `totalFiles` counters are no longer
-///   returned by the server. They are computed client-side from the
-///   decrypted items slice. This is an O(n) scan per load, which is fine
-///   for the current page sizes and will be replaced by a proper reactive
-///   store in Task 10.
-/// - Filter-by-type is applied client-side in `loadItems` because the
-///   server no longer exposes a filter field on `GetVaultItems`.
-/// - Sharing is removed entirely (the forward-secure design does not
-///   support key rewrapping).
+/// Per-type counters (`totalPhotos` etc.) are computed client-side from the
+/// loaded items array because the forward-secure server response does not
+/// include them (name/type/size are encrypted in `encrypted_metadata` and
+/// only the client can see them).
+///
+/// Sharing is removed entirely — the forward-secure design does not support
+/// key re-wrapping.
 @MainActor
 @Observable
 final class VaultViewModel {
@@ -76,34 +72,84 @@ final class VaultViewModel {
 
     // MARK: - Load Items
 
-    /// TODO(Task 10): Migrate to a container-level repository source so the
-    /// view model doesn't need AccessKeyStore + MediaEncryption passed in
-    /// piecemeal. For now this is a no-op body that leaves the UI blank —
-    /// the forward-secure vault read path works via
-    /// `VaultRepositoryImpl.fetchItems()` but the view model rewrite is
-    /// deferred to Task 10.
-    func loadItems(vaultDataSource: VaultDataSource) async {
-        // TODO(Task 10): Restore metadata-decryption-aware load path.
-        // The old server-side filter/counters API is gone and the new
-        // GetVaultItems use case needs an AccessKeyStore + MediaEncryption
-        // that the view model doesn't currently hold. Wiring those through
-        // belongs to the Task 10 view model rewrite.
-        isLoading = false
-        items = []
-        totalPhotos = 0
-        totalVideos = 0
-        totalFiles = 0
-        cursor = ""
-        hasMorePages = false
+    /// Loads the first page of vault items. Decrypts each item's metadata
+    /// envelope client-side via `VaultUseCases.GetVaultItems`. Sealed items
+    /// (missing AccessK_vault) are filtered out by the use case layer.
+    func loadItems(
+        vaultDataSource: VaultDataSource,
+        accessKeyStore: AccessKeyStoreProtocol,
+        mediaEncryption: MediaEncryptionProtocol
+    ) async {
+        isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
+
+        let useCase = VaultUseCases.GetVaultItems(
+            vaultDataSource: vaultDataSource,
+            accessKeyStore: accessKeyStore,
+            mediaEncryption: mediaEncryption
+        )
+
+        do {
+            let result = try await useCase.execute(limit: 100, cursor: "")
+            items = result.items
+            cursor = result.nextCursor
+            hasMorePages = !cursor.isEmpty
+            recomputeCounters()
+        } catch {
+            errorMessage = error.localizedDescription
+            items = []
+            hasMorePages = false
+        }
     }
 
     // MARK: - Load More (Pagination)
 
-    func loadMore(vaultDataSource: VaultDataSource) async {
-        // TODO(Task 10): Same as loadItems — paginated fetch via the proper
-        // decryption path belongs to the view model rewrite.
-        hasMorePages = false
+    func loadMore(
+        vaultDataSource: VaultDataSource,
+        accessKeyStore: AccessKeyStoreProtocol,
+        mediaEncryption: MediaEncryptionProtocol
+    ) async {
+        guard !isLoadingMore, hasMorePages else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let useCase = VaultUseCases.GetVaultItems(
+            vaultDataSource: vaultDataSource,
+            accessKeyStore: accessKeyStore,
+            mediaEncryption: mediaEncryption
+        )
+
+        do {
+            let result = try await useCase.execute(limit: 100, cursor: cursor)
+            items.append(contentsOf: result.items)
+            cursor = result.nextCursor
+            hasMorePages = !cursor.isEmpty
+            recomputeCounters()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Private helpers
+
+    /// Recomputes per-type counters from the loaded items array. The server
+    /// no longer returns per-type counts; we derive them client-side from
+    /// the decrypted items slice.
+    private func recomputeCounters() {
+        var photos: Int32 = 0
+        var videos: Int32 = 0
+        var files: Int32 = 0
+        for item in items {
+            switch item.type {
+            case .photo: photos += 1
+            case .video: videos += 1
+            case .document, .audio, .note: files += 1
+            }
+        }
+        totalPhotos = photos
+        totalVideos = videos
+        totalFiles = files
     }
 
     // MARK: - Change Filter

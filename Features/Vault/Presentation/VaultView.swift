@@ -29,7 +29,11 @@ struct VaultView: View {
                 .padding(.bottom, 110)
             }
             .refreshable {
-                await viewModel.loadItems(vaultDataSource: vaultDataSource)
+                await viewModel.loadItems(
+                    vaultDataSource: vaultDataSource,
+                    accessKeyStore: container.accessKeyStore,
+                    mediaEncryption: container.mediaEncryption
+                )
             }
             .background(SanchrExportColors.background.ignoresSafeArea())
 
@@ -72,7 +76,11 @@ struct VaultView: View {
             }
         }
         .task(id: viewModel.activeFilter) {
-            await viewModel.loadItems(vaultDataSource: vaultDataSource)
+            await viewModel.loadItems(
+                vaultDataSource: vaultDataSource,
+                accessKeyStore: container.accessKeyStore,
+                mediaEncryption: container.mediaEncryption
+            )
         }
     }
 
@@ -142,7 +150,11 @@ struct VaultView: View {
                     .onAppear {
                         if item.id == viewModel.items.last?.id {
                             Task {
-                                await viewModel.loadMore(vaultDataSource: vaultDataSource)
+                                await viewModel.loadMore(
+                                    vaultDataSource: vaultDataSource,
+                                    accessKeyStore: container.accessKeyStore,
+                                    mediaEncryption: container.mediaEncryption
+                                )
                             }
                         }
                     }
