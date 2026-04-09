@@ -237,6 +237,83 @@ struct VaultView: View {
                 }
             }
         }
+        // Conversation picker (Flow B1). Bound to shareState ==
+        // .pickingConversation. Lists conversations from the local DB
+        // sorted by last-activity timestamp; picking one routes
+        // through confirmConversation which applies the 25MB threshold.
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    if case .pickingConversation = viewModel.shareState { return true }
+                    return false
+                },
+                set: { presented in
+                    if !presented, case .pickingConversation = viewModel.shareState {
+                        viewModel.cancelShare()
+                    }
+                }
+            )
+        ) {
+            if case .pickingConversation(let item) = viewModel.shareState {
+                VaultChatDestinationPicker(
+                    item: item,
+                    localDatabase: container.localDatabase,
+                    onConversationPicked: { convId, convName in
+                        Task {
+                            await viewModel.confirmConversation(
+                                conversationId: convId,
+                                conversationName: convName,
+                                for: item,
+                                sharingCoordinator: container.vaultSharingCoordinator
+                            )
+                        }
+                    },
+                    onCancel: {
+                        viewModel.cancelShare()
+                    }
+                )
+            }
+        }
+        // 25MB re-upload confirmation alert (Flow B1). Bound to
+        // shareState == .confirmingLargeReupload. Destructive Send
+        // proceeds with the share; Cancel returns to the picker.
+        .alert(
+            "Large file",
+            isPresented: Binding(
+                get: {
+                    if case .confirmingLargeReupload = viewModel.shareState { return true }
+                    return false
+                },
+                set: { presented in
+                    if !presented {
+                        viewModel.cancelLargeReupload()
+                    }
+                }
+            )
+        ) {
+            Button("Send", role: .destructive) {
+                Task {
+                    await viewModel.confirmLargeReupload(
+                        sharingCoordinator: container.vaultSharingCoordinator
+                    )
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelLargeReupload()
+            }
+        } message: {
+            if case .confirmingLargeReupload(_, _, let cname, let sz) = viewModel.shareState {
+                Text(
+                    String(
+                        format: "This will re-upload %.1f MB to %@. Continue?",
+                        Double(sz) / (1024 * 1024),
+                        cname
+                    )
+                )
+            } else {
+                Text("")
+            }
+        }
         // Transient completion toast ("Saved to Photos" / "Saved").
         // Auto-clears after ~2.5s via takeShareCompletionToast. The
         // id: modifier forces SwiftUI to rebuild the view on each new
