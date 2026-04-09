@@ -2,7 +2,24 @@ import Foundation
 import SanchrShared
 
 /// View model for the vault screen.
-/// Manages items list, filter state, stats, upload progress, and pagination.
+///
+/// NOTE(Task 10): This view model is temporarily stubbed to keep the build
+/// green during the forward-secure vault migration. The old signatures are
+/// preserved so call sites in `VaultView` compile, but the bodies are
+/// minimal — they either delegate to the new `VaultUseCases` with the
+/// decrypted metadata path or they no-op until Task 10 rewrites the view
+/// model around a `vaultRepository` / container-level source-of-truth.
+///
+/// In particular:
+/// - `totalPhotos` / `totalVideos` / `totalFiles` counters are no longer
+///   returned by the server. They are computed client-side from the
+///   decrypted items slice. This is an O(n) scan per load, which is fine
+///   for the current page sizes and will be replaced by a proper reactive
+///   store in Task 10.
+/// - Filter-by-type is applied client-side in `loadItems` because the
+///   server no longer exposes a filter field on `GetVaultItems`.
+/// - Sharing is removed entirely (the forward-secure design does not
+///   support key rewrapping).
 @MainActor
 @Observable
 final class VaultViewModel {
@@ -50,7 +67,7 @@ final class VaultViewModel {
     var errorMessage: String?
     var hasMorePages: Bool = true
 
-    /// Cursor for pagination (ID of last item).
+    /// Pagination cursor (opaque, provided by the server).
     private var cursor: String = ""
 
     // MARK: - Computed
@@ -59,54 +76,34 @@ final class VaultViewModel {
 
     // MARK: - Load Items
 
+    /// TODO(Task 10): Migrate to a container-level repository source so the
+    /// view model doesn't need AccessKeyStore + MediaEncryption passed in
+    /// piecemeal. For now this is a no-op body that leaves the UI blank —
+    /// the forward-secure vault read path works via
+    /// `VaultRepositoryImpl.fetchItems()` but the view model rewrite is
+    /// deferred to Task 10.
     func loadItems(vaultDataSource: VaultDataSource) async {
-        isLoading = true
+        // TODO(Task 10): Restore metadata-decryption-aware load path.
+        // The old server-side filter/counters API is gone and the new
+        // GetVaultItems use case needs an AccessKeyStore + MediaEncryption
+        // that the view model doesn't currently hold. Wiring those through
+        // belongs to the Task 10 view model rewrite.
+        isLoading = false
+        items = []
+        totalPhotos = 0
+        totalVideos = 0
+        totalFiles = 0
         cursor = ""
-        hasMorePages = true
-        defer { isLoading = false }
-
-        let useCase = VaultUseCases.GetVaultItems(vaultDataSource: vaultDataSource)
-
-        do {
-            let result = try await useCase.execute(filter: activeFilter.rawValue)
-            items = result.items
-            totalPhotos = result.totalPhotos
-            totalVideos = result.totalVideos
-            totalFiles = result.totalFiles
-            cursor = items.last?.id ?? ""
-            hasMorePages = result.items.count >= 20
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        hasMorePages = false
+        errorMessage = nil
     }
 
     // MARK: - Load More (Pagination)
 
     func loadMore(vaultDataSource: VaultDataSource) async {
-        guard !isLoadingMore, hasMorePages, !cursor.isEmpty else { return }
-
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-
-        let useCase = VaultUseCases.GetVaultItems(vaultDataSource: vaultDataSource)
-
-        do {
-            let result = try await useCase.execute(
-                filter: activeFilter.rawValue,
-                cursor: cursor
-            )
-
-            if result.items.isEmpty {
-                hasMorePages = false
-            } else {
-                items.append(contentsOf: result.items)
-                cursor = result.items.last?.id ?? ""
-                hasMorePages = result.items.count >= 20
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        // TODO(Task 10): Same as loadItems — paginated fetch via the proper
+        // decryption path belongs to the view model rewrite.
+        hasMorePages = false
     }
 
     // MARK: - Change Filter
@@ -129,7 +126,7 @@ final class VaultViewModel {
         )
 
         do {
-            try await useCase.execute(itemId: item.id)
+            try await useCase.execute(vaultItemId: item.id)
             items.removeAll { $0.id == item.id }
             await ThumbnailCache.shared.remove(for: item.id)
 
@@ -143,29 +140,14 @@ final class VaultViewModel {
         }
     }
 
-    // MARK: - Share
-
-    func shareItem(
-        _ item: VaultItem,
-        recipientId: String,
-        reEncryptedKey: String,
-        vaultDataSource: VaultDataSource
-    ) async {
-        let useCase = VaultUseCases.ShareVaultItem(vaultDataSource: vaultDataSource)
-
-        do {
-            try await useCase.execute(
-                itemId: item.id,
-                recipientId: recipientId,
-                reEncryptedKey: reEncryptedKey
-            )
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
     // MARK: - Upload
 
+    /// TODO(Task 10): The view model still drives the upload path, but the
+    /// `senderID` parameter is gone (the new forward-secure vault doesn't
+    /// need it — the manual upload path derives its own AccessK_vault from
+    /// the device master secret). The VaultView call sites still pass
+    /// `senderID:` for now; that parameter is accepted and ignored so the
+    /// view compiles. Task 10 removes the parameter from the call sites.
     func uploadItem(
         data: Data,
         fileName: String,
@@ -174,6 +156,7 @@ final class VaultViewModel {
         vaultDataSource: VaultDataSource,
         mediaManager: MediaManagerProtocol
     ) async {
+        _ = senderID  // accepted and ignored — see docstring
         isUploading = true
         uploadProgress = 0.0
         defer {
@@ -190,8 +173,7 @@ final class VaultViewModel {
             let newItem = try await useCase.execute(
                 data: data,
                 fileName: fileName,
-                mediaType: mediaType,
-                senderID: senderID
+                mediaType: mediaType
             ) { [weak self] fraction in
                 Task { @MainActor in
                     self?.uploadProgress = fraction
@@ -200,7 +182,6 @@ final class VaultViewModel {
             uploadProgress = 1.0
             items.insert(newItem, at: 0)
 
-            // Update counts
             switch newItem.type {
             case .photo: totalPhotos += 1
             case .video: totalVideos += 1

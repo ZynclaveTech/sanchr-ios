@@ -39,11 +39,11 @@ struct EmbeddedVaultPickerView: View {
     private var selectedCount: Int { selectedIDs.count }
 
     private var vaultSource: VaultSource {
-        let dataSource = VaultDataSource(
-            grpcClient: container.grpcClient,
+        let useCase = VaultUseCases.GetVaultItems(
+            vaultDataSource: container.vaultDataSource,
+            accessKeyStore: container.accessKeyStore,
             mediaEncryption: container.mediaEncryption
         )
-        let useCase = VaultUseCases.GetVaultItems(vaultDataSource: dataSource)
         return VaultSource(getVaultItems: useCase)
     }
 

@@ -237,10 +237,21 @@ final class DependencyContainer: @unchecked Sendable {
             localDatabase: localDatabase
         )
 
+    @ObservationIgnored lazy var vaultDataSource: VaultDataSource = VaultDataSource(
+        grpcClient: grpcClient,
+        accessKeyStore: accessKeyStore,
+        mediaKeyDerivation: mediaKeyDerivation,
+        deviceSecretProvider: deviceSecretProvider,
+        mediaEncryption: mediaEncryption
+    )
+
     @ObservationIgnored lazy var vaultRepository: VaultRepositoryProtocol = VaultRepositoryImpl(
         grpcClient: grpcClient,
         localDatabase: localDatabase,
-        mediaEncryption: mediaEncryption
+        accessKeyStore: accessKeyStore,
+        mediaEncryption: mediaEncryption,
+        vaultDataSource: vaultDataSource,
+        ekfScheduler: vaultEKFScheduler
     )
 
     // MARK: - Services

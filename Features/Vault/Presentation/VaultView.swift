@@ -13,10 +13,7 @@ struct VaultView: View {
     @State private var showFileImporter = false
 
     private var vaultDataSource: VaultDataSource {
-        VaultDataSource(
-            grpcClient: container.grpcClient,
-            mediaEncryption: container.mediaEncryption
-        )
+        container.vaultDataSource
     }
 
     var body: some View {
