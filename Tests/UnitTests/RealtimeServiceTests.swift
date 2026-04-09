@@ -123,7 +123,8 @@ final class RealtimeServiceTests: XCTestCase {
         let storage = MockSecureStorage()
         let service = SessionService(
             secureStorage: storage,
-            authRepository: MockAuthRepository()
+            authRepository: MockAuthRepository(),
+            privacySettings: PrivacySettingsCache()
         )
 
         try await service.storeTokens(

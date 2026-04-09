@@ -31,7 +31,8 @@ final class SessionServiceTests: XCTestCase {
 
         let service = SessionService(
             secureStorage: storage,
-            authRepository: MockAuthRepository()
+            authRepository: MockAuthRepository(),
+            privacySettings: PrivacySettingsCache()
         )
 
         XCTAssertTrue(service.isAuthenticated)
@@ -51,6 +52,7 @@ final class SessionServiceTests: XCTestCase {
         let service = SessionService(
             secureStorage: storage,
             authRepository: authRepository,
+            privacySettings: PrivacySettingsCache(),
             cleanup: {
                 await cleanupCounter.increment()
             }
@@ -107,6 +109,7 @@ final class SessionServiceTests: XCTestCase {
         let service = SessionService(
             secureStorage: storage,
             authRepository: authRepository,
+            privacySettings: PrivacySettingsCache(),
             cleanup: {
                 await cleanupCounter.increment()
             }
