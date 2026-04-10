@@ -214,12 +214,23 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         //    and will fail to decrypt after reset. Contacts must re-establish new sessions.
         let allAddresses = store.sessionStore.allSessionAddresses()
         for address in allAddresses {
-            try? store.sessionStore.deleteSession(for: address)
+            do {
+                try store.sessionStore.deleteSession(for: address)
+            } catch {
+                SanchrLogger.crypto.error(
+                    "Failed to delete session for \(address.name).\(address.deviceId) during identity reset: \(error)"
+                )
+            }
         }
-        // Note: verified identity flags (verifiedUserIds) are cleared lazily —
-        // SanchrIdentityKeyStore.isTrustedIdentity automatically removes verification
-        // when it observes a changed remote key, so contacts will be prompted to
-        // re-verify at next message receipt.
+
+        // Eagerly clear all verified identity flags — safety numbers are now invalid.
+        // Lazy clearing via isTrustedIdentity only fires on incoming messages;
+        // outgoing sessions would otherwise show stale "verified" badges.
+        store.identityStore.clearAllVerifications()
+
+        // FIXME: SanchrSenderKeyStore has no deleteAll API — group sender key chains
+        // remain under the old signing identity after reset. Add deleteAllSenderKeys()
+        // to SanchrSenderKeyStore and call it here to fully invalidate group sessions.
 
         // 3. Upload new key bundle to server
         try await uploadInitialKeyBundle()

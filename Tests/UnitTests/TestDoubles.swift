@@ -366,7 +366,11 @@ final class MockKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     func fetchPreKeyCount() async throws -> Int { 0 }
     func signedPreKeyCreatedAt() throws -> Date? { nil }
-    func resetIdentityKeys() async throws {}
+
+    private(set) var resetIdentityKeysCallCount = 0
+    func resetIdentityKeys() async throws {
+        resetIdentityKeysCallCount += 1
+    }
 }
 
 final class MockCallEventRouter: CallEventRouting, @unchecked Sendable {

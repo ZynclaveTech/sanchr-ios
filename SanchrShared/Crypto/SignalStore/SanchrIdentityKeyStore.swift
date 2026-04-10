@@ -195,6 +195,16 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         saveVerifiedToDisk()
     }
 
+    /// Clears all verified identity flags (e.g., after a local identity key reset).
+    /// All contacts must re-verify safety numbers under the new identity.
+    public func clearAllVerifications() {
+        queue.sync(flags: .barrier) {
+            self.verifiedUserIds.removeAll()
+        }
+        saveVerifiedToDisk()
+        SanchrLogger.crypto.info("Cleared all identity verifications after key reset")
+    }
+
     // MARK: - Persistence Helpers
 
     private func saveTrustedIdentitiesToDisk() {
