@@ -117,7 +117,7 @@ struct AppearanceView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(theme.mode == mode ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: theme.mode == mode ? 2 : 1)
+                                .stroke(SanchrColors.primary, lineWidth: theme.mode == mode ? 2 : 0)
                         }
                     }
                     .buttonStyle(.plain)
@@ -158,7 +158,7 @@ struct AppearanceView: View {
                             }
                             .overlay {
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(viewModel.chatWallpaper == wp.id ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 1)
+                                    .stroke(SanchrColors.primary, lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 0)
                             }
                     }
                     .buttonStyle(.plain)
@@ -236,7 +236,7 @@ struct AppearanceView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(chatBubbleStyle == value ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: chatBubbleStyle == value ? 2 : 1)
+                                .stroke(SanchrColors.primary, lineWidth: chatBubbleStyle == value ? 2 : 0)
                         }
                     }
                     .buttonStyle(.plain)
@@ -283,10 +283,6 @@ struct AppearanceView: View {
             .padding(18)
             .background(SanchrExportColors.surfaceMuted)
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
         }
     }
 
