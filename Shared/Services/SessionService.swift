@@ -153,6 +153,12 @@ final class SessionService: @unchecked Sendable {
 
     /// Refreshes the access token using the stored refresh token.
     /// Coalesces concurrent refresh attempts into a single network call.
+    ///
+    /// Error discrimination:
+    /// - UNAUTHENTICATED from server: token is revoked/invalid → wipe session immediately.
+    /// - Network/server errors: retry up to 2 times with 1 s / 3 s backoff.
+    ///   If all retries fail, the session is kept alive (user is offline) and the
+    ///   raw error is rethrown so the caller can handle gracefully.
     private func refreshToken() async throws -> String {
         // If a refresh is already running, join it
         if let existing = activeRefreshTask {
@@ -162,7 +168,8 @@ final class SessionService: @unchecked Sendable {
         let task = Task<String, Error> {
             defer { activeRefreshTask = nil }
 
-            guard let refreshToken = try secureStorage.readRefreshToken() else {
+            guard let storedRefreshToken = try? secureStorage.readRefreshToken(),
+                  !storedRefreshToken.isEmpty else {
                 try? secureStorage.deleteSessionData()
                 await clearSessionState()
                 await cleanup()
@@ -171,17 +178,42 @@ final class SessionService: @unchecked Sendable {
 
             SanchrLogger.auth.info("Refreshing access token")
 
-            do {
-                let tokens = try await authRepository.refreshToken(refreshToken: refreshToken)
-                try await storeTokens(tokens)
-                return tokens.accessToken
-            } catch {
-                SanchrLogger.auth.error("Token refresh failed: \(error.localizedDescription)")
-                try? secureStorage.deleteSessionData()
-                await clearSessionState()
-                await cleanup()
-                throw AppError.sessionExpired
+            let retryDelays: [UInt64] = [1_000_000_000, 3_000_000_000] // 1 s, 3 s
+
+            for attempt in 0...2 {
+                do {
+                    let tokens = try await authRepository.refreshToken(refreshToken: storedRefreshToken)
+                    try await storeTokens(tokens)
+                    return tokens.accessToken
+                } catch let grpcError as GRPCStatus where grpcError.code == .unauthenticated {
+                    // Server explicitly rejected the token — it is revoked or invalid.
+                    // Logout immediately; no retry makes sense here.
+                    SanchrLogger.auth.error(
+                        "Token refresh rejected by server (UNAUTHENTICATED) — clearing session"
+                    )
+                    try? secureStorage.deleteSessionData()
+                    await clearSessionState()
+                    await cleanup()
+                    throw AppError.sessionExpired
+                } catch {
+                    if attempt < 2 {
+                        SanchrLogger.auth.warning(
+                            "Token refresh attempt \(attempt + 1) failed (\(error.localizedDescription)), retrying..."
+                        )
+                        try? await Task.sleep(nanoseconds: retryDelays[attempt])
+                        continue
+                    }
+                    // All retries exhausted; keep session alive so the user is not
+                    // logged out just because the network is temporarily unavailable.
+                    SanchrLogger.auth.error(
+                        "All token refresh attempts failed — keeping session alive: \(error.localizedDescription)"
+                    )
+                    throw error
+                }
             }
+
+            // Unreachable: the loop above always returns or throws.
+            throw AppError.sessionExpired
         }
 
         activeRefreshTask = task
@@ -259,13 +291,12 @@ final class SessionService: @unchecked Sendable {
         currentInstallationId = try? secureStorage.readOrCreateInstallationId()
         currentDeviceId = try? secureStorage.readDeviceId()
 
-        let storedAccessToken = (try? secureStorage.readAccessToken()) ?? nil
         let storedSnapshot = (try? secureStorage.readSessionSnapshot()) ?? nil
 
         guard
             let snapshot = storedSnapshot,
-            let storedAccessToken,
-            !storedAccessToken.isEmpty
+            let storedRefreshToken = try? secureStorage.readRefreshToken(),
+            !storedRefreshToken.isEmpty
         else {
             return
         }
