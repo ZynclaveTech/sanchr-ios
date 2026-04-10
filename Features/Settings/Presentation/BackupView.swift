@@ -296,7 +296,10 @@ struct BackupView: View {
 
             Button {
                 Task {
-                    do { try await container.backupCoordinator.backupNow() } catch {
+                    do {
+                        try await container.backupCoordinator.backupNow()
+                        await loadHistory()
+                    } catch {
                         container.backupCoordinator.reportError(error)
                     }
                 }

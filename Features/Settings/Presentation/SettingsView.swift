@@ -401,12 +401,12 @@ private struct AnySettingsRow: View {
         } label: {
             HStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(SanchrExportColors.surfaceMuted)
+                    .fill(background)
                     .frame(width: 42, height: 42)
                     .overlay {
                         Image(systemName: icon)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.sanchrPrimary)
+                            .foregroundColor(tint)
                     }
 
                 VStack(alignment: .leading, spacing: 3) {
