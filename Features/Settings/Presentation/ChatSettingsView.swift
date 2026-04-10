@@ -44,6 +44,7 @@ struct ChatSettingsView: View {
             VStack(spacing: 18) {
                 mediaDownloadSection
                 encryptionSection
+                chatBehaviourSection
                 backupSection
                 disappearingSection
             }
@@ -192,50 +193,52 @@ struct ChatSettingsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-
-                VStack(spacing: 0) {
-                    toggleRow(
-                        icon: "paperplane.fill",
-                        tint: Color(hex: 0x7C3AED),
-                        background: Color(hex: 0xF3E8FF),
-                        title: "Enter Sends Message",
-                        subtitle: "Press return to send instantly",
-                        isOn: $enterSendsMessage
-                    ) {}
-
-                    Divider()
-                        .padding(.leading, 56)
-
-                    toggleRow(
-                        icon: "link",
-                        tint: Color(hex: 0xCA8A04),
-                        background: Color(hex: 0xFEF3C7),
-                        title: "Link Previews",
-                        subtitle: "Preview URLs inside chats",
-                        isOn: $linkPreviews
-                    ) {}
-
-                    Divider()
-                        .padding(.leading, 56)
-
-                    toggleRow(
-                        icon: "square.and.arrow.down.fill",
-                        tint: Color(hex: 0x16A34A),
-                        background: Color(hex: 0xDCFCE7),
-                        title: "Auto-save Received Media",
-                        subtitle: "Keep photos and videos offline",
-                        isOn: $mediaAutoSave
-                    ) {}
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 8)
-                .background(SanchrExportColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                }
             }
+        }
+    }
+
+    private var chatBehaviourSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Chat Behaviour")
+
+            VStack(spacing: 0) {
+                toggleRow(
+                    icon: "paperplane.fill",
+                    tint: Color(hex: 0x7C3AED),
+                    background: Color(hex: 0xF3E8FF),
+                    title: "Enter Sends Message",
+                    subtitle: "Press return to send instantly",
+                    isOn: $enterSendsMessage
+                ) {}
+
+                Divider()
+                    .padding(.leading, 56)
+
+                toggleRow(
+                    icon: "link",
+                    tint: Color(hex: 0xCA8A04),
+                    background: Color(hex: 0xFEF3C7),
+                    title: "Link Previews",
+                    subtitle: "Preview URLs inside chats",
+                    isOn: $linkPreviews
+                ) {}
+
+                Divider()
+                    .padding(.leading, 56)
+
+                toggleRow(
+                    icon: "square.and.arrow.down.fill",
+                    tint: Color(hex: 0x16A34A),
+                    background: Color(hex: 0xDCFCE7),
+                    title: "Auto-save Received Media",
+                    subtitle: "Keep photos and videos offline",
+                    isOn: $mediaAutoSave
+                ) {}
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .background(SanchrExportColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
