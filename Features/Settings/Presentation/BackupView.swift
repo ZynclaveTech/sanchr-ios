@@ -81,7 +81,9 @@ struct BackupView: View {
                                 with: key.isEmpty ? nil : key
                             )
                         }
-                        showingRestoreSheet = false
+                        if container.backupCoordinator.errorMessage == nil {
+                            showingRestoreSheet = false
+                        }
                     }
                 },
                 onCancel: { showingRestoreSheet = false }
@@ -415,7 +417,7 @@ struct BackupView: View {
         let interval = Date().timeIntervalSince(date)
         if interval < 3600 {
             let mins = max(1, Int(interval / 60))
-            return "✓ Up to date · \(mins == 0 ? "just now" : "\(mins)m ago")"
+            return "✓ Up to date · \(mins)m ago"
         } else if interval < 86400 {
             let hours = Int(interval / 3600)
             return "✓ Up to date · \(hours)h ago"
@@ -509,6 +511,7 @@ private struct BackupRecoveryKeySheet: View {
 // MARK: - BackupRestoreSheet
 
 private struct BackupRestoreSheet: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var recoveryKey: String
     let backupId: String?
     let isProcessing: Bool
@@ -526,7 +529,7 @@ private struct BackupRestoreSheet: View {
                     .autocorrectionDisabled()
                     .font(.system(.body, design: .monospaced))
                     .padding()
-                    .background(Color(uiColor: .secondarySystemBackground))
+                    .background(Color.sanchrSurface(colorScheme))
                     .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md))
 
                 Button(
