@@ -252,7 +252,9 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
         let response = try await grpcClient.backupService.getBackupDownload(request)
         let ciphertext = try await Self.downloadObject(from: response.downloadURL, session: session)
         let expectedSha = response.backup.sha256Hash
-
+        guard !expectedSha.isEmpty else {
+            throw AppError.backupFailed(reason: "Server did not return a checksum for backup \(backupId).")
+        }
         guard Self.sha256Hex(ciphertext) == expectedSha else {
             throw AppError.backupIntegrityCheckFailed(
                 reason: "Encrypted backup SHA-256 did not match the committed metadata."

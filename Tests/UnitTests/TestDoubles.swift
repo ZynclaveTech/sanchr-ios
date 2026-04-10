@@ -423,6 +423,11 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
     // Capture arguments for assertion
     var capturedRestoreBackupId: String? = nil
 
+    // Call-count tracking
+    private(set) var listBackupsCallCount = 0
+    private(set) var restoreLatestCallCount = 0
+    private(set) var restoreBackupCallCount = 0
+
     func performBackup(
         configuration: BackupConfiguration,
         material: DerivedBackupMaterial,
@@ -438,6 +443,7 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
         material: DerivedBackupMaterial,
         currentUserId: String?
     ) async throws -> BackupRestoreOutcome {
+        restoreLatestCallCount += 1
         if let error = restoreLatestError { throw error }
         return restoreLatestResult
     }
@@ -447,6 +453,7 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
     }
 
     func listBackups() async throws -> [BackupListEntry] {
+        listBackupsCallCount += 1
         if let error = listBackupsError { throw error }
         return listBackupsResult
     }
@@ -457,6 +464,7 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
         material: DerivedBackupMaterial,
         currentUserId: String?
     ) async throws -> BackupRestoreOutcome {
+        restoreBackupCallCount += 1
         capturedRestoreBackupId = backupId
         if let error = restoreBackupError { throw error }
         return restoreBackupResult
@@ -509,7 +517,10 @@ final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Senda
 
 final class MockBackupKeyDeriver: BackupKeyDeriverProtocol, @unchecked Sendable {
     var derivedMaterial: DerivedBackupMaterial = DerivedBackupMaterial(
-        metadataKey: Data(), aesKey: nil, hmacKey: nil, backupId: nil
+        metadataKey: Data(repeating: 0, count: 32),
+        aesKey: Data(repeating: 0, count: 32),
+        hmacKey: Data(repeating: 0, count: 32),
+        backupId: nil
     )
     var deriveError: Error? = nil
 
