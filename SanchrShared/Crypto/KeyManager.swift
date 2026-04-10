@@ -27,6 +27,16 @@ public protocol KeyManagerProtocol: AnyObject, Sendable {
     /// Fetches all device IDs for a given user from the key service.
     func fetchUserDevices(recipientId: String) async throws -> [Int32]
 
+    /// Returns the number of one-time pre-keys currently registered on the server.
+    func fetchPreKeyCount() async throws -> Int
+
+    /// Returns the creation timestamp of the current signed pre-key, or nil if none exists.
+    func signedPreKeyCreatedAt() throws -> Date?
+
+    /// Regenerates the identity key pair and re-uploads the full key bundle.
+    /// ⚠️ Destructive: invalidates all existing sessions and changes the safety number.
+    func resetIdentityKeys() async throws
+
     /// Returns `true` if identity keys have been generated for this device.
     var hasIdentityKeys: Bool { get }
 }
@@ -180,6 +190,26 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         } else {
             SanchrLogger.crypto.info("Server pre-key count (\(response.count)) is sufficient")
         }
+    }
+
+    public func fetchPreKeyCount() async throws -> Int {
+        let request = Vync_Keys_GetPreKeyCountRequest()
+        let response = try await keyService.getPreKeyCount(request)
+        return Int(response.count)
+    }
+
+    public func signedPreKeyCreatedAt() throws -> Date? {
+        let id = store.signedPreKeyStore.currentSignedPreKeyId
+        guard id != 0 else { return nil }
+        let record = try store.signedPreKeyStore.loadSignedPreKey(id: id, context: NullContext())
+        // timestamp is stored as milliseconds since epoch (UInt64)
+        return Date(timeIntervalSince1970: Double(record.timestamp) / 1000.0)
+    }
+
+    public func resetIdentityKeys() async throws {
+        _ = try store.identityStore.generateAndStoreIdentity()
+        try await uploadInitialKeyBundle()
+        SanchrLogger.crypto.info("Identity keys reset and new bundle uploaded")
     }
 
     // MARK: - Pre-Key Bundle Fetching
