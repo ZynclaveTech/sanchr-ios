@@ -198,6 +198,9 @@ struct EncryptionKeysView: View {
     // MARK: - Key Info Loading
 
     private func loadKeyInfo() async {
+        isLoadingMetadata = true
+        defer { isLoadingMetadata = false }
+
         if container.keyManager.hasIdentityKeys,
             let identity = try? container.keyManager.generateIdentityIfNeeded()
         {
@@ -207,9 +210,6 @@ struct EncryptionKeysView: View {
         } else {
             identityKeyFingerprint = "No identity key generated"
         }
-
-        isLoadingMetadata = true
-        defer { isLoadingMetadata = false }
 
         if let count = try? await container.keyManager.fetchPreKeyCount() {
             preKeyCount = count
