@@ -230,7 +230,12 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
         // FIXME: SanchrSenderKeyStore has no deleteAll API — group sender key chains
         // remain under the old signing identity after reset. Add deleteAllSenderKeys()
+        // (clear in-memory dict + remove all .senderkey files from storageDirectory)
         // to SanchrSenderKeyStore and call it here to fully invalidate group sessions.
+        // FIXME: store.identityStore.trustedIdentities still holds cached remote keys
+        // from before the reset. These become stale if a contact is displayed by identity
+        // before they re-send a message (which triggers saveIdentity + key-change event).
+        // Clearing trustedIdentities here would wipe all cached remote keys eagerly.
 
         // 3. Upload new key bundle to server
         try await uploadInitialKeyBundle()
