@@ -281,10 +281,6 @@ struct ChatSettingsView: View {
                 .padding(16)
                 .background(SanchrExportColors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                }
 
                 if container.backupCoordinator.isEnabled {
                     VStack(spacing: 0) {
@@ -336,10 +332,6 @@ struct ChatSettingsView: View {
                     }
                     .background(SanchrExportColors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                    }
                 }
 
                 Button {
@@ -484,10 +476,6 @@ struct ChatSettingsView: View {
         .padding(16)
         .background(SanchrExportColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-        }
     }
 
     private func infoRow(title: String, value: String) -> some View {
