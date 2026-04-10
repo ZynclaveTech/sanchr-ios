@@ -2,6 +2,14 @@ import Foundation
 import GRPC
 import LibSignalClient
 
+/// Result of a sealed sender trial-decryption: plaintext + the sender address
+/// that successfully decrypted the ciphertext.
+public struct SealedDecryptResult: Sendable {
+    public let plaintext: Data
+    public let senderUserId: String
+    public let senderDeviceId: Int32
+}
+
 /// Protocol for Signal Protocol session management and message encryption/decryption.
 public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Establishes a new session with a recipient using X3DH key agreement.
@@ -22,6 +30,12 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
 
     /// Decrypts an EncryptedEnvelope, auto-detecting message type.
     func decryptEnvelope(_ envelope: Vync_Messaging_EncryptedEnvelope) async throws -> Data
+
+    /// Trial-decrypts a sealed sender ciphertext (type-byte-prefixed Signal
+    /// message) against all known sessions. Returns the plaintext and the
+    /// sender address that successfully decrypted. Throws if no session
+    /// succeeds.
+    func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult
 
     /// Resets (deletes) the session with a specific user/device for session recovery.
     func resetSession(with userId: String, deviceId: Int32) throws
@@ -239,6 +253,50 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             ciphertext: envelope.ciphertext,
             from: envelope.senderID,
             senderDevice: envelope.senderDevice
+        )
+    }
+
+    // MARK: - Sealed Sender Decryption
+
+    public func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+        guard !ciphertext.isEmpty else {
+            throw AppError.decryptionFailed(reason: "Empty sealed ciphertext")
+        }
+
+        let addresses = store.sessionStore.allSessionAddresses()
+        guard !addresses.isEmpty else {
+            throw AppError.decryptionFailed(
+                reason: "No active sessions to trial-decrypt sealed envelope")
+        }
+
+        // Sort addresses so the local user's own sessions are tried last
+        // (self-sync messages are less common than peer messages).
+        let localUserId = store.userId
+        let sorted = addresses.sorted { a, _ in a.name != localUserId }
+
+        for address in sorted {
+            do {
+                let plaintext = try await decrypt(
+                    ciphertext: ciphertext,
+                    from: address.name,
+                    senderDevice: Int32(address.deviceId)
+                )
+                SanchrLogger.crypto.info(
+                    "Sealed envelope decrypted from \(address.name.prefix(8))... device \(address.deviceId)"
+                )
+                return SealedDecryptResult(
+                    plaintext: plaintext,
+                    senderUserId: address.name,
+                    senderDeviceId: Int32(address.deviceId)
+                )
+            } catch {
+                // Trial failed for this session — try next.
+                continue
+            }
+        }
+
+        throw AppError.decryptionFailed(
+            reason: "Sealed envelope could not be decrypted by any of \(addresses.count) known session(s)"
         )
     }
 

@@ -116,6 +116,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
+    private let sealedSenderManager: SealedSenderManagerProtocol
     private let chatVaultPolicyMirror: ChatVaultPolicyMirror
     private let vaultRepository: VaultRepositoryProtocol
     private let mediaDownloadManager: MediaDownloadManager
@@ -127,6 +128,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
         signalProtocol: SignalProtocolManagerProtocol,
+        sealedSenderManager: SealedSenderManagerProtocol,
         chatVaultPolicyMirror: ChatVaultPolicyMirror,
         vaultRepository: VaultRepositoryProtocol,
         mediaDownloadManager: MediaDownloadManager,
@@ -136,6 +138,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
         self.signalProtocol = signalProtocol
+        self.sealedSenderManager = sealedSenderManager
         self.chatVaultPolicyMirror = chatVaultPolicyMirror
         self.vaultRepository = vaultRepository
         self.mediaDownloadManager = mediaDownloadManager
@@ -483,8 +486,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         case .reaction(let reaction):
                             continuation.yield(.reaction(reaction))
                         case .sealedMessage(let sealed):
-                            // TODO: Decrypt sealed sender envelope via SealedSenderManager
-                            continuation.yield(.sealedMessage(sealed))
+                            if let message = await self.decodeSealedMessage(from: sealed) {
+                                _ = try? await self.flushPendingAcks()
+                                continuation.yield(.message(message))
+                            }
                         }
                     }
                     continuation.finish()
@@ -690,6 +695,90 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             return message
         } catch {
             SanchrLogger.chat.error("Failed to decrypt message: \(error)")
+            return nil
+        }
+    }
+
+    /// Decodes a sealed sender inbound message.
+    ///
+    /// Flow:
+    /// 1. Trial-decrypt the sealed envelope against all known Signal sessions.
+    /// 2. Parse the resulting plaintext as an `InnerPayload` (conversation_id,
+    ///    content_type, content, is_sync).
+    /// 3. If `isSync` is true, save as an outgoing message (multi-device sync).
+    /// 4. Otherwise, save as an incoming message and queue a delivery ack.
+    private func decodeSealedMessage(
+        from sealed: Vync_Messaging_SealedInboundMessage
+    ) async -> Message? {
+        do {
+            // 1. Trial-decrypt: iterate all known sessions until one succeeds.
+            let result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
+
+            // 2. Decode the InnerPayload from the decrypted plaintext.
+            let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sealed.serverTimestamp) / 1000.0
+            )
+
+            // 3. Decode the message content from the inner payload.
+            let content = decodeContent(innerPayload.content, contentType: innerPayload.contentType)
+
+            // 4. Determine direction: self-sync messages are outgoing.
+            let isOutgoing = innerPayload.isSync
+            let senderId = result.senderUserId
+
+            // For self-sync, the "sender" in the Signal session is our own
+            // other device, so attribute the message to the local user.
+            let effectiveSenderId: String
+            if isOutgoing {
+                effectiveSenderId = currentUserIdProvider() ?? senderId
+            } else {
+                effectiveSenderId = senderId
+            }
+
+            let message = Message(
+                id: sealed.messageID,
+                conversationId: innerPayload.conversationId,
+                senderId: effectiveSenderId,
+                timestamp: serverTimestamp,
+                content: content,
+                status: isOutgoing ? .sent : .delivered,
+                isOutgoing: isOutgoing
+            )
+
+            // 5. Ensure the conversation exists locally before saving.
+            try? await ensureConversationShellExists(
+                conversationId: innerPayload.conversationId,
+                senderId: effectiveSenderId,
+                serverTimestamp: serverTimestamp
+            )
+
+            // 6. Save and (for incoming) queue a delivery ack.
+            if isOutgoing {
+                try? await localDatabase.saveMessage(message)
+            } else {
+                try? await localDatabase.saveIncomingMessageAndQueueAck(message)
+            }
+
+            // 7. Auto-vault routing (same as regular message path).
+            let policy = chatVaultPolicyMirror.policy(for: innerPayload.conversationId)
+                ?? .defaults(for: innerPayload.conversationId)
+            if !isOutgoing, policy.autoVaultIncoming,
+               Self.isVaultEligibleContent(content) {
+                Task { [weak self] in
+                    await self?.routeIncomingMessageToVault(message)
+                }
+            }
+
+            SanchrLogger.chat.info(
+                "Decoded sealed message \(sealed.messageID.prefix(8)) from \(effectiveSenderId.prefix(8)) isSync=\(isOutgoing)"
+            )
+            return message
+        } catch {
+            SanchrLogger.chat.error(
+                "Failed to decode sealed message \(sealed.messageID.prefix(8)): \(error)"
+            )
             return nil
         }
     }

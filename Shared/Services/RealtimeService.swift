@@ -325,8 +325,11 @@ final class RealtimeService: @unchecked Sendable {
             }
 
         case .sealedMessage:
-            // TODO: Decrypt and process sealed sender envelope
-            SanchrLogger.chat.info("Received sealed sender message (processing not yet implemented)")
+            // Sealed messages are decrypted in the stream layer
+            // (MessageRepository.openMessageStream) and yielded as
+            // `.message`. This case is a defensive fallback that should
+            // not be reached in normal operation.
+            SanchrLogger.chat.warning("Received un-decoded sealed message in RealtimeService handle — this is unexpected")
         }
     }
 
