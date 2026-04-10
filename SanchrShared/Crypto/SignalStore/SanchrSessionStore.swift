@@ -93,6 +93,15 @@ public final class SanchrSessionStore: SessionStore {
         SanchrLogger.crypto.info("Deleted session for \(address.name).\(address.deviceId)")
     }
 
+    /// Returns every `ProtocolAddress` for which a session currently exists.
+    /// Used by the sealed sender receive path to trial-decrypt against all
+    /// known peers when the sender identity is not in the envelope.
+    public func allSessionAddresses() -> [ProtocolAddress] {
+        var addresses: [ProtocolAddress] = []
+        queue.sync { addresses = Array(sessions.keys) }
+        return addresses
+    }
+
     /// Removes all sessions for a given user (across all their devices).
     public func deleteAllSessions(for name: String) throws {
         var toRemove: [ProtocolAddress] = []

@@ -161,6 +161,7 @@ public actor MessageSender {
     private let db: LocalDatabaseProtocol
     private let uploader: MediaUploading
     private let encryptedSender: EncryptedMessageSendingClient
+    private let sealedSender: SealedMessageSendingClient?
     private let coordinator: FileCoordinatorLock
     private let currentUser: CurrentUserProviding
     private let vaultPolicyResolver: VaultPolicyResolving
@@ -172,6 +173,7 @@ public actor MessageSender {
         db: LocalDatabaseProtocol,
         uploader: MediaUploading,
         encryptedSender: EncryptedMessageSendingClient,
+        sealedSender: SealedMessageSendingClient? = nil,
         coordinator: FileCoordinatorLock,
         currentUser: CurrentUserProviding,
         vaultPolicyResolver: VaultPolicyResolving,
@@ -180,6 +182,7 @@ public actor MessageSender {
         self.db = db
         self.uploader = uploader
         self.encryptedSender = encryptedSender
+        self.sealedSender = sealedSender
         self.coordinator = coordinator
         self.currentUser = currentUser
         self.vaultPolicyResolver = vaultPolicyResolver
@@ -221,14 +224,31 @@ public actor MessageSender {
                 )
             }
 
-            let sendResult = try await coordinator.withLock { [encryptedSender] in
-                try await encryptedSender.sendEncryptedMessage(
+            // Route: 1:1 conversations use sealed sender when available;
+            // groups always use the standard encrypted path.
+            let isDirectChat = await isDirectConversation(chatId: chatId)
+
+            let sendResult: EncryptedMessageSendResult
+            if isDirectChat, let sealedSender {
+                sendResult = try await sendViaSealedSender(
                     plaintext: plaintextData,
                     contentType: "text",
                     conversationId: chatId,
                     recipientIds: recipientIds,
-                    expiresAfterSecs: 0
+                    senderId: senderId,
+                    localMessageId: localId,
+                    sealedSender: sealedSender
                 )
+            } else {
+                sendResult = try await coordinator.withLock { [encryptedSender] in
+                    try await encryptedSender.sendEncryptedMessage(
+                        plaintext: plaintextData,
+                        contentType: "text",
+                        conversationId: chatId,
+                        recipientIds: recipientIds,
+                        expiresAfterSecs: 0
+                    )
+                }
             }
 
             let serverTimestamp = Date(
@@ -364,15 +384,31 @@ public actor MessageSender {
                 return "document"
             }()
 
-            // Step 4 — encrypted send under the cross-process lock.
-            let sendResult = try await coordinator.withLock { [encryptedSender] in
-                try await encryptedSender.sendEncryptedMessage(
+            // Step 4 — route: 1:1 via sealed sender when available,
+            // groups via standard encrypted path.
+            let isDirectChat = await isDirectConversation(chatId: chatId)
+
+            let sendResult: EncryptedMessageSendResult
+            if isDirectChat, let sealedSender {
+                sendResult = try await sendViaSealedSender(
                     plaintext: plaintextData,
                     contentType: contentTypeString,
                     conversationId: chatId,
                     recipientIds: recipientIds,
-                    expiresAfterSecs: 0
+                    senderId: senderId,
+                    localMessageId: localId,
+                    sealedSender: sealedSender
                 )
+            } else {
+                sendResult = try await coordinator.withLock { [encryptedSender] in
+                    try await encryptedSender.sendEncryptedMessage(
+                        plaintext: plaintextData,
+                        contentType: contentTypeString,
+                        conversationId: chatId,
+                        recipientIds: recipientIds,
+                        expiresAfterSecs: 0
+                    )
+                }
             }
 
             // Step 5 — flip optimistic row to .sent (or replace it with the
@@ -439,6 +475,71 @@ public actor MessageSender {
             throw AppError.sessionNotEstablished
         }
         return peers
+    }
+
+    // MARK: Sealed sender routing
+
+    /// Returns `true` if the conversation is a 1:1 (direct) chat, `false`
+    /// for groups or if the conversation is not found locally.
+    private func isDirectConversation(chatId: String) async -> Bool {
+        guard let conversation = try? await db.fetchConversation(id: chatId) else {
+            return false
+        }
+        return conversation.type == .oneToOne
+    }
+
+    /// Attempt a sealed sender send with automatic fallback to the standard
+    /// encrypted path on failure. The sealed send runs under the cross-process
+    /// lock because it still mutates Signal ratchet state.
+    ///
+    /// On success, returns an `EncryptedMessageSendResult` with the
+    /// server timestamp (messageId is the local id since the server cannot
+    /// assign one in sealed mode).
+    ///
+    /// On failure, logs a warning and transparently retries via the standard
+    /// authenticated `sendMessage` path so the message still reaches the peer.
+    private func sendViaSealedSender(
+        plaintext: Data,
+        contentType: String,
+        conversationId: String,
+        recipientIds: [String],
+        senderId: String,
+        localMessageId: String,
+        sealedSender: SealedMessageSendingClient
+    ) async throws -> EncryptedMessageSendResult {
+        do {
+            let sealedResult = try await coordinator.withLock {
+                try await sealedSender.sendSealedMessage(
+                    plaintext: plaintext,
+                    contentType: contentType,
+                    conversationId: conversationId,
+                    recipientIds: recipientIds,
+                    senderId: senderId
+                )
+            }
+            logger.info(
+                "MessageSender: sealed send succeeded chat=\(conversationId) local=\(localMessageId)"
+            )
+            // Sealed send has no server-assigned messageId — use localMessageId.
+            return EncryptedMessageSendResult(
+                messageId: localMessageId,
+                serverTimestampMs: sealedResult.serverTimestampMs
+            )
+        } catch {
+            // Fallback: sealed send failed — retry via standard authenticated path.
+            logger.warning(
+                "MessageSender: sealed send failed, falling back to standard send chat=\(conversationId) local=\(localMessageId): \(error.localizedDescription)"
+            )
+            return try await coordinator.withLock { [encryptedSender] in
+                try await encryptedSender.sendEncryptedMessage(
+                    plaintext: plaintext,
+                    contentType: contentType,
+                    conversationId: conversationId,
+                    recipientIds: recipientIds,
+                    expiresAfterSecs: 0
+                )
+            }
+        }
     }
 
     // MARK: Local DB write helpers (T16c scaffold)

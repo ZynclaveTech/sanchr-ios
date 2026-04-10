@@ -421,31 +421,31 @@ public enum Vync_Calling_CallSignalingServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let initiateCall = GRPCMethodDescriptor(
+    public static let initiateCall = GRPCMethodDescriptor(
       name: "InitiateCall",
       path: "/vync.calling.CallSignalingService/InitiateCall",
       type: GRPCCallType.unary
     )
 
-    internal static let callStream = GRPCMethodDescriptor(
+    public static let callStream = GRPCMethodDescriptor(
       name: "CallStream",
       path: "/vync.calling.CallSignalingService/CallStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
-    internal static let endCall = GRPCMethodDescriptor(
+    public static let endCall = GRPCMethodDescriptor(
       name: "EndCall",
       path: "/vync.calling.CallSignalingService/EndCall",
       type: GRPCCallType.unary
     )
 
-    internal static let getCallHistory = GRPCMethodDescriptor(
+    public static let getCallHistory = GRPCMethodDescriptor(
       name: "GetCallHistory",
       path: "/vync.calling.CallSignalingService/GetCallHistory",
       type: GRPCCallType.unary
     )
 
-    internal static let getTurnCredentials = GRPCMethodDescriptor(
+    public static let getTurnCredentials = GRPCMethodDescriptor(
       name: "GetTurnCredentials",
       path: "/vync.calling.CallSignalingService/GetTurnCredentials",
       type: GRPCCallType.unary
@@ -671,31 +671,31 @@ public enum Vync_Calling_CallSignalingServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let initiateCall = GRPCMethodDescriptor(
+    public static let initiateCall = GRPCMethodDescriptor(
       name: "InitiateCall",
       path: "/vync.calling.CallSignalingService/InitiateCall",
       type: GRPCCallType.unary
     )
 
-    internal static let callStream = GRPCMethodDescriptor(
+    public static let callStream = GRPCMethodDescriptor(
       name: "CallStream",
       path: "/vync.calling.CallSignalingService/CallStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
-    internal static let endCall = GRPCMethodDescriptor(
+    public static let endCall = GRPCMethodDescriptor(
       name: "EndCall",
       path: "/vync.calling.CallSignalingService/EndCall",
       type: GRPCCallType.unary
     )
 
-    internal static let getCallHistory = GRPCMethodDescriptor(
+    public static let getCallHistory = GRPCMethodDescriptor(
       name: "GetCallHistory",
       path: "/vync.calling.CallSignalingService/GetCallHistory",
       type: GRPCCallType.unary
     )
 
-    internal static let getTurnCredentials = GRPCMethodDescriptor(
+    public static let getTurnCredentials = GRPCMethodDescriptor(
       name: "GetTurnCredentials",
       path: "/vync.calling.CallSignalingService/GetTurnCredentials",
       type: GRPCCallType.unary

@@ -400,3 +400,237 @@ public enum Vync_Vault_VaultServiceClientMetadata {
   }
 }
 
+/// Forward-secure vault, compliant with the research paper "Threat-Driven
+/// Extensions to the Signal Protocol" — Defense 2.
+///
+/// Contract:
+///   - The server NEVER sees a plaintext AES key for a vault item.
+///   - Metadata (file name, mime type, thumbnail, etc.) is encrypted client-side
+///     and passed to the server as an opaque `encrypted_metadata` blob.
+///   - Vault item IDs are client-generated UUIDv4 for idempotent crash recovery.
+///   - Sharing is intentionally absent. It will return in a future round with
+///     a proper cryptographic re-wrap design.
+///
+/// To build a server, implement a class that conforms to this protocol.
+public protocol Vync_Vault_VaultServiceProvider: CallHandlerProvider {
+  var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? { get }
+
+  func createVaultItem(request: Vync_Vault_CreateVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_VaultItem>
+
+  func getVaultItems(request: Vync_Vault_GetVaultItemsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_GetVaultItemsResponse>
+
+  func getVaultItem(request: Vync_Vault_GetVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_VaultItem>
+
+  func deleteVaultItem(request: Vync_Vault_DeleteVaultItemRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Vault_DeleteVaultItemResponse>
+}
+
+extension Vync_Vault_VaultServiceProvider {
+  public var serviceName: Substring {
+    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor.fullName[...]
+  }
+
+  /// Determines, calls and returns the appropriate request handler, depending on the request's method.
+  /// Returns nil for methods not handled by this service.
+  public func handle(
+    method name: Substring,
+    context: CallHandlerContext
+  ) -> GRPCServerHandlerProtocol? {
+    switch name {
+    case "CreateVaultItem":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_CreateVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
+        interceptors: self.interceptors?.makeCreateVaultItemInterceptors() ?? [],
+        userFunction: self.createVaultItem(request:context:)
+      )
+
+    case "GetVaultItems":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemsRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_GetVaultItemsResponse>(),
+        interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? [],
+        userFunction: self.getVaultItems(request:context:)
+      )
+
+    case "GetVaultItem":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
+        interceptors: self.interceptors?.makeGetVaultItemInterceptors() ?? [],
+        userFunction: self.getVaultItem(request:context:)
+      )
+
+    case "DeleteVaultItem":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_DeleteVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_DeleteVaultItemResponse>(),
+        interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? [],
+        userFunction: self.deleteVaultItem(request:context:)
+      )
+
+    default:
+      return nil
+    }
+  }
+}
+
+/// Forward-secure vault, compliant with the research paper "Threat-Driven
+/// Extensions to the Signal Protocol" — Defense 2.
+///
+/// Contract:
+///   - The server NEVER sees a plaintext AES key for a vault item.
+///   - Metadata (file name, mime type, thumbnail, etc.) is encrypted client-side
+///     and passed to the server as an opaque `encrypted_metadata` blob.
+///   - Vault item IDs are client-generated UUIDv4 for idempotent crash recovery.
+///   - Sharing is intentionally absent. It will return in a future round with
+///     a proper cryptographic re-wrap design.
+///
+/// To implement a server, implement an object which conforms to this protocol.
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+public protocol Vync_Vault_VaultServiceAsyncProvider: CallHandlerProvider, Sendable {
+  static var serviceDescriptor: GRPCServiceDescriptor { get }
+  var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? { get }
+
+  func createVaultItem(
+    request: Vync_Vault_CreateVaultItemRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Vault_VaultItem
+
+  func getVaultItems(
+    request: Vync_Vault_GetVaultItemsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Vault_GetVaultItemsResponse
+
+  func getVaultItem(
+    request: Vync_Vault_GetVaultItemRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Vault_VaultItem
+
+  func deleteVaultItem(
+    request: Vync_Vault_DeleteVaultItemRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Vault_DeleteVaultItemResponse
+}
+
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+extension Vync_Vault_VaultServiceAsyncProvider {
+  public static var serviceDescriptor: GRPCServiceDescriptor {
+    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor
+  }
+
+  public var serviceName: Substring {
+    return Vync_Vault_VaultServiceServerMetadata.serviceDescriptor.fullName[...]
+  }
+
+  public var interceptors: Vync_Vault_VaultServiceServerInterceptorFactoryProtocol? {
+    return nil
+  }
+
+  public func handle(
+    method name: Substring,
+    context: CallHandlerContext
+  ) -> GRPCServerHandlerProtocol? {
+    switch name {
+    case "CreateVaultItem":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_CreateVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
+        interceptors: self.interceptors?.makeCreateVaultItemInterceptors() ?? [],
+        wrapping: { try await self.createVaultItem(request: $0, context: $1) }
+      )
+
+    case "GetVaultItems":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemsRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_GetVaultItemsResponse>(),
+        interceptors: self.interceptors?.makeGetVaultItemsInterceptors() ?? [],
+        wrapping: { try await self.getVaultItems(request: $0, context: $1) }
+      )
+
+    case "GetVaultItem":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_GetVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_VaultItem>(),
+        interceptors: self.interceptors?.makeGetVaultItemInterceptors() ?? [],
+        wrapping: { try await self.getVaultItem(request: $0, context: $1) }
+      )
+
+    case "DeleteVaultItem":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Vault_DeleteVaultItemRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Vault_DeleteVaultItemResponse>(),
+        interceptors: self.interceptors?.makeDeleteVaultItemInterceptors() ?? [],
+        wrapping: { try await self.deleteVaultItem(request: $0, context: $1) }
+      )
+
+    default:
+      return nil
+    }
+  }
+}
+
+public protocol Vync_Vault_VaultServiceServerInterceptorFactoryProtocol: Sendable {
+
+  /// - Returns: Interceptors to use when handling 'createVaultItem'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeCreateVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>]
+
+  /// - Returns: Interceptors to use when handling 'getVaultItems'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetVaultItemsInterceptors() -> [ServerInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getVaultItem'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>]
+
+  /// - Returns: Interceptors to use when handling 'deleteVaultItem'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDeleteVaultItemInterceptors() -> [ServerInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>]
+}
+
+public enum Vync_Vault_VaultServiceServerMetadata {
+  public static let serviceDescriptor = GRPCServiceDescriptor(
+    name: "VaultService",
+    fullName: "vync.vault.VaultService",
+    methods: [
+      Vync_Vault_VaultServiceServerMetadata.Methods.createVaultItem,
+      Vync_Vault_VaultServiceServerMetadata.Methods.getVaultItems,
+      Vync_Vault_VaultServiceServerMetadata.Methods.getVaultItem,
+      Vync_Vault_VaultServiceServerMetadata.Methods.deleteVaultItem,
+    ]
+  )
+
+  public enum Methods {
+    public static let createVaultItem = GRPCMethodDescriptor(
+      name: "CreateVaultItem",
+      path: "/vync.vault.VaultService/CreateVaultItem",
+      type: GRPCCallType.unary
+    )
+
+    public static let getVaultItems = GRPCMethodDescriptor(
+      name: "GetVaultItems",
+      path: "/vync.vault.VaultService/GetVaultItems",
+      type: GRPCCallType.unary
+    )
+
+    public static let getVaultItem = GRPCMethodDescriptor(
+      name: "GetVaultItem",
+      path: "/vync.vault.VaultService/GetVaultItem",
+      type: GRPCCallType.unary
+    )
+
+    public static let deleteVaultItem = GRPCMethodDescriptor(
+      name: "DeleteVaultItem",
+      path: "/vync.vault.VaultService/DeleteVaultItem",
+      type: GRPCCallType.unary
+    )
+  }
+}

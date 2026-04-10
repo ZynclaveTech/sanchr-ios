@@ -69,6 +69,12 @@ final class DependencyContainer: @unchecked Sendable {
         keyManager: signalKeyManager
     )
 
+    /// Sealed sender: certificate caching, delivery token pool, inner payload codec.
+    @ObservationIgnored lazy var sealedSenderManager: SealedSenderManagerProtocol = SealedSenderManager(
+        messagingService: grpcClient.messagingService,
+        keychain: keychainService
+    )
+
     // MARK: - Crypto (Legacy Protocols Bridged to Signal)
 
     /// Exposes the `SignalKeyManager` as the `KeyManagerProtocol` for existing call sites.
@@ -179,6 +185,15 @@ final class DependencyContainer: @unchecked Sendable {
             authRetrier: authRetryingAdapter
         )
 
+    /// Sealed sender send client. Wraps plaintext in InnerPayload, Signal-encrypts
+    /// per device, acquires a delivery token, and dispatches via unauthenticated RPC.
+    @ObservationIgnored lazy var sealedMessageSendingClient: SealedMessageSendingClient =
+        DefaultSealedMessageSendingClient(
+            grpcClient: grpcClient,
+            signalManager: signalProtocol,
+            sealedSenderManager: sealedSenderManager
+        )
+
     /// SOLE outgoing-message send pipeline. `ChatDetailViewModel` and the
     /// share-extension `ShareSendCoordinator` both call into this actor — no
     /// other code path is allowed to write outgoing message rows.
@@ -186,6 +201,7 @@ final class DependencyContainer: @unchecked Sendable {
         db: localDatabase,
         uploader: mediaUploadManager,
         encryptedSender: encryptedMessageSendingClient,
+        sealedSender: sealedMessageSendingClient,
         coordinator: fileCoordinatorLock,
         currentUser: currentUserProvider,
         vaultPolicyResolver: MainAppVaultPolicyResolver(
@@ -227,6 +243,7 @@ final class DependencyContainer: @unchecked Sendable {
             grpcClient: grpcClient,
             localDatabase: localDatabase,
             signalProtocol: signalSessionManager,
+            sealedSenderManager: sealedSenderManager,
             chatVaultPolicyMirror: chatVaultPolicyMirror,
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
@@ -499,6 +516,7 @@ final class DependencyContainer: @unchecked Sendable {
             grpcClient: grpcClient,
             localDatabase: localDatabase,
             signalProtocol: signalSessionManager,
+            sealedSenderManager: sealedSenderManager,
             chatVaultPolicyMirror: chatVaultPolicyMirror,
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
@@ -515,10 +533,16 @@ final class DependencyContainer: @unchecked Sendable {
             signalManager: signalSessionManager,
             authRetrier: authRetryingAdapter
         )
+        self.sealedMessageSendingClient = DefaultSealedMessageSendingClient(
+            grpcClient: grpcClient,
+            signalManager: signalSessionManager,
+            sealedSenderManager: sealedSenderManager
+        )
         self.messageSender = MessageSender(
             db: localDatabase,
             uploader: mediaUploadManager,
             encryptedSender: encryptedMessageSendingClient,
+            sealedSender: sealedMessageSendingClient,
             coordinator: fileCoordinatorLock,
             currentUser: currentUserProvider,
             vaultPolicyResolver: MainAppVaultPolicyResolver(

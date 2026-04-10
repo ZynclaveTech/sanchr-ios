@@ -531,43 +531,43 @@ public enum Vync_Auth_AuthServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let register = GRPCMethodDescriptor(
+    public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/vync.auth.AuthService/Register",
       type: GRPCCallType.unary
     )
 
-    internal static let verifyOTP = GRPCMethodDescriptor(
+    public static let verifyOTP = GRPCMethodDescriptor(
       name: "VerifyOTP",
       path: "/vync.auth.AuthService/VerifyOTP",
       type: GRPCCallType.unary
     )
 
-    internal static let login = GRPCMethodDescriptor(
+    public static let login = GRPCMethodDescriptor(
       name: "Login",
       path: "/vync.auth.AuthService/Login",
       type: GRPCCallType.unary
     )
 
-    internal static let refreshToken = GRPCMethodDescriptor(
+    public static let refreshToken = GRPCMethodDescriptor(
       name: "RefreshToken",
       path: "/vync.auth.AuthService/RefreshToken",
       type: GRPCCallType.unary
     )
 
-    internal static let logout = GRPCMethodDescriptor(
+    public static let logout = GRPCMethodDescriptor(
       name: "Logout",
       path: "/vync.auth.AuthService/Logout",
       type: GRPCCallType.unary
     )
 
-    internal static let changePassword = GRPCMethodDescriptor(
+    public static let changePassword = GRPCMethodDescriptor(
       name: "ChangePassword",
       path: "/vync.auth.AuthService/ChangePassword",
       type: GRPCCallType.unary
     )
 
-    internal static let deleteAccount = GRPCMethodDescriptor(
+    public static let deleteAccount = GRPCMethodDescriptor(
       name: "DeleteAccount",
       path: "/vync.auth.AuthService/DeleteAccount",
       type: GRPCCallType.unary
@@ -852,43 +852,43 @@ public enum Vync_Auth_AuthServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let register = GRPCMethodDescriptor(
+    public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/vync.auth.AuthService/Register",
       type: GRPCCallType.unary
     )
 
-    internal static let verifyOTP = GRPCMethodDescriptor(
+    public static let verifyOTP = GRPCMethodDescriptor(
       name: "VerifyOTP",
       path: "/vync.auth.AuthService/VerifyOTP",
       type: GRPCCallType.unary
     )
 
-    internal static let login = GRPCMethodDescriptor(
+    public static let login = GRPCMethodDescriptor(
       name: "Login",
       path: "/vync.auth.AuthService/Login",
       type: GRPCCallType.unary
     )
 
-    internal static let refreshToken = GRPCMethodDescriptor(
+    public static let refreshToken = GRPCMethodDescriptor(
       name: "RefreshToken",
       path: "/vync.auth.AuthService/RefreshToken",
       type: GRPCCallType.unary
     )
 
-    internal static let logout = GRPCMethodDescriptor(
+    public static let logout = GRPCMethodDescriptor(
       name: "Logout",
       path: "/vync.auth.AuthService/Logout",
       type: GRPCCallType.unary
     )
 
-    internal static let changePassword = GRPCMethodDescriptor(
+    public static let changePassword = GRPCMethodDescriptor(
       name: "ChangePassword",
       path: "/vync.auth.AuthService/ChangePassword",
       type: GRPCCallType.unary
     )
 
-    internal static let deleteAccount = GRPCMethodDescriptor(
+    public static let deleteAccount = GRPCMethodDescriptor(
       name: "DeleteAccount",
       path: "/vync.auth.AuthService/DeleteAccount",
       type: GRPCCallType.unary

@@ -317,19 +317,19 @@ public enum Vync_Media_MediaServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let getUploadUrl = GRPCMethodDescriptor(
+    public static let getUploadUrl = GRPCMethodDescriptor(
       name: "GetUploadUrl",
       path: "/vync.media.MediaService/GetUploadUrl",
       type: GRPCCallType.unary
     )
 
-    internal static let getDownloadUrl = GRPCMethodDescriptor(
+    public static let getDownloadUrl = GRPCMethodDescriptor(
       name: "GetDownloadUrl",
       path: "/vync.media.MediaService/GetDownloadUrl",
       type: GRPCCallType.unary
     )
 
-    internal static let confirmUpload = GRPCMethodDescriptor(
+    public static let confirmUpload = GRPCMethodDescriptor(
       name: "ConfirmUpload",
       path: "/vync.media.MediaService/ConfirmUpload",
       type: GRPCCallType.unary
@@ -494,19 +494,19 @@ public enum Vync_Media_MediaServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let getUploadUrl = GRPCMethodDescriptor(
+    public static let getUploadUrl = GRPCMethodDescriptor(
       name: "GetUploadUrl",
       path: "/vync.media.MediaService/GetUploadUrl",
       type: GRPCCallType.unary
     )
 
-    internal static let getDownloadUrl = GRPCMethodDescriptor(
+    public static let getDownloadUrl = GRPCMethodDescriptor(
       name: "GetDownloadUrl",
       path: "/vync.media.MediaService/GetDownloadUrl",
       type: GRPCCallType.unary
     )
 
-    internal static let confirmUpload = GRPCMethodDescriptor(
+    public static let confirmUpload = GRPCMethodDescriptor(
       name: "ConfirmUpload",
       path: "/vync.media.MediaService/ConfirmUpload",
       type: GRPCCallType.unary

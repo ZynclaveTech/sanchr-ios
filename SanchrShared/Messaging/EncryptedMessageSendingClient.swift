@@ -141,3 +141,144 @@ public final class DefaultEncryptedMessageSendingClient: EncryptedMessageSending
         )
     }
 }
+
+// MARK: - SealedMessageSendResult
+
+/// Result of a sealed sender send. The server returns only a timestamp
+/// (no messageId) because the server cannot attribute the message to a sender.
+public struct SealedMessageSendResult: Sendable, Equatable {
+    public let serverTimestampMs: Int64
+
+    public init(serverTimestampMs: Int64) {
+        self.serverTimestampMs = serverTimestampMs
+    }
+}
+
+// MARK: - SealedMessageSendingClient
+
+/// Narrow seam for sending a message through the sealed sender pipeline.
+///
+/// The sealed sender path:
+/// 1. Wraps plaintext in an `InnerPayload` (conversation context + content).
+/// 2. Signal-encrypts the inner payload per recipient device.
+/// 3. Builds `SealedDeviceMessage` protos (recipient_id, device_id, sealed_envelope).
+/// 4. Builds self-sync envelopes for the sender's own other devices.
+/// 5. Acquires a delivery token (not JWT) and dispatches via `SendSealedMessage`.
+///
+/// Like `EncryptedMessageSendingClient`, this protocol has no UI or DB concerns.
+public protocol SealedMessageSendingClient: Sendable {
+    func sendSealedMessage(
+        plaintext: Data,
+        contentType: String,
+        conversationId: String,
+        recipientIds: [String],
+        senderId: String
+    ) async throws -> SealedMessageSendResult
+}
+
+// MARK: - DefaultSealedMessageSendingClient
+
+/// Production sealed sender send client.
+///
+/// Encrypts per-device, wraps in `InnerPayload`, acquires a delivery token,
+/// and dispatches via the unauthenticated `SendSealedMessage` RPC (no JWT).
+public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient {
+
+    private let grpcClient: GRPCClientProtocol
+    private let signalManager: SignalProtocolManagerProtocol
+    private let sealedSenderManager: SealedSenderManagerProtocol
+
+    public init(
+        grpcClient: GRPCClientProtocol,
+        signalManager: SignalProtocolManagerProtocol,
+        sealedSenderManager: SealedSenderManagerProtocol
+    ) {
+        self.grpcClient = grpcClient
+        self.signalManager = signalManager
+        self.sealedSenderManager = sealedSenderManager
+    }
+
+    public func sendSealedMessage(
+        plaintext: Data,
+        contentType: String,
+        conversationId: String,
+        recipientIds: [String],
+        senderId: String
+    ) async throws -> SealedMessageSendResult {
+        // 1. Build the InnerPayload (peer copy: isSync = false).
+        let innerPayloadData = try sealedSenderManager.encodeInnerPayload(
+            conversationId: conversationId,
+            contentType: contentType,
+            content: plaintext,
+            isSync: false
+        )
+
+        // 2. Fetch sender certificate (used for sender identity binding; kept
+        //    in scope so it's available for future libsignal sealed sender
+        //    integration but not embedded in the envelope today since we're
+        //    using Signal-encrypt + delivery token auth).
+        _ = try await sealedSenderManager.getSenderCertificate()
+
+        // 3. Per-device encryption for each peer recipient.
+        var sealedDeviceMessages: [Vync_Messaging_SealedDeviceMessage] = []
+        for recipientId in recipientIds {
+            let deviceMessages = try await signalManager.encryptForAllDevices(
+                plaintext: innerPayloadData,
+                recipientId: recipientId
+            )
+            for dm in deviceMessages {
+                var sealed = Vync_Messaging_SealedDeviceMessage()
+                sealed.recipientID = dm.recipientID
+                sealed.deviceID = dm.deviceID
+                sealed.sealedEnvelope = dm.ciphertext
+                sealedDeviceMessages.append(sealed)
+            }
+        }
+
+        // 4. Self-sync: build InnerPayload with isSync=true and encrypt for
+        //    the sender's own other devices so multi-device stays in sync.
+        let syncPayloadData = try sealedSenderManager.encodeInnerPayload(
+            conversationId: conversationId,
+            contentType: contentType,
+            content: plaintext,
+            isSync: true
+        )
+        do {
+            let selfDeviceMessages = try await signalManager.encryptForAllDevices(
+                plaintext: syncPayloadData,
+                recipientId: senderId
+            )
+            for dm in selfDeviceMessages {
+                var sealed = Vync_Messaging_SealedDeviceMessage()
+                sealed.recipientID = dm.recipientID
+                sealed.deviceID = dm.deviceID
+                sealed.sealedEnvelope = dm.ciphertext
+                sealedDeviceMessages.append(sealed)
+            }
+        } catch {
+            // Self-sync failure is non-fatal: the message still reaches
+            // the peer. Log and continue so the send is not blocked by a
+            // missing self-device key bundle (e.g. single-device user).
+            SanchrLogger.crypto.warning(
+                "Sealed sender self-sync encrypt failed (non-fatal): \(error.localizedDescription)"
+            )
+        }
+
+        // 5. Acquire delivery token (replaces JWT for this call).
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+        // 6. Build and dispatch the unauthenticated gRPC request.
+        var request = Vync_Messaging_SendSealedMessageRequest()
+        request.deliveryToken = deliveryToken
+        request.deviceMessages = sealedDeviceMessages
+
+        let response = try await grpcClient.messagingService.sendSealedMessage(request)
+
+        // 7. Background-replenish the token pool.
+        await sealedSenderManager.replenishIfNeeded()
+
+        return SealedMessageSendResult(
+            serverTimestampMs: response.serverTimestamp
+        )
+    }
+}

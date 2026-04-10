@@ -409,31 +409,31 @@ public enum Vync_Keys_KeyServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let uploadKeyBundle = GRPCMethodDescriptor(
+    public static let uploadKeyBundle = GRPCMethodDescriptor(
       name: "UploadKeyBundle",
       path: "/vync.keys.KeyService/UploadKeyBundle",
       type: GRPCCallType.unary
     )
 
-    internal static let getPreKeyBundle = GRPCMethodDescriptor(
+    public static let getPreKeyBundle = GRPCMethodDescriptor(
       name: "GetPreKeyBundle",
       path: "/vync.keys.KeyService/GetPreKeyBundle",
       type: GRPCCallType.unary
     )
 
-    internal static let uploadOneTimePreKeys = GRPCMethodDescriptor(
+    public static let uploadOneTimePreKeys = GRPCMethodDescriptor(
       name: "UploadOneTimePreKeys",
       path: "/vync.keys.KeyService/UploadOneTimePreKeys",
       type: GRPCCallType.unary
     )
 
-    internal static let getPreKeyCount = GRPCMethodDescriptor(
+    public static let getPreKeyCount = GRPCMethodDescriptor(
       name: "GetPreKeyCount",
       path: "/vync.keys.KeyService/GetPreKeyCount",
       type: GRPCCallType.unary
     )
 
-    internal static let getUserDevices = GRPCMethodDescriptor(
+    public static let getUserDevices = GRPCMethodDescriptor(
       name: "GetUserDevices",
       path: "/vync.keys.KeyService/GetUserDevices",
       type: GRPCCallType.unary
@@ -658,31 +658,31 @@ public enum Vync_Keys_KeyServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let uploadKeyBundle = GRPCMethodDescriptor(
+    public static let uploadKeyBundle = GRPCMethodDescriptor(
       name: "UploadKeyBundle",
       path: "/vync.keys.KeyService/UploadKeyBundle",
       type: GRPCCallType.unary
     )
 
-    internal static let getPreKeyBundle = GRPCMethodDescriptor(
+    public static let getPreKeyBundle = GRPCMethodDescriptor(
       name: "GetPreKeyBundle",
       path: "/vync.keys.KeyService/GetPreKeyBundle",
       type: GRPCCallType.unary
     )
 
-    internal static let uploadOneTimePreKeys = GRPCMethodDescriptor(
+    public static let uploadOneTimePreKeys = GRPCMethodDescriptor(
       name: "UploadOneTimePreKeys",
       path: "/vync.keys.KeyService/UploadOneTimePreKeys",
       type: GRPCCallType.unary
     )
 
-    internal static let getPreKeyCount = GRPCMethodDescriptor(
+    public static let getPreKeyCount = GRPCMethodDescriptor(
       name: "GetPreKeyCount",
       path: "/vync.keys.KeyService/GetPreKeyCount",
       type: GRPCCallType.unary
     )
 
-    internal static let getUserDevices = GRPCMethodDescriptor(
+    public static let getUserDevices = GRPCMethodDescriptor(
       name: "GetUserDevices",
       path: "/vync.keys.KeyService/GetUserDevices",
       type: GRPCCallType.unary

@@ -241,13 +241,13 @@ public enum Vync_Notifications_NotificationServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let registerPushToken = GRPCMethodDescriptor(
+    public static let registerPushToken = GRPCMethodDescriptor(
       name: "RegisterPushToken",
       path: "/vync.notifications.NotificationService/RegisterPushToken",
       type: GRPCCallType.unary
     )
 
-    internal static let updateNotificationPrefs = GRPCMethodDescriptor(
+    public static let updateNotificationPrefs = GRPCMethodDescriptor(
       name: "UpdateNotificationPrefs",
       path: "/vync.notifications.NotificationService/UpdateNotificationPrefs",
       type: GRPCCallType.unary
@@ -382,13 +382,13 @@ public enum Vync_Notifications_NotificationServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let registerPushToken = GRPCMethodDescriptor(
+    public static let registerPushToken = GRPCMethodDescriptor(
       name: "RegisterPushToken",
       path: "/vync.notifications.NotificationService/RegisterPushToken",
       type: GRPCCallType.unary
     )
 
-    internal static let updateNotificationPrefs = GRPCMethodDescriptor(
+    public static let updateNotificationPrefs = GRPCMethodDescriptor(
       name: "UpdateNotificationPrefs",
       path: "/vync.notifications.NotificationService/UpdateNotificationPrefs",
       type: GRPCCallType.unary
