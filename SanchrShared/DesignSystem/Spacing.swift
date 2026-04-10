@@ -100,12 +100,12 @@ public enum SanchrSpacing {
     public static let bubbleVPadding: CGFloat = 10
     /// Message bubble tail radius — 4pt
     public static let bubbleTailRadius: CGFloat = 4
+    /// Compact bubble radius — 10pt
+    public static let bubbleCompactRadius: CGFloat = 10
     /// Message bubble main radius — 20pt
     public static let bubbleMainRadius: CGFloat = 20
     /// Pill/capsule bubble radius — intentionally large to produce fully-rounded ends.
     public static let bubblePillRadius: CGFloat = 999
-    /// Compact bubble radius — 10pt
-    public static let bubbleCompactRadius: CGFloat = 10
     /// Message max width fraction — 0.75
     public static let messageMaxWidthFraction: CGFloat = 0.75
     /// Message gap — 12pt
