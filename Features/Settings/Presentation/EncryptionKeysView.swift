@@ -65,7 +65,7 @@ struct EncryptionKeysView: View {
                         }
 
                         Button {
-                            // Share via QR code or text
+                            showingShareSheet = true
                         } label: {
                             Label("Share", systemImage: "qrcode")
                                 .font(SanchrTypography.caption)
@@ -74,6 +74,9 @@ struct EncryptionKeysView: View {
                 }
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
+            .sheet(isPresented: $showingShareSheet) {
+                ShareSheet(items: [identityKeyFingerprint])
+            }
 
             // MARK: - Safety Number Verification
             Section("Safety Number Verification") {
@@ -83,7 +86,7 @@ struct EncryptionKeysView: View {
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))
 
                     Button {
-                        // Open safety number scanner
+                        // no-op — safety number verification is per-conversation
                     } label: {
                         HStack(spacing: SanchrSpacing.xs) {
                             Image(systemName: "qrcode.viewfinder")
@@ -93,6 +96,12 @@ struct EncryptionKeysView: View {
                         }
                         .foregroundColor(.sanchrPrimary)
                     }
+                    .disabled(true)
+                    .opacity(0.5)
+
+                    Text("Open a conversation to verify safety numbers with a specific contact.")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
                 }
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
@@ -223,8 +232,25 @@ struct EncryptionKeysView: View {
         }
     }
 
+    // MARK: - ShareSheet
+
+    private struct ShareSheet: UIViewControllerRepresentable {
+        let items: [Any]
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            UIActivityViewController(activityItems: items, applicationActivities: nil)
+        }
+        func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+    }
+
     private func regeneratePreKeys() async {
-        // Trigger pre-key regeneration via the key manager
-        SanchrLogger.crypto.info("Regenerating one-time pre-keys")
+        do {
+            try await container.keyManager.replenishPreKeys()
+            if let count = try? await container.keyManager.fetchPreKeyCount() {
+                preKeyCount = count
+            }
+            SanchrLogger.crypto.info("One-time pre-keys replenished")
+        } catch {
+            SanchrLogger.crypto.error("Failed to replenish pre-keys: \(error)")
+        }
     }
 }
