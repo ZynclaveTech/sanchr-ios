@@ -1404,7 +1404,7 @@ struct MessageBubble: View {
     private var bubbleCornerRadius: CGFloat {
         switch bubbleStyle {
         case "classic": return SanchrSpacing.bubblePillRadius
-        case "compact": return 10
+        case "compact": return SanchrSpacing.bubbleCompactRadius
         default:        return SanchrSpacing.bubbleMainRadius
         }
     }

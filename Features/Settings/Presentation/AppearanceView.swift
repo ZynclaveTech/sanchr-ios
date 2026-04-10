@@ -330,11 +330,11 @@ struct AppearanceView: View {
     private func bubbleRadius(for style: String) -> CGFloat {
         switch style {
         case "classic":
-            return 999
+            return SanchrSpacing.bubblePillRadius
         case "compact":
-            return 10
+            return SanchrSpacing.bubbleCompactRadius
         default:
-            return 20
+            return SanchrSpacing.bubbleMainRadius
         }
     }
 
