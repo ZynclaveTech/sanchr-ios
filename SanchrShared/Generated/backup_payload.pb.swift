@@ -22,7 +22,7 @@ import SwiftProtobuf
 // that was used to generate this file.
 fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
-  public typealias Version = _2
+  typealias Version = _2
 }
 
 public struct Vync_BackupPayload_BackupInfo: Sendable {

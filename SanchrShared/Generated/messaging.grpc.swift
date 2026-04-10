@@ -66,6 +66,21 @@ public protocol Vync_Messaging_MessagingServiceClientProtocol: GRPCClient {
     _ request: Vync_Messaging_Reaction,
     callOptions: CallOptions?
   ) -> UnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction>
+
+  func getSenderCertificate(
+    _ request: Vync_Messaging_SenderCertificateRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>
+
+  func getDeliveryTokens(
+    _ request: Vync_Messaging_DeliveryTokenRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>
+
+  func sendSealedMessage(
+    _ request: Vync_Messaging_SendSealedMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>
 }
 
 extension Vync_Messaging_MessagingServiceClientProtocol {
@@ -152,6 +167,11 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
   }
 
   /// Unary call to AckMessages
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to AckMessages.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func ackMessages(
     _ request: Vync_Messaging_AckMessagesRequest,
     callOptions: CallOptions? = nil
@@ -219,6 +239,11 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
   }
 
   /// Unary call to GetPresenceSnapshot
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetPresenceSnapshot.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getPresenceSnapshot(
     _ request: Vync_Messaging_GetPresenceSnapshotRequest,
     callOptions: CallOptions? = nil
@@ -232,15 +257,74 @@ extension Vync_Messaging_MessagingServiceClientProtocol {
   }
 
   /// Unary call to SendReaction
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SendReaction.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func sendReaction(
     _ request: Vync_Messaging_Reaction,
     callOptions: CallOptions? = nil
   ) -> UnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction> {
     return self.makeUnaryCall(
-      path: "/vync.messaging.MessagingService/SendReaction",
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReaction.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: []
+      interceptors: self.interceptors?.makeSendReactionInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to GetSenderCertificate
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetSenderCertificate.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getSenderCertificate(
+    _ request: Vync_Messaging_SenderCertificateRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSenderCertificateInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to GetDeliveryTokens
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetDeliveryTokens.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getDeliveryTokens(
+    _ request: Vync_Messaging_DeliveryTokenRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeliveryTokensInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to SendSealedMessage
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SendSealedMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func sendSealedMessage(
+    _ request: Vync_Messaging_SendSealedMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse> {
+    return self.makeUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
     )
   }
 }
@@ -355,6 +439,21 @@ public protocol Vync_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient {
     _ request: Vync_Messaging_Reaction,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction>
+
+  func makeGetSenderCertificateCall(
+    _ request: Vync_Messaging_SenderCertificateRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>
+
+  func makeGetDeliveryTokensCall(
+    _ request: Vync_Messaging_DeliveryTokenRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>
+
+  func makeSendSealedMessageCall(
+    _ request: Vync_Messaging_SendSealedMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -478,10 +577,46 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
     callOptions: CallOptions? = nil
   ) -> GRPCAsyncUnaryCall<Vync_Messaging_Reaction, Vync_Messaging_Reaction> {
     return self.makeAsyncUnaryCall(
-      path: "/vync.messaging.MessagingService/SendReaction",
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReaction.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: []
+      interceptors: self.interceptors?.makeSendReactionInterceptors() ?? []
+    )
+  }
+
+  public func makeGetSenderCertificateCall(
+    _ request: Vync_Messaging_SenderCertificateRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSenderCertificateInterceptors() ?? []
+    )
+  }
+
+  public func makeGetDeliveryTokensCall(
+    _ request: Vync_Messaging_DeliveryTokenRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeliveryTokensInterceptors() ?? []
+    )
+  }
+
+  public func makeSendSealedMessageCall(
+    _ request: Vync_Messaging_SendSealedMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
     )
   }
 }
@@ -613,10 +748,46 @@ extension Vync_Messaging_MessagingServiceAsyncClientProtocol {
     callOptions: CallOptions? = nil
   ) async throws -> Vync_Messaging_Reaction {
     return try await self.performAsyncUnaryCall(
-      path: "/vync.messaging.MessagingService/SendReaction",
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReaction.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: []
+      interceptors: self.interceptors?.makeSendReactionInterceptors() ?? []
+    )
+  }
+
+  public func getSenderCertificate(
+    _ request: Vync_Messaging_SenderCertificateRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_SenderCertificateResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSenderCertificateInterceptors() ?? []
+    )
+  }
+
+  public func getDeliveryTokens(
+    _ request: Vync_Messaging_DeliveryTokenRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_DeliveryTokenResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeliveryTokensInterceptors() ?? []
+    )
+  }
+
+  public func sendSealedMessage(
+    _ request: Vync_Messaging_SendSealedMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Vync_Messaging_SendSealedMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Vync_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
     )
   }
 }
@@ -666,6 +837,18 @@ public protocol Vync_Messaging_MessagingServiceClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'getPresenceSnapshot'.
   func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'sendReaction'.
+  func makeSendReactionInterceptors() -> [ClientInterceptor<Vync_Messaging_Reaction, Vync_Messaging_Reaction>]
+
+  /// - Returns: Interceptors to use when invoking 'getSenderCertificate'.
+  func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getDeliveryTokens'.
+  func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'sendSealedMessage'.
+  func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>]
 }
 
 public enum Vync_Messaging_MessagingServiceClientMetadata {
@@ -682,61 +865,89 @@ public enum Vync_Messaging_MessagingServiceClientMetadata {
       Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReceipt,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.getConversations,
       Vync_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.sendReaction,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens,
+      Vync_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage,
     ]
   )
 
   public enum Methods {
-    internal static let sendMessage = GRPCMethodDescriptor(
+    public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
       path: "/vync.messaging.MessagingService/SendMessage",
       type: GRPCCallType.unary
     )
 
-    internal static let startDirectConversation = GRPCMethodDescriptor(
+    public static let startDirectConversation = GRPCMethodDescriptor(
       name: "StartDirectConversation",
       path: "/vync.messaging.MessagingService/StartDirectConversation",
       type: GRPCCallType.unary
     )
 
-    internal static let messageStream = GRPCMethodDescriptor(
+    public static let messageStream = GRPCMethodDescriptor(
       name: "MessageStream",
       path: "/vync.messaging.MessagingService/MessageStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
-    internal static let syncMessages = GRPCMethodDescriptor(
+    public static let syncMessages = GRPCMethodDescriptor(
       name: "SyncMessages",
       path: "/vync.messaging.MessagingService/SyncMessages",
       type: GRPCCallType.serverStreaming
     )
 
-    internal static let ackMessages = GRPCMethodDescriptor(
+    public static let ackMessages = GRPCMethodDescriptor(
       name: "AckMessages",
       path: "/vync.messaging.MessagingService/AckMessages",
       type: GRPCCallType.unary
     )
 
-    internal static let deleteMessage = GRPCMethodDescriptor(
+    public static let deleteMessage = GRPCMethodDescriptor(
       name: "DeleteMessage",
       path: "/vync.messaging.MessagingService/DeleteMessage",
       type: GRPCCallType.unary
     )
 
-    internal static let sendReceipt = GRPCMethodDescriptor(
+    public static let sendReceipt = GRPCMethodDescriptor(
       name: "SendReceipt",
       path: "/vync.messaging.MessagingService/SendReceipt",
       type: GRPCCallType.unary
     )
 
-    internal static let getConversations = GRPCMethodDescriptor(
+    public static let getConversations = GRPCMethodDescriptor(
       name: "GetConversations",
       path: "/vync.messaging.MessagingService/GetConversations",
       type: GRPCCallType.unary
     )
 
-    internal static let getPresenceSnapshot = GRPCMethodDescriptor(
+    public static let getPresenceSnapshot = GRPCMethodDescriptor(
       name: "GetPresenceSnapshot",
       path: "/vync.messaging.MessagingService/GetPresenceSnapshot",
+      type: GRPCCallType.unary
+    )
+
+    public static let sendReaction = GRPCMethodDescriptor(
+      name: "SendReaction",
+      path: "/vync.messaging.MessagingService/SendReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let getSenderCertificate = GRPCMethodDescriptor(
+      name: "GetSenderCertificate",
+      path: "/vync.messaging.MessagingService/GetSenderCertificate",
+      type: GRPCCallType.unary
+    )
+
+    public static let getDeliveryTokens = GRPCMethodDescriptor(
+      name: "GetDeliveryTokens",
+      path: "/vync.messaging.MessagingService/GetDeliveryTokens",
+      type: GRPCCallType.unary
+    )
+
+    public static let sendSealedMessage = GRPCMethodDescriptor(
+      name: "SendSealedMessage",
+      path: "/vync.messaging.MessagingService/SendSealedMessage",
       type: GRPCCallType.unary
     )
   }
@@ -754,11 +965,23 @@ public protocol Vync_Messaging_MessagingServiceProvider: CallHandlerProvider {
 
   func syncMessages(request: Vync_Messaging_SyncRequest, context: StreamingResponseCallContext<Vync_Messaging_EncryptedEnvelope>) -> EventLoopFuture<GRPCStatus>
 
+  func ackMessages(request: Vync_Messaging_AckMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_AckMessagesResponse>
+
   func deleteMessage(request: Vync_Messaging_DeleteMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_DeleteMessageResponse>
 
   func sendReceipt(request: Vync_Messaging_ReceiptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_ReceiptResponse>
 
   func getConversations(request: Vync_Messaging_GetConversationsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_GetConversationsResponse>
+
+  func getPresenceSnapshot(request: Vync_Messaging_GetPresenceSnapshotRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_GetPresenceSnapshotResponse>
+
+  func sendReaction(request: Vync_Messaging_Reaction, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_Reaction>
+
+  func getSenderCertificate(request: Vync_Messaging_SenderCertificateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_SenderCertificateResponse>
+
+  func getDeliveryTokens(request: Vync_Messaging_DeliveryTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_DeliveryTokenResponse>
+
+  func sendSealedMessage(request: Vync_Messaging_SendSealedMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Messaging_SendSealedMessageResponse>
 }
 
 extension Vync_Messaging_MessagingServiceProvider {
@@ -809,6 +1032,15 @@ extension Vync_Messaging_MessagingServiceProvider {
         userFunction: self.syncMessages(request:context:)
       )
 
+    case "AckMessages":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_AckMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_AckMessagesResponse>(),
+        interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? [],
+        userFunction: self.ackMessages(request:context:)
+      )
+
     case "DeleteMessage":
       return UnaryServerHandler(
         context: context,
@@ -834,6 +1066,51 @@ extension Vync_Messaging_MessagingServiceProvider {
         responseSerializer: ProtobufSerializer<Vync_Messaging_GetConversationsResponse>(),
         interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? [],
         userFunction: self.getConversations(request:context:)
+      )
+
+    case "GetPresenceSnapshot":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_GetPresenceSnapshotRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_GetPresenceSnapshotResponse>(),
+        interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? [],
+        userFunction: self.getPresenceSnapshot(request:context:)
+      )
+
+    case "SendReaction":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_Reaction>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_Reaction>(),
+        interceptors: self.interceptors?.makeSendReactionInterceptors() ?? [],
+        userFunction: self.sendReaction(request:context:)
+      )
+
+    case "GetSenderCertificate":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_SenderCertificateRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_SenderCertificateResponse>(),
+        interceptors: self.interceptors?.makeGetSenderCertificateInterceptors() ?? [],
+        userFunction: self.getSenderCertificate(request:context:)
+      )
+
+    case "GetDeliveryTokens":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_DeliveryTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_DeliveryTokenResponse>(),
+        interceptors: self.interceptors?.makeGetDeliveryTokensInterceptors() ?? [],
+        userFunction: self.getDeliveryTokens(request:context:)
+      )
+
+    case "SendSealedMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_SendSealedMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_SendSealedMessageResponse>(),
+        interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? [],
+        userFunction: self.sendSealedMessage(request:context:)
       )
 
     default:
@@ -870,6 +1147,11 @@ public protocol Vync_Messaging_MessagingServiceAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws
 
+  func ackMessages(
+    request: Vync_Messaging_AckMessagesRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_AckMessagesResponse
+
   func deleteMessage(
     request: Vync_Messaging_DeleteMessageRequest,
     context: GRPCAsyncServerCallContext
@@ -884,6 +1166,31 @@ public protocol Vync_Messaging_MessagingServiceAsyncProvider: CallHandlerProvide
     request: Vync_Messaging_GetConversationsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Vync_Messaging_GetConversationsResponse
+
+  func getPresenceSnapshot(
+    request: Vync_Messaging_GetPresenceSnapshotRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_GetPresenceSnapshotResponse
+
+  func sendReaction(
+    request: Vync_Messaging_Reaction,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_Reaction
+
+  func getSenderCertificate(
+    request: Vync_Messaging_SenderCertificateRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_SenderCertificateResponse
+
+  func getDeliveryTokens(
+    request: Vync_Messaging_DeliveryTokenRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_DeliveryTokenResponse
+
+  func sendSealedMessage(
+    request: Vync_Messaging_SendSealedMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Vync_Messaging_SendSealedMessageResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -941,6 +1248,15 @@ extension Vync_Messaging_MessagingServiceAsyncProvider {
         wrapping: { try await self.syncMessages(request: $0, responseStream: $1, context: $2) }
       )
 
+    case "AckMessages":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_AckMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_AckMessagesResponse>(),
+        interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? [],
+        wrapping: { try await self.ackMessages(request: $0, context: $1) }
+      )
+
     case "DeleteMessage":
       return GRPCAsyncServerHandler(
         context: context,
@@ -968,6 +1284,51 @@ extension Vync_Messaging_MessagingServiceAsyncProvider {
         wrapping: { try await self.getConversations(request: $0, context: $1) }
       )
 
+    case "GetPresenceSnapshot":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_GetPresenceSnapshotRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_GetPresenceSnapshotResponse>(),
+        interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? [],
+        wrapping: { try await self.getPresenceSnapshot(request: $0, context: $1) }
+      )
+
+    case "SendReaction":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_Reaction>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_Reaction>(),
+        interceptors: self.interceptors?.makeSendReactionInterceptors() ?? [],
+        wrapping: { try await self.sendReaction(request: $0, context: $1) }
+      )
+
+    case "GetSenderCertificate":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_SenderCertificateRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_SenderCertificateResponse>(),
+        interceptors: self.interceptors?.makeGetSenderCertificateInterceptors() ?? [],
+        wrapping: { try await self.getSenderCertificate(request: $0, context: $1) }
+      )
+
+    case "GetDeliveryTokens":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_DeliveryTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_DeliveryTokenResponse>(),
+        interceptors: self.interceptors?.makeGetDeliveryTokensInterceptors() ?? [],
+        wrapping: { try await self.getDeliveryTokens(request: $0, context: $1) }
+      )
+
+    case "SendSealedMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Vync_Messaging_SendSealedMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Vync_Messaging_SendSealedMessageResponse>(),
+        interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? [],
+        wrapping: { try await self.sendSealedMessage(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -992,6 +1353,10 @@ public protocol Vync_Messaging_MessagingServiceServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSyncMessagesInterceptors() -> [ServerInterceptor<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>]
 
+  /// - Returns: Interceptors to use when handling 'ackMessages'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeAckMessagesInterceptors() -> [ServerInterceptor<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>]
+
   /// - Returns: Interceptors to use when handling 'deleteMessage'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeDeleteMessageInterceptors() -> [ServerInterceptor<Vync_Messaging_DeleteMessageRequest, Vync_Messaging_DeleteMessageResponse>]
@@ -1003,6 +1368,26 @@ public protocol Vync_Messaging_MessagingServiceServerInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when handling 'getConversations'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetConversationsInterceptors() -> [ServerInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getPresenceSnapshot'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetPresenceSnapshotInterceptors() -> [ServerInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>]
+
+  /// - Returns: Interceptors to use when handling 'sendReaction'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSendReactionInterceptors() -> [ServerInterceptor<Vync_Messaging_Reaction, Vync_Messaging_Reaction>]
+
+  /// - Returns: Interceptors to use when handling 'getSenderCertificate'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetSenderCertificateInterceptors() -> [ServerInterceptor<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getDeliveryTokens'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetDeliveryTokensInterceptors() -> [ServerInterceptor<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>]
+
+  /// - Returns: Interceptors to use when handling 'sendSealedMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSendSealedMessageInterceptors() -> [ServerInterceptor<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>]
 }
 
 public enum Vync_Messaging_MessagingServiceServerMetadata {
@@ -1014,52 +1399,94 @@ public enum Vync_Messaging_MessagingServiceServerMetadata {
       Vync_Messaging_MessagingServiceServerMetadata.Methods.startDirectConversation,
       Vync_Messaging_MessagingServiceServerMetadata.Methods.messageStream,
       Vync_Messaging_MessagingServiceServerMetadata.Methods.syncMessages,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.ackMessages,
       Vync_Messaging_MessagingServiceServerMetadata.Methods.deleteMessage,
       Vync_Messaging_MessagingServiceServerMetadata.Methods.sendReceipt,
       Vync_Messaging_MessagingServiceServerMetadata.Methods.getConversations,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.getPresenceSnapshot,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.sendReaction,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.getSenderCertificate,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.getDeliveryTokens,
+      Vync_Messaging_MessagingServiceServerMetadata.Methods.sendSealedMessage,
     ]
   )
 
   public enum Methods {
-    internal static let sendMessage = GRPCMethodDescriptor(
+    public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
       path: "/vync.messaging.MessagingService/SendMessage",
       type: GRPCCallType.unary
     )
 
-    internal static let startDirectConversation = GRPCMethodDescriptor(
+    public static let startDirectConversation = GRPCMethodDescriptor(
       name: "StartDirectConversation",
       path: "/vync.messaging.MessagingService/StartDirectConversation",
       type: GRPCCallType.unary
     )
 
-    internal static let messageStream = GRPCMethodDescriptor(
+    public static let messageStream = GRPCMethodDescriptor(
       name: "MessageStream",
       path: "/vync.messaging.MessagingService/MessageStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
-    internal static let syncMessages = GRPCMethodDescriptor(
+    public static let syncMessages = GRPCMethodDescriptor(
       name: "SyncMessages",
       path: "/vync.messaging.MessagingService/SyncMessages",
       type: GRPCCallType.serverStreaming
     )
 
-    internal static let deleteMessage = GRPCMethodDescriptor(
+    public static let ackMessages = GRPCMethodDescriptor(
+      name: "AckMessages",
+      path: "/vync.messaging.MessagingService/AckMessages",
+      type: GRPCCallType.unary
+    )
+
+    public static let deleteMessage = GRPCMethodDescriptor(
       name: "DeleteMessage",
       path: "/vync.messaging.MessagingService/DeleteMessage",
       type: GRPCCallType.unary
     )
 
-    internal static let sendReceipt = GRPCMethodDescriptor(
+    public static let sendReceipt = GRPCMethodDescriptor(
       name: "SendReceipt",
       path: "/vync.messaging.MessagingService/SendReceipt",
       type: GRPCCallType.unary
     )
 
-    internal static let getConversations = GRPCMethodDescriptor(
+    public static let getConversations = GRPCMethodDescriptor(
       name: "GetConversations",
       path: "/vync.messaging.MessagingService/GetConversations",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPresenceSnapshot = GRPCMethodDescriptor(
+      name: "GetPresenceSnapshot",
+      path: "/vync.messaging.MessagingService/GetPresenceSnapshot",
+      type: GRPCCallType.unary
+    )
+
+    public static let sendReaction = GRPCMethodDescriptor(
+      name: "SendReaction",
+      path: "/vync.messaging.MessagingService/SendReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let getSenderCertificate = GRPCMethodDescriptor(
+      name: "GetSenderCertificate",
+      path: "/vync.messaging.MessagingService/GetSenderCertificate",
+      type: GRPCCallType.unary
+    )
+
+    public static let getDeliveryTokens = GRPCMethodDescriptor(
+      name: "GetDeliveryTokens",
+      path: "/vync.messaging.MessagingService/GetDeliveryTokens",
+      type: GRPCCallType.unary
+    )
+
+    public static let sendSealedMessage = GRPCMethodDescriptor(
+      name: "SendSealedMessage",
+      path: "/vync.messaging.MessagingService/SendSealedMessage",
       type: GRPCCallType.unary
     )
   }

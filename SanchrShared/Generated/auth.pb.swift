@@ -17,7 +17,7 @@ import SwiftProtobuf
 // that was used to generate this file.
 fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
-  public typealias Version = _2
+  typealias Version = _2
 }
 
 public struct Vync_Auth_DeviceInfo: Sendable {
@@ -623,7 +623,7 @@ extension Vync_Auth_ChangePasswordResponse: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Vync_Auth_DeleteAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteAccountRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{c}\u{1}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields

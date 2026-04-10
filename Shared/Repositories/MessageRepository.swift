@@ -482,6 +482,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                             continuation.yield(.callLifecycle(lifecycle))
                         case .reaction(let reaction):
                             continuation.yield(.reaction(reaction))
+                        case .sealedMessage(let sealed):
+                            // TODO: Decrypt sealed sender envelope via SealedSenderManager
+                            continuation.yield(.sealedMessage(sealed))
                         }
                     }
                     continuation.finish()

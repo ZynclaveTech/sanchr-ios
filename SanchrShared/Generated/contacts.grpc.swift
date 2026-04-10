@@ -409,31 +409,31 @@ public enum Vync_Contacts_ContactServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let syncContacts = GRPCMethodDescriptor(
+    public static let syncContacts = GRPCMethodDescriptor(
       name: "SyncContacts",
       path: "/vync.contacts.ContactService/SyncContacts",
       type: GRPCCallType.unary
     )
 
-    internal static let getContacts = GRPCMethodDescriptor(
+    public static let getContacts = GRPCMethodDescriptor(
       name: "GetContacts",
       path: "/vync.contacts.ContactService/GetContacts",
       type: GRPCCallType.unary
     )
 
-    internal static let blockContact = GRPCMethodDescriptor(
+    public static let blockContact = GRPCMethodDescriptor(
       name: "BlockContact",
       path: "/vync.contacts.ContactService/BlockContact",
       type: GRPCCallType.unary
     )
 
-    internal static let unblockContact = GRPCMethodDescriptor(
+    public static let unblockContact = GRPCMethodDescriptor(
       name: "UnblockContact",
       path: "/vync.contacts.ContactService/UnblockContact",
       type: GRPCCallType.unary
     )
 
-    internal static let getBlockedList = GRPCMethodDescriptor(
+    public static let getBlockedList = GRPCMethodDescriptor(
       name: "GetBlockedList",
       path: "/vync.contacts.ContactService/GetBlockedList",
       type: GRPCCallType.unary
@@ -658,31 +658,31 @@ public enum Vync_Contacts_ContactServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let syncContacts = GRPCMethodDescriptor(
+    public static let syncContacts = GRPCMethodDescriptor(
       name: "SyncContacts",
       path: "/vync.contacts.ContactService/SyncContacts",
       type: GRPCCallType.unary
     )
 
-    internal static let getContacts = GRPCMethodDescriptor(
+    public static let getContacts = GRPCMethodDescriptor(
       name: "GetContacts",
       path: "/vync.contacts.ContactService/GetContacts",
       type: GRPCCallType.unary
     )
 
-    internal static let blockContact = GRPCMethodDescriptor(
+    public static let blockContact = GRPCMethodDescriptor(
       name: "BlockContact",
       path: "/vync.contacts.ContactService/BlockContact",
       type: GRPCCallType.unary
     )
 
-    internal static let unblockContact = GRPCMethodDescriptor(
+    public static let unblockContact = GRPCMethodDescriptor(
       name: "UnblockContact",
       path: "/vync.contacts.ContactService/UnblockContact",
       type: GRPCCallType.unary
     )
 
-    internal static let getBlockedList = GRPCMethodDescriptor(
+    public static let getBlockedList = GRPCMethodDescriptor(
       name: "GetBlockedList",
       path: "/vync.contacts.ContactService/GetBlockedList",
       type: GRPCCallType.unary

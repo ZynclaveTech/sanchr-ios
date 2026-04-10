@@ -69,6 +69,12 @@ final class DependencyContainer: @unchecked Sendable {
         keyManager: signalKeyManager
     )
 
+    /// Sealed sender: certificate caching, delivery token pool, inner payload codec.
+    @ObservationIgnored lazy var sealedSenderManager: SealedSenderManagerProtocol = SealedSenderManager(
+        messagingService: grpcClient.messagingService,
+        keychain: keychainService
+    )
+
     // MARK: - Crypto (Legacy Protocols Bridged to Signal)
 
     /// Exposes the `SignalKeyManager` as the `KeyManagerProtocol` for existing call sites.

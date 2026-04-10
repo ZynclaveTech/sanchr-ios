@@ -297,19 +297,19 @@ public enum Vync_Discovery_DiscoveryServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let oprfDiscover = GRPCMethodDescriptor(
+    public static let oprfDiscover = GRPCMethodDescriptor(
       name: "OprfDiscover",
       path: "/vync.discovery.DiscoveryService/OprfDiscover",
       type: GRPCCallType.unary
     )
 
-    internal static let getBloomFilter = GRPCMethodDescriptor(
+    public static let getBloomFilter = GRPCMethodDescriptor(
       name: "GetBloomFilter",
       path: "/vync.discovery.DiscoveryService/GetBloomFilter",
       type: GRPCCallType.unary
     )
 
-    internal static let getRegisteredSet = GRPCMethodDescriptor(
+    public static let getRegisteredSet = GRPCMethodDescriptor(
       name: "GetRegisteredSet",
       path: "/vync.discovery.DiscoveryService/GetRegisteredSet",
       type: GRPCCallType.unary
@@ -474,19 +474,19 @@ public enum Vync_Discovery_DiscoveryServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let oprfDiscover = GRPCMethodDescriptor(
+    public static let oprfDiscover = GRPCMethodDescriptor(
       name: "OprfDiscover",
       path: "/vync.discovery.DiscoveryService/OprfDiscover",
       type: GRPCCallType.unary
     )
 
-    internal static let getBloomFilter = GRPCMethodDescriptor(
+    public static let getBloomFilter = GRPCMethodDescriptor(
       name: "GetBloomFilter",
       path: "/vync.discovery.DiscoveryService/GetBloomFilter",
       type: GRPCCallType.unary
     )
 
-    internal static let getRegisteredSet = GRPCMethodDescriptor(
+    public static let getRegisteredSet = GRPCMethodDescriptor(
       name: "GetRegisteredSet",
       path: "/vync.discovery.DiscoveryService/GetRegisteredSet",
       type: GRPCCallType.unary

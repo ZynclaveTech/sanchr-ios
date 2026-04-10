@@ -409,31 +409,31 @@ public enum Vync_Settings_SettingsServiceClientMetadata {
   )
 
   public enum Methods {
-    internal static let getSettings = GRPCMethodDescriptor(
+    public static let getSettings = GRPCMethodDescriptor(
       name: "GetSettings",
       path: "/vync.settings.SettingsService/GetSettings",
       type: GRPCCallType.unary
     )
 
-    internal static let updateSettings = GRPCMethodDescriptor(
+    public static let updateSettings = GRPCMethodDescriptor(
       name: "UpdateSettings",
       path: "/vync.settings.SettingsService/UpdateSettings",
       type: GRPCCallType.unary
     )
 
-    internal static let updateProfile = GRPCMethodDescriptor(
+    public static let updateProfile = GRPCMethodDescriptor(
       name: "UpdateProfile",
       path: "/vync.settings.SettingsService/UpdateProfile",
       type: GRPCCallType.unary
     )
 
-    internal static let toggleVyncMode = GRPCMethodDescriptor(
+    public static let toggleVyncMode = GRPCMethodDescriptor(
       name: "ToggleVyncMode",
       path: "/vync.settings.SettingsService/ToggleVyncMode",
       type: GRPCCallType.unary
     )
 
-    internal static let getStorageUsage = GRPCMethodDescriptor(
+    public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
       path: "/vync.settings.SettingsService/GetStorageUsage",
       type: GRPCCallType.unary
@@ -658,31 +658,31 @@ public enum Vync_Settings_SettingsServiceServerMetadata {
   )
 
   public enum Methods {
-    internal static let getSettings = GRPCMethodDescriptor(
+    public static let getSettings = GRPCMethodDescriptor(
       name: "GetSettings",
       path: "/vync.settings.SettingsService/GetSettings",
       type: GRPCCallType.unary
     )
 
-    internal static let updateSettings = GRPCMethodDescriptor(
+    public static let updateSettings = GRPCMethodDescriptor(
       name: "UpdateSettings",
       path: "/vync.settings.SettingsService/UpdateSettings",
       type: GRPCCallType.unary
     )
 
-    internal static let updateProfile = GRPCMethodDescriptor(
+    public static let updateProfile = GRPCMethodDescriptor(
       name: "UpdateProfile",
       path: "/vync.settings.SettingsService/UpdateProfile",
       type: GRPCCallType.unary
     )
 
-    internal static let toggleVyncMode = GRPCMethodDescriptor(
+    public static let toggleVyncMode = GRPCMethodDescriptor(
       name: "ToggleVyncMode",
       path: "/vync.settings.SettingsService/ToggleVyncMode",
       type: GRPCCallType.unary
     )
 
-    internal static let getStorageUsage = GRPCMethodDescriptor(
+    public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
       path: "/vync.settings.SettingsService/GetStorageUsage",
       type: GRPCCallType.unary

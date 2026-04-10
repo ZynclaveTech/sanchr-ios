@@ -323,6 +323,10 @@ final class RealtimeService: @unchecked Sendable {
                     ]
                 )
             }
+
+        case .sealedMessage:
+            // TODO: Decrypt and process sealed sender envelope
+            SanchrLogger.chat.info("Received sealed sender message (processing not yet implemented)")
         }
     }
 

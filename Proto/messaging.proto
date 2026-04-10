@@ -12,6 +12,9 @@ service MessagingService {
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
   rpc GetPresenceSnapshot(GetPresenceSnapshotRequest) returns (GetPresenceSnapshotResponse);
   rpc SendReaction(Reaction) returns (Reaction);
+  rpc GetSenderCertificate(SenderCertificateRequest) returns (SenderCertificateResponse);
+  rpc GetDeliveryTokens(DeliveryTokenRequest) returns (DeliveryTokenResponse);
+  rpc SendSealedMessage(SendSealedMessageRequest) returns (SendSealedMessageResponse);
 }
 
 message StartDirectConversationRequest {
@@ -54,6 +57,7 @@ message ServerEvent {
     CallOfferEvent call_offer = 6;
     CallLifecycleEvent call_lifecycle = 7;
     Reaction reaction = 8;
+    SealedInboundMessage sealed_message = 9;
   }
 }
 
@@ -192,4 +196,40 @@ message Reaction {
   string emoji = 4;
   bool removed = 5;
   int64 timestamp = 6;
+}
+
+message SenderCertificateRequest {}
+
+message SenderCertificateResponse {
+  bytes certificate = 1;
+  int64 expiration = 2;
+}
+
+message DeliveryTokenRequest {
+  int32 count = 1;
+}
+
+message DeliveryTokenResponse {
+  repeated bytes tokens = 1;
+}
+
+message SendSealedMessageRequest {
+  bytes delivery_token = 1;
+  repeated SealedDeviceMessage device_messages = 2;
+}
+
+message SealedDeviceMessage {
+  string recipient_id = 1;
+  int32 device_id = 2;
+  bytes sealed_envelope = 3;
+}
+
+message SendSealedMessageResponse {
+  int64 server_timestamp = 1;
+}
+
+message SealedInboundMessage {
+  bytes sealed_envelope = 1;
+  int64 server_timestamp = 2;
+  string message_id = 3;
 }

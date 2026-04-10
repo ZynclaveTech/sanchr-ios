@@ -22,7 +22,7 @@ import SwiftProtobuf
 // that was used to generate this file.
 fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
-  public typealias Version = _2
+  typealias Version = _2
 }
 
 public enum Vync_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -283,6 +283,14 @@ public struct Vync_Messaging_ServerEvent: Sendable {
     set {event = .reaction(newValue)}
   }
 
+  public var sealedMessage: Vync_Messaging_SealedInboundMessage {
+    get {
+      if case .sealedMessage(let v)? = event {return v}
+      return Vync_Messaging_SealedInboundMessage()
+    }
+    set {event = .sealedMessage(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Event: Equatable, Sendable {
@@ -294,6 +302,7 @@ public struct Vync_Messaging_ServerEvent: Sendable {
     case callOffer(Vync_Messaging_CallOfferEvent)
     case callLifecycle(Vync_Messaging_CallLifecycleEvent)
     case reaction(Vync_Messaging_Reaction)
+    case sealedMessage(Vync_Messaging_SealedInboundMessage)
 
   }
 
@@ -646,6 +655,112 @@ public struct Vync_Messaging_Reaction: Sendable {
   public init() {}
 }
 
+public struct Vync_Messaging_SenderCertificateRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_SenderCertificateResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var certificate: Data = Data()
+
+  public var expiration: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_DeliveryTokenRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var count: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_DeliveryTokenResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var tokens: [Data] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_SendSealedMessageRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var deliveryToken: Data = Data()
+
+  public var deviceMessages: [Vync_Messaging_SealedDeviceMessage] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_SealedDeviceMessage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var recipientID: String = String()
+
+  public var deviceID: Int32 = 0
+
+  public var sealedEnvelope: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_SendSealedMessageResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var serverTimestamp: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Vync_Messaging_SealedInboundMessage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sealedEnvelope: Data = Data()
+
+  public var serverTimestamp: Int64 = 0
+
+  public var messageID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "vync.messaging"
@@ -894,7 +1009,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0\u{3}sealed_message\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1006,6 +1121,19 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
           self.event = .reaction(v)
         }
       }()
+      case 9: try {
+        var v: Vync_Messaging_SealedInboundMessage?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .sealedMessage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .sealedMessage(v)
+        }
+      }()
       default: break
       }
     }
@@ -1048,6 +1176,10 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
     case .reaction?: try {
       guard case .reaction(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .sealedMessage?: try {
+      guard case .sealedMessage(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     case nil: break
     }
@@ -1897,6 +2029,265 @@ extension Vync_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs.emoji != rhs.emoji {return false}
     if lhs.removed != rhs.removed {return false}
     if lhs.timestamp != rhs.timestamp {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SenderCertificateRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SenderCertificateRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SenderCertificateRequest, rhs: Vync_Messaging_SenderCertificateRequest) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SenderCertificateResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SenderCertificateResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}expiration\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.certificate) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.expiration) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.certificate.isEmpty {
+      try visitor.visitSingularBytesField(value: self.certificate, fieldNumber: 1)
+    }
+    if self.expiration != 0 {
+      try visitor.visitSingularInt64Field(value: self.expiration, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SenderCertificateResponse, rhs: Vync_Messaging_SenderCertificateResponse) -> Bool {
+    if lhs.certificate != rhs.certificate {return false}
+    if lhs.expiration != rhs.expiration {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_DeliveryTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeliveryTokenRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.count) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.count != 0 {
+      try visitor.visitSingularInt32Field(value: self.count, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_DeliveryTokenRequest, rhs: Vync_Messaging_DeliveryTokenRequest) -> Bool {
+    if lhs.count != rhs.count {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_DeliveryTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeliveryTokenResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tokens\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedBytesField(value: &self.tokens) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.tokens.isEmpty {
+      try visitor.visitRepeatedBytesField(value: self.tokens, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_DeliveryTokenResponse, rhs: Vync_Messaging_DeliveryTokenResponse) -> Bool {
+    if lhs.tokens != rhs.tokens {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SendSealedMessageRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}delivery_token\0\u{3}device_messages\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.deliveryToken) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.deviceMessages) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.deliveryToken.isEmpty {
+      try visitor.visitSingularBytesField(value: self.deliveryToken, fieldNumber: 1)
+    }
+    if !self.deviceMessages.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.deviceMessages, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SendSealedMessageRequest, rhs: Vync_Messaging_SendSealedMessageRequest) -> Bool {
+    if lhs.deliveryToken != rhs.deliveryToken {return false}
+    if lhs.deviceMessages != rhs.deviceMessages {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SealedDeviceMessage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.recipientID) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.sealedEnvelope) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.recipientID.isEmpty {
+      try visitor.visitSingularStringField(value: self.recipientID, fieldNumber: 1)
+    }
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 2)
+    }
+    if !self.sealedEnvelope.isEmpty {
+      try visitor.visitSingularBytesField(value: self.sealedEnvelope, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SealedDeviceMessage, rhs: Vync_Messaging_SealedDeviceMessage) -> Bool {
+    if lhs.recipientID != rhs.recipientID {return false}
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SendSealedMessageResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_timestamp\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt64Field(value: &self.serverTimestamp) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.serverTimestamp != 0 {
+      try visitor.visitSingularInt64Field(value: self.serverTimestamp, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SendSealedMessageResponse, rhs: Vync_Messaging_SendSealedMessageResponse) -> Bool {
+    if lhs.serverTimestamp != rhs.serverTimestamp {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Vync_Messaging_SealedInboundMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SealedInboundMessage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sealed_envelope\0\u{3}server_timestamp\0\u{3}message_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.sealedEnvelope) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.serverTimestamp) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.messageID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.sealedEnvelope.isEmpty {
+      try visitor.visitSingularBytesField(value: self.sealedEnvelope, fieldNumber: 1)
+    }
+    if self.serverTimestamp != 0 {
+      try visitor.visitSingularInt64Field(value: self.serverTimestamp, fieldNumber: 2)
+    }
+    if !self.messageID.isEmpty {
+      try visitor.visitSingularStringField(value: self.messageID, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Vync_Messaging_SealedInboundMessage, rhs: Vync_Messaging_SealedInboundMessage) -> Bool {
+    if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
+    if lhs.serverTimestamp != rhs.serverTimestamp {return false}
+    if lhs.messageID != rhs.messageID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

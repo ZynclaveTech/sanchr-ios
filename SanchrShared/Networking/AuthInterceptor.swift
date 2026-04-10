@@ -121,6 +121,10 @@ extension AuthInterceptorFactory: Vync_Messaging_MessagingServiceClientIntercept
     public func makeSendReceiptInterceptors() -> [ClientInterceptor<Vync_Messaging_ReceiptRequest, Vync_Messaging_ReceiptResponse>] { makeInterceptors() }
     public func makeGetConversationsInterceptors() -> [ClientInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>] { makeInterceptors() }
     public func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>] { makeInterceptors() }
+    public func makeSendReactionInterceptors() -> [ClientInterceptor<Vync_Messaging_Reaction, Vync_Messaging_Reaction>] { makeInterceptors() }
+    public func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>] { makeInterceptors() }
+    public func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>] { makeInterceptors() }
+    public func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>] { makeInterceptors() }
 }
 
 // MARK: - ContactService Interceptors
