@@ -1525,7 +1525,7 @@ struct MessageBubble: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(text)
-                        .font(SanchrTypography.messageBubbleText)
+                        .font(bubbleFont)
                         .foregroundColor(messageTextColor)
                         .multilineTextAlignment(.leading)
 
@@ -1636,7 +1636,7 @@ struct MessageBubble: View {
                 .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(SanchrTypography.messageBubbleText)
+                    .font(bubbleFont)
                     .fontWeight(.semibold)
                     .foregroundColor(messageTextColor)
                     .lineLimit(2)
@@ -1658,7 +1658,7 @@ struct MessageBubble: View {
                 .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Location")
-                    .font(SanchrTypography.messageBubbleText)
+                    .font(bubbleFont)
                     .fontWeight(.semibold)
                     .foregroundColor(messageTextColor)
                 Text("\(String(format: "%.4f", latitude)), \(String(format: "%.4f", longitude))")
@@ -1713,7 +1713,7 @@ struct MessageBubble: View {
     }
 
     private var bubbleShape: UnevenRoundedRectangle {
-        let main = SanchrSpacing.bubbleMainRadius
+        let main = bubbleCornerRadius
         let tail = SanchrSpacing.bubbleTailRadius
         // Signal-style: sharp inner corners on the tail side when messages are clustered
         let sharp: CGFloat = 4
