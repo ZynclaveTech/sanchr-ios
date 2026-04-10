@@ -9,6 +9,10 @@ struct ChatsListView: View {
     @State private var showNewConversation = false
     @State private var conversationToDelete: Conversation?
     @State private var sanchrModeEnabled = false
+
+    private var settingsDataSource: SettingsDataSource {
+        SettingsDataSource(grpcClient: container.grpcClient)
+    }
     @State private var pendingConversationRefreshIDs: Set<String> = []
     @State private var scheduledRefreshTask: Task<Void, Never>?
 
@@ -44,6 +48,11 @@ struct ChatsListView: View {
                 messageRepository: container.messageRepository,
                 syncOrchestrator: container.syncOrchestrator
             )
+        }
+        .onAppear {
+            // Sync chip with current Sanchr Mode state each time the screen is visible
+            // (catches changes made in Settings while ChatsListView was in the nav stack).
+            sanchrModeEnabled = container.privacySettings.vyncModeEnabled
         }
         .task {
             await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
@@ -329,8 +338,21 @@ struct ChatsListView: View {
                 }
 
                 SanchrModeChip(isActive: sanchrModeEnabled) {
+                    let desired = !sanchrModeEnabled
                     withAnimation(.easeInOut(duration: 0.18)) {
-                        sanchrModeEnabled.toggle()
+                        sanchrModeEnabled = desired  // optimistic
+                    }
+                    Task {
+                        do {
+                            let updated = try await settingsDataSource.toggleVyncMode(enabled: desired)
+                            container.privacySettings.update(from: updated)
+                            sanchrModeEnabled = updated.vyncModeEnabled
+                        } catch {
+                            // Revert on failure
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                sanchrModeEnabled = !desired
+                            }
+                        }
                     }
                 }
             }

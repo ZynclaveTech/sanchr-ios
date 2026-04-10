@@ -14,6 +14,12 @@ final class PrivacySettingsCache: @unchecked Sendable {
     private var _profilePhotoVisibility: String = "everyone"
     private var _blockedUserIds: Set<String> = []
 
+    var vyncModeEnabled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _sanchrModeEnabled
+    }
+
     var canSendReadReceipts: Bool {
         lock.lock()
         defer { lock.unlock() }

@@ -51,7 +51,6 @@ struct AppearanceView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
                 themeSection
-                sanchrModeSection
                 wallpaperSection
                 bubbleSection
                 accentSection
@@ -143,63 +142,6 @@ struct AppearanceView: View {
                     }
                     .buttonStyle(.plain)
                 }
-            }
-        }
-    }
-
-    private var sanchrModeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Sanchr Mode")
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [SanchrColors.primaryDark, SanchrColors.primary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 40, height: 40)
-                        .overlay {
-                            Image(systemName: "shield.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sanchr Mode")
-                            .font(SanchrTypography.bodyBold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                        Text("Enhanced privacy mode")
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: $viewModel.vyncModeEnabled)
-                        .labelsHidden()
-                        .tint(.sanchrPrimary)
-                        .onChange(of: viewModel.vyncModeEnabled) { _, newValue in
-                            Task {
-                                await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
-                            }
-                        }
-                }
-
-                Text("When enabled, previews stay hidden and the app shifts to a more discreet privacy posture.")
-                    .font(SanchrTypography.caption)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(18)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
             }
         }
     }
