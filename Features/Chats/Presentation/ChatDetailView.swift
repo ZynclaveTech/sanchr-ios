@@ -44,6 +44,7 @@ struct ChatDetailView: View {
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @Environment(AppRouter.self) private var router
+    @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -1054,6 +1055,19 @@ struct ChatDetailView: View {
                         .textFieldStyle(.plain)
                         .lineLimit(1...5)
                         .focused($isInputFocused)
+                        .onSubmit {
+                            if enterSendsMessage {
+                                Task {
+                                    await viewModel.sendMessage(
+                                        conversationId: conversation.id,
+                                        sessionService: container.sessionService,
+                                        messageSender: container.messageSender
+                                    )
+                                }
+                            } else {
+                                viewModel.inputText += "\n"
+                            }
+                        }
 
                     if !hasInput {
                         Button {
@@ -1392,6 +1406,7 @@ struct MessageBubble: View {
 
     @AppStorage("sanchr.fontSize") private var fontSize = "medium"
     @AppStorage("sanchr.chatBubbleStyle") private var bubbleStyle = "modern"
+    @AppStorage("sanchr.linkPreviews") private var showLinkPreviews = true
 
     private var bubbleFont: Font {
         switch fontSize {
@@ -1529,7 +1544,7 @@ struct MessageBubble: View {
                         .foregroundColor(messageTextColor)
                         .multilineTextAlignment(.leading)
 
-                    if let url = LinkPreviewService.firstURL(in: text) {
+                    if showLinkPreviews, let url = LinkPreviewService.firstURL(in: text) {
                         LinkPreviewCard(url: url, isOutgoing: message.isOutgoing)
                     }
                 }
@@ -1768,6 +1783,7 @@ private struct MediaBubbleImage: View {
     @State private var resolvedImage: UIImage?
     @State private var placeholderImage: UIImage?
     @State private var isDownloading = false
+    @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
 
     private static let imageCache: NSCache<NSString, UIImage> = {
         let cache = NSCache<NSString, UIImage>()
@@ -1916,6 +1932,11 @@ private struct MediaBubbleImage: View {
                 messageId: messageId,
                 attachment: attachment
             )
+            // Auto-save newly downloaded incoming images/videos to the system Photos library.
+            if mediaAutoSave, !isOutgoing {
+                let kind: SaveToPhotos.MediaKind = attachment.mimeType.hasPrefix("video/") ? .video : .image
+                try? await SaveToPhotos.save(fileURL: url, kind: kind)
+            }
             return await Task.detached(priority: .utility) {
                 BubbleImagePipeline.downsampleImage(
                     at: url,
@@ -1950,6 +1971,10 @@ private struct MediaBubbleImage: View {
                     messageId: messageId,
                     attachment: attachment
                 )
+                // Auto-save newly downloaded incoming video to the system Photos library.
+                if mediaAutoSave, !isOutgoing, let videoURL = cachedVideoURL {
+                    try? await SaveToPhotos.save(fileURL: videoURL, kind: .video)
+                }
             } catch {
                 SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
                 return nil
