@@ -402,3 +402,119 @@ final class MockNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
         subject.eraseToAnyPublisher()
     }
 }
+
+// MARK: - MockBackupArchiveService
+
+final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked Sendable {
+    var performBackupResult: BackupUploadOutcome? = nil
+    var performBackupError: Error? = nil
+    var restoreLatestResult: BackupRestoreOutcome = BackupRestoreOutcome(
+        lineageID: "test-lineage", formatVersion: 1, backupDate: nil, contentHash: nil
+    )
+    var restoreLatestError: Error? = nil
+    var listBackupsResult: [BackupListEntry] = []
+    var listBackupsError: Error? = nil
+    var restoreBackupResult: BackupRestoreOutcome = BackupRestoreOutcome(
+        lineageID: "test-lineage", formatVersion: 1, backupDate: nil, contentHash: nil
+    )
+    var restoreBackupError: Error? = nil
+    var deleteRemoteBackupsError: Error? = nil
+
+    // Capture arguments for assertion
+    var capturedRestoreBackupId: String? = nil
+
+    func performBackup(
+        configuration: BackupConfiguration,
+        material: DerivedBackupMaterial,
+        currentUserId: String?,
+        force: Bool
+    ) async throws -> BackupUploadOutcome? {
+        if let error = performBackupError { throw error }
+        return performBackupResult
+    }
+
+    func restoreLatestBackup(
+        configuration: BackupConfiguration?,
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        if let error = restoreLatestError { throw error }
+        return restoreLatestResult
+    }
+
+    func deleteRemoteBackups(lineageID: String?) async throws {
+        if let error = deleteRemoteBackupsError { throw error }
+    }
+
+    func listBackups() async throws -> [BackupListEntry] {
+        if let error = listBackupsError { throw error }
+        return listBackupsResult
+    }
+
+    func restoreBackup(
+        backupId: String,
+        configuration: BackupConfiguration?,
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        capturedRestoreBackupId = backupId
+        if let error = restoreBackupError { throw error }
+        return restoreBackupResult
+    }
+}
+
+// MARK: - MockRecoveryKeyManager
+
+final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Sendable {
+    var storedConfiguration: BackupConfiguration? = nil
+    var storedRecoveryKey: String? = nil
+    var generateKeyResult: String = "AAAA-BBBB-CCCC-DDDD-EEEE-FFFF"
+    var enableBackupsResult: BackupConfiguration = BackupConfiguration(
+        isEnabled: true,
+        lineageId: "test-lineage",
+        formatVersion: 1,
+        recoveryKeyConfirmedAt: Date()
+    )
+
+    func loadConfiguration() throws -> BackupConfiguration? { storedConfiguration }
+    func readRecoveryKey() throws -> String? { storedRecoveryKey }
+    func generateRecoveryKey() throws -> String { generateKeyResult }
+    func enableBackups(with recoveryKey: String, lineageId: String) throws -> BackupConfiguration {
+        storedRecoveryKey = recoveryKey
+        storedConfiguration = enableBackupsResult
+        return enableBackupsResult
+    }
+    func disableBackups() throws {
+        storedConfiguration = nil
+        storedRecoveryKey = nil
+    }
+    func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws {}
+    func persistRestoredBackup(
+        recoveryKey: String,
+        lineageId: String,
+        formatVersion: Int32,
+        lastBackupAt: Date?,
+        lastBackupContentHash: String?
+    ) throws -> BackupConfiguration {
+        storedRecoveryKey = recoveryKey
+        return enableBackupsResult
+    }
+    func clearBackupMaterial() throws {
+        storedRecoveryKey = nil
+        storedConfiguration = nil
+    }
+}
+
+// MARK: - MockBackupKeyDeriver
+
+final class MockBackupKeyDeriver: BackupKeyDeriverProtocol, @unchecked Sendable {
+    var derivedMaterial: DerivedBackupMaterial = DerivedBackupMaterial(
+        metadataKey: Data(), aesKey: nil, hmacKey: nil, backupId: nil
+    )
+    var deriveError: Error? = nil
+
+    func deriveMaterial(recoveryKey: String, userId: String?) throws -> DerivedBackupMaterial {
+        if let error = deriveError { throw error }
+        return derivedMaterial
+    }
+}

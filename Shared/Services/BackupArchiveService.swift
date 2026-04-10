@@ -16,6 +16,13 @@ struct BackupRestoreOutcome: Sendable {
     let contentHash: String?
 }
 
+struct BackupListEntry: Identifiable, Sendable {
+    let id: String          // backup_id from proto
+    let committedAt: Date
+    let byteSize: Int64
+    let messageCount: Int?  // from opaqueMetadata JSON counts.messages; nil if unparseable
+}
+
 private struct BackupOpaqueMetadata: Codable, Sendable {
     let formatVersion: Int32
     let ivBase64: String
@@ -40,6 +47,13 @@ protocol BackupArchiveServiceProtocol: Sendable {
         currentUserId: String?
     ) async throws -> BackupRestoreOutcome
     func deleteRemoteBackups(lineageID: String?) async throws
+    func listBackups() async throws -> [BackupListEntry]
+    func restoreBackup(
+        backupId: String,
+        configuration: BackupConfiguration?,
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome
 }
 
 actor BackupArchiveService: BackupArchiveServiceProtocol {
@@ -193,6 +207,87 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             request.backupID = backup.backupID
             _ = try await grpcClient.backupService.deleteBackup(request)
         }
+    }
+
+    func listBackups() async throws -> [BackupListEntry] {
+        let response = try await grpcClient.backupService.listBackups(Vync_Backup_ListBackupsRequest())
+        return response.backups
+            .map { meta -> BackupListEntry in
+                let date = Self.parseServerDate(
+                    meta.committedAt.isEmpty ? meta.createdAt : meta.committedAt
+                ) ?? Date()
+                let messageCount: Int? = {
+                    guard !meta.opaqueMetadata.isEmpty,
+                          let parsed = try? JSONDecoder().decode(
+                              BackupOpaqueMetadata.self, from: meta.opaqueMetadata
+                          )
+                    else { return nil }
+                    return parsed.counts.messages
+                }()
+                return BackupListEntry(
+                    id: meta.backupID,
+                    committedAt: date,
+                    byteSize: meta.byteSize,
+                    messageCount: messageCount
+                )
+            }
+            .sorted { $0.committedAt > $1.committedAt }
+    }
+
+    func restoreBackup(
+        backupId: String,
+        configuration: BackupConfiguration?,
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        guard currentUserId?.isEmpty == false else {
+            throw AppError.backupFailed(reason: "You must be signed in before restoring a backup.")
+        }
+        guard let aesKey = material.aesKey, let hmacKey = material.hmacKey else {
+            throw AppError.backupFailed(reason: "Backup keys are unavailable for this account.")
+        }
+
+        var request = Vync_Backup_GetBackupDownloadRequest()
+        request.backupID = backupId
+        let response = try await grpcClient.backupService.getBackupDownload(request)
+        let ciphertext = try await Self.downloadObject(from: response.downloadURL, session: session)
+        let expectedSha = response.backup.sha256Hash
+
+        guard Self.sha256Hex(ciphertext) == expectedSha else {
+            throw AppError.backupIntegrityCheckFailed(
+                reason: "Encrypted backup SHA-256 did not match the committed metadata."
+            )
+        }
+
+        let metadata = try JSONDecoder().decode(
+            BackupOpaqueMetadata.self, from: response.backup.opaqueMetadata
+        )
+        let iv = Data(base64Encoded: metadata.ivBase64) ?? Data()
+        let hmac = Data(base64Encoded: metadata.hmacBase64) ?? Data()
+        let computedHMAC = Self.hmac(iv: iv, ciphertext: ciphertext, key: hmacKey)
+        guard computedHMAC == hmac else {
+            throw AppError.backupIntegrityCheckFailed(reason: "Backup HMAC verification failed.")
+        }
+
+        let plaintext = try Self.decryptArchive(ciphertext, aesKey: aesKey, iv: iv)
+        let snapshot = try BackupArchiveSerializer.deserialize(plaintext)
+        let localFingerprint = try deviceSecretProvider.backupFingerprint()
+        try await localDatabase.restoreBackupSnapshot(
+            snapshot,
+            currentUserId: currentUserId,
+            localFingerprint: localFingerprint
+        )
+
+        return BackupRestoreOutcome(
+            lineageID: response.backup.lineageID,
+            formatVersion: response.backup.formatVersion,
+            backupDate: Self.parseServerDate(
+                response.backup.committedAt.isEmpty
+                    ? response.backup.createdAt
+                    : response.backup.committedAt
+            ),
+            contentHash: metadata.contentHash
+        )
     }
 
     private static func selectLatestBackup(
