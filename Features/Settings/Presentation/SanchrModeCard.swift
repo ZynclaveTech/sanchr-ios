@@ -7,7 +7,7 @@ import SanchrShared
 /// intentionally dark in both light and dark themes.
 struct SanchrModeCard: View {
     @Binding var isOn: Bool
-    var onToggleChanged: () async -> Void
+    var onToggleChanged: (Bool) async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -33,8 +33,8 @@ struct SanchrModeCard: View {
                 Toggle("", isOn: $isOn)
                     .labelsHidden()
                     .tint(SanchrColors.accent)
-                    .onChange(of: isOn) { _, _ in
-                        Task { await onToggleChanged() }
+                    .onChange(of: isOn) { _, newValue in
+                        Task { await onToggleChanged(newValue) }
                     }
             }
 

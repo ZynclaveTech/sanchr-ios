@@ -71,9 +71,9 @@ struct SecurityView: View {
                 Toggle("", isOn: $viewModel.vyncModeEnabled)
                     .labelsHidden()
                     .tint(SanchrColors.accent)
-                    .onChange(of: viewModel.vyncModeEnabled) { _, _ in
+                    .onChange(of: viewModel.vyncModeEnabled) { _, newValue in
                         Task {
-                            await viewModel.toggleVyncMode(settingsDataSource: settingsDataSource)
+                            await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
                         }
                     }
             }

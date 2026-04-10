@@ -184,14 +184,23 @@ final class SettingsViewModel {
 
     // MARK: - Toggle Vync Mode
 
-    func toggleVyncMode(settingsDataSource: SettingsDataSource) async {
-        let newValue = !vyncModeEnabled
-
+    /// Set Vync Mode to the given value.
+    /// `enabled` must be the **desired** state (already reflected in `vyncModeEnabled`
+    /// by the Toggle binding before this is called). We never compute `!vyncModeEnabled`
+    /// here because that would read the post-tap value and invert it, causing a loop.
+    func setVyncMode(enabled: Bool, settingsDataSource: SettingsDataSource) async {
         do {
-            let updated = try await settingsDataSource.toggleVyncMode(enabled: newValue)
-            applySettings(updated)
+            let updated = try await settingsDataSource.toggleVyncMode(enabled: enabled)
             privacySettings?.update(from: updated)
+            // Only write vyncModeEnabled back if the server overrode our value.
+            // Writing the same value is a no-op, but it still fires @Observable's
+            // change tracking and re-triggers onChange → infinite loop.
+            if updated.vyncModeEnabled != vyncModeEnabled {
+                vyncModeEnabled = updated.vyncModeEnabled
+            }
         } catch {
+            // Revert the Toggle to its pre-tap state on failure.
+            vyncModeEnabled = !enabled
             errorMessage = error.localizedDescription
         }
     }

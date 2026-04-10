@@ -269,9 +269,7 @@ struct SettingsView: View {
             get: { viewModel.vyncModeEnabled },
             set: { newValue in
                 Task {
-                    if newValue != viewModel.vyncModeEnabled {
-                        await viewModel.toggleVyncMode(settingsDataSource: settingsDataSource)
-                    }
+                    await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
                 }
             }
         )

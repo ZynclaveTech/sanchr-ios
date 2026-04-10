@@ -39,8 +39,8 @@ struct PrivacyView: View {
     private var sanchrModeCard: some View {
         SanchrModeCard(
             isOn: $viewModel.vyncModeEnabled,
-            onToggleChanged: {
-                await viewModel.toggleVyncMode(settingsDataSource: settingsDataSource)
+            onToggleChanged: { newValue in
+                await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
             }
         )
     }
