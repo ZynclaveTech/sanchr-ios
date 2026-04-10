@@ -172,6 +172,7 @@ final class BackupCoordinator {
 
     func listBackups() async throws -> [BackupListEntry] {
         try await backupService.listBackups()
+            .sorted { $0.committedAt > $1.committedAt }
     }
 
     func restoreBackup(backupId: String, with recoveryKeyOverride: String?) async {
