@@ -183,9 +183,36 @@ struct EncryptionKeysView: View {
             // MARK: - Reset Keys (Dangerous)
             Section {
                 Button(role: .destructive) {
-                    // Reset all encryption keys
+                    showingResetAlert = true
                 } label: {
-                    Text("Reset encryption keys")
+                    Text(isResettingKeys ? "Resetting…" : "Reset encryption keys")
+                }
+                .disabled(isResettingKeys)
+                .alert("Reset Encryption Keys?", isPresented: $showingResetAlert) {
+                    Button("Reset", role: .destructive) {
+                        Task {
+                            isResettingKeys = true
+                            do {
+                                try await container.keyManager.resetIdentityKeys()
+                            } catch {
+                                resetError = error.localizedDescription
+                            }
+                            isResettingKeys = false
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text(
+                        "This will generate new encryption keys and invalidate all existing sessions. All contacts will see a safety number change. This cannot be undone."
+                    )
+                }
+                .alert("Reset Failed", isPresented: Binding(
+                    get: { resetError != nil },
+                    set: { if !$0 { resetError = nil } }
+                )) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(resetError ?? "")
                 }
 
                 Text(
