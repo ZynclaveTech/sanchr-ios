@@ -11,6 +11,7 @@ struct AppearanceView: View {
     @State private var fontStep: Double = 2
     @AppStorage("sanchr.chatBubbleStyle") private var chatBubbleStyle = "modern"
     @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
+    @AppStorage("sanchr.fontSize") private var storedFontSize = "medium"
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
@@ -47,6 +48,7 @@ struct AppearanceView: View {
                 privacySettings: container.privacySettings
             )
             fontStep = sliderValue(for: viewModel.fontSize)
+            storedFontSize = viewModel.fontSize
 
             if let savedMode = SanchrTheme.Mode(rawValue: storedThemeMode) {
                 theme.mode = savedMode
@@ -164,23 +166,6 @@ struct AppearanceView: View {
                     .buttonStyle(.plain)
                 }
 
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(SanchrExportColors.surface)
-                    .frame(height: 108)
-                    .overlay {
-                        VStack(spacing: 8) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(SanchrExportColors.textTertiary)
-                            Text("More")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(SanchrExportColors.textSecondary)
-                        }
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-                    }
             }
         }
     }
@@ -269,6 +254,7 @@ struct AppearanceView: View {
                     .onChange(of: fontStep) { _, newValue in
                         let newSize = fontSize(for: newValue)
                         viewModel.fontSize = newSize
+                        storedFontSize = newSize
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     }
 
