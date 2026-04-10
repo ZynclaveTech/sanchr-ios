@@ -17,6 +17,7 @@ struct EncryptionKeysView: View {
     @State private var showingResetAlert = false
     @State private var isResettingKeys = false
     @State private var resetError: String? = nil
+    @State private var regenerateError: String? = nil
 
     var body: some View {
         List {
@@ -171,14 +172,28 @@ struct EncryptionKeysView: View {
                     Task { await regeneratePreKeys() }
                 } label: {
                     HStack {
-                        Image(systemName: "arrow.clockwise")
+                        if isLoadingMetadata {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
                         Text("Regenerate pre-keys")
                     }
                     .font(SanchrTypography.body)
                     .foregroundColor(.sanchrPrimary)
                 }
+                .disabled(isLoadingMetadata)
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
+            .alert("Replenish Failed", isPresented: Binding(
+                get: { regenerateError != nil },
+                set: { if !$0 { regenerateError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(regenerateError ?? "")
+            }
 
             // MARK: - Reset Keys (Dangerous)
             Section {
@@ -194,6 +209,7 @@ struct EncryptionKeysView: View {
                             isResettingKeys = true
                             do {
                                 try await container.keyManager.resetIdentityKeys()
+                                await loadKeyInfo()
                             } catch {
                                 resetError = error.localizedDescription
                             }
@@ -277,6 +293,7 @@ struct EncryptionKeysView: View {
             }
             SanchrLogger.crypto.info("One-time pre-keys replenished")
         } catch {
+            regenerateError = error.localizedDescription
             SanchrLogger.crypto.error("Failed to replenish pre-keys: \(error)")
         }
     }
