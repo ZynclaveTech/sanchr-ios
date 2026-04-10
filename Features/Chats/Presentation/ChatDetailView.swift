@@ -1390,6 +1390,25 @@ struct MessageBubble: View {
         return formatter
     }()
 
+    @AppStorage("sanchr.fontSize") private var fontSize = "medium"
+    @AppStorage("sanchr.chatBubbleStyle") private var bubbleStyle = "modern"
+
+    private var bubbleFont: Font {
+        switch fontSize {
+        case "small": return SanchrTypography.caption
+        case "large": return SanchrTypography.bodyLarge
+        default:      return SanchrTypography.body
+        }
+    }
+
+    private var bubbleCornerRadius: CGFloat {
+        switch bubbleStyle {
+        case "classic": return 999
+        case "compact": return 10
+        default:        return 20
+        }
+    }
+
     var body: some View {
         if case .system(let event) = message.content {
             // Centered system event pill
