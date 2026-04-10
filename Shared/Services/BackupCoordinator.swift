@@ -170,9 +170,10 @@ final class BackupCoordinator {
         return recoveryKey
     }
 
+    /// Returns backup entries sorted descending by committedAt (sort is applied by the service).
+    /// Errors are propagated to the caller; BackupView handles them by setting historyState = .failed.
     func listBackups() async throws -> [BackupListEntry] {
         try await backupService.listBackups()
-            .sorted { $0.committedAt > $1.committedAt }
     }
 
     func restoreBackup(backupId: String, with recoveryKeyOverride: String?) async {

@@ -82,6 +82,7 @@ final class BackupCoordinatorTests: XCTestCase {
         await coordinator.restoreBackup(backupId: "backup-xyz", with: nil)
 
         XCTAssertEqual(service.listBackupsCallCount, 0)
+        XCTAssertNil(coordinator.errorMessage)
     }
 
     func test_restoreBackup_setsErrorOnFailure() async {
