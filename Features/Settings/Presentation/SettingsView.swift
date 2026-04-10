@@ -50,6 +50,14 @@ struct SettingsView: View {
                             subtitle: "Secure media storage",
                             destination: AnyView(VaultView())
                         ),
+                        AnySettingsRow(
+                            icon: "icloud.and.arrow.up.fill",
+                            tint: SanchrColors.primary,
+                            background: Color(hex: 0xEEF2FF),
+                            title: "Backup & Recovery",
+                            subtitle: backupSubtitle,
+                            destination: AnyView(BackupView())
+                        ),
                     ]
                 )
                 settingsGroup(
@@ -357,6 +365,25 @@ struct SettingsView: View {
     private var storageSubtitle: String {
         let total = viewModel.totalBytes > 0 ? viewModel.formattedBytes(viewModel.totalBytes) : "Manage downloads"
         return total
+    }
+
+    private var backupSubtitle: String {
+        let coordinator = container.backupCoordinator
+        guard coordinator.isEnabled else { return "Off" }
+        guard let lastBackupAt = coordinator.configuration?.lastBackupAt else {
+            return "Enabled · No backups yet"
+        }
+        let interval = Date().timeIntervalSince(lastBackupAt)
+        if interval < 3600 {
+            let mins = max(1, Int(interval / 60))
+            return "Last backed up \(mins)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "Last backed up \(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return "Last backed up \(days)d ago"
+        }
     }
 }
 
