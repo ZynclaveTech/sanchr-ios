@@ -41,6 +41,11 @@ final class SessionService: @unchecked Sendable {
     /// Guards against concurrent refresh requests.
     private var activeRefreshTask: Task<String, Error>?
 
+    /// Fires every 3 minutes while authenticated to proactively refresh the access
+    /// token before it expires. This catches the case where the app stays in the
+    /// foreground for the full token lifetime without a foreground-transition sync.
+    private var periodicRefreshTask: Task<Void, Never>?
+
     init(
         secureStorage: SecureStorageProtocol,
         authRepository: AuthRepositoryProtocol,
@@ -73,7 +78,12 @@ final class SessionService: @unchecked Sendable {
     /// Stores authentication tokens and updates session state.
     func storeTokens(_ tokens: AuthTokens) async throws {
         try secureStorage.saveAccessToken(tokens.accessToken)
-        try secureStorage.saveRefreshToken(tokens.refreshToken)
+        // Only overwrite the stored refresh token if the server returned a non-empty one.
+        // Servers that do not rotate refresh tokens return an empty string; persisting
+        // it would clobber the valid token already in Keychain.
+        if !tokens.refreshToken.isEmpty {
+            try secureStorage.saveRefreshToken(tokens.refreshToken)
+        }
         if let deviceId = tokens.deviceId {
             try secureStorage.saveDeviceId(deviceId)
             currentDeviceId = deviceId
@@ -87,6 +97,7 @@ final class SessionService: @unchecked Sendable {
         currentPhoneNumber = tokens.phoneNumber.isEmpty ? currentPhoneNumber : tokens.phoneNumber
         currentAvatarURL = tokens.avatarURL.isEmpty ? currentAvatarURL : tokens.avatarURL
         isAuthenticated = true
+        startPeriodicTokenRefresh()
         try persistSnapshot()
 
         SanchrLogger.auth.info("Session tokens stored, expires at \(tokens.expiresAt)")
@@ -275,6 +286,8 @@ final class SessionService: @unchecked Sendable {
 
     @MainActor
     private func clearSessionState() {
+        periodicRefreshTask?.cancel()
+        periodicRefreshTask = nil
         privacySettings.clear()
         isAuthenticated = false
         currentUserId = nil
@@ -310,6 +323,32 @@ final class SessionService: @unchecked Sendable {
         currentDeviceId = snapshot.deviceId ?? currentDeviceId
         currentInstallationId = snapshot.installationId
         lastMessageSyncTimestamp = snapshot.lastMessageSyncTimestamp
+        startPeriodicTokenRefresh()
+    }
+
+    // MARK: - Periodic Token Refresh
+
+    /// Starts a background loop that checks every 3 minutes whether the access token
+    /// is within 5 minutes of expiry and refreshes it proactively.
+    ///
+    /// This guards against the case where the app stays in the foreground for the
+    /// full token lifetime without a background→foreground transition (which is the
+    /// only other path that triggers proactive refresh via SyncOrchestrator).
+    ///
+    /// Safe to call repeatedly — cancels any running loop before starting a new one.
+    private func startPeriodicTokenRefresh() {
+        periodicRefreshTask?.cancel()
+        periodicRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(180))  // 3-minute interval
+                } catch {
+                    return  // CancellationError — exit cleanly
+                }
+                guard let self, self.isAuthenticated, !Task.isCancelled else { break }
+                _ = try? await self.refreshTokenIfExpiringSoon()
+            }
+        }
     }
 
     private func persistSnapshot() throws {

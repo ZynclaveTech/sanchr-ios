@@ -137,7 +137,13 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
 
         let tokens = Self.mapTokens(response)
         try secureStorage.saveAccessToken(tokens.accessToken)
-        try secureStorage.saveRefreshToken(tokens.refreshToken)
+        // Only overwrite the stored refresh token if the server returned a non-empty one.
+        // Some servers reuse the existing refresh token (no rotation); persisting an empty
+        // string would clobber the valid token in Keychain and cause an immediate logout
+        // on the next refresh cycle.
+        if !tokens.refreshToken.isEmpty {
+            try secureStorage.saveRefreshToken(tokens.refreshToken)
+        }
         if let deviceId = tokens.deviceId {
             try secureStorage.saveDeviceId(deviceId)
         }
