@@ -42,7 +42,6 @@ struct ChatSettingsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
-                privacyControlsSection
                 mediaDownloadSection
                 encryptionSection
                 backupSection
@@ -100,61 +99,6 @@ struct ChatSettingsView: View {
             Button("Close", role: .cancel) {}
         } message: {
             Text(revealedRecoveryKey ?? "")
-        }
-    }
-
-    private var privacyControlsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Privacy Controls")
-
-            VStack(spacing: 0) {
-                toggleRow(
-                    icon: "checkmark.message.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
-                    title: "Read Receipts",
-                    subtitle: "Show when you've read messages",
-                    isOn: $viewModel.readReceipts
-                ) {
-                    viewModel.debouncedSync(settingsDataSource: settingsDataSource)
-                }
-
-                Divider()
-                    .padding(.leading, 56)
-
-                toggleRow(
-                    icon: "dot.radiowaves.left.and.right",
-                    tint: SanchrColors.accent,
-                    background: Color(hex: 0xECFEFF),
-                    title: "Online Status",
-                    subtitle: "Let others see when you're active",
-                    isOn: $viewModel.onlineStatusVisible
-                ) {
-                    viewModel.debouncedSync(settingsDataSource: settingsDataSource)
-                }
-
-                Divider()
-                    .padding(.leading, 56)
-
-                toggleRow(
-                    icon: "keyboard.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
-                    title: "Typing Indicators",
-                    subtitle: "Show when you're typing",
-                    isOn: $viewModel.typingIndicator
-                ) {
-                    viewModel.debouncedSync(settingsDataSource: settingsDataSource)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
         }
     }
 
