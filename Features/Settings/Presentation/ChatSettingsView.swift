@@ -12,12 +12,6 @@ struct ChatSettingsView: View {
     @AppStorage("sanchr.linkPreviews") private var linkPreviews = true
     @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
     @AppStorage("sanchr.defaultDisappearingTimer") private var defaultDisappearingTimer = "off"
-    @State private var showingRecoveryKeySheet = false
-    @State private var revealedRecoveryKey: String?
-    @State private var showingRevealedRecoveryKey = false
-    @State private var showingRestoreSheet = false
-    @State private var restoreRecoveryKey = ""
-
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
     }
@@ -59,47 +53,6 @@ struct ChatSettingsView: View {
                 privacySettings: container.privacySettings
             )
             container.backupCoordinator.reload()
-        }
-        .sheet(isPresented: $showingRecoveryKeySheet) {
-            BackupRecoveryKeySheet(
-                recoveryKey: container.backupCoordinator.pendingRecoveryKey ?? "",
-                onConfirm: {
-                    Task {
-                        await container.backupCoordinator.confirmPendingRecoveryKey()
-                        showingRecoveryKeySheet = false
-                    }
-                },
-                onCancel: {
-                    container.backupCoordinator.cancelPendingRecoveryKey()
-                    showingRecoveryKeySheet = false
-                }
-            )
-        }
-        .sheet(isPresented: $showingRestoreSheet) {
-            BackupRestoreSheet(
-                recoveryKey: $restoreRecoveryKey,
-                isProcessing: container.backupCoordinator.isProcessing,
-                onRestore: {
-                    let providedKey = restoreRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                    Task {
-                        await container.backupCoordinator.restoreLatestBackup(
-                            with: providedKey.isEmpty ? nil : providedKey
-                        )
-                        showingRestoreSheet = false
-                    }
-                },
-                onCancel: {
-                    showingRestoreSheet = false
-                }
-            )
-        }
-        .alert("Recovery Key", isPresented: $showingRevealedRecoveryKey) {
-            Button("Copy") {
-                UIPasteboard.general.string = revealedRecoveryKey
-            }
-            Button("Close", role: .cancel) {}
-        } message: {
-            Text(revealedRecoveryKey ?? "")
         }
     }
 
@@ -246,116 +199,35 @@ struct ChatSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Backup")
 
-            VStack(spacing: 12) {
-                HStack(spacing: 14) {
-                    iconTile(systemName: "icloud.and.arrow.up.fill", tint: SanchrColors.primary, background: Color(hex: 0xEEF2FF))
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Chat Backup")
-                            .font(SanchrTypography.bodyBold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                        Text(container.backupCoordinator.isEnabled ? "Encrypted backup is active" : "Protect your chat history with an encrypted backup")
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(SanchrExportColors.textSecondary)
-                    }
-
-                    Spacer()
-
-                    Toggle(
-                        "",
-                        isOn: Binding(
-                            get: { container.backupCoordinator.isEnabled },
-                            set: { enabled in
-                                if enabled {
-                                    container.backupCoordinator.prepareEnableBackups()
-                                    showingRecoveryKeySheet = true
-                                } else {
-                                    container.backupCoordinator.disableBackups()
-                                }
-                            }
-                        )
-                    )
-                    .labelsHidden()
-                    .tint(.sanchrPrimary)
-                }
-                .padding(16)
-                .background(SanchrExportColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-
-                if container.backupCoordinator.isEnabled {
-                    VStack(spacing: 0) {
-                        infoRow(title: "Last backup", value: container.backupCoordinator.configuration?.lastBackupAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Never")
-
-                        Divider()
-                            .padding(.leading, 18)
-
-                        backupAction(title: "Back Up Now") {
-                            Task {
-                                do {
-                                    try await container.backupCoordinator.backupNow()
-                                } catch {
-                                    container.backupCoordinator.reportError(error)
-                                }
-                            }
-                        }
-
-                        Divider()
-                            .padding(.leading, 18)
-
-                        backupAction(title: "Reveal Recovery Key") {
-                            Task {
-                                do {
-                                    revealedRecoveryKey = try await container.backupCoordinator.revealRecoveryKey()
-                                    showingRevealedRecoveryKey = true
-                                } catch {
-                                    container.backupCoordinator.reportError(error)
-                                }
-                            }
-                        }
-
-                        Divider()
-                            .padding(.leading, 18)
-
-                        backupAction(title: "Rotate Recovery Key") {
-                            container.backupCoordinator.rotateRecoveryKey()
-                            showingRecoveryKeySheet = true
-                        }
-
-                        Divider()
-                            .padding(.leading, 18)
-
-                        backupAction(title: "Delete Remote Backups", role: .destructive) {
-                            Task {
-                                await container.backupCoordinator.deleteRemoteBackups()
-                            }
-                        }
-                    }
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                }
-
-                Button {
-                    restoreRecoveryKey = ""
-                    showingRestoreSheet = true
-                } label: {
-                    chevronRow(
-                        icon: "arrow.clockwise.circle.fill",
-                        tint: Color(hex: 0x06B6D4),
-                        background: Color(hex: 0xECFEFF),
-                        title: "Restore from Backup",
-                        subtitle: "Bring encrypted history to this device"
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(container.backupCoordinator.isProcessing)
-
-                if let errorMessage = container.backupCoordinator.errorMessage, !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(.sanchrError)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            NavigationLink { BackupView() } label: {
+                chevronRow(
+                    icon: "icloud.and.arrow.up.fill",
+                    tint: SanchrColors.primary,
+                    background: Color(hex: 0xEEF2FF),
+                    title: "Backup & Recovery",
+                    subtitle: backupSubtitle
+                )
             }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var backupSubtitle: String {
+        let coordinator = container.backupCoordinator
+        guard coordinator.isEnabled else { return "Off" }
+        guard let lastBackupAt = coordinator.configuration?.lastBackupAt else {
+            return "Enabled · No backups yet"
+        }
+        let interval = Date().timeIntervalSince(lastBackupAt)
+        if interval < 3600 {
+            let mins = max(1, Int(interval / 60))
+            return "Last backed up \(mins)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "Last backed up \(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return "Last backed up \(days)d ago"
         }
     }
 
@@ -478,34 +350,6 @@ struct ChatSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
-    private func infoRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .font(SanchrTypography.bodyBold)
-                .foregroundColor(SanchrExportColors.textPrimary)
-            Spacer()
-            Text(value)
-                .font(SanchrTypography.caption)
-                .foregroundColor(SanchrExportColors.textSecondary)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-    }
-
-    private func backupAction(title: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
-        Button(role: role, action: action) {
-            HStack {
-                Text(title)
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(role == .destructive ? .sanchrError : SanchrExportColors.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-        }
-        .buttonStyle(.plain)
-    }
-
     private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(background)
@@ -517,78 +361,4 @@ struct ChatSettingsView: View {
             }
     }
 
-}
-
-private struct BackupRestoreSheet: View {
-    @Binding var recoveryKey: String
-    let isProcessing: Bool
-    let onRestore: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: SanchrSpacing.lg) {
-                Text("Restore your encrypted chat history after sign-in using your recovery key. If this device already stores the key, you can leave the field blank.")
-                    .font(SanchrTypography.body)
-
-                TextField("Recovery key", text: $recoveryKey, axis: .vertical)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(.system(.body, design: .monospaced))
-                    .padding()
-                    .background(Color(uiColor: .secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md))
-
-                Button("Restore Latest Backup", action: onRestore)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.sanchrPrimary)
-                    .disabled(isProcessing)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Spacer()
-            }
-            .padding(SanchrSpacing.lg)
-            .navigationTitle("Restore Backup")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private struct BackupRecoveryKeySheet: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let recoveryKey: String
-    let onConfirm: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: SanchrSpacing.lg) {
-                Text("Save this recovery key somewhere secure. You will need it to restore encrypted backups on a new device.")
-                    .font(SanchrTypography.body)
-
-                Text(recoveryKey)
-                    .font(.system(.body, design: .monospaced))
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.sanchrSurface(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md))
-
-                Button("I saved this key", action: onConfirm)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.sanchrPrimary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Button("Not now", role: .cancel, action: onCancel)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Spacer()
-            }
-            .padding(SanchrSpacing.lg)
-            .navigationTitle("Recovery Key")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
 }
