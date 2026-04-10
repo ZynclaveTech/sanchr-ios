@@ -57,10 +57,10 @@ struct EncryptionKeysView: View {
                                 copiedToClipboard = false
                             }
                         } label: {
-                            Label(
-                                copiedToClipboard ? "Copied!" : "Copy fingerprint",
-                                systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc"
-                            )
+                            HStack(spacing: SanchrSpacing.xxs) {
+                                Image(systemName: copiedToClipboard ? "checkmark" : "doc.on.doc")
+                                Text(copiedToClipboard ? "Copied!" : "Copy fingerprint")
+                            }
                             .font(SanchrTypography.caption)
                             .foregroundColor(copiedToClipboard ? .sanchrSuccess : .sanchrPrimary)
                         }
@@ -68,8 +68,12 @@ struct EncryptionKeysView: View {
                         Button {
                             showingShareSheet = true
                         } label: {
-                            Label("Share", systemImage: "qrcode")
-                                .font(SanchrTypography.caption)
+                            HStack(spacing: SanchrSpacing.xxs) {
+                                Image(systemName: "qrcode")
+                                Text("Share")
+                            }
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(.sanchrPrimary)
                         }
                     }
                 }
@@ -78,34 +82,6 @@ struct EncryptionKeysView: View {
             .sheet(isPresented: $showingShareSheet) {
                 ShareSheet(items: [identityKeyFingerprint])
             }
-
-            // MARK: - Safety Number Verification
-            Section("Safety Number Verification") {
-                VStack(alignment: .leading, spacing: SanchrSpacing.xs) {
-                    Text("Compare this number with your contact to verify end-to-end encryption.")
-                        .font(SanchrTypography.caption)
-                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
-
-                    Button {
-                        // no-op — safety number verification is per-conversation
-                    } label: {
-                        HStack(spacing: SanchrSpacing.xs) {
-                            Image(systemName: "qrcode.viewfinder")
-                                .font(.title3)
-                            Text("Scan Safety Number")
-                                .font(SanchrTypography.body)
-                        }
-                        .foregroundColor(.sanchrPrimary)
-                    }
-                    .disabled(true)
-                    .opacity(0.5)
-
-                    Text("Open a conversation to verify safety numbers with a specific contact.")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
-                }
-            }
-            .listRowBackground(Color.sanchrSurface(colorScheme))
 
             // MARK: - Signed Pre-Key
             Section("Signed Pre-Key") {
