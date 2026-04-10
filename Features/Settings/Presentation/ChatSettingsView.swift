@@ -515,21 +515,6 @@ struct ChatSettingsView: View {
         .buttonStyle(.plain)
     }
 
-    private func selectionIndicator(isSelected: Bool) -> some View {
-        Circle()
-            .fill(isSelected ? SanchrColors.primary : .clear)
-            .frame(width: 24, height: 24)
-            .overlay {
-                Circle()
-                    .stroke(isSelected ? SanchrColors.primary : Color(hex: 0xD1D5DB), lineWidth: 2)
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                }
-            }
-    }
-
     private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(SanchrExportColors.surfaceMuted)
