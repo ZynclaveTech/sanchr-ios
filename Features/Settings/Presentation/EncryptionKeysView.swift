@@ -286,6 +286,8 @@ struct EncryptionKeysView: View {
     }
 
     private func regeneratePreKeys() async {
+        isLoadingMetadata = true
+        defer { isLoadingMetadata = false }
         do {
             try await container.keyManager.replenishPreKeys()
             if let count = try? await container.keyManager.fetchPreKeyCount() {
