@@ -517,12 +517,12 @@ struct ChatSettingsView: View {
 
     private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
+            .fill(background)
             .frame(width: 42, height: 42)
             .overlay {
                 Image(systemName: systemName)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
+                    .foregroundColor(tint)
             }
     }
 
