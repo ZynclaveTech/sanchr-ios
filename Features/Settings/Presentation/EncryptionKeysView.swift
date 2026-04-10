@@ -9,9 +9,14 @@ struct EncryptionKeysView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.colorScheme) private var colorScheme
     @State private var identityKeyFingerprint: String = "Loading..."
-    @State private var preKeyCount: Int = 0
-    @State private var signedPreKeyAge: String = "Unknown"
+    @State private var preKeyCount: Int? = nil
+    @State private var signedPreKeyAge: String = ""
     @State private var copiedToClipboard = false
+    @State private var isLoadingMetadata = false
+    @State private var showingShareSheet = false
+    @State private var showingResetAlert = false
+    @State private var isResettingKeys = false
+    @State private var resetError: String? = nil
 
     var body: some View {
         List {
@@ -132,17 +137,17 @@ struct EncryptionKeysView: View {
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
                     Spacer()
-                    Text("\(preKeyCount)")
+                    Text(preKeyCount.map { "\($0)" } ?? "—")
                         .font(SanchrTypography.bodyBold)
                         .foregroundColor(
-                            preKeyCount < 10
+                            preKeyCount.map { $0 < 10 } == true
                                 ? .sanchrError
-                                : preKeyCount < 50
+                                : preKeyCount.map { $0 < 50 } == true
                                     ? .sanchrWarning : Color.sanchrTextSecondary(colorScheme)
                         )
                 }
 
-                if preKeyCount < 10 {
+                if preKeyCount.map({ $0 < 10 }) == true {
                     HStack(spacing: SanchrSpacing.xxs) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption)
@@ -203,9 +208,19 @@ struct EncryptionKeysView: View {
             identityKeyFingerprint = "No identity key generated"
         }
 
-        // Pre-key count would come from the signal store
-        preKeyCount = 100
-        signedPreKeyAge = "2 days"
+        isLoadingMetadata = true
+        defer { isLoadingMetadata = false }
+
+        if let count = try? await container.keyManager.fetchPreKeyCount() {
+            preKeyCount = count
+        }
+
+        if let date = try? container.keyManager.signedPreKeyCreatedAt() {
+            let days = Calendar.current.dateComponents([.day], from: date, to: .now).day ?? 0
+            signedPreKeyAge = days == 0 ? "Today" : "\(days) day\(days == 1 ? "" : "s") ago"
+        } else {
+            signedPreKeyAge = "Unknown"
+        }
     }
 
     private func regeneratePreKeys() async {
