@@ -10,7 +10,6 @@ struct AppearanceView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var fontStep: Double = 2
     @AppStorage("sanchr.chatBubbleStyle") private var chatBubbleStyle = "modern"
-    @AppStorage("sanchr.accentColor") private var accentColorID = "indigo"
     @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
 
     private var settingsDataSource: SettingsDataSource {
@@ -23,28 +22,10 @@ struct AppearanceView: View {
         (.system, "System Default", "Match device settings", [Color.white, Color(hex: 0xCBD5E1), Color(hex: 0x0F172A)], "circle.lefthalf.filled")
     ]
 
-    private let wallpaperOptions: [(String, String)] = [
-        ("Default", ""),
-        ("Indigo Mist", "subtle_pattern"),
-        ("Blue Air", "minimal"),
-        ("Midnight", "dark_gradient"),
-        ("Nature", "nature"),
-    ]
-
     private let bubbleOptions: [(String, String)] = [
         ("Squircle", "modern"),
         ("Rounded", "classic"),
         ("Sharp", "compact"),
-    ]
-
-    private let accentOptions: [(String, Color)] = [
-        ("indigo", SanchrColors.primary),
-        ("violet", Color(hex: 0x4C1D95)),
-        ("cyan", SanchrColors.accent),
-        ("blue", Color(hex: 0x3B82F6)),
-        ("emerald", Color(hex: 0x10B981)),
-        ("pink", Color(hex: 0xEC4899)),
-        ("orange", Color(hex: 0xF97316)),
     ]
 
     var body: some View {
@@ -53,7 +34,6 @@ struct AppearanceView: View {
                 themeSection
                 wallpaperSection
                 bubbleSection
-                accentSection
                 fontSection
             }
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
@@ -265,38 +245,6 @@ struct AppearanceView: View {
         }
     }
 
-    private var accentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Accent Color")
-
-            HStack(spacing: 12) {
-                ForEach(accentOptions, id: \.0) { id, color in
-                    Button {
-                        accentColorID = id
-                    } label: {
-                        Circle()
-                            .fill(color)
-                            .frame(width: 48, height: 48)
-                            .overlay {
-                                if accentColorID == id {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .overlay {
-                                Circle()
-                                    .stroke(Color.white, lineWidth: accentColorID == id ? 4 : 0)
-                            }
-                            .shadow(color: accentColorID == id ? color.opacity(0.28) : .clear, radius: 12, x: 0, y: 6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     private var fontSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Font Size")
@@ -408,18 +356,4 @@ struct AppearanceView: View {
         }
     }
 
-    private func wallpaperGradient(for value: String) -> LinearGradient {
-        switch value {
-        case "dark_gradient":
-            return LinearGradient(colors: [Color(hex: 0x1E1B4B), Color(hex: 0x0F172A)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "subtle_pattern":
-            return LinearGradient(colors: [Color(hex: 0xE0E7FF), Color(hex: 0xF5F3FF)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "minimal":
-            return LinearGradient(colors: [Color(hex: 0xECFEFF), Color(hex: 0xDBEAFE)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "nature":
-            return LinearGradient(colors: [Color(hex: 0xDCFCE7), Color(hex: 0xBBF7D0)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        default:
-            return LinearGradient(colors: [Color.white, Color(hex: 0xF8FAFC)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        }
-    }
 }

@@ -11,7 +11,6 @@ struct ChatSettingsView: View {
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
     @AppStorage("sanchr.linkPreviews") private var linkPreviews = true
     @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
-    @AppStorage("sanchr.chatBubbleStyle") private var chatBubbleStyle = "modern"
     @AppStorage("sanchr.defaultDisappearingTimer") private var defaultDisappearingTimer = "off"
     @State private var showingRecoveryKeySheet = false
     @State private var revealedRecoveryKey: String?
@@ -22,12 +21,6 @@ struct ChatSettingsView: View {
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
     }
-
-    private let bubbleStyles = [
-        ("Squircle", "modern"),
-        ("Rounded", "classic"),
-        ("Sharp", "compact"),
-    ]
 
     private let autoDownloadOptions = [
         ("All media", "all"),
@@ -52,7 +45,6 @@ struct ChatSettingsView: View {
                 privacyControlsSection
                 mediaDownloadSection
                 encryptionSection
-                bubbleSection
                 backupSection
                 disappearingSection
             }
@@ -298,66 +290,6 @@ struct ChatSettingsView: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                }
-            }
-        }
-    }
-
-    private var bubbleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Appearance")
-
-            VStack(spacing: 12) {
-                ForEach(bubbleStyles, id: \.1) { name, value in
-                    Button {
-                        chatBubbleStyle = value
-                    } label: {
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                Text(name)
-                                    .font(SanchrTypography.bodyBold)
-                                    .foregroundColor(SanchrExportColors.textPrimary)
-
-                                Spacer()
-
-                                selectionIndicator(isSelected: chatBubbleStyle == value)
-                            }
-
-                            HStack(spacing: 8) {
-                                Text("Hey there!")
-                                    .font(SanchrTypography.caption)
-                                    .foregroundColor(SanchrExportColors.textPrimary)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 10)
-                                    .background(SanchrExportColors.surfaceMuted)
-                                    .clipShape(RoundedRectangle(cornerRadius: bubbleRadius(value), style: .continuous))
-
-                                Spacer()
-
-                                Text("Hello!")
-                                    .font(SanchrTypography.caption)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 10)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: bubbleRadius(value), style: .continuous))
-                            }
-                        }
-                        .padding(16)
-                        .background(SanchrExportColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(chatBubbleStyle == value ? SanchrColors.primary : Color(hex: 0xE5E7EB), lineWidth: chatBubbleStyle == value ? 2 : 1)
-                        }
-                    }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -665,16 +597,6 @@ struct ChatSettingsView: View {
             }
     }
 
-    private func bubbleRadius(_ style: String) -> CGFloat {
-        switch style {
-        case "classic":
-            return 999
-        case "compact":
-            return 10
-        default:
-            return 20
-        }
-    }
 }
 
 private struct BackupRestoreSheet: View {
