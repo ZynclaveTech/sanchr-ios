@@ -207,9 +207,23 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     }
 
     public func resetIdentityKeys() async throws {
+        // 1. Regenerate identity key pair unconditionally
         _ = try store.identityStore.generateAndStoreIdentity()
+
+        // 2. Clear all on-device sessions — they are derived from the old identity key
+        //    and will fail to decrypt after reset. Contacts must re-establish new sessions.
+        let allAddresses = store.sessionStore.allSessionAddresses()
+        for address in allAddresses {
+            try? store.sessionStore.deleteSession(for: address)
+        }
+        // Note: verified identity flags (verifiedUserIds) are cleared lazily —
+        // SanchrIdentityKeyStore.isTrustedIdentity automatically removes verification
+        // when it observes a changed remote key, so contacts will be prompted to
+        // re-verify at next message receipt.
+
+        // 3. Upload new key bundle to server
         try await uploadInitialKeyBundle()
-        SanchrLogger.crypto.info("Identity keys reset and new bundle uploaded")
+        SanchrLogger.crypto.info("Identity keys reset, \(allAddresses.count) sessions cleared, new bundle uploaded")
     }
 
     // MARK: - Pre-Key Bundle Fetching
