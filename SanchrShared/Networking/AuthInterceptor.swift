@@ -14,12 +14,14 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
     private let onUnauthenticated: @Sendable () -> Void
 
     /// gRPC method paths that do not require an authorization header.
+    /// Sealed sender messages authenticate via delivery token, not JWT.
     private static var unauthenticatedPaths: Set<String> {
         [
             "/vync.auth.AuthService/Register",
             "/vync.auth.AuthService/VerifyOTP",
             "/vync.auth.AuthService/Login",
             "/vync.auth.AuthService/RefreshToken",
+            "/vync.messaging.MessagingService/SendSealedMessage",
         ]
     }
 
