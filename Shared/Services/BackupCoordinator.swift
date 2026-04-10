@@ -170,6 +170,44 @@ final class BackupCoordinator {
         return recoveryKey
     }
 
+    func listBackups() async throws -> [BackupListEntry] {
+        try await backupService.listBackups()
+    }
+
+    func restoreBackup(backupId: String, with recoveryKeyOverride: String?) async {
+        guard !isProcessing else { return }
+
+        do {
+            let recoveryKey = try resolvedRecoveryKey(recoveryKeyOverride)
+            let material = try backupKeyDeriver.deriveMaterial(
+                recoveryKey: recoveryKey,
+                userId: currentUserIdProvider()
+            )
+            isProcessing = true
+            errorMessage = nil
+
+            let result = try await backupService.restoreBackup(
+                backupId: backupId,
+                configuration: configuration,
+                material: material,
+                currentUserId: currentUserIdProvider()
+            )
+            _ = try recoveryKeyManager.persistRestoredBackup(
+                recoveryKey: recoveryKey,
+                lineageId: result.lineageID,
+                formatVersion: result.formatVersion,
+                lastBackupAt: result.backupDate,
+                lastBackupContentHash: result.contentHash
+            )
+            reload()
+            await postRestore()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isProcessing = false
+    }
+
     func reportError(_ error: Error) {
         errorMessage = error.localizedDescription
     }
