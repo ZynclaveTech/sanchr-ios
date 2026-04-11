@@ -266,7 +266,6 @@ struct ActiveCallView: View {
 
     // MARK: - Filter Picker
 
-    @ViewBuilder
     private func filterPicker(callManager: CallManager) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: SanchrSpacing.sm) {
@@ -274,7 +273,7 @@ struct ActiveCallView: View {
                     Button {
                         callManager.setVideoFilter(filter)
                     } label: {
-                        VStack(spacing: 4) {
+                        VStack(spacing: SanchrSpacing.xxs) {
                             ZStack {
                                 Circle()
                                     .fill(
@@ -285,14 +284,17 @@ struct ActiveCallView: View {
                                     .frame(width: 48, height: 48)
                                 Image(systemName: filterIcon(for: filter))
                                     .foregroundStyle(.white)
-                                    .font(.system(size: 18))
+                                    .font(SanchrTypography.bodyLarge)
                             }
                             Text(filter.displayName)
-                                .font(.caption2)
+                                .font(SanchrTypography.captionSmall)
                                 .foregroundStyle(.white.opacity(0.8))
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(filter.displayName) filter")
+                    .accessibilityValue(callManager.currentVideoFilter == filter ? "selected" : "")
+                    .accessibilityHint("Apply filter")
                 }
             }
             .padding(.horizontal, SanchrSpacing.md)
