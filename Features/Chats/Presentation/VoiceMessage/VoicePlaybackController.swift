@@ -4,7 +4,7 @@ import Observation
 import SanchrShared
 
 @Observable
-final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate {
+final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked Sendable {
 
     private(set) var currentlyPlayingMessageId: String?
     private(set) var progress: Double = 0

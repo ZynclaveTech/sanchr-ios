@@ -25,176 +25,178 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Contacts_SyncContactsRequest: Sendable {
+struct Sanchr_Contacts_SyncContactsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var phoneHashes: [Data] = []
+  var phoneHashes: [Data] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_SyncContactsResponse: Sendable {
+struct Sanchr_Contacts_SyncContactsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var matches: [Sanchr_Contacts_MatchedContact] = []
+  var matches: [Sanchr_Contacts_MatchedContact] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_MatchedContact: Sendable {
+struct Sanchr_Contacts_MatchedContact: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var displayName: String = String()
+  var displayName: String = String()
 
-  public var avatarURL: String = String()
+  var avatarURL: String = String()
 
-  public var statusText: String = String()
+  var statusText: String = String()
 
-  public var phoneNumber: String = String()
+  var phoneNumber: String = String()
 
-  public var profileKey: Data = Data()
+  /// Encrypted profile fields
+  var profileKey: Data = Data()
 
-  public var encryptedDisplayName: Data = Data()
+  var encryptedDisplayName: Data = Data()
 
-  public var encryptedBio: Data = Data()
+  var encryptedBio: Data = Data()
 
-  public var encryptedAvatarURL: Data = Data()
+  var encryptedAvatarURL: Data = Data()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_GetContactsRequest: Sendable {
+struct Sanchr_Contacts_GetContactsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_GetContactsResponse: Sendable {
+struct Sanchr_Contacts_GetContactsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var contacts: [Sanchr_Contacts_Contact] = []
+  var contacts: [Sanchr_Contacts_Contact] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_Contact: Sendable {
+struct Sanchr_Contacts_Contact: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var displayName: String = String()
+  var displayName: String = String()
 
-  public var avatarURL: String = String()
+  var avatarURL: String = String()
 
-  public var statusText: String = String()
+  var statusText: String = String()
 
-  public var isBlocked: Bool = false
+  var isBlocked: Bool = false
 
-  public var isFavorite: Bool = false
+  var isFavorite: Bool = false
 
-  public var phoneNumber: String = String()
+  var phoneNumber: String = String()
 
-  public var profileKey: Data = Data()
+  /// Encrypted profile fields
+  var profileKey: Data = Data()
 
-  public var encryptedDisplayName: Data = Data()
+  var encryptedDisplayName: Data = Data()
 
-  public var encryptedBio: Data = Data()
+  var encryptedBio: Data = Data()
 
-  public var encryptedAvatarURL: Data = Data()
+  var encryptedAvatarURL: Data = Data()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_BlockContactRequest: Sendable {
+struct Sanchr_Contacts_BlockContactRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var contactUserID: String = String()
+  var contactUserID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_BlockContactResponse: Sendable {
+struct Sanchr_Contacts_BlockContactResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_UnblockContactRequest: Sendable {
+struct Sanchr_Contacts_UnblockContactRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var contactUserID: String = String()
+  var contactUserID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_UnblockContactResponse: Sendable {
+struct Sanchr_Contacts_UnblockContactResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_GetBlockedListRequest: Sendable {
+struct Sanchr_Contacts_GetBlockedListRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Contacts_GetBlockedListResponse: Sendable {
+struct Sanchr_Contacts_GetBlockedListResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var blockedUserIds: [String] = []
+  var blockedUserIds: [String] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -202,10 +204,10 @@ public struct Sanchr_Contacts_GetBlockedListResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.contacts"
 
 extension Sanchr_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SyncContactsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_hashes\0")
+  static let protoMessageName: String = _protobuf_package + ".SyncContactsRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_hashes\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -217,14 +219,14 @@ extension Sanchr_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.phoneHashes.isEmpty {
       try visitor.visitRepeatedBytesField(value: self.phoneHashes, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_SyncContactsRequest, rhs: Sanchr_Contacts_SyncContactsRequest) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_SyncContactsRequest, rhs: Sanchr_Contacts_SyncContactsRequest) -> Bool {
     if lhs.phoneHashes != rhs.phoneHashes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -232,10 +234,10 @@ extension Sanchr_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SyncContactsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}matches\0")
+  static let protoMessageName: String = _protobuf_package + ".SyncContactsResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}matches\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -247,14 +249,14 @@ extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProt
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.matches.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.matches, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_SyncContactsResponse, rhs: Sanchr_Contacts_SyncContactsResponse) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_SyncContactsResponse, rhs: Sanchr_Contacts_SyncContactsResponse) -> Bool {
     if lhs.matches != rhs.matches {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -262,20 +264,10 @@ extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProt
 }
 
 extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".MatchedContact"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
-    2: .standard(proto: "display_name"),
-    3: .standard(proto: "avatar_url"),
-    4: .standard(proto: "status_text"),
-    5: .standard(proto: "phone_number"),
-    6: .standard(proto: "profile_key"),
-    7: .standard(proto: "encrypted_display_name"),
-    8: .standard(proto: "encrypted_bio"),
-    9: .standard(proto: "encrypted_avatar_url"),
-  ]
+  static let protoMessageName: String = _protobuf_package + ".MatchedContact"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -295,7 +287,7 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.userID.isEmpty {
       try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
     }
@@ -326,7 +318,7 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_MatchedContact, rhs: Sanchr_Contacts_MatchedContact) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_MatchedContact, rhs: Sanchr_Contacts_MatchedContact) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -342,29 +334,29 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Sanchr_Contacts_GetContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetContactsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".GetContactsRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_GetContactsRequest, rhs: Sanchr_Contacts_GetContactsRequest) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_GetContactsRequest, rhs: Sanchr_Contacts_GetContactsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetContactsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}contacts\0")
+  static let protoMessageName: String = _protobuf_package + ".GetContactsResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}contacts\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -376,14 +368,14 @@ extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.contacts.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.contacts, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_GetContactsResponse, rhs: Sanchr_Contacts_GetContactsResponse) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_GetContactsResponse, rhs: Sanchr_Contacts_GetContactsResponse) -> Bool {
     if lhs.contacts != rhs.contacts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -391,22 +383,10 @@ extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Contact"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
-    2: .standard(proto: "display_name"),
-    3: .standard(proto: "avatar_url"),
-    4: .standard(proto: "status_text"),
-    5: .standard(proto: "is_blocked"),
-    6: .standard(proto: "is_favorite"),
-    7: .standard(proto: "phone_number"),
-    8: .standard(proto: "profile_key"),
-    9: .standard(proto: "encrypted_display_name"),
-    10: .standard(proto: "encrypted_bio"),
-    11: .standard(proto: "encrypted_avatar_url"),
-  ]
+  static let protoMessageName: String = _protobuf_package + ".Contact"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -428,7 +408,7 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.userID.isEmpty {
       try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
     }
@@ -465,7 +445,7 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_Contact, rhs: Sanchr_Contacts_Contact) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_Contact, rhs: Sanchr_Contacts_Contact) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -483,10 +463,10 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
 }
 
 extension Sanchr_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BlockContactRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
+  static let protoMessageName: String = _protobuf_package + ".BlockContactRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -498,14 +478,14 @@ extension Sanchr_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.contactUserID.isEmpty {
       try visitor.visitSingularStringField(value: self.contactUserID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_BlockContactRequest, rhs: Sanchr_Contacts_BlockContactRequest) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_BlockContactRequest, rhs: Sanchr_Contacts_BlockContactRequest) -> Bool {
     if lhs.contactUserID != rhs.contactUserID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -513,29 +493,29 @@ extension Sanchr_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Sanchr_Contacts_BlockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BlockContactResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".BlockContactResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_BlockContactResponse, rhs: Sanchr_Contacts_BlockContactResponse) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_BlockContactResponse, rhs: Sanchr_Contacts_BlockContactResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UnblockContactRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
+  static let protoMessageName: String = _protobuf_package + ".UnblockContactRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -547,14 +527,14 @@ extension Sanchr_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.contactUserID.isEmpty {
       try visitor.visitSingularStringField(value: self.contactUserID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_UnblockContactRequest, rhs: Sanchr_Contacts_UnblockContactRequest) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_UnblockContactRequest, rhs: Sanchr_Contacts_UnblockContactRequest) -> Bool {
     if lhs.contactUserID != rhs.contactUserID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -562,48 +542,48 @@ extension Sanchr_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_Contacts_UnblockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UnblockContactResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".UnblockContactResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_UnblockContactResponse, rhs: Sanchr_Contacts_UnblockContactResponse) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_UnblockContactResponse, rhs: Sanchr_Contacts_UnblockContactResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Contacts_GetBlockedListRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBlockedListRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".GetBlockedListRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_GetBlockedListRequest, rhs: Sanchr_Contacts_GetBlockedListRequest) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_GetBlockedListRequest, rhs: Sanchr_Contacts_GetBlockedListRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Contacts_GetBlockedListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBlockedListResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blocked_user_ids\0")
+  static let protoMessageName: String = _protobuf_package + ".GetBlockedListResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blocked_user_ids\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -615,14 +595,14 @@ extension Sanchr_Contacts_GetBlockedListResponse: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.blockedUserIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.blockedUserIds, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Contacts_GetBlockedListResponse, rhs: Sanchr_Contacts_GetBlockedListResponse) -> Bool {
+  static func ==(lhs: Sanchr_Contacts_GetBlockedListResponse, rhs: Sanchr_Contacts_GetBlockedListResponse) -> Bool {
     if lhs.blockedUserIds != rhs.blockedUserIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

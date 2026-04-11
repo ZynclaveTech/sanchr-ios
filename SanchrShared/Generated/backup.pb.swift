@@ -25,192 +25,192 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Backup_BackupMetadata: Sendable {
+struct Sanchr_Backup_BackupMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var lineageID: String = String()
+  var lineageID: String = String()
 
-  public var formatVersion: Int32 = 0
+  var formatVersion: Int32 = 0
 
-  public var byteSize: Int64 = 0
+  var byteSize: Int64 = 0
 
-  public var sha256Hash: String = String()
+  var sha256Hash: String = String()
 
-  public var opaqueMetadata: Data = Data()
+  var opaqueMetadata: Data = Data()
 
-  public var reservedForwardSecrecyMetadata: Data = Data()
+  var reservedForwardSecrecyMetadata: Data = Data()
 
-  public var createdAt: String = String()
+  var createdAt: String = String()
 
-  public var committedAt: String = String()
+  var committedAt: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_CreateBackupUploadRequest: Sendable {
+struct Sanchr_Backup_CreateBackupUploadRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var byteSize: Int64 = 0
+  var byteSize: Int64 = 0
 
-  public var sha256Hash: String = String()
+  var sha256Hash: String = String()
 
-  public var opaqueMetadata: Data = Data()
+  var opaqueMetadata: Data = Data()
 
-  public var reservedForwardSecrecyMetadata: Data = Data()
+  var reservedForwardSecrecyMetadata: Data = Data()
 
-  public var lineageID: String = String()
+  var lineageID: String = String()
 
-  public var formatVersion: Int32 = 0
+  var formatVersion: Int32 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_CreateBackupUploadResponse: Sendable {
+struct Sanchr_Backup_CreateBackupUploadResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var lineageID: String = String()
+  var lineageID: String = String()
 
-  public var uploadURL: String = String()
+  var uploadURL: String = String()
 
-  public var expiresIn: Int64 = 0
+  var expiresIn: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_CommitBackupRequest: Sendable {
+struct Sanchr_Backup_CommitBackupRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var byteSize: Int64 = 0
+  var byteSize: Int64 = 0
 
-  public var sha256Hash: String = String()
+  var sha256Hash: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_CommitBackupResponse: Sendable {
+struct Sanchr_Backup_CommitBackupResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backup: Sanchr_Backup_BackupMetadata {
+  var backup: Sanchr_Backup_BackupMetadata {
     get {_backup ?? Sanchr_Backup_BackupMetadata()}
     set {_backup = newValue}
   }
   /// Returns true if `backup` has been explicitly set.
-  public var hasBackup: Bool {self._backup != nil}
+  var hasBackup: Bool {self._backup != nil}
   /// Clears the value of `backup`. Subsequent reads from it will return its default value.
-  public mutating func clearBackup() {self._backup = nil}
+  mutating func clearBackup() {self._backup = nil}
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 
   fileprivate var _backup: Sanchr_Backup_BackupMetadata? = nil
 }
 
-public struct Sanchr_Backup_ListBackupsRequest: Sendable {
+struct Sanchr_Backup_ListBackupsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_ListBackupsResponse: Sendable {
+struct Sanchr_Backup_ListBackupsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backups: [Sanchr_Backup_BackupMetadata] = []
+  var backups: [Sanchr_Backup_BackupMetadata] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_GetBackupDownloadRequest: Sendable {
+struct Sanchr_Backup_GetBackupDownloadRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_GetBackupDownloadResponse: Sendable {
+struct Sanchr_Backup_GetBackupDownloadResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var downloadURL: String = String()
+  var downloadURL: String = String()
 
-  public var expiresIn: Int64 = 0
+  var expiresIn: Int64 = 0
 
-  public var backup: Sanchr_Backup_BackupMetadata {
+  var backup: Sanchr_Backup_BackupMetadata {
     get {_backup ?? Sanchr_Backup_BackupMetadata()}
     set {_backup = newValue}
   }
   /// Returns true if `backup` has been explicitly set.
-  public var hasBackup: Bool {self._backup != nil}
+  var hasBackup: Bool {self._backup != nil}
   /// Clears the value of `backup`. Subsequent reads from it will return its default value.
-  public mutating func clearBackup() {self._backup = nil}
+  mutating func clearBackup() {self._backup = nil}
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 
   fileprivate var _backup: Sanchr_Backup_BackupMetadata? = nil
 }
 
-public struct Sanchr_Backup_DeleteBackupRequest: Sendable {
+struct Sanchr_Backup_DeleteBackupRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backupID: String = String()
+  var backupID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Backup_DeleteBackupResponse: Sendable {
+struct Sanchr_Backup_DeleteBackupResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -218,10 +218,10 @@ public struct Sanchr_Backup_DeleteBackupResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.backup"
 
 extension Sanchr_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}format_version\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}created_at\0\u{3}committed_at\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupMetadata"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}format_version\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}created_at\0\u{3}committed_at\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -241,7 +241,7 @@ extension Sanchr_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 1)
     }
@@ -272,7 +272,7 @@ extension Sanchr_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_BackupMetadata, rhs: Sanchr_Backup_BackupMetadata) -> Bool {
+  static func ==(lhs: Sanchr_Backup_BackupMetadata, rhs: Sanchr_Backup_BackupMetadata) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.lineageID != rhs.lineageID {return false}
     if lhs.formatVersion != rhs.formatVersion {return false}
@@ -288,10 +288,10 @@ extension Sanchr_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Sanchr_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}lineage_id\0\u{3}format_version\0")
+  static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}lineage_id\0\u{3}format_version\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -308,7 +308,7 @@ extension Sanchr_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.byteSize != 0 {
       try visitor.visitSingularInt64Field(value: self.byteSize, fieldNumber: 1)
     }
@@ -330,7 +330,7 @@ extension Sanchr_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_CreateBackupUploadRequest, rhs: Sanchr_Backup_CreateBackupUploadRequest) -> Bool {
+  static func ==(lhs: Sanchr_Backup_CreateBackupUploadRequest, rhs: Sanchr_Backup_CreateBackupUploadRequest) -> Bool {
     if lhs.byteSize != rhs.byteSize {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
     if lhs.opaqueMetadata != rhs.opaqueMetadata {return false}
@@ -343,10 +343,10 @@ extension Sanchr_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}upload_url\0\u{3}expires_in\0")
+  static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}upload_url\0\u{3}expires_in\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -361,7 +361,7 @@ extension Sanchr_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, Swift
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 1)
     }
@@ -377,7 +377,7 @@ extension Sanchr_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_CreateBackupUploadResponse, rhs: Sanchr_Backup_CreateBackupUploadResponse) -> Bool {
+  static func ==(lhs: Sanchr_Backup_CreateBackupUploadResponse, rhs: Sanchr_Backup_CreateBackupUploadResponse) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.lineageID != rhs.lineageID {return false}
     if lhs.uploadURL != rhs.uploadURL {return false}
@@ -388,10 +388,10 @@ extension Sanchr_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, Swift
 }
 
 extension Sanchr_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CommitBackupRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}byte_size\0\u{3}sha256_hash\0")
+  static let protoMessageName: String = _protobuf_package + ".CommitBackupRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}byte_size\0\u{3}sha256_hash\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -405,7 +405,7 @@ extension Sanchr_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 1)
     }
@@ -418,7 +418,7 @@ extension Sanchr_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_CommitBackupRequest, rhs: Sanchr_Backup_CommitBackupRequest) -> Bool {
+  static func ==(lhs: Sanchr_Backup_CommitBackupRequest, rhs: Sanchr_Backup_CommitBackupRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.byteSize != rhs.byteSize {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
@@ -428,10 +428,10 @@ extension Sanchr_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CommitBackupResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backup\0")
+  static let protoMessageName: String = _protobuf_package + ".CommitBackupResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backup\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -443,7 +443,7 @@ extension Sanchr_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -454,7 +454,7 @@ extension Sanchr_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_CommitBackupResponse, rhs: Sanchr_Backup_CommitBackupResponse) -> Bool {
+  static func ==(lhs: Sanchr_Backup_CommitBackupResponse, rhs: Sanchr_Backup_CommitBackupResponse) -> Bool {
     if lhs._backup != rhs._backup {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -462,29 +462,29 @@ extension Sanchr_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Sanchr_Backup_ListBackupsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ListBackupsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".ListBackupsRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_ListBackupsRequest, rhs: Sanchr_Backup_ListBackupsRequest) -> Bool {
+  static func ==(lhs: Sanchr_Backup_ListBackupsRequest, rhs: Sanchr_Backup_ListBackupsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ListBackupsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backups\0")
+  static let protoMessageName: String = _protobuf_package + ".ListBackupsResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backups\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -496,14 +496,14 @@ extension Sanchr_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backups.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.backups, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_ListBackupsResponse, rhs: Sanchr_Backup_ListBackupsResponse) -> Bool {
+  static func ==(lhs: Sanchr_Backup_ListBackupsResponse, rhs: Sanchr_Backup_ListBackupsResponse) -> Bool {
     if lhs.backups != rhs.backups {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -511,10 +511,10 @@ extension Sanchr_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
+  static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -526,14 +526,14 @@ extension Sanchr_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_GetBackupDownloadRequest, rhs: Sanchr_Backup_GetBackupDownloadRequest) -> Bool {
+  static func ==(lhs: Sanchr_Backup_GetBackupDownloadRequest, rhs: Sanchr_Backup_GetBackupDownloadRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -541,10 +541,10 @@ extension Sanchr_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Sanchr_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}download_url\0\u{3}expires_in\0\u{1}backup\0")
+  static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}download_url\0\u{3}expires_in\0\u{1}backup\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -559,7 +559,7 @@ extension Sanchr_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -579,7 +579,7 @@ extension Sanchr_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_GetBackupDownloadResponse, rhs: Sanchr_Backup_GetBackupDownloadResponse) -> Bool {
+  static func ==(lhs: Sanchr_Backup_GetBackupDownloadResponse, rhs: Sanchr_Backup_GetBackupDownloadResponse) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.downloadURL != rhs.downloadURL {return false}
     if lhs.expiresIn != rhs.expiresIn {return false}
@@ -590,10 +590,10 @@ extension Sanchr_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeleteBackupRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
+  static let protoMessageName: String = _protobuf_package + ".DeleteBackupRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -605,14 +605,14 @@ extension Sanchr_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_DeleteBackupRequest, rhs: Sanchr_Backup_DeleteBackupRequest) -> Bool {
+  static func ==(lhs: Sanchr_Backup_DeleteBackupRequest, rhs: Sanchr_Backup_DeleteBackupRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -620,19 +620,19 @@ extension Sanchr_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Backup_DeleteBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeleteBackupResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".DeleteBackupResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Backup_DeleteBackupResponse, rhs: Sanchr_Backup_DeleteBackupResponse) -> Bool {
+  static func ==(lhs: Sanchr_Backup_DeleteBackupResponse, rhs: Sanchr_Backup_DeleteBackupResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

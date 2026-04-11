@@ -25,80 +25,80 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Discovery_OprfDiscoverRequest: Sendable {
+struct Sanchr_Discovery_OprfDiscoverRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var blindedPoints: [Data] = []
+  var blindedPoints: [Data] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Discovery_OprfDiscoverResponse: Sendable {
+struct Sanchr_Discovery_OprfDiscoverResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var evaluatedPoints: [Data] = []
+  var evaluatedPoints: [Data] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Discovery_GetBloomFilterRequest: Sendable {
+struct Sanchr_Discovery_GetBloomFilterRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Discovery_GetBloomFilterResponse: Sendable {
+struct Sanchr_Discovery_GetBloomFilterResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var filterBits: Data = Data()
+  var filterBits: Data = Data()
 
-  public var numHashes: UInt32 = 0
+  var numHashes: UInt32 = 0
 
-  public var numBits: UInt64 = 0
+  var numBits: UInt64 = 0
 
-  public var dailySalt: Data = Data()
+  var dailySalt: Data = Data()
 
-  public var generatedAt: Int64 = 0
+  var generatedAt: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Discovery_GetRegisteredSetRequest: Sendable {
+struct Sanchr_Discovery_GetRegisteredSetRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Discovery_GetRegisteredSetResponse: Sendable {
+struct Sanchr_Discovery_GetRegisteredSetResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var setElements: [Data] = []
+  var setElements: [Data] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -106,10 +106,10 @@ public struct Sanchr_Discovery_GetRegisteredSetResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.discovery"
 
 extension Sanchr_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".OprfDiscoverRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blinded_points\0")
+  static let protoMessageName: String = _protobuf_package + ".OprfDiscoverRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blinded_points\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -121,14 +121,14 @@ extension Sanchr_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProt
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.blindedPoints.isEmpty {
       try visitor.visitRepeatedBytesField(value: self.blindedPoints, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_OprfDiscoverRequest, rhs: Sanchr_Discovery_OprfDiscoverRequest) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_OprfDiscoverRequest, rhs: Sanchr_Discovery_OprfDiscoverRequest) -> Bool {
     if lhs.blindedPoints != rhs.blindedPoints {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -136,10 +136,10 @@ extension Sanchr_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProt
 }
 
 extension Sanchr_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".OprfDiscoverResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}evaluated_points\0")
+  static let protoMessageName: String = _protobuf_package + ".OprfDiscoverResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}evaluated_points\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -151,14 +151,14 @@ extension Sanchr_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.evaluatedPoints.isEmpty {
       try visitor.visitRepeatedBytesField(value: self.evaluatedPoints, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_OprfDiscoverResponse, rhs: Sanchr_Discovery_OprfDiscoverResponse) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_OprfDiscoverResponse, rhs: Sanchr_Discovery_OprfDiscoverResponse) -> Bool {
     if lhs.evaluatedPoints != rhs.evaluatedPoints {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -166,29 +166,29 @@ extension Sanchr_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_Discovery_GetBloomFilterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBloomFilterRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".GetBloomFilterRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_GetBloomFilterRequest, rhs: Sanchr_Discovery_GetBloomFilterRequest) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_GetBloomFilterRequest, rhs: Sanchr_Discovery_GetBloomFilterRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetBloomFilterResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}filter_bits\0\u{3}num_hashes\0\u{3}num_bits\0\u{3}daily_salt\0\u{3}generated_at\0")
+  static let protoMessageName: String = _protobuf_package + ".GetBloomFilterResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}filter_bits\0\u{3}num_hashes\0\u{3}num_bits\0\u{3}daily_salt\0\u{3}generated_at\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -204,7 +204,7 @@ extension Sanchr_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.filterBits.isEmpty {
       try visitor.visitSingularBytesField(value: self.filterBits, fieldNumber: 1)
     }
@@ -223,7 +223,7 @@ extension Sanchr_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_GetBloomFilterResponse, rhs: Sanchr_Discovery_GetBloomFilterResponse) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_GetBloomFilterResponse, rhs: Sanchr_Discovery_GetBloomFilterResponse) -> Bool {
     if lhs.filterBits != rhs.filterBits {return false}
     if lhs.numHashes != rhs.numHashes {return false}
     if lhs.numBits != rhs.numBits {return false}
@@ -235,29 +235,29 @@ extension Sanchr_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_Discovery_GetRegisteredSetRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_GetRegisteredSetRequest, rhs: Sanchr_Discovery_GetRegisteredSetRequest) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_GetRegisteredSetRequest, rhs: Sanchr_Discovery_GetRegisteredSetRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Discovery_GetRegisteredSetResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}set_elements\0")
+  static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}set_elements\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -269,14 +269,14 @@ extension Sanchr_Discovery_GetRegisteredSetResponse: SwiftProtobuf.Message, Swif
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.setElements.isEmpty {
       try visitor.visitRepeatedBytesField(value: self.setElements, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Discovery_GetRegisteredSetResponse, rhs: Sanchr_Discovery_GetRegisteredSetResponse) -> Bool {
+  static func ==(lhs: Sanchr_Discovery_GetRegisteredSetResponse, rhs: Sanchr_Discovery_GetRegisteredSetResponse) -> Bool {
     if lhs.setElements != rhs.setElements {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

@@ -25,116 +25,116 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Vault_CreateVaultItemRequest: Sendable {
+struct Sanchr_Vault_CreateVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Client-generated UUIDv4 for idempotent crash recovery. Server uses this as the primary key; retries with the same ID are a no-op that return the existing row.
-  public var vaultItemID: String = String()
+  var vaultItemID: String = String()
 
   /// UUID of an already-uploaded media_object (via MediaService.GetUploadUrl + ConfirmUpload). The caller MUST own this media_id or the request is rejected.
-  public var mediaID: String = String()
+  var mediaID: String = String()
 
   /// Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side
   /// with AccessK_vault. Contains name, mime type, size, thumbnail, sender
   /// id, etc. Server treats this as an opaque byte string. Max 64 KiB;
   /// exceeding this returns INVALID_ARGUMENT.
-  public var encryptedMetadata: Data = Data()
+  var encryptedMetadata: Data = Data()
 
   /// Client-computed expiry hint (Unix millis). Used by the server-side orphan sweep for lifecycle management. Not cryptographically enforced.
-  public var expiresAt: Int64 = 0
+  var expiresAt: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_VaultItem: Sendable {
+struct Sanchr_Vault_VaultItem: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var vaultItemID: String = String()
+  var vaultItemID: String = String()
 
-  public var mediaID: String = String()
+  var mediaID: String = String()
 
-  public var encryptedMetadata: Data = Data()
+  var encryptedMetadata: Data = Data()
 
   /// Server-stamped Unix millis.
-  public var createdAt: Int64 = 0
+  var createdAt: Int64 = 0
 
   /// Unix millis. Echoes the value from CreateVaultItemRequest.expires_at.
-  public var expiresAt: Int64 = 0
+  var expiresAt: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_GetVaultItemsRequest: Sendable {
+struct Sanchr_Vault_GetVaultItemsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Page size, 1..=100. Zero or negative values default to 20.
-  public var limit: Int32 = 0
+  var limit: Int32 = 0
 
   /// Opaque paging cursor from a previous response's `next_cursor`.
-  public var pagingToken: String = String()
+  var pagingToken: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_GetVaultItemsResponse: Sendable {
+struct Sanchr_Vault_GetVaultItemsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var items: [Sanchr_Vault_VaultItem] = []
+  var items: [Sanchr_Vault_VaultItem] = []
 
   /// Empty string when no more pages. Forward this value as the next request's paging_token.
-  public var nextCursor: String = String()
+  var nextCursor: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_GetVaultItemRequest: Sendable {
+struct Sanchr_Vault_GetVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var vaultItemID: String = String()
+  var vaultItemID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_DeleteVaultItemRequest: Sendable {
+struct Sanchr_Vault_DeleteVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var vaultItemID: String = String()
+  var vaultItemID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Vault_DeleteVaultItemResponse: Sendable {
+struct Sanchr_Vault_DeleteVaultItemResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -142,10 +142,10 @@ public struct Sanchr_Vault_DeleteVaultItemResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.vault"
 
 extension Sanchr_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CreateVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}expires_at\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{b}ttl_seconds\0\u{c}\u{5}\u{1}\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}")
+  static let protoMessageName: String = _protobuf_package + ".CreateVaultItemRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}expires_at\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{b}ttl_seconds\0\u{c}\u{5}\u{1}\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -160,7 +160,7 @@ extension Sanchr_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.vaultItemID.isEmpty {
       try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
@@ -176,7 +176,7 @@ extension Sanchr_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_CreateVaultItemRequest, rhs: Sanchr_Vault_CreateVaultItemRequest) -> Bool {
+  static func ==(lhs: Sanchr_Vault_CreateVaultItemRequest, rhs: Sanchr_Vault_CreateVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
@@ -187,10 +187,10 @@ extension Sanchr_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Sanchr_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".VaultItem"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}created_at\0\u{3}expires_at\0\u{b}item_id\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{9}\u{1}\u{c}\u{a}\u{1}")
+  static let protoMessageName: String = _protobuf_package + ".VaultItem"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}created_at\0\u{3}expires_at\0\u{b}item_id\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{9}\u{1}\u{c}\u{a}\u{1}")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -206,7 +206,7 @@ extension Sanchr_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.vaultItemID.isEmpty {
       try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
@@ -225,7 +225,7 @@ extension Sanchr_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_VaultItem, rhs: Sanchr_Vault_VaultItem) -> Bool {
+  static func ==(lhs: Sanchr_Vault_VaultItem, rhs: Sanchr_Vault_VaultItem) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
@@ -237,10 +237,10 @@ extension Sanchr_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 }
 
 extension Sanchr_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0\u{3}paging_token\0\u{b}filter\0\u{b}before_item_id\0\u{c}\u{3}\u{1}")
+  static let protoMessageName: String = _protobuf_package + ".GetVaultItemsRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0\u{3}paging_token\0\u{b}filter\0\u{b}before_item_id\0\u{c}\u{3}\u{1}")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -253,7 +253,7 @@ extension Sanchr_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.limit != 0 {
       try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 1)
     }
@@ -263,7 +263,7 @@ extension Sanchr_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_GetVaultItemsRequest, rhs: Sanchr_Vault_GetVaultItemsRequest) -> Bool {
+  static func ==(lhs: Sanchr_Vault_GetVaultItemsRequest, rhs: Sanchr_Vault_GetVaultItemsRequest) -> Bool {
     if lhs.limit != rhs.limit {return false}
     if lhs.pagingToken != rhs.pagingToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -272,10 +272,10 @@ extension Sanchr_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{3}next_cursor\0\u{b}total_photos\0\u{b}total_videos\0\u{b}total_files\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
+  static let protoMessageName: String = _protobuf_package + ".GetVaultItemsResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{3}next_cursor\0\u{b}total_photos\0\u{b}total_videos\0\u{b}total_files\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -288,7 +288,7 @@ extension Sanchr_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.items.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 1)
     }
@@ -298,7 +298,7 @@ extension Sanchr_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_GetVaultItemsResponse, rhs: Sanchr_Vault_GetVaultItemsResponse) -> Bool {
+  static func ==(lhs: Sanchr_Vault_GetVaultItemsResponse, rhs: Sanchr_Vault_GetVaultItemsResponse) -> Bool {
     if lhs.items != rhs.items {return false}
     if lhs.nextCursor != rhs.nextCursor {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -307,10 +307,10 @@ extension Sanchr_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Sanchr_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
+  static let protoMessageName: String = _protobuf_package + ".GetVaultItemRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -322,14 +322,14 @@ extension Sanchr_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.vaultItemID.isEmpty {
       try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_GetVaultItemRequest, rhs: Sanchr_Vault_GetVaultItemRequest) -> Bool {
+  static func ==(lhs: Sanchr_Vault_GetVaultItemRequest, rhs: Sanchr_Vault_GetVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -337,10 +337,10 @@ extension Sanchr_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Sanchr_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
+  static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -352,14 +352,14 @@ extension Sanchr_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.vaultItemID.isEmpty {
       try visitor.visitSingularStringField(value: self.vaultItemID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_DeleteVaultItemRequest, rhs: Sanchr_Vault_DeleteVaultItemRequest) -> Bool {
+  static func ==(lhs: Sanchr_Vault_DeleteVaultItemRequest, rhs: Sanchr_Vault_DeleteVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -367,19 +367,19 @@ extension Sanchr_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Sanchr_Vault_DeleteVaultItemResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Vault_DeleteVaultItemResponse, rhs: Sanchr_Vault_DeleteVaultItemResponse) -> Bool {
+  static func ==(lhs: Sanchr_Vault_DeleteVaultItemResponse, rhs: Sanchr_Vault_DeleteVaultItemResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

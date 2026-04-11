@@ -25,315 +25,315 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_BackupPayload_BackupInfo: Sendable {
+struct Sanchr_BackupPayload_BackupInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var formatVersion: Int32 = 0
+  var formatVersion: Int32 = 0
 
-  public var exportedAtMs: Int64 = 0
+  var exportedAtMs: Int64 = 0
 
-  public var platform: String = String()
+  var platform: String = String()
 
-  public var appVersion: String = String()
+  var appVersion: String = String()
 
-  public var contactCount: Int64 = 0
+  var contactCount: Int64 = 0
 
-  public var conversationCount: Int64 = 0
+  var conversationCount: Int64 = 0
 
-  public var messageCount: Int64 = 0
+  var messageCount: Int64 = 0
 
-  public var vaultItemCount: Int64 = 0
+  var vaultItemCount: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupMediaPayload: Sendable {
+struct Sanchr_BackupPayload_BackupMediaPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var url: String = String()
+  var url: String = String()
 
-  public var thumbnailURL: String = String()
+  var thumbnailURL: String = String()
 
-  public var encryptionKey: Data = Data()
+  var encryptionKey: Data = Data()
 
-  public var encryptionIv: Data = Data()
+  var encryptionIv: Data = Data()
 
-  public var mimeType: String = String()
+  var mimeType: String = String()
 
-  public var sizeBytes: Int64 = 0
+  var sizeBytes: Int64 = 0
 
-  public var caption: String = String()
+  var caption: String = String()
 
-  public var width: Int32 = 0
+  var width: Int32 = 0
 
-  public var height: Int32 = 0
+  var height: Int32 = 0
 
-  public var durationMs: Int64 = 0
+  var durationMs: Int64 = 0
 
-  public var fileName: String = String()
+  var fileName: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupLocationPayload: Sendable {
+struct Sanchr_BackupPayload_BackupLocationPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var latitude: Double = 0
+  var latitude: Double = 0
 
-  public var longitude: Double = 0
+  var longitude: Double = 0
 
-  public var label: String = String()
+  var label: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupContactPayload: Sendable {
+struct Sanchr_BackupPayload_BackupContactPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var name: String = String()
+  var name: String = String()
 
-  public var phoneNumber: String = String()
+  var phoneNumber: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupContactRecord: Sendable {
+struct Sanchr_BackupPayload_BackupContactRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String = String()
+  var id: String = String()
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var phoneNumber: String = String()
+  var phoneNumber: String = String()
 
-  public var displayName: String = String()
+  var displayName: String = String()
 
-  public var avatarURL: String = String()
+  var avatarURL: String = String()
 
-  public var bio: String = String()
+  var bio: String = String()
 
-  public var isVerified: Bool = false
+  var isVerified: Bool = false
 
-  public var lastSeenMs: Int64 = 0
+  var lastSeenMs: Int64 = 0
 
-  public var status: String = String()
+  var status: String = String()
 
-  public var isLocalUser: Bool = false
+  var isLocalUser: Bool = false
 
-  public var isRegistered: Bool = false
+  var isRegistered: Bool = false
 
-  public var isBlocked: Bool = false
+  var isBlocked: Bool = false
 
-  public var isFavorite: Bool = false
+  var isFavorite: Bool = false
 
-  public var lastSyncedAtMs: Int64 = 0
+  var lastSyncedAtMs: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupConversationRecord: @unchecked Sendable {
+struct Sanchr_BackupPayload_BackupConversationRecord: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String {
+  var id: String {
     get {_storage._id}
     set {_uniqueStorage()._id = newValue}
   }
 
-  public var type: String {
+  var type: String {
     get {_storage._type}
     set {_uniqueStorage()._type = newValue}
   }
 
-  public var title: String {
+  var title: String {
     get {_storage._title}
     set {_uniqueStorage()._title = newValue}
   }
 
-  public var avatarURL: String {
+  var avatarURL: String {
     get {_storage._avatarURL}
     set {_uniqueStorage()._avatarURL = newValue}
   }
 
-  public var participantIds: [String] {
+  var participantIds: [String] {
     get {_storage._participantIds}
     set {_uniqueStorage()._participantIds = newValue}
   }
 
-  public var lastMessageID: String {
+  var lastMessageID: String {
     get {_storage._lastMessageID}
     set {_uniqueStorage()._lastMessageID = newValue}
   }
 
-  public var lastMessagePreview: String {
+  var lastMessagePreview: String {
     get {_storage._lastMessagePreview}
     set {_uniqueStorage()._lastMessagePreview = newValue}
   }
 
-  public var lastMessageTimestampMs: Int64 {
+  var lastMessageTimestampMs: Int64 {
     get {_storage._lastMessageTimestampMs}
     set {_uniqueStorage()._lastMessageTimestampMs = newValue}
   }
 
-  public var lastMessageSenderID: String {
+  var lastMessageSenderID: String {
     get {_storage._lastMessageSenderID}
     set {_uniqueStorage()._lastMessageSenderID = newValue}
   }
 
-  public var lastMessageStatus: String {
+  var lastMessageStatus: String {
     get {_storage._lastMessageStatus}
     set {_uniqueStorage()._lastMessageStatus = newValue}
   }
 
-  public var lastMessageContentType: String {
+  var lastMessageContentType: String {
     get {_storage._lastMessageContentType}
     set {_uniqueStorage()._lastMessageContentType = newValue}
   }
 
-  public var lastMessageContentBody: String {
+  var lastMessageContentBody: String {
     get {_storage._lastMessageContentBody}
     set {_uniqueStorage()._lastMessageContentBody = newValue}
   }
 
-  public var unreadCount: Int32 {
+  var unreadCount: Int32 {
     get {_storage._unreadCount}
     set {_uniqueStorage()._unreadCount = newValue}
   }
 
-  public var isPinned: Bool {
+  var isPinned: Bool {
     get {_storage._isPinned}
     set {_uniqueStorage()._isPinned = newValue}
   }
 
-  public var isMuted: Bool {
+  var isMuted: Bool {
     get {_storage._isMuted}
     set {_uniqueStorage()._isMuted = newValue}
   }
 
-  public var isArchived: Bool {
+  var isArchived: Bool {
     get {_storage._isArchived}
     set {_uniqueStorage()._isArchived = newValue}
   }
 
-  public var disappearingDurationMs: Int64 {
+  var disappearingDurationMs: Int64 {
     get {_storage._disappearingDurationMs}
     set {_uniqueStorage()._disappearingDurationMs = newValue}
   }
 
-  public var createdAtMs: Int64 {
+  var createdAtMs: Int64 {
     get {_storage._createdAtMs}
     set {_uniqueStorage()._createdAtMs = newValue}
   }
 
-  public var updatedAtMs: Int64 {
+  var updatedAtMs: Int64 {
     get {_storage._updatedAtMs}
     set {_uniqueStorage()._updatedAtMs = newValue}
   }
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public struct Sanchr_BackupPayload_BackupMessageRecord: Sendable {
+struct Sanchr_BackupPayload_BackupMessageRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String = String()
+  var id: String = String()
 
-  public var conversationID: String = String()
+  var conversationID: String = String()
 
-  public var senderID: String = String()
+  var senderID: String = String()
 
-  public var timestampMs: Int64 = 0
+  var timestampMs: Int64 = 0
 
-  public var contentType: String = String()
+  var contentType: String = String()
 
-  public var contentBody: String = String()
+  var contentBody: String = String()
 
-  public var previewText: String = String()
+  var previewText: String = String()
 
-  public var status: String = String()
+  var status: String = String()
 
-  public var isOutgoing: Bool = false
+  var isOutgoing: Bool = false
 
-  public var replyToMessageID: String = String()
+  var replyToMessageID: String = String()
 
-  public var expiresAtMs: Int64 = 0
+  var expiresAtMs: Int64 = 0
 
-  public var isDeleted: Bool = false
+  var isDeleted: Bool = false
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupVaultItemRecord: Sendable {
+struct Sanchr_BackupPayload_BackupVaultItemRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String = String()
+  var id: String = String()
 
-  public var name: String = String()
+  var name: String = String()
 
-  public var type: String = String()
+  var type: String = String()
 
-  public var sizeBytes: Int64 = 0
+  var sizeBytes: Int64 = 0
 
-  public var encryptionKey: Data = Data()
+  var encryptionKey: Data = Data()
 
-  public var encryptionIv: Data = Data()
+  var encryptionIv: Data = Data()
 
-  public var encryptedThumbnailURL: String = String()
+  var encryptedThumbnailURL: String = String()
 
-  public var createdAtMs: Int64 = 0
+  var createdAtMs: Int64 = 0
 
-  public var updatedAtMs: Int64 = 0
+  var updatedAtMs: Int64 = 0
 
-  public var isCachedLocally: Bool = false
+  var isCachedLocally: Bool = false
 
-  public var remoteURL: String = String()
+  var remoteURL: String = String()
 
-  public var localURL: String = String()
+  var localURL: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_BackupPayload_BackupFrame: Sendable {
+struct Sanchr_BackupPayload_BackupFrame: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var frame: Sanchr_BackupPayload_BackupFrame.OneOf_Frame? = nil
+  var frame: Sanchr_BackupPayload_BackupFrame.OneOf_Frame? = nil
 
-  public var info: Sanchr_BackupPayload_BackupInfo {
+  var info: Sanchr_BackupPayload_BackupInfo {
     get {
       if case .info(let v)? = frame {return v}
       return Sanchr_BackupPayload_BackupInfo()
@@ -341,7 +341,7 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
     set {frame = .info(newValue)}
   }
 
-  public var contact: Sanchr_BackupPayload_BackupContactRecord {
+  var contact: Sanchr_BackupPayload_BackupContactRecord {
     get {
       if case .contact(let v)? = frame {return v}
       return Sanchr_BackupPayload_BackupContactRecord()
@@ -349,7 +349,7 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
     set {frame = .contact(newValue)}
   }
 
-  public var conversation: Sanchr_BackupPayload_BackupConversationRecord {
+  var conversation: Sanchr_BackupPayload_BackupConversationRecord {
     get {
       if case .conversation(let v)? = frame {return v}
       return Sanchr_BackupPayload_BackupConversationRecord()
@@ -357,7 +357,7 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
     set {frame = .conversation(newValue)}
   }
 
-  public var message: Sanchr_BackupPayload_BackupMessageRecord {
+  var message: Sanchr_BackupPayload_BackupMessageRecord {
     get {
       if case .message(let v)? = frame {return v}
       return Sanchr_BackupPayload_BackupMessageRecord()
@@ -365,7 +365,7 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
     set {frame = .message(newValue)}
   }
 
-  public var vaultItem: Sanchr_BackupPayload_BackupVaultItemRecord {
+  var vaultItem: Sanchr_BackupPayload_BackupVaultItemRecord {
     get {
       if case .vaultItem(let v)? = frame {return v}
       return Sanchr_BackupPayload_BackupVaultItemRecord()
@@ -373,9 +373,9 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
     set {frame = .vaultItem(newValue)}
   }
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Frame: Equatable, Sendable {
+  enum OneOf_Frame: Equatable, Sendable {
     case info(Sanchr_BackupPayload_BackupInfo)
     case contact(Sanchr_BackupPayload_BackupContactRecord)
     case conversation(Sanchr_BackupPayload_BackupConversationRecord)
@@ -384,7 +384,7 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
 
   }
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -392,10 +392,10 @@ public struct Sanchr_BackupPayload_BackupFrame: Sendable {
 fileprivate let _protobuf_package = "sanchr.backup_payload"
 
 extension Sanchr_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{3}exported_at_ms\0\u{1}platform\0\u{3}app_version\0\u{3}contact_count\0\u{3}conversation_count\0\u{3}message_count\0\u{3}vault_item_count\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupInfo"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{3}exported_at_ms\0\u{1}platform\0\u{3}app_version\0\u{3}contact_count\0\u{3}conversation_count\0\u{3}message_count\0\u{3}vault_item_count\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -414,7 +414,7 @@ extension Sanchr_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.formatVersion != 0 {
       try visitor.visitSingularInt32Field(value: self.formatVersion, fieldNumber: 1)
     }
@@ -442,7 +442,7 @@ extension Sanchr_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupInfo, rhs: Sanchr_BackupPayload_BackupInfo) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupInfo, rhs: Sanchr_BackupPayload_BackupInfo) -> Bool {
     if lhs.formatVersion != rhs.formatVersion {return false}
     if lhs.exportedAtMs != rhs.exportedAtMs {return false}
     if lhs.platform != rhs.platform {return false}
@@ -457,10 +457,10 @@ extension Sanchr_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Sanchr_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupMediaPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}thumbnail_url\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}mime_type\0\u{3}size_bytes\0\u{1}caption\0\u{1}width\0\u{1}height\0\u{3}duration_ms\0\u{3}file_name\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupMediaPayload"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}thumbnail_url\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}mime_type\0\u{3}size_bytes\0\u{1}caption\0\u{1}width\0\u{1}height\0\u{3}duration_ms\0\u{3}file_name\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -482,7 +482,7 @@ extension Sanchr_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.url.isEmpty {
       try visitor.visitSingularStringField(value: self.url, fieldNumber: 1)
     }
@@ -519,7 +519,7 @@ extension Sanchr_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupMediaPayload, rhs: Sanchr_BackupPayload_BackupMediaPayload) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupMediaPayload, rhs: Sanchr_BackupPayload_BackupMediaPayload) -> Bool {
     if lhs.url != rhs.url {return false}
     if lhs.thumbnailURL != rhs.thumbnailURL {return false}
     if lhs.encryptionKey != rhs.encryptionKey {return false}
@@ -537,10 +537,10 @@ extension Sanchr_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupLocationPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}latitude\0\u{1}longitude\0\u{1}label\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupLocationPayload"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}latitude\0\u{1}longitude\0\u{1}label\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -554,7 +554,7 @@ extension Sanchr_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, Swi
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.latitude.bitPattern != 0 {
       try visitor.visitSingularDoubleField(value: self.latitude, fieldNumber: 1)
     }
@@ -567,7 +567,7 @@ extension Sanchr_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupLocationPayload, rhs: Sanchr_BackupPayload_BackupLocationPayload) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupLocationPayload, rhs: Sanchr_BackupPayload_BackupLocationPayload) -> Bool {
     if lhs.latitude != rhs.latitude {return false}
     if lhs.longitude != rhs.longitude {return false}
     if lhs.label != rhs.label {return false}
@@ -577,10 +577,10 @@ extension Sanchr_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, Swi
 }
 
 extension Sanchr_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupContactPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}phone_number\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupContactPayload"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}phone_number\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -593,7 +593,7 @@ extension Sanchr_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, Swif
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -603,7 +603,7 @@ extension Sanchr_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, Swif
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupContactPayload, rhs: Sanchr_BackupPayload_BackupContactPayload) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupContactPayload, rhs: Sanchr_BackupPayload_BackupContactPayload) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -612,10 +612,10 @@ extension Sanchr_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, Swif
 }
 
 extension Sanchr_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupContactRecord"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}user_id\0\u{3}phone_number\0\u{3}display_name\0\u{3}avatar_url\0\u{1}bio\0\u{3}is_verified\0\u{3}last_seen_ms\0\u{1}status\0\u{3}is_local_user\0\u{3}is_registered\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}last_synced_at_ms\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupContactRecord"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}user_id\0\u{3}phone_number\0\u{3}display_name\0\u{3}avatar_url\0\u{1}bio\0\u{3}is_verified\0\u{3}last_seen_ms\0\u{1}status\0\u{3}is_local_user\0\u{3}is_registered\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}last_synced_at_ms\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -640,7 +640,7 @@ extension Sanchr_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, Swift
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -686,7 +686,7 @@ extension Sanchr_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupContactRecord, rhs: Sanchr_BackupPayload_BackupContactRecord) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupContactRecord, rhs: Sanchr_BackupPayload_BackupContactRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.userID != rhs.userID {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
@@ -707,8 +707,8 @@ extension Sanchr_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, Swift
 }
 
 extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupConversationRecord"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{1}title\0\u{3}avatar_url\0\u{3}participant_ids\0\u{3}last_message_id\0\u{3}last_message_preview\0\u{3}last_message_timestamp_ms\0\u{3}last_message_sender_id\0\u{3}last_message_status\0\u{3}last_message_content_type\0\u{3}last_message_content_body\0\u{3}unread_count\0\u{3}is_pinned\0\u{3}is_muted\0\u{3}is_archived\0\u{3}disappearing_duration_ms\0\u{3}created_at_ms\0\u{3}updated_at_ms\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupConversationRecord"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{1}title\0\u{3}avatar_url\0\u{3}participant_ids\0\u{3}last_message_id\0\u{3}last_message_preview\0\u{3}last_message_timestamp_ms\0\u{3}last_message_sender_id\0\u{3}last_message_status\0\u{3}last_message_content_type\0\u{3}last_message_content_body\0\u{3}unread_count\0\u{3}is_pinned\0\u{3}is_muted\0\u{3}is_archived\0\u{3}disappearing_duration_ms\0\u{3}created_at_ms\0\u{3}updated_at_ms\0")
 
   fileprivate class _StorageClass {
     var _id: String = String()
@@ -769,7 +769,7 @@ extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, 
     return _storage
   }
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     _ = _uniqueStorage()
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
@@ -802,7 +802,7 @@ extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, 
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       if !_storage._id.isEmpty {
         try visitor.visitSingularStringField(value: _storage._id, fieldNumber: 1)
@@ -865,7 +865,7 @@ extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupConversationRecord, rhs: Sanchr_BackupPayload_BackupConversationRecord) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupConversationRecord, rhs: Sanchr_BackupPayload_BackupConversationRecord) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -899,10 +899,10 @@ extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, 
 }
 
 extension Sanchr_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupMessageRecord"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}conversation_id\0\u{3}sender_id\0\u{3}timestamp_ms\0\u{3}content_type\0\u{3}content_body\0\u{3}preview_text\0\u{1}status\0\u{3}is_outgoing\0\u{3}reply_to_message_id\0\u{3}expires_at_ms\0\u{3}is_deleted\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupMessageRecord"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}conversation_id\0\u{3}sender_id\0\u{3}timestamp_ms\0\u{3}content_type\0\u{3}content_body\0\u{3}preview_text\0\u{1}status\0\u{3}is_outgoing\0\u{3}reply_to_message_id\0\u{3}expires_at_ms\0\u{3}is_deleted\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -925,7 +925,7 @@ extension Sanchr_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, Swift
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -965,7 +965,7 @@ extension Sanchr_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupMessageRecord, rhs: Sanchr_BackupPayload_BackupMessageRecord) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupMessageRecord, rhs: Sanchr_BackupPayload_BackupMessageRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.senderID != rhs.senderID {return false}
@@ -984,10 +984,10 @@ extension Sanchr_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, Swift
 }
 
 extension Sanchr_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupVaultItemRecord"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}type\0\u{3}size_bytes\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}encrypted_thumbnail_url\0\u{3}created_at_ms\0\u{3}updated_at_ms\0\u{3}is_cached_locally\0\u{3}remote_url\0\u{3}local_url\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupVaultItemRecord"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}type\0\u{3}size_bytes\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}encrypted_thumbnail_url\0\u{3}created_at_ms\0\u{3}updated_at_ms\0\u{3}is_cached_locally\0\u{3}remote_url\0\u{3}local_url\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -1010,7 +1010,7 @@ extension Sanchr_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, Swi
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -1050,7 +1050,7 @@ extension Sanchr_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupVaultItemRecord, rhs: Sanchr_BackupPayload_BackupVaultItemRecord) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupVaultItemRecord, rhs: Sanchr_BackupPayload_BackupVaultItemRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.name != rhs.name {return false}
     if lhs.type != rhs.type {return false}
@@ -1069,10 +1069,10 @@ extension Sanchr_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, Swi
 }
 
 extension Sanchr_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BackupFrame"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}info\0\u{1}contact\0\u{1}conversation\0\u{1}message\0\u{3}vault_item\0")
+  static let protoMessageName: String = _protobuf_package + ".BackupFrame"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}info\0\u{1}contact\0\u{1}conversation\0\u{1}message\0\u{3}vault_item\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -1148,7 +1148,7 @@ extension Sanchr_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -1179,7 +1179,7 @@ extension Sanchr_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_BackupPayload_BackupFrame, rhs: Sanchr_BackupPayload_BackupFrame) -> Bool {
+  static func ==(lhs: Sanchr_BackupPayload_BackupFrame, rhs: Sanchr_BackupPayload_BackupFrame) -> Bool {
     if lhs.frame != rhs.frame {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

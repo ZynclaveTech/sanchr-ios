@@ -20,22 +20,22 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Ekf_EkfRotationNeeded: Sendable {
+struct Sanchr_Ekf_EkfRotationNeeded: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var keyClass: String = String()
+  var keyClass: String = String()
 
-  public var expiredAt: Int64 = 0
+  var expiredAt: Int64 = 0
 
-  public var entryID: String = String()
+  var entryID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -43,10 +43,10 @@ public struct Sanchr_Ekf_EkfRotationNeeded: Sendable {
 fileprivate let _protobuf_package = "sanchr.ekf"
 
 extension Sanchr_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".EkfRotationNeeded"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}key_class\0\u{3}expired_at\0\u{3}entry_id\0")
+  static let protoMessageName: String = _protobuf_package + ".EkfRotationNeeded"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}key_class\0\u{3}expired_at\0\u{3}entry_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -61,7 +61,7 @@ extension Sanchr_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.userID.isEmpty {
       try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
     }
@@ -77,7 +77,7 @@ extension Sanchr_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Ekf_EkfRotationNeeded, rhs: Sanchr_Ekf_EkfRotationNeeded) -> Bool {
+  static func ==(lhs: Sanchr_Ekf_EkfRotationNeeded, rhs: Sanchr_Ekf_EkfRotationNeeded) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.keyClass != rhs.keyClass {return false}
     if lhs.expiredAt != rhs.expiredAt {return false}

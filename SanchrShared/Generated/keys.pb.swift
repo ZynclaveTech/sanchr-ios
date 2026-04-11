@@ -25,242 +25,242 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Sanchr_Keys_SignedPreKey: Sendable {
+struct Sanchr_Keys_SignedPreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var keyID: Int32 = 0
+  var keyID: Int32 = 0
 
-  public var publicKey: Data = Data()
+  var publicKey: Data = Data()
 
-  public var signature: Data = Data()
+  var signature: Data = Data()
 
-  public var timestamp: Int64 = 0
+  var timestamp: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_OneTimePreKey: Sendable {
+struct Sanchr_Keys_OneTimePreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var keyID: Int32 = 0
+  var keyID: Int32 = 0
 
-  public var publicKey: Data = Data()
+  var publicKey: Data = Data()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_KyberPreKey: Sendable {
+struct Sanchr_Keys_KyberPreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var keyID: Int32 = 0
+  var keyID: Int32 = 0
 
-  public var publicKey: Data = Data()
+  var publicKey: Data = Data()
 
-  public var signature: Data = Data()
+  var signature: Data = Data()
 
-  public var timestamp: Int64 = 0
+  var timestamp: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_KeyBundle: Sendable {
+struct Sanchr_Keys_KeyBundle: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var identityPublicKey: Data = Data()
+  var identityPublicKey: Data = Data()
 
-  public var signedPreKey: Sanchr_Keys_SignedPreKey {
+  var signedPreKey: Sanchr_Keys_SignedPreKey {
     get {_signedPreKey ?? Sanchr_Keys_SignedPreKey()}
     set {_signedPreKey = newValue}
   }
   /// Returns true if `signedPreKey` has been explicitly set.
-  public var hasSignedPreKey: Bool {self._signedPreKey != nil}
+  var hasSignedPreKey: Bool {self._signedPreKey != nil}
   /// Clears the value of `signedPreKey`. Subsequent reads from it will return its default value.
-  public mutating func clearSignedPreKey() {self._signedPreKey = nil}
+  mutating func clearSignedPreKey() {self._signedPreKey = nil}
 
-  public var oneTimePreKeys: [Sanchr_Keys_OneTimePreKey] = []
+  var oneTimePreKeys: [Sanchr_Keys_OneTimePreKey] = []
 
-  public var registrationID: Int32 = 0
+  var registrationID: Int32 = 0
 
-  public var deviceID: Int32 = 0
+  var deviceID: Int32 = 0
 
-  public var kyberPreKey: Sanchr_Keys_KyberPreKey {
+  var kyberPreKey: Sanchr_Keys_KyberPreKey {
     get {_kyberPreKey ?? Sanchr_Keys_KyberPreKey()}
     set {_kyberPreKey = newValue}
   }
   /// Returns true if `kyberPreKey` has been explicitly set.
-  public var hasKyberPreKey: Bool {self._kyberPreKey != nil}
+  var hasKyberPreKey: Bool {self._kyberPreKey != nil}
   /// Clears the value of `kyberPreKey`. Subsequent reads from it will return its default value.
-  public mutating func clearKyberPreKey() {self._kyberPreKey = nil}
+  mutating func clearKyberPreKey() {self._kyberPreKey = nil}
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 
   fileprivate var _signedPreKey: Sanchr_Keys_SignedPreKey? = nil
   fileprivate var _kyberPreKey: Sanchr_Keys_KyberPreKey? = nil
 }
 
-public struct Sanchr_Keys_UploadKeyBundleResponse: Sendable {
+struct Sanchr_Keys_UploadKeyBundleResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_GetPreKeyBundleRequest: Sendable {
+struct Sanchr_Keys_GetPreKeyBundleRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var deviceID: Int32 = 0
+  var deviceID: Int32 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_PreKeyBundleResponse: Sendable {
+struct Sanchr_Keys_PreKeyBundleResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var identityPublicKey: Data = Data()
+  var identityPublicKey: Data = Data()
 
-  public var signedPreKey: Sanchr_Keys_SignedPreKey {
+  var signedPreKey: Sanchr_Keys_SignedPreKey {
     get {_signedPreKey ?? Sanchr_Keys_SignedPreKey()}
     set {_signedPreKey = newValue}
   }
   /// Returns true if `signedPreKey` has been explicitly set.
-  public var hasSignedPreKey: Bool {self._signedPreKey != nil}
+  var hasSignedPreKey: Bool {self._signedPreKey != nil}
   /// Clears the value of `signedPreKey`. Subsequent reads from it will return its default value.
-  public mutating func clearSignedPreKey() {self._signedPreKey = nil}
+  mutating func clearSignedPreKey() {self._signedPreKey = nil}
 
-  public var oneTimePreKey: Sanchr_Keys_OneTimePreKey {
+  var oneTimePreKey: Sanchr_Keys_OneTimePreKey {
     get {_oneTimePreKey ?? Sanchr_Keys_OneTimePreKey()}
     set {_oneTimePreKey = newValue}
   }
   /// Returns true if `oneTimePreKey` has been explicitly set.
-  public var hasOneTimePreKey: Bool {self._oneTimePreKey != nil}
+  var hasOneTimePreKey: Bool {self._oneTimePreKey != nil}
   /// Clears the value of `oneTimePreKey`. Subsequent reads from it will return its default value.
-  public mutating func clearOneTimePreKey() {self._oneTimePreKey = nil}
+  mutating func clearOneTimePreKey() {self._oneTimePreKey = nil}
 
-  public var deviceID: Int32 = 0
+  var deviceID: Int32 = 0
 
-  public var registrationID: Int32 = 0
+  var registrationID: Int32 = 0
 
-  public var kyberPreKey: Sanchr_Keys_KyberPreKey {
+  var kyberPreKey: Sanchr_Keys_KyberPreKey {
     get {_kyberPreKey ?? Sanchr_Keys_KyberPreKey()}
     set {_kyberPreKey = newValue}
   }
   /// Returns true if `kyberPreKey` has been explicitly set.
-  public var hasKyberPreKey: Bool {self._kyberPreKey != nil}
+  var hasKyberPreKey: Bool {self._kyberPreKey != nil}
   /// Clears the value of `kyberPreKey`. Subsequent reads from it will return its default value.
-  public mutating func clearKyberPreKey() {self._kyberPreKey = nil}
+  mutating func clearKyberPreKey() {self._kyberPreKey = nil}
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 
   fileprivate var _signedPreKey: Sanchr_Keys_SignedPreKey? = nil
   fileprivate var _oneTimePreKey: Sanchr_Keys_OneTimePreKey? = nil
   fileprivate var _kyberPreKey: Sanchr_Keys_KyberPreKey? = nil
 }
 
-public struct Sanchr_Keys_UploadOneTimePreKeysRequest: Sendable {
+struct Sanchr_Keys_UploadOneTimePreKeysRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var keys: [Sanchr_Keys_OneTimePreKey] = []
+  var keys: [Sanchr_Keys_OneTimePreKey] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_PreKeyCountResponse: Sendable {
+struct Sanchr_Keys_PreKeyCountResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var count: Int32 = 0
+  var count: Int32 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_GetPreKeyCountRequest: Sendable {
+struct Sanchr_Keys_GetPreKeyCountRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_GetUserDevicesRequest: Sendable {
+struct Sanchr_Keys_GetUserDevicesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: String = String()
+  var userID: String = String()
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_GetUserDevicesResponse: Sendable {
+struct Sanchr_Keys_GetUserDevicesResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var devices: [Sanchr_Keys_DeviceInfo] = []
+  var devices: [Sanchr_Keys_DeviceInfo] = []
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
-public struct Sanchr_Keys_DeviceInfo: Sendable {
+struct Sanchr_Keys_DeviceInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var deviceID: Int32 = 0
+  var deviceID: Int32 = 0
 
-  public var platform: String = String()
+  var platform: String = String()
 
-  public var supportsDeliveryAck: Bool = false
+  var supportsDeliveryAck: Bool = false
 
-  public var keyCapable: Bool = false
+  var keyCapable: Bool = false
 
-  public var lastActiveAt: Int64 = 0
+  var lastActiveAt: Int64 = 0
 
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public init() {}
+  init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -268,10 +268,10 @@ public struct Sanchr_Keys_DeviceInfo: Sendable {
 fileprivate let _protobuf_package = "sanchr.keys"
 
 extension Sanchr_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SignedPreKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
+  static let protoMessageName: String = _protobuf_package + ".SignedPreKey"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -286,7 +286,7 @@ extension Sanchr_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._Messag
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.keyID != 0 {
       try visitor.visitSingularInt32Field(value: self.keyID, fieldNumber: 1)
     }
@@ -302,7 +302,7 @@ extension Sanchr_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_SignedPreKey, rhs: Sanchr_Keys_SignedPreKey) -> Bool {
+  static func ==(lhs: Sanchr_Keys_SignedPreKey, rhs: Sanchr_Keys_SignedPreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.signature != rhs.signature {return false}
@@ -313,10 +313,10 @@ extension Sanchr_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._Messag
 }
 
 extension Sanchr_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".OneTimePreKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0")
+  static let protoMessageName: String = _protobuf_package + ".OneTimePreKey"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -329,7 +329,7 @@ extension Sanchr_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Messa
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.keyID != 0 {
       try visitor.visitSingularInt32Field(value: self.keyID, fieldNumber: 1)
     }
@@ -339,7 +339,7 @@ extension Sanchr_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_OneTimePreKey, rhs: Sanchr_Keys_OneTimePreKey) -> Bool {
+  static func ==(lhs: Sanchr_Keys_OneTimePreKey, rhs: Sanchr_Keys_OneTimePreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -348,10 +348,10 @@ extension Sanchr_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Messa
 }
 
 extension Sanchr_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".KyberPreKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
+  static let protoMessageName: String = _protobuf_package + ".KyberPreKey"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -366,7 +366,7 @@ extension Sanchr_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.keyID != 0 {
       try visitor.visitSingularInt32Field(value: self.keyID, fieldNumber: 1)
     }
@@ -382,7 +382,7 @@ extension Sanchr_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_KyberPreKey, rhs: Sanchr_Keys_KyberPreKey) -> Bool {
+  static func ==(lhs: Sanchr_Keys_KyberPreKey, rhs: Sanchr_Keys_KyberPreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.signature != rhs.signature {return false}
@@ -393,10 +393,10 @@ extension Sanchr_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
 }
 
 extension Sanchr_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".KeyBundle"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_keys\0\u{3}registration_id\0\u{3}device_id\0\u{3}kyber_pre_key\0")
+  static let protoMessageName: String = _protobuf_package + ".KeyBundle"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_keys\0\u{3}registration_id\0\u{3}device_id\0\u{3}kyber_pre_key\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -413,7 +413,7 @@ extension Sanchr_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -439,7 +439,7 @@ extension Sanchr_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_KeyBundle, rhs: Sanchr_Keys_KeyBundle) -> Bool {
+  static func ==(lhs: Sanchr_Keys_KeyBundle, rhs: Sanchr_Keys_KeyBundle) -> Bool {
     if lhs.identityPublicKey != rhs.identityPublicKey {return false}
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs.oneTimePreKeys != rhs.oneTimePreKeys {return false}
@@ -452,29 +452,29 @@ extension Sanchr_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
 }
 
 extension Sanchr_Keys_UploadKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UploadKeyBundleResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".UploadKeyBundleResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_UploadKeyBundleResponse, rhs: Sanchr_Keys_UploadKeyBundleResponse) -> Bool {
+  static func ==(lhs: Sanchr_Keys_UploadKeyBundleResponse, rhs: Sanchr_Keys_UploadKeyBundleResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetPreKeyBundleRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}device_id\0")
+  static let protoMessageName: String = _protobuf_package + ".GetPreKeyBundleRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}device_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -487,7 +487,7 @@ extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.userID.isEmpty {
       try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
     }
@@ -497,7 +497,7 @@ extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_GetPreKeyBundleRequest, rhs: Sanchr_Keys_GetPreKeyBundleRequest) -> Bool {
+  static func ==(lhs: Sanchr_Keys_GetPreKeyBundleRequest, rhs: Sanchr_Keys_GetPreKeyBundleRequest) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -506,10 +506,10 @@ extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Sanchr_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PreKeyBundleResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_key\0\u{3}device_id\0\u{3}registration_id\0\u{3}kyber_pre_key\0")
+  static let protoMessageName: String = _protobuf_package + ".PreKeyBundleResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_key\0\u{3}device_id\0\u{3}registration_id\0\u{3}kyber_pre_key\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -526,7 +526,7 @@ extension Sanchr_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -552,7 +552,7 @@ extension Sanchr_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_PreKeyBundleResponse, rhs: Sanchr_Keys_PreKeyBundleResponse) -> Bool {
+  static func ==(lhs: Sanchr_Keys_PreKeyBundleResponse, rhs: Sanchr_Keys_PreKeyBundleResponse) -> Bool {
     if lhs.identityPublicKey != rhs.identityPublicKey {return false}
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs._oneTimePreKey != rhs._oneTimePreKey {return false}
@@ -565,10 +565,10 @@ extension Sanchr_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Sanchr_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UploadOneTimePreKeysRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}keys\0")
+  static let protoMessageName: String = _protobuf_package + ".UploadOneTimePreKeysRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}keys\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -580,14 +580,14 @@ extension Sanchr_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.keys.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.keys, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_UploadOneTimePreKeysRequest, rhs: Sanchr_Keys_UploadOneTimePreKeysRequest) -> Bool {
+  static func ==(lhs: Sanchr_Keys_UploadOneTimePreKeysRequest, rhs: Sanchr_Keys_UploadOneTimePreKeysRequest) -> Bool {
     if lhs.keys != rhs.keys {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -595,10 +595,10 @@ extension Sanchr_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PreKeyCountResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}count\0")
+  static let protoMessageName: String = _protobuf_package + ".PreKeyCountResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}count\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -610,14 +610,14 @@ extension Sanchr_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.count != 0 {
       try visitor.visitSingularInt32Field(value: self.count, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_PreKeyCountResponse, rhs: Sanchr_Keys_PreKeyCountResponse) -> Bool {
+  static func ==(lhs: Sanchr_Keys_PreKeyCountResponse, rhs: Sanchr_Keys_PreKeyCountResponse) -> Bool {
     if lhs.count != rhs.count {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -625,29 +625,29 @@ extension Sanchr_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Sanchr_Keys_GetPreKeyCountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetPreKeyCountRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  static let protoMessageName: String = _protobuf_package + ".GetPreKeyCountRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_GetPreKeyCountRequest, rhs: Sanchr_Keys_GetPreKeyCountRequest) -> Bool {
+  static func ==(lhs: Sanchr_Keys_GetPreKeyCountRequest, rhs: Sanchr_Keys_GetPreKeyCountRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetUserDevicesRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0")
+  static let protoMessageName: String = _protobuf_package + ".GetUserDevicesRequest"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -659,14 +659,14 @@ extension Sanchr_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.userID.isEmpty {
       try visitor.visitSingularStringField(value: self.userID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_GetUserDevicesRequest, rhs: Sanchr_Keys_GetUserDevicesRequest) -> Bool {
+  static func ==(lhs: Sanchr_Keys_GetUserDevicesRequest, rhs: Sanchr_Keys_GetUserDevicesRequest) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -674,10 +674,10 @@ extension Sanchr_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetUserDevicesResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
+  static let protoMessageName: String = _protobuf_package + ".GetUserDevicesResponse"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -689,14 +689,14 @@ extension Sanchr_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.devices.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.devices, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_GetUserDevicesResponse, rhs: Sanchr_Keys_GetUserDevicesResponse) -> Bool {
+  static func ==(lhs: Sanchr_Keys_GetUserDevicesResponse, rhs: Sanchr_Keys_GetUserDevicesResponse) -> Bool {
     if lhs.devices != rhs.devices {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -704,10 +704,10 @@ extension Sanchr_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Sanchr_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{1}platform\0\u{3}supports_delivery_ack\0\u{3}key_capable\0\u{3}last_active_at\0")
+  static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{1}platform\0\u{3}supports_delivery_ack\0\u{3}key_capable\0\u{3}last_active_at\0")
 
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -723,7 +723,7 @@ extension Sanchr_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.deviceID != 0 {
       try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 1)
     }
@@ -742,7 +742,7 @@ extension Sanchr_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Sanchr_Keys_DeviceInfo, rhs: Sanchr_Keys_DeviceInfo) -> Bool {
+  static func ==(lhs: Sanchr_Keys_DeviceInfo, rhs: Sanchr_Keys_DeviceInfo) -> Bool {
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.supportsDeliveryAck != rhs.supportsDeliveryAck {return false}
