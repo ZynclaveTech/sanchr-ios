@@ -45,17 +45,17 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Sends a typing indicator to a conversation.
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws
 
-    /// Sends a device presence heartbeat through the live realtime stream.
-    func sendPresenceHeartbeat(
-        deviceState: Sanchr_Messaging_DevicePresenceState,
-        sentAtMs: Int64
+    /// Sends a P2P sealed-sender presence update directly to a contact's devices.
+    /// Presence rides inside a sealed envelope (contentType "presence/v1") so the
+    /// server cannot read it or correlate it with user identity.
+    func sendP2PPresence(
+        recipientUserId: String,
+        statusCode: Sanchr_Messaging_PresenceStatus,
+        lastSeenMs: Int64
     ) async throws
 
     /// Fetches the pre-key bundle for a user to establish an encrypted session.
     func fetchPreKeyBundle(userId: String) async throws -> Data
-
-    /// Fetches current presence state for authorized peers.
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate]
 
     /// Drains pending messages from the server, decrypts, and saves locally.
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult
@@ -483,21 +483,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                     )
                             }
                             continuation.yield(.receipt(receipt))
-                        case .presence(let presence):
-                            // Write-through: persist presence into the
-                            // local user row so ChatsListView and
-                            // ContactsView dots come alive. Both
-                            // already read User.status / User.lastSeen,
-                            // but nothing was updating them.
-                            let mappedLastSeen: Date? = presence.lastSeen > 0
-                                ? Date(timeIntervalSince1970: TimeInterval(presence.lastSeen) / 1000.0)
-                                : nil
-                            try? await self.localDatabase.updateUserPresence(
-                                userId: presence.userID,
-                                status: User.Status(from: presence.statusCode),
-                                lastSeen: mappedLastSeen
-                            )
-                            continuation.yield(.presence(presence))
+                        case .presence:
+                            // Server no longer pushes presence — presence
+                            // now arrives as sealed P2P envelopes and is
+                            // routed inside the .sealedMessage arm below.
+                            break
                         case .preKeyCountLow(let preKeyCountLow):
                             continuation.yield(.preKeyCountLow(preKeyCountLow))
                         case .callOffer(let offer):
@@ -507,9 +497,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         case .reaction(let reaction):
                             continuation.yield(.reaction(reaction))
                         case .sealedMessage(let sealed):
-                            if let message = await self.decodeSealedMessage(from: sealed) {
-                                _ = try? await self.flushPendingAcks()
-                                continuation.yield(.message(message))
+                            if let event = await self.decodeSealedMessage(from: sealed) {
+                                if case .message = event {
+                                    _ = try? await self.flushPendingAcks()
+                                }
+                                continuation.yield(event)
                             }
                         }
                     }
@@ -550,19 +542,49 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         await streamController.send(clientEvent)
     }
 
-    func sendPresenceHeartbeat(
-        deviceState: Sanchr_Messaging_DevicePresenceState,
-        sentAtMs: Int64
+    func sendP2PPresence(
+        recipientUserId: String,
+        statusCode: Sanchr_Messaging_PresenceStatus,
+        lastSeenMs: Int64
     ) async throws {
         guard privacyGate.decide(.presenceHeartbeat) == .allow else { return }
+        guard !recipientUserId.isEmpty else { return }
 
-        var heartbeat = Sanchr_Messaging_PresenceHeartbeat()
-        heartbeat.deviceState = deviceState
-        heartbeat.sentAtMs = sentAtMs
+        var presenceUpdate = Sanchr_Messaging_PresenceUpdate()
+        presenceUpdate.userID = currentUserIdProvider() ?? ""
+        presenceUpdate.statusCode = statusCode
+        presenceUpdate.status = statusCode == .online ? "online" : "offline"
+        presenceUpdate.lastSeen = statusCode == .online ? 0 : lastSeenMs
 
-        var clientEvent = Sanchr_Messaging_ClientEvent()
-        clientEvent.heartbeat = heartbeat
-        await streamController.send(clientEvent)
+        let content = try presenceUpdate.serializedData()
+        let innerPayload = try sealedSenderManager.encodeInnerPayload(
+            conversationId: "",
+            contentType: "presence/v1",
+            content: content,
+            isSync: false
+        )
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+        let encrypted = try await signalProtocol.encryptForAllDevices(
+            plaintext: innerPayload,
+            recipientId: recipientUserId
+        )
+        guard !encrypted.isEmpty else { return }
+
+        let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
+            var sdm = Sanchr_Messaging_SealedDeviceMessage()
+            sdm.recipientID = dm.recipientID
+            sdm.deviceID = dm.deviceID
+            sdm.sealedEnvelope = dm.ciphertext
+            return sdm
+        }
+
+        var request = Sanchr_Messaging_SendSealedMessageRequest()
+        request.deliveryToken = deliveryToken
+        request.deviceMessages = deviceMessages
+        _ = try await grpcClient.messagingService.sendSealedMessage(request)
+
+        Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
     }
 
     func fetchPreKeyBundle(userId: String) async throws -> Data {
@@ -576,16 +598,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         // Serialize the pre-key bundle response to Data for the caller
         return try response.serializedData()
-    }
-
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate] {
-        guard !userIds.isEmpty else { return [] }
-
-        var request = Sanchr_Messaging_GetPresenceSnapshotRequest()
-        request.userIds = userIds
-
-        let response = try await grpcClient.messagingService.getPresenceSnapshot(request)
-        return response.users
     }
 
     // MARK: - Sync
@@ -728,9 +740,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ///    content_type, content, is_sync).
     /// 3. If `isSync` is true, save as an outgoing message (multi-device sync).
     /// 4. Otherwise, save as an incoming message and queue a delivery ack.
+    /// Decrypts a sealed inbound envelope and returns a `RealtimeEvent`.
+    ///
+    /// Returns `.presence` for P2P presence envelopes (contentType "presence/v1")
+    /// or `.message` for regular chat envelopes. Returns `nil` on decryption failure.
     private func decodeSealedMessage(
         from sealed: Sanchr_Messaging_SealedInboundMessage
-    ) async -> Message? {
+    ) async -> RealtimeEvent? {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
             let result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
@@ -738,25 +754,39 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
 
+            // 3. P2P Presence: route without touching message storage.
+            if innerPayload.contentType == "presence/v1" {
+                let presenceUpdate = try Sanchr_Messaging_PresenceUpdate(
+                    serializedBytes: innerPayload.content
+                )
+                let mappedLastSeen: Date? = presenceUpdate.lastSeen > 0
+                    ? Date(timeIntervalSince1970: TimeInterval(presenceUpdate.lastSeen) / 1000.0)
+                    : nil
+                try? await localDatabase.updateUserPresence(
+                    userId: result.senderUserId,
+                    status: User.Status(from: presenceUpdate.statusCode),
+                    lastSeen: mappedLastSeen
+                )
+                SanchrLogger.chat.debug(
+                    "P2P presence from \(result.senderUserId.prefix(8)) status=\(presenceUpdate.status)"
+                )
+                return .presence(presenceUpdate)
+            }
+
             let serverTimestamp = Date(
                 timeIntervalSince1970: TimeInterval(sealed.serverTimestamp) / 1000.0
             )
 
-            // 3. Decode the message content from the inner payload.
+            // 4. Decode the message content from the inner payload.
             let content = decodeContent(innerPayload.content, contentType: innerPayload.contentType)
 
-            // 4. Determine direction: self-sync messages are outgoing.
+            // 5. Determine direction: self-sync messages are outgoing.
             let isOutgoing = innerPayload.isSync
             let senderId = result.senderUserId
 
-            // For self-sync, the "sender" in the Signal session is our own
-            // other device, so attribute the message to the local user.
-            let effectiveSenderId: String
-            if isOutgoing {
-                effectiveSenderId = currentUserIdProvider() ?? senderId
-            } else {
-                effectiveSenderId = senderId
-            }
+            let effectiveSenderId: String = isOutgoing
+                ? (currentUserIdProvider() ?? senderId)
+                : senderId
 
             let message = Message(
                 id: sealed.messageID,
@@ -768,21 +798,21 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 isOutgoing: isOutgoing
             )
 
-            // 5. Ensure the conversation exists locally before saving.
+            // 6. Ensure the conversation exists locally before saving.
             try? await ensureConversationShellExists(
                 conversationId: innerPayload.conversationId,
                 senderId: effectiveSenderId,
                 serverTimestamp: serverTimestamp
             )
 
-            // 6. Save and (for incoming) queue a delivery ack.
+            // 7. Save and (for incoming) queue a delivery ack.
             if isOutgoing {
                 try? await localDatabase.saveMessage(message)
             } else {
                 try? await localDatabase.saveIncomingMessageAndQueueAck(message)
             }
 
-            // 7. Auto-vault routing (same as regular message path).
+            // 8. Auto-vault routing (same as regular message path).
             let policy = chatVaultPolicyMirror.policy(for: innerPayload.conversationId)
                 ?? .defaults(for: innerPayload.conversationId)
             if !isOutgoing, policy.autoVaultIncoming,
@@ -795,7 +825,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             SanchrLogger.chat.info(
                 "Decoded sealed message \(sealed.messageID.prefix(8)) from \(effectiveSenderId.prefix(8)) isSync=\(isOutgoing)"
             )
-            return message
+            return .message(message)
         } catch {
             SanchrLogger.chat.error(
                 "Failed to decode sealed message \(sealed.messageID.prefix(8)): \(error)"

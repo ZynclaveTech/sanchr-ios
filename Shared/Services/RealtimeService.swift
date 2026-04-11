@@ -182,11 +182,8 @@ final class RealtimeService: @unchecked Sendable {
     func enterForeground() {
         guard sessionService.isAuthenticated else { return }
         start()
-        startHeartbeatLoop()
-        Task {
-            try? await sendPresenceHeartbeat(.foreground)
-            await refreshPresenceSnapshot(for: Array(trackedPeerIds))
-        }
+        startP2PPresenceLoop()
+        sendP2PPresenceToTracked(status: .online)
     }
 
     func enterBackground() {
@@ -196,9 +193,8 @@ final class RealtimeService: @unchecked Sendable {
             stop()
             return
         }
-
+        sendP2PPresenceToTracked(status: .offline)
         Task {
-            try? await sendPresenceHeartbeat(.background)
             try? await Task.sleep(nanoseconds: 200_000_000)
             stop()
         }
@@ -207,8 +203,13 @@ final class RealtimeService: @unchecked Sendable {
     func trackPresencePeer(_ userId: String) {
         guard !userId.isEmpty else { return }
         trackedPeerIds.insert(userId)
+        // Immediately announce our presence to the newly tracked peer
         Task {
-            await refreshPresenceSnapshot(for: [userId])
+            try? await messageRepository.sendP2PPresence(
+                recipientUserId: userId,
+                statusCode: .online,
+                lastSeenMs: Int64(Date().timeIntervalSince1970 * 1000)
+            )
         }
     }
 
@@ -333,47 +334,34 @@ final class RealtimeService: @unchecked Sendable {
         }
     }
 
-    @discardableResult
-    func refreshPresenceSnapshot(for userIds: [String]) async -> [Sanchr_Messaging_PresenceUpdate] {
-        let uniqueUserIds = Array(Set(userIds.filter { !$0.isEmpty }))
-        guard sessionService.isAuthenticated, !uniqueUserIds.isEmpty else { return [] }
-
-        do {
-            let updates = try await messageRepository.fetchPresenceSnapshot(userIds: uniqueUserIds)
-            await MainActor.run {
-                for update in updates {
-                    self.presenceCache[update.userID] = update
-                    NotificationCenter.default.post(
-                        name: .sanchrRealtimePresenceUpdated,
-                        object: nil,
-                        userInfo: [RealtimeNotificationKey.presence: update]
-                    )
-                }
+    /// Sends a sealed-sender P2P presence update to all currently tracked peers.
+    private func sendP2PPresenceToTracked(status: Sanchr_Messaging_PresenceStatus) {
+        let peers = Array(trackedPeerIds)
+        guard !peers.isEmpty else { return }
+        let lastSeenMs = Int64(Date().timeIntervalSince1970 * 1000)
+        for peerId in peers {
+            Task {
+                try? await messageRepository.sendP2PPresence(
+                    recipientUserId: peerId,
+                    statusCode: status,
+                    lastSeenMs: lastSeenMs
+                )
             }
-            return updates
-        } catch {
-            SanchrLogger.chat.warning("Presence snapshot failed: \(error.localizedDescription)")
-            return []
         }
     }
 
-    private func startHeartbeatLoop() {
+    /// Runs a 30-second loop broadcasting our online status to tracked peers
+    /// (replaces the old server-heartbeat loop).
+    private func startP2PPresenceLoop() {
         heartbeatTask?.cancel()
         heartbeatTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard !Task.isCancelled, sessionService.isAuthenticated else { return }
-                try? await sendPresenceHeartbeat(.foreground)
+                sendP2PPresenceToTracked(status: .online)
             }
         }
-    }
-
-    private func sendPresenceHeartbeat(_ state: Sanchr_Messaging_DevicePresenceState) async throws {
-        try await messageRepository.sendPresenceHeartbeat(
-            deviceState: state,
-            sentAtMs: Int64(Date().timeIntervalSince1970 * 1000)
-        )
     }
 
     private static func detailedError(_ error: Error) -> String {
