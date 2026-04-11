@@ -454,6 +454,7 @@ public enum Sanchr_Settings_SettingsServiceClientMetadata {
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile,
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode,
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.setRegistrationLock,
     ]
   )
 
