@@ -40,4 +40,16 @@ final class VideoFilterTests: XCTestCase {
         let f = VideoFilter.vivid.makeCIFilter()
         XCTAssertEqual(f?.name, "CIVibrance")
     }
+
+    func test_smoothSkin_radiusIs1_5() {
+        let f = VideoFilter.smoothSkin.makeCIFilter()!
+        let radius = (f.value(forKey: kCIInputRadiusKey) as? Double) ?? 0.0
+        XCTAssertEqual(radius, 1.5, accuracy: 0.001)
+    }
+
+    func test_blackAndWhite_intensityIs1() {
+        let f = VideoFilter.blackAndWhite.makeCIFilter()!
+        let intensity = (f.value(forKey: kCIInputIntensityKey) as? Double) ?? 0.0
+        XCTAssertEqual(intensity, 1.0, accuracy: 0.001)
+    }
 }
