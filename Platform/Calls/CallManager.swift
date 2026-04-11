@@ -63,6 +63,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     var callType: String = "voice"
     var peerId: String?
     var peerName: String?
+    var currentVideoFilter: VideoFilter = .none
 
     // MARK: - Dependencies
 
@@ -337,6 +338,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     func switchCamera() {
         _ = webRTCClient.toggleCamera()
+    }
+
+    func setVideoFilter(_ filter: VideoFilter) {
+        currentVideoFilter = filter
+        webRTCClient.setVideoFilter(filter)
     }
 
     // MARK: - Video Rendering Passthrough
