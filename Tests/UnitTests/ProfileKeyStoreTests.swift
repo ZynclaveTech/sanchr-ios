@@ -1,7 +1,6 @@
 // Tests/UnitTests/ProfileKeyStoreTests.swift
 import XCTest
 import SanchrShared
-@testable import Sanchr
 
 final class ProfileKeyStoreTests: XCTestCase {
 

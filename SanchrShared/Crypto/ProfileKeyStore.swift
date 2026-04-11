@@ -35,6 +35,8 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     }
 
     private let keychain: KeychainServiceProtocol
+    private let queue = DispatchQueue(label: "io.sanchr.profile-key-store", attributes: [])
+    private let profileKeyLength = 32
 
     public init(keychain: KeychainServiceProtocol) {
         self.keychain = keychain
@@ -43,19 +45,27 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     // MARK: - ProfileKeyStoreProtocol
 
     public func ownProfileKey() throws -> Data {
+        // Fast path: read outside the queue (Keychain reads are concurrent-safe).
         if let existing = try keychain.read(forKey: Keys.ownKey) {
             return existing
         }
-        // Generate a fresh random 32-byte key and persist it.
-        var bytes = [UInt8](repeating: 0, count: 32)
-        let status = SecRandomCopyBytes(kSecRandomDefault, 32, &bytes)
-        guard status == errSecSuccess else {
-            SanchrLogger.crypto.error("ProfileKeyStore: SecRandomCopyBytes failed: \(status)")
-            throw AppError.keyGenerationFailed
+        // Slow path: generate-and-save is serialised so concurrent first callers
+        // cannot produce two different keys.
+        return try queue.sync {
+            // Re-check inside the queue in case another caller already wrote it.
+            if let existing = try keychain.read(forKey: Keys.ownKey) {
+                return existing
+            }
+            var bytes = [UInt8](repeating: 0, count: profileKeyLength)
+            let status = SecRandomCopyBytes(kSecRandomDefault, profileKeyLength, &bytes)
+            guard status == errSecSuccess else {
+                SanchrLogger.crypto.error("ProfileKeyStore: SecRandomCopyBytes failed: \(status)")
+                throw AppError.keyGenerationFailed
+            }
+            let key = Data(bytes)
+            try keychain.save(key, forKey: Keys.ownKey)
+            return key
         }
-        let key = Data(bytes)
-        try keychain.save(key, forKey: Keys.ownKey)
-        return key
     }
 
     public func saveContactProfileKey(_ key: Data, forUserId userId: String) throws {
