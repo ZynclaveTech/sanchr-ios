@@ -55,6 +55,12 @@ struct ActiveCallView: View {
                     Spacer()
                 }
 
+                // Filter picker — visible only during active video call
+                if callManager.isVideoEnabled, case .active = callManager.callState {
+                    filterPicker(callManager: callManager)
+                        .padding(.bottom, SanchrSpacing.sm)
+                }
+
                 // Incoming call buttons or in-call controls
                 if case .incoming = callManager.callState {
                     incomingCallButtons(callManager: callManager)
@@ -256,6 +262,52 @@ struct ActiveCallView: View {
                 .shadow(color: SanchrColors.error.opacity(0.4), radius: 12, x: 0, y: 4)
         }
         .sensoryFeedback(.impact(flexibility: .solid), trigger: callManager.callState)
+    }
+
+    // MARK: - Filter Picker
+
+    @ViewBuilder
+    private func filterPicker(callManager: CallManager) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SanchrSpacing.sm) {
+                ForEach(VideoFilter.allCases) { filter in
+                    Button {
+                        callManager.setVideoFilter(filter)
+                    } label: {
+                        VStack(spacing: 4) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        callManager.currentVideoFilter == filter
+                                            ? Color.sanchrPrimary
+                                            : Color.white.opacity(0.15)
+                                    )
+                                    .frame(width: 48, height: 48)
+                                Image(systemName: filterIcon(for: filter))
+                                    .foregroundStyle(.white)
+                                    .font(.system(size: 18))
+                            }
+                            Text(filter.displayName)
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, SanchrSpacing.md)
+        }
+    }
+
+    private func filterIcon(for filter: VideoFilter) -> String {
+        switch filter {
+        case .none:          return "camera"
+        case .smoothSkin:    return "sparkles"
+        case .warm:          return "sun.max"
+        case .cool:          return "snowflake"
+        case .blackAndWhite: return "circle.lefthalf.filled"
+        case .vivid:         return "paintpalette"
+        }
     }
 
     // MARK: - Status Text
