@@ -10,10 +10,14 @@ service CallSignalingService {
 }
 
 message CallOffer {
-  string recipient_id = 1;
-  string call_type = 2;      // "voice" or "video"
-  bytes sdp_offer = 3;
-  bytes srtp_key_params = 4;
+  string recipient_id = 1;    // kept for server backward compat; unused when delivery_token is set
+  string call_type = 2;       // "voice" or "video"
+  reserved 3;                 // was sdp_offer — do not reuse
+  reserved "sdp_offer";
+  reserved 4;                 // was srtp_key_params — do not reuse
+  reserved "srtp_key_params";
+  bytes delivery_token = 5;         // sealed sender routing token
+  bytes encrypted_sdp_payload = 6;  // Signal-encrypt(SealedCallPayload JSON)
 }
 
 message CallResponse {
@@ -24,9 +28,10 @@ message CallResponse {
 message CallSignal {
   string call_id = 1;
   oneof signal {
-    bytes sdp_answer = 2;
-    bytes ice_candidate = 3;
-    CallControl control = 4;
+    reserved 2;                       // was sdp_answer — do not reuse
+    bytes ice_candidate = 3;          // unchanged
+    CallControl control = 4;          // unchanged
+    bytes encrypted_sdp_answer = 5;   // Signal-encrypt(SealedCallPayload JSON)
   }
 }
 
