@@ -40,7 +40,7 @@ final class WebRTCClient: NSObject {
     private var localVideoTrack: RTCVideoTrack?
     private var remoteVideoTrack: RTCVideoTrack?
     private var localAudioTrack: RTCAudioTrack?
-    private var videoCapturer: RTCCameraVideoCapturer?
+    private var videoCapturer: FilteredVideoCapturer?
     private var localVideoSource: RTCVideoSource?
 
     private var isMuted: Bool = false
@@ -124,7 +124,7 @@ final class WebRTCClient: NSObject {
                 // Simulator does not support camera capture
                 SanchrLogger.calls.warning("Simulator detected: video capture unavailable")
             #else
-                let capturer = RTCCameraVideoCapturer(delegate: videoSource)
+                let capturer = FilteredVideoCapturer(delegate: videoSource)
                 self.videoCapturer = capturer
                 startCameraCapture(capturer: capturer)
             #endif
@@ -198,6 +198,13 @@ final class WebRTCClient: NSObject {
         }
         SanchrLogger.calls.info("Video toggled: \(self.isVideoEnabled)")
         return isVideoEnabled
+    }
+
+    /// Sets the real-time video filter applied to outgoing frames.
+    /// Safe to call at any time during a call; takes effect on the next frame.
+    func setVideoFilter(_ filter: VideoFilter) {
+        videoCapturer?.currentFilter = filter
+        SanchrLogger.calls.info("Video filter set to: \(filter.displayName)")
     }
 
     // MARK: - Signaling
@@ -362,51 +369,23 @@ final class WebRTCClient: NSObject {
 
     // MARK: - Private Helpers
 
-    private func startCameraCapture(capturer: RTCCameraVideoCapturer) {
+    private func startCameraCapture(capturer: FilteredVideoCapturer) {
         let position: AVCaptureDevice.Position = isUsingFrontCamera ? .front : .back
-        guard
-            let device = RTCCameraVideoCapturer.captureDevices()
-                .first(where: { $0.position == position })
+        guard let device = AVCaptureDevice.default(
+            .builtInWideAngleCamera, for: .video, position: position)
         else {
-            SanchrLogger.calls.error(
-                "No camera device found for position: \(String(describing: position))")
+            SanchrLogger.calls.error("No camera found for position \(position.rawValue)")
             return
         }
-
-        // Select the closest format to 640x480 at 30fps
-        let targetWidth: Int32 = 640
-        let targetHeight: Int32 = 480
-        let targetFps: Int32 = 30
-
-        let formats = RTCCameraVideoCapturer.supportedFormats(for: device)
-        let selectedFormat =
-            formats
-            .sorted { a, b in
-                let dimA = CMVideoFormatDescriptionGetDimensions(a.formatDescription)
-                let dimB = CMVideoFormatDescriptionGetDimensions(b.formatDescription)
-                let diffA = abs(dimA.width - targetWidth) + abs(dimA.height - targetHeight)
-                let diffB = abs(dimB.width - targetWidth) + abs(dimB.height - targetHeight)
-                return diffA < diffB
-            }
-            .first ?? formats.first
-
-        guard let format = selectedFormat else {
-            SanchrLogger.calls.error("No suitable camera format found")
+        guard let format = device.formats.last(where: {
+            let dims = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+            return dims.width <= 1280 && dims.height <= 720
+        }) ?? device.formats.first else {
+            SanchrLogger.calls.error("No suitable format found")
             return
         }
-
-        let fpsRanges = format.videoSupportedFrameRateRanges
-        let selectedFps =
-            fpsRanges
-            .sorted {
-                abs(Int32($0.maxFrameRate) - targetFps) < abs(Int32($1.maxFrameRate) - targetFps)
-            }
-            .first
-            .map { min(Int(targetFps), Int($0.maxFrameRate)) } ?? Int(targetFps)
-
-        capturer.startCapture(with: device, format: format, fps: selectedFps)
-        SanchrLogger.calls.info(
-            "Camera capture started: \(device.localizedName) @ \(selectedFps)fps")
+        capturer.startCapture(with: device, format: format, fps: 30)
+        SanchrLogger.calls.info("Camera capture started: \(position == .front ? "front" : "back")")
     }
 
     private func configureAudioSession() {
