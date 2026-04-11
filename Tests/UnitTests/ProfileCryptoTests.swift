@@ -50,4 +50,12 @@ final class ProfileCryptoTests: XCTestCase {
             "wrong key must not decrypt successfully"
         )
     }
+
+    func test_encryptField_shortKey_throws() throws {
+        let shortKey = Data(repeating: 0x01, count: 16)  // 16 bytes instead of 32
+        XCTAssertThrowsError(
+            try crypto.encryptField("Alice", profileKey: shortKey, field: .displayName),
+            "profileKey shorter than 32 bytes must throw"
+        )
+    }
 }

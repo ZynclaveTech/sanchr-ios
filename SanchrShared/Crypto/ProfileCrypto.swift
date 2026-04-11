@@ -33,11 +33,13 @@ public final class ProfileCryptor: ProfileCryptoProtocol, @unchecked Sendable {
         profileKey: Data,
         field: ProfileField
     ) throws -> Data {
+        guard profileKey.count == 32 else {
+            throw AppError.encryptionFailed(reason: "profileKey must be 32 bytes, got \(profileKey.count)")
+        }
         guard let plaintextData = plaintext.data(using: .utf8) else {
             throw AppError.encryptionFailed(reason: "profile field is not valid UTF-8")
         }
-        let fieldKey = deriveFieldKey(profileKey: profileKey, field: field)
-        let symmetricKey = SymmetricKey(data: fieldKey)
+        let symmetricKey = deriveFieldKey(profileKey: profileKey, field: field)
         let nonce = AES.GCM.Nonce()
         let box = try AES.GCM.seal(plaintextData, using: symmetricKey, nonce: nonce)
         guard let combined = box.combined else {
@@ -51,8 +53,10 @@ public final class ProfileCryptor: ProfileCryptoProtocol, @unchecked Sendable {
         profileKey: Data,
         field: ProfileField
     ) throws -> String {
-        let fieldKey = deriveFieldKey(profileKey: profileKey, field: field)
-        let symmetricKey = SymmetricKey(data: fieldKey)
+        guard profileKey.count == 32 else {
+            throw AppError.decryptionFailed(reason: "profileKey must be 32 bytes, got \(profileKey.count)")
+        }
+        let symmetricKey = deriveFieldKey(profileKey: profileKey, field: field)
         let box = try AES.GCM.SealedBox(combined: ciphertext)
         let plaintextData: Data
         do {
@@ -68,16 +72,15 @@ public final class ProfileCryptor: ProfileCryptoProtocol, @unchecked Sendable {
 
     // MARK: - Key Derivation
 
-    private func deriveFieldKey(profileKey: Data, field: ProfileField) -> Data {
+    private func deriveFieldKey(profileKey: Data, field: ProfileField) -> SymmetricKey {
         let ikm = SymmetricKey(data: profileKey)
         let info = Data(field.rawValue.utf8)
         // No salt: HKDF-SHA256 with empty salt is standard for key derivation from a
         // uniformly random IKM. The info string provides domain separation per field.
-        let derived = HKDF<SHA256>.deriveKey(
+        return HKDF<SHA256>.deriveKey(
             inputKeyMaterial: ikm,
             info: info,
             outputByteCount: 32
         )
-        return derived.withUnsafeBytes { Data($0) }
     }
 }
