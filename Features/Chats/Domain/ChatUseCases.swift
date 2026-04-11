@@ -176,38 +176,24 @@ enum ChatUseCases {
 
     // MARK: - Mark As Read Use Case
 
-    /// Marks all messages in a conversation as read and sends read receipts.
+    /// Marks all messages in a conversation as read and sends a sealed read receipt.
+    /// The receipt is dispatched via `messageRepository.markAsRead` as a sealed-sender
+    /// envelope with a 0-30s random delay — no separate server RPC needed.
     struct MarkAsReadUseCase: Sendable {
         private let messageRepository: MessageRepositoryProtocol
-        private let chatDataSource: ChatDataSource
 
         init(messageRepository: MessageRepositoryProtocol, chatDataSource: ChatDataSource) {
             self.messageRepository = messageRepository
-            self.chatDataSource = chatDataSource
         }
 
         func execute(conversationId: String, upToMessageId: String) async throws {
             SanchrLogger.chat.info(
                 "MarkAsReadUseCase: marking \(conversationId.prefix(8)) read up to \(upToMessageId.prefix(8))"
             )
-
-            // Update local state
             try await messageRepository.markAsRead(
                 conversationId: conversationId,
                 upToMessageId: upToMessageId
             )
-
-            // Send read receipt to server (best-effort)
-            do {
-                try await chatDataSource.sendReceipt(
-                    conversationID: conversationId,
-                    messageID: upToMessageId,
-                    status: "read"
-                )
-            } catch {
-                SanchrLogger.chat.warning(
-                    "Failed to send read receipt: \(error.localizedDescription)")
-            }
         }
     }
 

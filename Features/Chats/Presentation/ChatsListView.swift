@@ -67,6 +67,19 @@ struct ChatsListView: View {
             }
             scheduleConversationRefresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
+            guard let presence = note.userInfo?[RealtimeNotificationKey.presence]
+                    as? Sanchr_Messaging_PresenceUpdate else { return }
+            // Queue a refresh for every conversation that involves this peer so
+            // the status dot updates without waiting for the next message event.
+            // The DB is already current (updateUserPresence ran before this fires).
+            for conversation in viewModel.conversations
+                where conversation.participants.contains(where: { $0.id == presence.userID })
+            {
+                pendingConversationRefreshIDs.insert(conversation.id)
+            }
+            scheduleConversationRefresh()
+        }
         .onChange(of: router.pendingConversationId) { _, _ in
             Task { await openPendingConversationIfNeeded() }
         }
