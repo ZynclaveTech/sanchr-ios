@@ -437,11 +437,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                             SanchrLogger.calls.error("Rejecting stale SDP payload (age=\(Int(age))s)")
                             continue
                         }
-                        // Verify DTLS fingerprint in SDP matches what was committed in the sealed payload
+                        // Verify DTLS fingerprint in SDP matches what was committed in the sealed payload.
+                        // Missing fingerprint is treated as a rejection — a stripped fingerprint would
+                        // bypass MITM protection entirely.
                         let remoteDesc = RTCSessionDescription(type: .answer, sdp: sealedPayload.sdp)
-                        if let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: remoteDesc),
-                           sdpFingerprint != sealedPayload.dtlsFingerprint {
-                            SanchrLogger.calls.error("DTLS fingerprint mismatch — rejecting answer to prevent MITM")
+                        guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: remoteDesc),
+                              sdpFingerprint == sealedPayload.dtlsFingerprint else {
+                            SanchrLogger.calls.error("DTLS fingerprint missing or mismatched — rejecting answer to prevent MITM")
                             continue
                         }
                         try await self.webRTCClient.setRemoteDescription(remoteDesc)
@@ -615,9 +617,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     return
                 }
                 let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
-                if let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
-                   sdpFingerprint != sealedPayload.dtlsFingerprint {
-                    SanchrLogger.calls.error("DTLS fingerprint mismatch — rejecting incoming offer to prevent MITM")
+                guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
+                      sdpFingerprint == sealedPayload.dtlsFingerprint else {
+                    SanchrLogger.calls.error("DTLS fingerprint missing or mismatched — rejecting incoming offer to prevent MITM")
                     return
                 }
                 SanchrLogger.calls.info(
