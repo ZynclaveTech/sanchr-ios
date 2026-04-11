@@ -31,7 +31,9 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         self.identityKeyFingerprint = user.identityKeyFingerprint
         self.status = user.status.rawValue
         self.isLocalUser = user.isLocalUser
-        self.profileKey = user.profileKey
+        // Coerce to nil if not exactly 32 bytes — avoids persisting a malformed key
+        // that would silently degrade to a deterministic subkey in HKDF later.
+        self.profileKey = user.profileKey.flatMap { $0.count == 32 ? $0 : nil }
     }
 
     public init(

@@ -10,9 +10,14 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
     public var isVerified: Bool
     public var lastSeen: Date?
     public var identityKeyFingerprint: String?
-    /// The sender's 32-byte Profile Key, present when the server has provided it.
+    /// The contact's 32-byte Profile Key received from the server during contact fetch.
+    ///
+    /// This field is a read-cache: it is populated from the wire response by
+    /// `ContactRepositoryImpl` and stored in SQLite for decryption convenience.
+    /// `ProfileKeyStore` (Keychain) is the write-canonical store for contact keys;
+    /// this property must be kept in sync with it by the repository layer.
     /// `nil` means the profile has not yet been received with encrypted fields.
-    public var profileKey: Data? = nil
+    public var profileKey: Data?
 
     /// Online presence status.
     public enum Status: String, Codable, Sendable {
