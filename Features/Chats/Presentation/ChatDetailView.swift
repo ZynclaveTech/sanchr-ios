@@ -6,6 +6,20 @@ import PhotosUI
 import SwiftUI
 import SanchrShared
 
+/// Carries the data needed to show the pre-send caption screen for a photo or video.
+/// Conforms to `Identifiable` so it can drive a `.fullScreenCover(item:)`.
+private struct PendingMediaSend: Identifiable {
+    let id = UUID()
+    /// The media content to show in the preview.
+    let preview: MediaCaptionView.Preview
+    /// Local file URL passed to the upload pipeline.
+    let localFileURL: URL
+    /// MIME type (e.g. "image/jpeg", "video/mp4").
+    let mimeType: String
+    /// Pre-built MessageContent enum (url/key fields are placeholders — upload fills them in).
+    let contentType: Message.MessageContent
+}
+
 struct ChatDetailView: View {
     let conversation: Conversation
 
@@ -29,6 +43,7 @@ struct ChatDetailView: View {
     @State private var hasScheduledDeferredEntryTasks = false
     @State private var voicePlayback = VoicePlaybackController()
     @State private var appearanceTick: UInt64 = 0
+    @State private var pendingMediaSend: PendingMediaSend? = nil
     @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
     @StateObject private var contactCoordinator = ContactActionCoordinator(
         contactRepository: BootstrapContactRepository(),
@@ -60,9 +75,105 @@ struct ChatDetailView: View {
         // propagation through NavigationStack pop boundaries fails.
         let _ = appearanceTick
         let _ = container.chatAppearance.changeVersion
+        return chatViewContent
+            .task {
+                // Cache-warm the per-chat appearance override BEFORE messages
+                // load so the first paint already reflects the override —
+                // avoids a global → override flicker.
+                await container.chatAppearance.loadOverride(conversationId: conversation.id)
+                // Same for the per-chat vault policy so the realtime decode
+                // path's lock-protected mirror lookup hits a populated entry
+                // when subsequent messages arrive in this chat.
+                await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
+                await viewModel.loadMessages(
+                    conversationId: conversation.id,
+                    messageRepository: container.messageRepository
+                )
+            }
+            .onAppear {
+                viewModel.configurePeer(recipient)
+                viewModel.onConversationAppear(
+                    conversationId: conversation.id,
+                    pushManager: container.pushManager
+                )
+            }
+            .onDisappear {
+                viewModel.onConversationDisappear(pushManager: container.pushManager)
+                if let recipient {
+                    container.realtimeService.untrackPresencePeer(recipient.id)
+                }
+                // Clear typing indicator when leaving conversation
+                Task {
+                    await viewModel.stopTypingIndicator(
+                        conversationId: conversation.id,
+                        messageRepository: container.messageRepository
+                    )
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
+                handleConversationStateDidChange(note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
+                handleRealtimeMessageReceived(note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeTypingChanged)) { note in
+                handleRealtimeTypingChanged(note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeReceiptUpdated)) { note in
+                handleRealtimeReceiptUpdated(note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
+                handleRealtimePresenceUpdated(note)
+            }
+            .onChange(of: viewModel.inputText) { _, newValue in
+                viewModel.handleInputTextChanged(
+                    newValue,
+                    conversationId: conversation.id,
+                    messageRepository: container.messageRepository
+                )
+            }
+            .onChange(of: isInputFocused) { _, focused in
+                if !focused {
+                    // Keyboard dismissed — stop typing indicator
+                    Task {
+                        await viewModel.stopTypingIndicator(
+                            conversationId: conversation.id,
+                            messageRepository: container.messageRepository
+                        )
+                    }
+                } else {
+                    // Keyboard appeared — mutually exclusive with attachment & emoji trays
+                    if showAttachmentPicker || showEmojiPicker {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showAttachmentPicker = false
+                            showEmojiPicker = false
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.searchQuery) { _, query in
+                viewModel.scheduleSearch(
+                    conversationId: conversation.id,
+                    query: query,
+                    localDatabase: container.localDatabase
+                )
+            }
+            .onChange(of: viewModel.currentSearchResultId) { _, messageId in
+                guard let messageId else { return }
+                issueTranscriptScroll(to: .message(id: messageId, sequence: nextTranscriptScrollSequence()))
+            }
+    }
+
+    // MARK: - Chat content (split from body to keep type-checker within limits)
+
+    /// The base VStack with appearance/navigation modifiers.
+    /// Separated from the sheet/cover layer so the compiler can
+    /// type-check each expression independently.
+    @ViewBuilder
+    private var chatBaseView: some View {
         let appearance = container.chatAppearance.effectiveAppearance(for: conversation.id)
         let wallpaperId = appearance.wallpaperId
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             header
 
             if viewModel.isSearching {
@@ -203,6 +314,14 @@ struct ChatDetailView: View {
                 print("[AttachmentPicker] file picker error: \(error)")
             }
         }
+    }
+
+    /// Wraps `chatBaseView` with sheet, cover, overlay, and coordinator
+    /// modifiers. Separated so the compiler type-checks two smaller
+    /// expression trees rather than one giant chain.
+    @ViewBuilder
+    private var chatViewContent: some View {
+        chatBaseView
         .sheet(isPresented: $showContactPicker) {
             ContactPickerHost(
                 onPick: { stripped in
@@ -295,6 +414,13 @@ struct ChatDetailView: View {
                 onDismiss: { documentCoordinator.dismiss() }
             )
         }
+        .fullScreenCover(item: $pendingMediaSend) { payload in
+            MediaCaptionView(preview: payload.preview) { caption in
+                commitPendingMediaSend(payload, caption: caption)
+            } onCancel: {
+                pendingMediaSend = nil
+            }
+        }
         .overlay {
             if documentCoordinator.isResolving {
                 Color.black.opacity(0.14)
@@ -350,153 +476,6 @@ struct ChatDetailView: View {
                     await handleSelectedPhoto(item)
                 }
             }
-        }
-        .task {
-            // Cache-warm the per-chat appearance override BEFORE messages
-            // load so the first paint already reflects the override —
-            // avoids a global → override flicker.
-            await container.chatAppearance.loadOverride(conversationId: conversation.id)
-            // Same for the per-chat vault policy so the realtime decode
-            // path's lock-protected mirror lookup hits a populated entry
-            // when subsequent messages arrive in this chat.
-            await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
-            await viewModel.loadMessages(
-                conversationId: conversation.id,
-                messageRepository: container.messageRepository
-            )
-        }
-        .onAppear {
-            viewModel.configurePeer(recipient)
-            viewModel.onConversationAppear(
-                conversationId: conversation.id,
-                pushManager: container.pushManager
-            )
-        }
-        .onDisappear {
-            viewModel.onConversationDisappear(pushManager: container.pushManager)
-            if let recipient {
-                container.realtimeService.untrackPresencePeer(recipient.id)
-            }
-            // Clear typing indicator when leaving conversation
-            Task {
-                await viewModel.stopTypingIndicator(
-                    conversationId: conversation.id,
-                    messageRepository: container.messageRepository
-                )
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
-            guard
-                let userInfo = note.userInfo,
-                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
-                conversationId == conversation.id
-            else {
-                return
-            }
-            // Reload the chat snapshot from the local DB so local-only
-            // mutations (view-once deletion tombstones, auto-vault
-            // routing replacements) flip the on-screen bubble without
-            // requiring a nav-away/return.
-            Task {
-                await viewModel.loadMessages(
-                    conversationId: conversation.id,
-                    messageRepository: container.messageRepository
-                )
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeMessageReceived)) { note in
-            guard
-                let userInfo = note.userInfo,
-                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
-                conversationId == conversation.id,
-                let message = userInfo[RealtimeNotificationKey.message] as? Message
-            else {
-                return
-            }
-
-            viewModel.handleRealtimeMessage(message)
-
-            // Auto-mark incoming messages as read — repo gates receipts internally.
-            Task {
-                try? await container.messageRepository.markAsRead(
-                    conversationId: conversation.id,
-                    upToMessageId: message.id
-                )
-                NotificationCenter.default.postConversationStateDidChange(
-                    conversationId: conversation.id
-                )
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeTypingChanged)) { note in
-            guard
-                let userInfo = note.userInfo,
-                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
-                conversationId == conversation.id,
-                let typing = userInfo[RealtimeNotificationKey.typing] as? Sanchr_Messaging_TypingIndicator
-            else {
-                return
-            }
-
-            viewModel.handleTypingIndicator(typing)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimeReceiptUpdated)) { note in
-            guard
-                let userInfo = note.userInfo,
-                let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
-                conversationId == conversation.id,
-                let receipt = userInfo[RealtimeNotificationKey.receipt] as? Sanchr_Messaging_ReceiptUpdate
-            else {
-                return
-            }
-
-            viewModel.handleReceipt(receipt)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
-            guard
-                let userInfo = note.userInfo,
-                let presence = userInfo[RealtimeNotificationKey.presence] as? Sanchr_Messaging_PresenceUpdate
-            else {
-                return
-            }
-
-            viewModel.handlePresenceUpdate(presence, participantId: recipient?.id)
-        }
-        .onChange(of: viewModel.inputText) { _, newValue in
-            viewModel.handleInputTextChanged(
-                newValue,
-                conversationId: conversation.id,
-                messageRepository: container.messageRepository
-            )
-        }
-        .onChange(of: isInputFocused) { _, focused in
-            if !focused {
-                // Keyboard dismissed — stop typing indicator
-                Task {
-                    await viewModel.stopTypingIndicator(
-                        conversationId: conversation.id,
-                        messageRepository: container.messageRepository
-                    )
-                }
-            } else {
-                // Keyboard appeared — mutually exclusive with attachment & emoji trays
-                if showAttachmentPicker || showEmojiPicker {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showAttachmentPicker = false
-                        showEmojiPicker = false
-                    }
-                }
-            }
-        }
-        .onChange(of: viewModel.searchQuery) { _, query in
-            viewModel.scheduleSearch(
-                conversationId: conversation.id,
-                query: query,
-                localDatabase: container.localDatabase
-            )
-        }
-        .onChange(of: viewModel.currentSearchResultId) { _, messageId in
-            guard let messageId else { return }
-            issueTranscriptScroll(to: .message(id: messageId, sequence: nextTranscriptScrollSequence()))
         }
     }
 
@@ -1324,6 +1303,93 @@ struct ChatDetailView: View {
         )
     }
 
+    // MARK: - Notification handlers (extracted to reduce body type-check complexity)
+
+    private func handleConversationStateDidChange(_ note: Notification) {
+        guard
+            let userInfo = note.userInfo,
+            let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+            conversationId == conversation.id
+        else { return }
+        // Reload the chat snapshot from the local DB so local-only
+        // mutations (view-once deletion tombstones, auto-vault
+        // routing replacements) flip the on-screen bubble without
+        // requiring a nav-away/return.
+        Task {
+            await viewModel.loadMessages(
+                conversationId: conversation.id,
+                messageRepository: container.messageRepository
+            )
+        }
+    }
+
+    private func handleRealtimeMessageReceived(_ note: Notification) {
+        guard
+            let userInfo = note.userInfo,
+            let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+            conversationId == conversation.id,
+            let message = userInfo[RealtimeNotificationKey.message] as? Message
+        else { return }
+        viewModel.handleRealtimeMessage(message)
+        // Auto-mark incoming messages as read — repo gates receipts internally.
+        Task {
+            try? await container.messageRepository.markAsRead(
+                conversationId: conversation.id,
+                upToMessageId: message.id
+            )
+            NotificationCenter.default.postConversationStateDidChange(
+                conversationId: conversation.id
+            )
+        }
+    }
+
+    private func handleRealtimeTypingChanged(_ note: Notification) {
+        guard
+            let userInfo = note.userInfo,
+            let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+            conversationId == conversation.id,
+            let typing = userInfo[RealtimeNotificationKey.typing] as? Sanchr_Messaging_TypingIndicator
+        else { return }
+        viewModel.handleTypingIndicator(typing)
+    }
+
+    private func handleRealtimeReceiptUpdated(_ note: Notification) {
+        guard
+            let userInfo = note.userInfo,
+            let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
+            conversationId == conversation.id,
+            let receipt = userInfo[RealtimeNotificationKey.receipt] as? Sanchr_Messaging_ReceiptUpdate
+        else { return }
+        viewModel.handleReceipt(receipt)
+    }
+
+    private func handleRealtimePresenceUpdated(_ note: Notification) {
+        guard
+            let userInfo = note.userInfo,
+            let presence = userInfo[RealtimeNotificationKey.presence] as? Sanchr_Messaging_PresenceUpdate
+        else { return }
+        viewModel.handlePresenceUpdate(presence, participantId: recipient?.id)
+    }
+
+    /// Sends the pending media after the caption screen is confirmed.
+    /// Extracted to a method to keep the body modifier chain short enough
+    /// for Swift's type checker.
+    @MainActor
+    private func commitPendingMediaSend(_ payload: PendingMediaSend, caption: String?) {
+        pendingMediaSend = nil
+        Task {
+            await viewModel.sendMediaMessage(
+                localFileURL: payload.localFileURL,
+                mimeType: payload.mimeType,
+                contentType: payload.contentType,
+                conversationId: conversation.id,
+                caption: caption,
+                sessionService: container.sessionService,
+                messageSender: container.messageSender
+            )
+        }
+    }
+
     private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
         let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
 
@@ -1351,14 +1417,12 @@ struct ChatDetailView: View {
             )
             attachment.blurHash = videoBlurHash
 
-            await viewModel.sendMediaMessage(
+            // Show caption screen before sending — user can optionally add a caption.
+            pendingMediaSend = PendingMediaSend(
+                preview: .video(tempURL),
                 localFileURL: tempURL,
                 mimeType: "video/mp4",
-                contentType: .video(attachment),
-                conversationId: conversation.id,
-                caption: nil,
-                sessionService: container.sessionService,
-                messageSender: container.messageSender
+                contentType: .video(attachment)
             )
         } else {
             guard let imageData = try? await item.loadTransferable(type: Data.self) else { return }
@@ -1375,14 +1439,12 @@ struct ChatDetailView: View {
             )
             attachment.blurHash = imageBlurHash
 
-            await viewModel.sendMediaMessage(
+            // Show caption screen before sending — user can optionally add a caption.
+            pendingMediaSend = PendingMediaSend(
+                preview: .image(imageData),
                 localFileURL: tempURL,
                 mimeType: "image/jpeg",
-                contentType: .image(attachment),
-                conversationId: conversation.id,
-                caption: nil,
-                sessionService: container.sessionService,
-                messageSender: container.messageSender
+                contentType: .image(attachment)
             )
         }
     }

@@ -476,6 +476,11 @@ final class MessageSenderTests: XCTestCase {
 
         _ = try await sut.sendMedia(attachment: attachment, caption: nil, to: "chat-A", progress: { _ in })
 
+        let calls = await sender.calls
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls[0].contentType, "image",
+            "image/jpeg MIME must map to 'image' content type string — required by receive-path decoder")
+
         XCTAssertEqual(db.savedMessages.count, 2)
         let confirmed = db.savedMessages[1]
         guard case .image(let stored) = confirmed.content else {
@@ -534,6 +539,10 @@ final class MessageSenderTests: XCTestCase {
             return XCTFail("Expected .video content on confirmed row")
         }
         XCTAssertEqual(stored.durationSeconds, 15.5, "Video duration must be preserved")
+        XCTAssertEqual(stored.encryptionKey, Data(repeating: 0x01, count: 32),
+            "Encryption key must be roundtripped from upload outcome into the stored video attachment")
+        XCTAssertEqual(stored.encryptionIV, Data(repeating: 0x02, count: 12),
+            "Encryption nonce must be roundtripped from upload outcome into the stored video attachment")
     }
 
     func test_sendMedia_document_usesDocumentContentTypeAndPreservesFilename() async throws {
