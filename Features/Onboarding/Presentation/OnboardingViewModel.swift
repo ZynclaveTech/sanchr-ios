@@ -59,6 +59,8 @@ final class OnboardingViewModel {
 
     func saveProfile(
         profileDataSource: ProfileDataSource,
+        profileKeyStore: ProfileKeyStoreProtocol,
+        profileCrypto: ProfileCryptoProtocol,
         mediaManager: MediaManagerProtocol,
         sessionService: SessionService
     ) async -> Bool {
@@ -84,7 +86,9 @@ final class OnboardingViewModel {
         // Save profile to server (this must succeed)
         do {
             let updateUseCase = ProfileUseCases.UpdateProfile(
-                profileDataSource: profileDataSource
+                profileDataSource: profileDataSource,
+                profileKeyStore: profileKeyStore,
+                profileCrypto: profileCrypto
             )
             _ = try await updateUseCase.execute(
                 name: self.trimmedName,

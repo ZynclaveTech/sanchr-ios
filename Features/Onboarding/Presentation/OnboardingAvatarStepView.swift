@@ -6,6 +6,8 @@ struct OnboardingAvatarStepView: View {
     @Bindable var viewModel: OnboardingViewModel
     @State private var selectedPhotoItem: PhotosPickerItem?
     let profileDataSource: ProfileDataSource
+    let profileKeyStore: ProfileKeyStoreProtocol
+    let profileCrypto: ProfileCryptoProtocol
     let mediaManager: MediaManagerProtocol
     let sessionService: SessionService
 
@@ -105,6 +107,8 @@ struct OnboardingAvatarStepView: View {
                     Task {
                         let saved = await viewModel.saveProfile(
                             profileDataSource: profileDataSource,
+                            profileKeyStore: profileKeyStore,
+                            profileCrypto: profileCrypto,
                             mediaManager: mediaManager,
                             sessionService: sessionService
                         )

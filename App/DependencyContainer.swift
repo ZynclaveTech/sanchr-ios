@@ -252,10 +252,17 @@ final class DependencyContainer: @unchecked Sendable {
         )
     }()
 
+    @ObservationIgnored lazy var profileKeyStore: ProfileKeyStoreProtocol =
+        ProfileKeyStore(keychain: keychainService)
+
+    @ObservationIgnored lazy var profileCrypto: ProfileCryptoProtocol = ProfileCryptor()
+
     @ObservationIgnored lazy var contactRepository: ContactRepositoryProtocol =
         ContactRepositoryImpl(
             grpcClient: grpcClient,
-            localDatabase: localDatabase
+            localDatabase: localDatabase,
+            profileKeyStore: profileKeyStore,
+            profileCrypto: profileCrypto
         )
 
     @ObservationIgnored lazy var vaultDataSource: VaultDataSource = VaultDataSource(

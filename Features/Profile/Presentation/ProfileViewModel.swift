@@ -51,11 +51,20 @@ final class ProfileViewModel {
 
     // MARK: - Save Profile
 
-    func saveProfile(profileDataSource: ProfileDataSource, sessionService: SessionService) async {
+    func saveProfile(
+        profileDataSource: ProfileDataSourceProtocol,
+        profileKeyStore: ProfileKeyStoreProtocol,
+        profileCrypto: ProfileCryptoProtocol,
+        sessionService: SessionService
+    ) async {
         isSaving = true
         defer { isSaving = false }
 
-        let useCase = ProfileUseCases.UpdateProfile(profileDataSource: profileDataSource)
+        let useCase = ProfileUseCases.UpdateProfile(
+            profileDataSource: profileDataSource,
+            profileKeyStore: profileKeyStore,
+            profileCrypto: profileCrypto
+        )
 
         do {
             let response = try await useCase.execute(
@@ -64,21 +73,19 @@ final class ProfileViewModel {
                 status: statusText
             )
 
-            // Update with server-confirmed values
+            // Update with server-confirmed plaintext values
             displayName = response.displayName.isEmpty ? displayName : response.displayName
-            avatarURL = response.avatarURL.isEmpty ? avatarURL : response.avatarURL
-            statusText = response.statusText.isEmpty ? statusText : response.statusText
+            avatarURL   = response.avatarURL.isEmpty   ? avatarURL   : response.avatarURL
+            statusText  = response.statusText.isEmpty  ? statusText  : response.statusText
 
-            // Update originals
             originalDisplayName = displayName
-            originalStatusText = statusText
-            originalAvatarURL = avatarURL
+            originalStatusText  = statusText
+            originalAvatarURL   = avatarURL
 
-            // Sync back to session so Settings and other screens reflect changes
             sessionService.updateProfile(displayName: displayName, avatarURL: avatarURL)
 
-            isEditing = false
-            errorMessage = nil
+            isEditing     = false
+            errorMessage  = nil
 
             SanchrLogger.network.info("Profile saved successfully")
         } catch {
@@ -91,6 +98,8 @@ final class ProfileViewModel {
     func uploadAvatar(
         image: UIImage,
         profileDataSource: ProfileDataSource,
+        profileKeyStore: ProfileKeyStoreProtocol,
+        profileCrypto: ProfileCryptoProtocol,
         mediaManager: MediaManagerProtocol,
         sessionService: SessionService
     ) async {
@@ -107,8 +116,13 @@ final class ProfileViewModel {
             avatarURL = newURL
             SanchrLogger.media.info("Avatar URL updated")
 
-            // Persist to server immediately
-            await saveProfile(profileDataSource: profileDataSource, sessionService: sessionService)
+            // Persist to server immediately — includes profile-field encryption.
+            await saveProfile(
+                profileDataSource: profileDataSource,
+                profileKeyStore: profileKeyStore,
+                profileCrypto: profileCrypto,
+                sessionService: sessionService
+            )
         } catch {
             errorMessage = error.localizedDescription
         }

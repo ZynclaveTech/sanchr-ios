@@ -5,24 +5,48 @@ import SanchrShared
 /// Domain use cases for profile operations.
 enum ProfileUseCases {
 
-    /// Updates the user's profile (display name, status, avatar URL).
+    /// Updates the user's profile, encrypting fields before sending.
     struct UpdateProfile: Sendable {
-        private let profileDataSource: ProfileDataSource
+        private let profileDataSource: ProfileDataSourceProtocol
+        private let profileKeyStore: ProfileKeyStoreProtocol
+        private let profileCrypto: ProfileCryptoProtocol
 
-        init(profileDataSource: ProfileDataSource) {
+        init(
+            profileDataSource: ProfileDataSourceProtocol,
+            profileKeyStore: ProfileKeyStoreProtocol,
+            profileCrypto: ProfileCryptoProtocol
+        ) {
             self.profileDataSource = profileDataSource
+            self.profileKeyStore = profileKeyStore
+            self.profileCrypto = profileCrypto
         }
 
-        /// Updates name and/or status on the server.
+        /// Encrypts name/bio/avatarURL with the local Profile Key, then sends
+        /// both plaintext (server compat) and encrypted fields to the server.
         func execute(
             name: String,
             avatarURL: String,
             status: String
         ) async throws -> Sanchr_Settings_ProfileResponse {
-            try await profileDataSource.updateProfile(
+            let profileKey = try profileKeyStore.ownProfileKey()
+
+            let encryptedName = try profileCrypto.encryptField(
+                name, profileKey: profileKey, field: .displayName)
+            let encryptedBio: Data = status.isEmpty
+                ? Data()
+                : (try profileCrypto.encryptField(status, profileKey: profileKey, field: .bio))
+            let encryptedAvatarURL: Data = avatarURL.isEmpty
+                ? Data()
+                : (try profileCrypto.encryptField(avatarURL, profileKey: profileKey, field: .avatarURL))
+
+            return try await profileDataSource.updateProfile(
                 name: name,
                 avatarURL: avatarURL,
-                status: status
+                status: status,
+                profileKey: profileKey,
+                encryptedDisplayName: encryptedName,
+                encryptedBio: encryptedBio,
+                encryptedAvatarURL: encryptedAvatarURL
             )
         }
     }

@@ -31,10 +31,32 @@ protocol ContactRepositoryProtocol: AnyObject, Sendable {
 final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
+    private let profileKeyStore: ProfileKeyStoreProtocol
+    private let profileCrypto: ProfileCryptoProtocol
 
-    init(grpcClient: GRPCClientProtocol, localDatabase: LocalDatabaseProtocol) {
+    init(
+        grpcClient: GRPCClientProtocol,
+        localDatabase: LocalDatabaseProtocol,
+        profileKeyStore: ProfileKeyStoreProtocol,
+        profileCrypto: ProfileCryptoProtocol
+    ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
+        self.profileKeyStore = profileKeyStore
+        self.profileCrypto = profileCrypto
+    }
+
+    // MARK: - Private helpers
+
+    /// Attempts to decrypt `ciphertext` with `profileKey` for `field`.
+    /// Returns `nil` on empty input or any decryption failure — callers decide the fallback.
+    private func tryDecrypt(
+        _ ciphertext: Data,
+        profileKey: Data,
+        field: ProfileField
+    ) -> String? {
+        guard !ciphertext.isEmpty else { return nil }
+        return try? profileCrypto.decryptField(ciphertext, profileKey: profileKey, field: field)
     }
 
     func fetchContacts() async throws -> [User] {
@@ -43,13 +65,35 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         let request = Sanchr_Contacts_GetContactsRequest()
         let response = try await grpcClient.contactService.getContacts(request)
 
-        let users = response.contacts.map { contact in
-            User(
+        let users = response.contacts.map { contact -> User in
+            var displayName = contact.displayName
+            var bio: String? = contact.statusText.isEmpty ? nil : contact.statusText
+            var avatarURL: URL? = URL(string: contact.avatarURL)
+
+            if !contact.profileKey.isEmpty {
+                // Persist the contact's Profile Key for future local decryption needs.
+                try? profileKeyStore.saveContactProfileKey(contact.profileKey, forUserId: contact.userID)
+
+                if let decrypted = tryDecrypt(contact.encryptedDisplayName,
+                                              profileKey: contact.profileKey, field: .displayName) {
+                    displayName = decrypted
+                }
+                if let decrypted = tryDecrypt(contact.encryptedBio,
+                                              profileKey: contact.profileKey, field: .bio) {
+                    bio = decrypted
+                }
+                if let decrypted = tryDecrypt(contact.encryptedAvatarURL,
+                                              profileKey: contact.profileKey, field: .avatarURL) {
+                    avatarURL = URL(string: decrypted)
+                }
+            }
+
+            return User(
                 id: contact.userID,
                 phoneNumber: contact.phoneNumber,
-                displayName: contact.displayName,
-                avatarURL: URL(string: contact.avatarURL),
-                bio: contact.statusText.isEmpty ? nil : contact.statusText,
+                displayName: displayName,
+                avatarURL: avatarURL,
+                bio: bio,
                 isVerified: false,
                 lastSeen: nil,
                 identityKeyFingerprint: nil,
@@ -79,13 +123,34 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
 
         let response = try await grpcClient.contactService.syncContacts(request)
 
-        let matchedUsers = response.matches.map { match in
-            User(
+        let matchedUsers = response.matches.map { match -> User in
+            var displayName = match.displayName
+            var bio: String? = match.statusText.isEmpty ? nil : match.statusText
+            var avatarURL: URL? = URL(string: match.avatarURL)
+
+            if !match.profileKey.isEmpty {
+                try? profileKeyStore.saveContactProfileKey(match.profileKey, forUserId: match.userID)
+
+                if let decrypted = tryDecrypt(match.encryptedDisplayName,
+                                              profileKey: match.profileKey, field: .displayName) {
+                    displayName = decrypted
+                }
+                if let decrypted = tryDecrypt(match.encryptedBio,
+                                              profileKey: match.profileKey, field: .bio) {
+                    bio = decrypted
+                }
+                if let decrypted = tryDecrypt(match.encryptedAvatarURL,
+                                              profileKey: match.profileKey, field: .avatarURL) {
+                    avatarURL = URL(string: decrypted)
+                }
+            }
+
+            return User(
                 id: match.userID,
                 phoneNumber: match.phoneNumber,
-                displayName: match.displayName,
-                avatarURL: URL(string: match.avatarURL),
-                bio: match.statusText.isEmpty ? nil : match.statusText,
+                displayName: displayName,
+                avatarURL: avatarURL,
+                bio: bio,
                 isVerified: false,
                 lastSeen: nil,
                 identityKeyFingerprint: nil,

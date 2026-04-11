@@ -2,9 +2,28 @@ import CryptoKit
 import Foundation
 import SanchrShared
 
+// MARK: - Protocol (for testability)
+
+protocol ProfileDataSourceProtocol: AnyObject, Sendable {
+    func updateProfile(
+        name: String,
+        avatarURL: String,
+        status: String,
+        profileKey: Data,
+        encryptedDisplayName: Data,
+        encryptedBio: Data,
+        encryptedAvatarURL: Data
+    ) async throws -> Sanchr_Settings_ProfileResponse
+
+    func uploadAvatar(imageData: Data) async throws -> String
+    func getProfile() async throws -> Sanchr_Settings_ProfileResponse
+}
+
+// MARK: - Concrete implementation
+
 /// Data source for profile-related gRPC service calls.
 /// Wires to SettingsService.UpdateProfile and MediaService for avatar upload.
-final class ProfileDataSource: @unchecked Sendable {
+final class ProfileDataSource: ProfileDataSourceProtocol, @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
 
     private var settingsClient: Sanchr_Settings_SettingsServiceAsyncClientProtocol {
@@ -22,15 +41,24 @@ final class ProfileDataSource: @unchecked Sendable {
     // MARK: - Update Profile
 
     /// Updates the user's display name, avatar URL, and status text via SettingsService.UpdateProfile.
+    /// Also sends encrypted profile fields (AES-256-GCM); server stores them as opaque blobs.
     func updateProfile(
         name: String,
         avatarURL: String,
-        status: String
+        status: String,
+        profileKey: Data,
+        encryptedDisplayName: Data,
+        encryptedBio: Data,
+        encryptedAvatarURL: Data
     ) async throws -> Sanchr_Settings_ProfileResponse {
         var request = Sanchr_Settings_UpdateProfileRequest()
         request.displayName = name
         request.avatarURL = avatarURL
         request.statusText = status
+        request.profileKey = profileKey
+        request.encryptedDisplayName = encryptedDisplayName
+        request.encryptedBio = encryptedBio
+        request.encryptedAvatarURL = encryptedAvatarURL
 
         SanchrLogger.network.info("ProfileDataSource: updateProfile name=\(name.prefix(10))...")
         return try await settingsClient.updateProfile(request)

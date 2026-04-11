@@ -29,6 +29,9 @@ struct OnboardingView: View {
         ProfileDataSource(grpcClient: container.grpcClient)
     }
 
+    private var profileKeyStore: ProfileKeyStoreProtocol { container.profileKeyStore }
+    private let profileCrypto: ProfileCryptoProtocol = ProfileCryptor()
+
     var body: some View {
         ZStack {
             switch viewModel.currentStep {
@@ -39,6 +42,8 @@ struct OnboardingView: View {
                 OnboardingAvatarStepView(
                     viewModel: viewModel,
                     profileDataSource: profileDataSource,
+                    profileKeyStore: profileKeyStore,
+                    profileCrypto: profileCrypto,
                     mediaManager: container.mediaManager,
                     sessionService: container.sessionService
                 )

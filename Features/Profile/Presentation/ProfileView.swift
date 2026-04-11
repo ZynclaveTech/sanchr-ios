@@ -17,6 +17,12 @@ struct ProfileView: View {
         ProfileDataSource(grpcClient: container.grpcClient)
     }
 
+    private var profileKeyStore: ProfileKeyStoreProtocol {
+        ProfileKeyStore(keychain: container.keychainService)
+    }
+
+    private let profileCrypto: ProfileCryptoProtocol = ProfileCryptor()
+
     var body: some View {
         List {
             // MARK: - Avatar Section
@@ -183,6 +189,8 @@ struct ProfileView: View {
                         Task {
                             await viewModel.saveProfile(
                                 profileDataSource: profileDataSource,
+                                profileKeyStore: profileKeyStore,
+                                profileCrypto: profileCrypto,
                                 sessionService: container.sessionService
                             )
                         }
@@ -253,6 +261,8 @@ struct ProfileView: View {
                     await viewModel.uploadAvatar(
                         image: image,
                         profileDataSource: profileDataSource,
+                        profileKeyStore: profileKeyStore,
+                        profileCrypto: profileCrypto,
                         mediaManager: container.mediaManager,
                         sessionService: container.sessionService
                     )

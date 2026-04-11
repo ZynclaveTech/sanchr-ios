@@ -7,6 +7,8 @@ struct OnboardingWelcomeStepView: View {
 
     let pushManager: PushManager
     let profileDataSource: ProfileDataSource
+    let profileKeyStore: ProfileKeyStoreProtocol
+    let profileCrypto: ProfileCryptoProtocol
     let mediaManager: MediaManagerProtocol
     let sessionService: SessionService
 
@@ -94,6 +96,8 @@ struct OnboardingWelcomeStepView: View {
                     Task {
                         _ = await viewModel.saveProfile(
                             profileDataSource: profileDataSource,
+                            profileKeyStore: profileKeyStore,
+                            profileCrypto: profileCrypto,
                             mediaManager: mediaManager,
                             sessionService: sessionService
                         )
