@@ -194,33 +194,54 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         guard !peerIds.isEmpty else {
             throw AppError.sessionNotEstablished
         }
-        var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
+        // 3. Wrap plaintext in InnerPayload and encrypt via sealed sender path.
+        //    The server sees only delivery_token + per-device ciphertext; sender_id is
+        //    never transmitted — it stays hidden behind the delivery token.
+        let contentType = Self.contentTypeString(for: message.content)
+        let innerPayload = try sealedSenderManager.encodeInnerPayload(
+            conversationId: message.conversationId,
+            contentType: contentType,
+            content: plaintext,
+            isSync: false
+        )
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+        var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
+        // Encryption is all-or-nothing: if any peer's device fails, the whole send throws
+        // and no device messages are delivered. This is correct Signal behavior — partial
+        // device-set delivery on first send would break session consistency.
         for peerId in peerIds {
-            let perPeer = try await signalProtocol.encryptForAllDevices(
-                plaintext: plaintext,
+            let encrypted = try await signalProtocol.encryptForAllDevices(
+                plaintext: innerPayload,
                 recipientId: peerId
             )
-            deviceMessages.append(contentsOf: perPeer)
+            for dm in encrypted {
+                var sdm = Sanchr_Messaging_SealedDeviceMessage()
+                sdm.recipientID = dm.recipientID
+                sdm.deviceID = dm.deviceID
+                sdm.sealedEnvelope = dm.ciphertext
+                sealedDeviceMessages.append(sdm)
+            }
         }
 
-        // 3. Send encrypted message via gRPC
-        var request = Sanchr_Messaging_SendMessageRequest()
-        request.conversationID = message.conversationId
-        request.deviceMessages = deviceMessages
-        request.contentType = Self.contentTypeString(for: message.content)
-        if let expiresAt = message.expiresAt {
-            request.expiresAfterSecs = Int64(expiresAt.timeIntervalSinceNow)
-        }
+        var request = Sanchr_Messaging_SendSealedMessageRequest()
+        request.deliveryToken = deliveryToken
+        request.deviceMessages = sealedDeviceMessages
+        // NOTE: SendSealedMessageRequest has no expiresAfterSecs field — server-side
+        // disappearing-message enforcement is not applied on the sealed path.
+        // Client-side timers remain active. Follow-up: add expires_after_secs to proto.
 
-        let response = try await grpcClient.messagingService.sendMessage(request)
+        let response = try await grpcClient.messagingService.sendSealedMessage(request)
+
+        // Schedule background token pool replenishment (fire-and-forget).
+        Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
 
         // 4. Update message with server-assigned ID and timestamp, save locally
         let serverTimestamp = Date(timeIntervalSince1970: TimeInterval(response.serverTimestamp) / 1000.0)
-        var sentMessage = message
-        sentMessage.status = .sent
 
+        // Sealed responses carry no messageID — the client-generated UUID is canonical.
         let updatedMessage = Message(
-            id: response.messageID.isEmpty ? message.id : response.messageID,
+            id: message.id,
             conversationId: message.conversationId,
             senderId: message.senderId,
             timestamp: serverTimestamp,

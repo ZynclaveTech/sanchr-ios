@@ -180,7 +180,6 @@ private func makeSealedPayload(
     let payload = SealedCallPayload(
         sdp: sdpBody,
         dtlsFingerprint: payloadFingerprint,
-        paddingUntil: timestamp + 60,
         timestamp: timestamp
     )
     return try JSONEncoder().encode(payload)
