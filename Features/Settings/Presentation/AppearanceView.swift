@@ -17,10 +17,10 @@ struct AppearanceView: View {
         SettingsDataSource(grpcClient: container.grpcClient)
     }
 
-    private let themeCards: [(SanchrTheme.Mode, String, String, [Color], String)] = [
-        (.light, "Light Mode", "Clean and bright", [Color.white, Color(hex: 0xF3F4F6)], "sun.max.fill"),
-        (.dark, "Dark Mode", "Easy on the eyes", [Color(hex: 0x0F172A), Color(hex: 0x111827)], "moon.fill"),
-        (.system, "System Default", "Match device settings", [Color.white, Color(hex: 0xCBD5E1), Color(hex: 0x0F172A)], "circle.lefthalf.filled")
+    private let themeCards: [(SanchrTheme.Mode, String, String, String)] = [
+        (.light, "Light Mode", "Clean and bright", "sun.max"),
+        (.dark, "Dark Mode", "Easy on the eyes", "moon"),
+        (.system, "System Default", "Match device settings", "circle.lefthalf.filled")
     ]
 
     private let bubbleOptions: [(String, String)] = [
@@ -70,7 +70,7 @@ struct AppearanceView: View {
             sectionTitle("Theme")
 
             VStack(spacing: 12) {
-                ForEach(themeCards, id: \.0) { mode, title, subtitle, colors, symbol in
+                ForEach(themeCards, id: \.0) { mode, title, subtitle, symbol in
                     Button {
                         theme.mode = mode
                         storedThemeMode = mode.rawValue
@@ -82,24 +82,12 @@ struct AppearanceView: View {
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                     } label: {
                         HStack(spacing: 16) {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: colors,
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 48, height: 48)
-                                .overlay {
-                                    Image(systemName: symbol)
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(mode == .light ? .yellow : .white)
-                                }
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(mode == .light ? Color(hex: 0xE5E7EB) : .clear, lineWidth: 1)
-                                }
+                            SettingsIconTile(
+                                systemName: symbol,
+                                role: theme.mode == mode ? .accent : .neutral,
+                                size: 48,
+                                iconSize: 18
+                            )
 
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(title)
@@ -115,11 +103,10 @@ struct AppearanceView: View {
                             selectionIndicator(isSelected: theme.mode == mode)
                         }
                         .padding(16)
-                        .background(SanchrExportColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .settingsCard()
                         .overlay {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(SanchrColors.primary, lineWidth: theme.mode == mode ? 2 : 0)
+                                .stroke(Color.sanchrPrimary, lineWidth: theme.mode == mode ? 2 : 0)
                         }
                     }
                     .buttonStyle(.plain)
@@ -160,7 +147,7 @@ struct AppearanceView: View {
                             }
                             .overlay {
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(SanchrColors.primary, lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 0)
+                                    .stroke(Color.sanchrPrimary, lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 0)
                             }
                     }
                     .buttonStyle(.plain)
@@ -206,22 +193,15 @@ struct AppearanceView: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 10)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
+                                    .background(Color.sanchrPrimary)
                                     .clipShape(RoundedRectangle(cornerRadius: bubbleRadius(for: value), style: .continuous))
                             }
                         }
                         .padding(16)
-                        .background(SanchrExportColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .settingsCard()
                         .overlay {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(SanchrColors.primary, lineWidth: chatBubbleStyle == value ? 2 : 0)
+                                .stroke(Color.sanchrPrimary, lineWidth: chatBubbleStyle == value ? 2 : 0)
                         }
                     }
                     .buttonStyle(.plain)
@@ -273,21 +253,19 @@ struct AppearanceView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 
     private func selectionIndicator(isSelected: Bool) -> some View {
         Circle()
-            .fill(isSelected ? SanchrColors.primary : .clear)
+            .fill(isSelected ? Color.sanchrPrimary : .clear)
             .frame(width: 24, height: 24)
             .overlay {
                 Circle()
-                    .stroke(isSelected ? SanchrColors.primary : Color(hex: 0xD1D5DB), lineWidth: 2)
+                    .stroke(isSelected ? Color.sanchrPrimary : SanchrExportColors.line, lineWidth: 2)
                 if isSelected {
                     Image(systemName: "checkmark")
+                        .symbolRenderingMode(.monochrome)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
                 }

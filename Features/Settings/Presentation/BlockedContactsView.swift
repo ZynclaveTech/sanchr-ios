@@ -16,14 +16,7 @@ struct BlockedContactsView: View {
                         .frame(maxWidth: .infinity, minHeight: 240)
                 } else if blockedIDs.isEmpty {
                     VStack(spacing: 12) {
-                        Circle()
-                            .fill(SanchrExportColors.surfaceMuted)
-                            .frame(width: 72, height: 72)
-                            .overlay {
-                                Image(systemName: "hand.raised.slash.fill")
-                                    .font(.system(size: 24, weight: .semibold))
-                                    .foregroundColor(SanchrExportColors.textTertiary)
-                            }
+                        SettingsIconTile(systemName: "hand.raised.slash", size: 72, iconSize: 24)
                         Text("No blocked contacts")
                             .font(SanchrTypography.bodyBold)
                             .foregroundColor(SanchrExportColors.textPrimary)
@@ -36,13 +29,7 @@ struct BlockedContactsView: View {
                     VStack(spacing: 12) {
                         ForEach(blockedIDs, id: \.self) { userId in
                             HStack(spacing: 14) {
-                                Circle()
-                                    .fill(SanchrExportColors.surfaceMuted)
-                                    .frame(width: 42, height: 42)
-                                    .overlay {
-                                        Image(systemName: "person.fill")
-                                            .foregroundColor(.sanchrError)
-                                    }
+                                SettingsIconTile(systemName: "person", role: .destructive)
 
                                 Text(shortID(userId))
                                     .font(SanchrTypography.bodyBold)

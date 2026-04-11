@@ -50,14 +50,7 @@ struct DeleteAccountConfirmationSheet: View {
 
     private var warningHeader: some View {
         HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: 0xFEE2E2))
-                    .frame(width: 48, height: 48)
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(Color(hex: 0xDC2626))
-            }
+            SettingsIconTile(systemName: "exclamationmark.triangle", role: .destructive, size: 48, iconSize: 22)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("This cannot be undone")
@@ -84,15 +77,16 @@ struct DeleteAccountConfirmationSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
         }
     }
 
     private func consequence(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "xmark.circle.fill")
+            Image(systemName: "xmark.circle")
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(Color(hex: 0xDC2626))
+                .foregroundColor(.sanchrError)
                 .padding(.top, 2)
             Text(text)
                 .font(SanchrTypography.caption)
@@ -107,20 +101,21 @@ struct DeleteAccountConfirmationSheet: View {
                 .font(SanchrTypography.bodyBold)
                 .foregroundColor(SanchrExportColors.textPrimary)
         }
-        .toggleStyle(SwitchToggleStyle(tint: Color(hex: 0xDC2626)))
+        .toggleStyle(SwitchToggleStyle(tint: Color.sanchrError))
         .padding(16)
         .background(SanchrExportColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
         }
         .disabled(isDeletingAccount)
     }
 
     private func errorBanner(message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.circle.fill")
+            Image(systemName: "exclamationmark.circle")
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(.sanchrError)
             Text(message)
@@ -130,7 +125,7 @@ struct DeleteAccountConfirmationSheet: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(Color(hex: 0xFEE2E2))
+        .background(Color.sanchrError.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
@@ -143,7 +138,8 @@ struct DeleteAccountConfirmationSheet: View {
                     ProgressView()
                         .tint(.white)
                 } else {
-                    Image(systemName: "trash.fill")
+                    Image(systemName: "trash")
+                        .symbolRenderingMode(.monochrome)
                         .font(.system(size: 16, weight: .semibold))
                     Text("Delete My Account")
                         .font(SanchrTypography.bodyBold)
@@ -152,7 +148,7 @@ struct DeleteAccountConfirmationSheet: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
-            .background(Color(hex: 0xDC2626))
+            .background(Color.sanchrError)
             .clipShape(Capsule())
         }
         .disabled(!acknowledged || isDeletingAccount)

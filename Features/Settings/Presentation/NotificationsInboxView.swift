@@ -94,7 +94,7 @@ struct NotificationsInboxView: View {
                             .frame(height: 42)
                             .background(
                                 selectedFilter == filter
-                                    ? SanchrColors.primary
+                                    ? Color.sanchrPrimary
                                     : SanchrExportColors.surface
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -157,7 +157,7 @@ private struct NotificationInboxCard: View {
 
                     Text(item.timeAgo)
                         .font(SanchrTypography.captionSmall)
-                        .foregroundColor(item.tint)
+                        .foregroundColor(SanchrExportColors.textTertiary)
                 }
 
                 Text(item.message)
@@ -171,17 +171,17 @@ private struct NotificationInboxCard: View {
                         .foregroundColor(SanchrExportColors.textSecondary)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.8))
+                        .background(SanchrExportColors.surfaceMuted)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
                 if let actionTitle = item.actionTitle {
                     Button(actionTitle) {}
                         .font(SanchrTypography.caption)
-                        .foregroundColor(item.tint)
+                        .foregroundColor(.sanchrPrimary)
                         .padding(.horizontal, 14)
                         .frame(height: 34)
-                        .background(item.tint.opacity(0.12))
+                        .background(SanchrExportColors.surfaceMuted)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }
@@ -196,60 +196,15 @@ private struct NotificationInboxCard: View {
     }
 
     private var icon: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Circle()
-                .fill(item.iconBackground)
-                .frame(width: 52, height: 52)
-                .overlay {
-                    Image(systemName: item.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-
-            Circle()
-                .fill(item.tint)
-                .frame(width: 20, height: 20)
-                .overlay {
-                    Image(systemName: item.badgeIcon)
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .offset(x: 1, y: 1)
-        }
+        SettingsIconTile(systemName: item.icon, role: item.role, size: 52, iconSize: 18)
     }
 
-    private var background: LinearGradient {
-        switch item.category {
-        case .message:
-            return LinearGradient(
-                colors: [SanchrColors.primary.opacity(0.06), SanchrColors.accent.opacity(0.06)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        case .security:
-            return LinearGradient(
-                colors: [Color(hex: 0xECFDF5), Color(hex: 0xF0FDF4)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        case .system:
-            return LinearGradient(
-                colors: [Color(hex: 0xF9FAFB), Color(hex: 0xF3F4F6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+    private var background: Color {
+        SanchrExportColors.surface
     }
 
     private var borderColor: Color {
-        switch item.category {
-        case .message:
-            return SanchrColors.primary.opacity(0.18)
-        case .security:
-            return Color(hex: 0xBBF7D0)
-        case .system:
-            return Color(hex: 0xE5E7EB)
-        }
+        SanchrExportColors.line.opacity(0.55)
     }
 }
 
@@ -268,9 +223,7 @@ private struct NotificationFeedItem: Identifiable {
     let detail: String?
     let timeAgo: String
     let icon: String
-    let badgeIcon: String
-    let iconBackground: Color
-    let tint: Color
+    let role: SettingsIconRole
     let actionTitle: String?
     var isUnread: Bool = true
 
@@ -282,10 +235,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Sent you a message",
             detail: "Hey! Did you get a chance to review the project files I sent earlier?",
             timeAgo: "2m",
-            icon: "person.fill",
-            badgeIcon: "message.fill",
-            iconBackground: SanchrColors.primary,
-            tint: SanchrColors.primary,
+            icon: "person",
+            role: .neutral,
             actionTitle: nil
         ),
         NotificationFeedItem(
@@ -295,10 +246,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Mike Johnson verified your security code",
             detail: "28394 75621 94857",
             timeAgo: "15m",
-            icon: "shield.fill",
-            badgeIcon: "checkmark",
-            iconBackground: Color(hex: 0x10B981),
-            tint: Color(hex: 0x16A34A),
+            icon: "shield",
+            role: .success,
             actionTitle: nil
         ),
         NotificationFeedItem(
@@ -308,10 +257,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Emma Davis added you to \"Design Team\"",
             detail: nil,
             timeAgo: "1h",
-            icon: "person.3.fill",
-            badgeIcon: "plus",
-            iconBackground: Color(hex: 0x8B5CF6),
-            tint: SanchrColors.accent,
+            icon: "person.3",
+            role: .neutral,
             actionTitle: nil
         ),
         NotificationFeedItem(
@@ -321,10 +268,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Shared 3 photos in Vault",
             detail: "Self-destructing media expires in 24 hours",
             timeAgo: "18h",
-            icon: "lock.doc.fill",
-            badgeIcon: "photo.fill",
-            iconBackground: Color(hex: 0xA855F7),
-            tint: Color(hex: 0xA855F7),
+            icon: "lock.doc",
+            role: .neutral,
             actionTitle: nil
         ),
         NotificationFeedItem(
@@ -334,10 +279,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Your encryption keys have been automatically refreshed for enhanced security.",
             detail: nil,
             timeAgo: "22h",
-            icon: "bell.fill",
-            badgeIcon: "shield.fill",
-            iconBackground: SanchrColors.accent,
-            tint: SanchrExportColors.textTertiary,
+            icon: "bell",
+            role: .neutral,
             actionTitle: nil
         ),
         NotificationFeedItem(
@@ -347,10 +290,8 @@ private struct NotificationFeedItem: Identifiable {
             message: "Missed voice call",
             detail: nil,
             timeAgo: "23h",
-            icon: "phone.down.fill",
-            badgeIcon: "phone.fill",
-            iconBackground: SanchrColors.error,
-            tint: SanchrColors.error,
+            icon: "phone.down",
+            role: .destructive,
             actionTitle: "Call Back"
         ),
     ]

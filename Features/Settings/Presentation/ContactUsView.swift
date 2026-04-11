@@ -32,69 +32,43 @@ struct ContactUsView: View {
 
     private var heroCard: some View {
         VStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0xEEF2FF), Color(hex: 0xECFEFF)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(height: 168)
-                .overlay {
-                    VStack(spacing: 14) {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 64, height: 64)
-                            .overlay {
-                                Image(systemName: "envelope.fill")
-                                    .font(.system(size: 24, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
+            SettingsIconTile(systemName: "envelope", role: .accent, size: 64, iconSize: 24)
 
-                        VStack(spacing: 6) {
-                            Text("We're Here to Help")
-                                .font(SanchrTypography.sectionHeader)
-                                .foregroundColor(SanchrExportColors.textPrimary)
+            VStack(spacing: 6) {
+                Text("We're Here to Help")
+                    .font(SanchrTypography.sectionHeader)
+                    .foregroundColor(SanchrExportColors.textPrimary)
 
-                            Text("Tell us what's happening and we'll route it to the right team.")
-                                .font(SanchrTypography.body)
-                                .foregroundColor(SanchrExportColors.textSecondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                }
+                Text("Tell us what's happening and we'll route it to the right team.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .settingsCard()
     }
 
     private var quickLinks: some View {
         VStack(spacing: 12) {
             ContactLinkRow(
-                icon: "questionmark.circle.fill",
-                tint: SanchrColors.primary,
+                icon: "questionmark.circle",
                 title: "Help Center",
                 subtitle: "Browse FAQs and setup guides"
             )
 
             ContactLinkRow(
-                icon: "envelope.badge.fill",
-                tint: SanchrColors.accent,
+                icon: "envelope.badge",
                 title: "support@sanchr.io",
                 subtitle: "General support inbox"
             )
 
             ContactLinkRow(
-                icon: "exclamationmark.shield.fill",
-                tint: SanchrColors.error,
+                icon: "exclamationmark.shield",
                 title: "emergency@sanchr.io",
-                subtitle: "Urgent account or safety concerns"
+                subtitle: "Urgent account or safety concerns",
+                role: .destructive
             )
         }
     }
@@ -164,19 +138,24 @@ struct ContactUsView: View {
             .tint(.sanchrPrimary)
 
             Button {} label: {
-                SanchrGradientButtonLabel(title: "Send Message", systemName: "paperplane.fill")
+                HStack(spacing: 8) {
+                    Image(systemName: "paperplane")
+                        .symbolRenderingMode(.monochrome)
+                    Text("Send Message")
+                }
+                .font(SanchrTypography.bodyBold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(Color.sanchrPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md, style: .continuous))
             }
-            .buttonStyle(SanchrPrimaryCTA())
+            .buttonStyle(.plain)
             .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .opacity(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1)
         }
         .padding(20)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color(hex: 0xEEF2F7), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 24)
     }
 
     private func field(title: String, text: Binding<String>, placeholder: String) -> some View {
@@ -197,20 +176,13 @@ struct ContactUsView: View {
 
 private struct ContactLinkRow: View {
     let icon: String
-    let tint: Color
     let title: String
     let subtitle: String
+    var role: SettingsIconRole = .neutral
 
     var body: some View {
         HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(SanchrExportColors.surfaceMuted)
-                .frame(width: 48, height: 48)
-                .overlay {
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.sanchrPrimary)
-                }
+            SettingsIconTile(systemName: icon, role: role, size: 48, iconSize: 18)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -224,11 +196,6 @@ private struct ContactLinkRow: View {
             Spacer()
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color(hex: 0xEEF2F7), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 20)
     }
 }

@@ -9,21 +9,21 @@ struct HelpCenterView: View {
     @State private var expandedFAQ: String?
     @State private var showContactForm = false
 
-    private let popularTopics: [(String, String, String, Color, Color)] = [
-        ("shield.fill", "End-to-End Encryption", "How it works", SanchrColors.primary, Color(hex: 0xEEF2FF)),
-        ("key.fill", "Verify Security Keys", "QR code verification", SanchrColors.accent, Color(hex: 0xECFEFF)),
-        ("eye.slash.fill", "Sanchr Mode Privacy", "Enhanced protection", Color(hex: 0x7C3AED), Color(hex: 0xF3E8FF)),
-        ("clock.arrow.circlepath", "Self-Destructing Media", "Vault feature guide", Color(hex: 0xEC4899), Color(hex: 0xFCE7F3)),
-        ("icloud.and.arrow.up.fill", "Backup & Restore", "Keep your data safe", Color(hex: 0x16A34A), Color(hex: 0xDCFCE7)),
+    private let popularTopics: [(String, String, String)] = [
+        ("shield", "End-to-End Encryption", "How it works"),
+        ("key", "Verify Security Keys", "QR code verification"),
+        ("eye.slash", "Sanchr Mode Privacy", "Enhanced protection"),
+        ("clock.arrow.circlepath", "Self-Destructing Media", "Vault feature guide"),
+        ("icloud.and.arrow.up", "Backup & Restore", "Keep your data safe"),
     ]
 
-    private let categories: [(String, String, String, [Color])] = [
-        ("rocket.fill", "Getting Started", "12 articles", [SanchrColors.primary, Color(hex: 0x4F46E5)]),
-        ("lock.fill", "Security", "18 articles", [SanchrColors.accent, Color(hex: 0x0891B2)]),
-        ("gearshape.fill", "Settings", "15 articles", [Color(hex: 0x8B5CF6), Color(hex: 0x7C3AED)]),
-        ("questionmark.circle.fill", "Troubleshooting", "22 articles", [Color(hex: 0xEC4899), Color(hex: 0xDB2777)]),
-        ("phone.fill", "Calls", "9 articles", [Color(hex: 0xF97316), Color(hex: 0xEA580C)]),
-        ("person.3.fill", "Groups", "11 articles", [Color(hex: 0x22C55E), Color(hex: 0x16A34A)]),
+    private let categories: [(String, String, String)] = [
+        ("rocket", "Getting Started", "12 articles"),
+        ("lock", "Security", "18 articles"),
+        ("gearshape", "Settings", "15 articles"),
+        ("questionmark.circle", "Troubleshooting", "22 articles"),
+        ("phone", "Calls", "9 articles"),
+        ("person.3", "Groups", "11 articles"),
     ]
 
     private let faqs: [(String, String)] = [
@@ -68,9 +68,7 @@ struct HelpCenterView: View {
                 quickActionCard(
                     title: "Live Chat",
                     subtitle: "Get instant help",
-                    icon: "message.fill",
-                    colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
-                    foreground: .white
+                    icon: "message"
                 )
             }
             .buttonStyle(.plain)
@@ -81,9 +79,7 @@ struct HelpCenterView: View {
                 quickActionCard(
                     title: "Email Us",
                     subtitle: "We'll respond soon",
-                    icon: "envelope.fill",
-                    colors: [SanchrColors.accent, Color(hex: 0x0891B2)],
-                    foreground: .white
+                    icon: "envelope"
                 )
             }
             .buttonStyle(.plain)
@@ -95,9 +91,9 @@ struct HelpCenterView: View {
             sectionTitle("Popular Topics")
 
             VStack(spacing: 12) {
-                ForEach(popularTopics, id: \.1) { icon, title, subtitle, tint, background in
+                ForEach(popularTopics, id: \.1) { icon, title, subtitle in
                     HStack(spacing: 14) {
-                        iconTile(systemName: icon, tint: tint, background: background)
+                        iconTile(systemName: icon)
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(title)
@@ -111,16 +107,12 @@ struct HelpCenterView: View {
                         Spacer()
 
                         Image(systemName: "chevron.right")
+                            .symbolRenderingMode(.monochrome)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(SanchrExportColors.textTertiary)
                     }
                     .padding(16)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                    }
+                    .settingsCard()
                 }
             }
         }
@@ -131,22 +123,9 @@ struct HelpCenterView: View {
             sectionTitle("Browse by Category")
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                ForEach(categories, id: \.1) { icon, title, subtitle, colors in
+                ForEach(categories, id: \.1) { icon, title, subtitle in
                     VStack(alignment: .leading, spacing: 12) {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: colors,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 48)
-                            .overlay {
-                                Image(systemName: icon)
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
+                        SettingsIconTile(systemName: icon, size: 48, iconSize: 18)
 
                         Text(title)
                             .font(SanchrTypography.bodyBold)
@@ -157,12 +136,7 @@ struct HelpCenterView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                    }
+                    .settingsCard()
                 }
             }
         }
@@ -209,7 +183,7 @@ struct HelpCenterView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                            .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
                     }
                 }
             }
@@ -218,44 +192,30 @@ struct HelpCenterView: View {
 
     private var supportCTA: some View {
         VStack(spacing: 12) {
-            Circle()
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 64, height: 64)
-                .overlay {
-                    Image(systemName: "headphones")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundColor(.white)
-                }
+            SettingsIconTile(systemName: "headphones", role: .accent, size: 64, iconSize: 26)
 
             Text("Still Need Help?")
                 .font(SanchrTypography.sectionHeader)
-                .foregroundColor(.white)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
             Text("Our support team is available to help with setup, security, and account issues.")
                 .font(SanchrTypography.caption)
-                .foregroundColor(.white.opacity(0.88))
+                .foregroundColor(SanchrExportColors.textSecondary)
                 .multilineTextAlignment(.center)
 
             Button("Contact Support") {
                 showContactForm = true
             }
             .font(SanchrTypography.bodyBold)
-            .foregroundColor(.sanchrPrimary)
+            .foregroundColor(.white)
             .padding(.horizontal, 24)
             .frame(height: 46)
-            .background(Color.white)
+            .background(Color.sanchrPrimary)
             .clipShape(Capsule())
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .settingsCard(cornerRadius: 26)
     }
 
     private var communitySection: some View {
@@ -263,9 +223,9 @@ struct HelpCenterView: View {
             sectionTitle("Community")
 
             VStack(spacing: 12) {
-                communityRow(icon: "bird.fill", tint: Color(hex: 0x3B82F6), title: "Twitter", subtitle: "@Sanchr")
-                communityRow(icon: "bubble.left.and.bubble.right.fill", tint: Color(hex: 0x7C3AED), title: "Discord", subtitle: "Join our server")
-                communityRow(icon: "text.bubble.fill", tint: Color(hex: 0xF97316), title: "Reddit", subtitle: "r/Sanchr")
+                communityRow(icon: "at", title: "Twitter", subtitle: "@Sanchr")
+                communityRow(icon: "bubble.left.and.bubble.right", title: "Discord", subtitle: "Join our server")
+                communityRow(icon: "text.bubble", title: "Reddit", subtitle: "r/Sanchr")
             }
         }
     }
@@ -273,54 +233,31 @@ struct HelpCenterView: View {
     private func quickActionCard(
         title: String,
         subtitle: String,
-        icon: String,
-        colors: [Color],
-        foreground: Color
+        icon: String
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 48, height: 48)
-                .overlay {
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(foreground)
-                }
+            SettingsIconTile(systemName: icon, role: .accent, size: 48, iconSize: 18)
 
             Text(title)
                 .font(SanchrTypography.bodyBold)
-                .foregroundColor(foreground)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
             Text(subtitle)
                 .font(SanchrTypography.captionSmall)
-                .foregroundColor(foreground.opacity(0.8))
+                .foregroundColor(SanchrExportColors.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(
-            LinearGradient(
-                colors: colors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .settingsCard()
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
+    private func iconTile(systemName: String) -> some View {
+        SettingsIconTile(systemName: systemName)
     }
 
-    private func communityRow(icon: String, tint: Color, title: String, subtitle: String) -> some View {
+    private func communityRow(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: tint.opacity(0.12))
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -334,23 +271,16 @@ struct HelpCenterView: View {
             Spacer()
 
             Image(systemName: "arrow.up.right")
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(SanchrExportColors.textTertiary)
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-        }
+        .settingsCard()
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 }
 
@@ -381,7 +311,7 @@ struct ContactSupportForm: View {
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                                    .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
                             }
                     }
 
@@ -401,7 +331,7 @@ struct ContactSupportForm: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                            .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
                     }
                 }
                 .padding(SanchrExportMetrics.sectionHorizontal)
@@ -439,7 +369,7 @@ struct ContactSupportForm: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                        .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
                 }
         }
     }

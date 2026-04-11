@@ -15,16 +15,7 @@ struct LockScreenView: View {
             VStack(spacing: SanchrSpacing.xl) {
                 Spacer()
 
-                // App icon
-                ZStack {
-                    Circle()
-                        .fill(SanchrColors.primary.opacity(0.1))
-                        .frame(width: 100, height: 100)
-
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(SanchrGradients.primaryDark)
-                }
+                SettingsIconTile(systemName: "lock.shield", role: .accent, size: 100, iconSize: 48)
 
                 Text("Sanchr is Locked")
                     .font(SanchrTypography.screenTitle)
@@ -41,13 +32,14 @@ struct LockScreenView: View {
                 } label: {
                     HStack(spacing: SanchrSpacing.xs) {
                         Image(systemName: "faceid")
+                            .symbolRenderingMode(.monochrome)
                             .font(.title2)
                         Text("Unlock")
                             .font(SanchrTypography.button)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SanchrSpacing.md)
-                    .background(SanchrGradients.primary)
+                    .background(Color.sanchrPrimary)
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
                 }

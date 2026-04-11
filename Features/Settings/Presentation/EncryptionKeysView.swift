@@ -25,7 +25,8 @@ struct EncryptionKeysView: View {
             Section {
                 VStack(alignment: .leading, spacing: SanchrSpacing.sm) {
                     HStack(spacing: SanchrSpacing.xs) {
-                        Image(systemName: "lock.shield.fill")
+                        Image(systemName: "lock.shield")
+                            .symbolRenderingMode(.monochrome)
                             .foregroundColor(.sanchrSuccess)
                         Text("End-to-end encryption active")
                             .font(SanchrTypography.bodyBold)
@@ -135,7 +136,8 @@ struct EncryptionKeysView: View {
 
                 if preKeyCount.map({ $0 < 10 }) == true {
                     HStack(spacing: SanchrSpacing.xxs) {
-                        Image(systemName: "exclamationmark.triangle.fill")
+                        Image(systemName: "exclamationmark.triangle")
+                            .symbolRenderingMode(.monochrome)
                             .font(.caption)
                             .foregroundColor(.sanchrWarning)
                         Text("Pre-key supply is low. Regenerate to maintain secure messaging.")

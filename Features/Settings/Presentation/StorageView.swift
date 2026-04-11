@@ -72,22 +72,15 @@ struct StorageView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 HStack(spacing: 12) {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 48, height: 48)
-                        .overlay {
-                            Image(systemName: "internaldrive.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
+                    SettingsIconTile(systemName: "internaldrive", role: .accent, size: 48, iconSize: 20)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Total Storage Used")
                             .font(SanchrTypography.caption)
-                            .foregroundColor(.white.opacity(0.88))
+                            .foregroundColor(SanchrExportColors.textSecondary)
                         Text(viewModel.formattedBytes(viewModel.totalBytes))
                             .font(SanchrTypography.sectionHeader)
-                            .foregroundColor(.white)
+                            .foregroundColor(SanchrExportColors.textPrimary)
                     }
                 }
 
@@ -97,11 +90,11 @@ struct StorageView: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.2))
+                        .fill(SanchrExportColors.surfaceMuted)
                         .frame(height: 12)
 
                     Capsule()
-                        .fill(Color(hex: 0x06B6D4))
+                        .fill(Color.sanchrPrimary)
                         .frame(width: proxy.size.width * max(0.02, min(1, viewModel.storageUsagePercentage)), height: 12)
                 }
             }
@@ -110,22 +103,15 @@ struct StorageView: View {
             HStack {
                 Text("\(viewModel.formattedBytes(viewModel.totalBytes)) of \(viewModel.formattedBytes(viewModel.limitBytes)) used")
                     .font(SanchrTypography.caption)
-                    .foregroundColor(.white.opacity(0.88))
+                    .foregroundColor(SanchrExportColors.textSecondary)
                 Spacer()
                 Text("\(Int(viewModel.storageUsagePercentage * 100))%")
                     .font(SanchrTypography.bodyBold)
-                    .foregroundColor(.white)
+                    .foregroundColor(SanchrExportColors.textPrimary)
             }
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [SanchrColors.primary, Color(hex: 0x4F46E5)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .settingsCard(cornerRadius: 26)
     }
 
     private var breakdownSection: some View {
@@ -134,27 +120,21 @@ struct StorageView: View {
 
             VStack(spacing: 12) {
                 storageItemCard(
-                    icon: "photo.fill",
-                    tint: Color(hex: 0x2563EB),
-                    background: Color(hex: 0xDBEAFE),
+                    icon: "photo",
                     title: "Photos",
                     subtitle: "Encrypted images and gallery cache",
                     bytes: viewModel.photosBytes
                 )
 
                 storageItemCard(
-                    icon: "video.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
+                    icon: "video",
                     title: "Videos",
                     subtitle: "Secure clips and downloaded video media",
                     bytes: viewModel.videosBytes
                 )
 
                 storageItemCard(
-                    icon: "doc.fill",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
+                    icon: "doc",
                     title: "Documents",
                     subtitle: "PDFs, files, and shared documents",
                     bytes: viewModel.documentsBytes
@@ -162,8 +142,6 @@ struct StorageView: View {
 
                 storageItemCard(
                     icon: "waveform",
-                    tint: Color(hex: 0xEA580C),
-                    background: Color(hex: 0xFFEDD5),
                     title: "Voice Messages",
                     subtitle: "Audio notes and voice attachments",
                     bytes: viewModel.voiceBytes
@@ -171,8 +149,6 @@ struct StorageView: View {
 
                 storageItemCard(
                     icon: "ellipsis",
-                    tint: Color(hex: 0x6B7280),
-                    background: Color(hex: 0xF3F4F6),
                     title: "Other",
                     subtitle: "App data and local cache",
                     bytes: viewModel.otherBytes
@@ -190,11 +166,10 @@ struct StorageView: View {
                     showClearCacheConfirm = true
                 } label: {
                     manageRow(
-                        icon: "trash.fill",
-                        tint: Color(hex: 0xDC2626),
-                        background: Color(hex: 0xFEE2E2),
+                        icon: "trash",
                         title: "Clear Cache",
-                        subtitle: "Free up \(viewModel.formattedBytes(viewModel.otherBytes))"
+                        subtitle: "Free up \(viewModel.formattedBytes(viewModel.otherBytes))",
+                        role: .destructive
                     )
                 }
                 .buttonStyle(.plain)
@@ -205,8 +180,6 @@ struct StorageView: View {
                 } label: {
                     manageRow(
                         icon: "sparkles",
-                        tint: Color(hex: 0x4F46E5),
-                        background: Color(hex: 0xEEF2FF),
                         title: "Free Up Space",
                         subtitle: "Remove local media and archived files"
                     )
@@ -218,9 +191,7 @@ struct StorageView: View {
                     ChatSettingsView()
                 } label: {
                     manageRow(
-                        icon: "arrow.clockwise.circle.fill",
-                        tint: Color(hex: 0x06B6D4),
-                        background: Color(hex: 0xECFEFF),
+                        icon: "arrow.clockwise.circle",
                         title: "Backup & Restore",
                         subtitle: "Manage encrypted backups"
                     )
@@ -237,8 +208,6 @@ struct StorageView: View {
             VStack(spacing: 12) {
                 autoDownloadRow(
                     icon: "wifi",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
                     title: "When using Wi-Fi",
                     value: viewModel.autoDownloadWifi
                 ) { option in
@@ -248,8 +217,6 @@ struct StorageView: View {
 
                 autoDownloadRow(
                     icon: "antenna.radiowaves.left.and.right",
-                    tint: Color(hex: 0x2563EB),
-                    background: Color(hex: 0xDBEAFE),
                     title: "When using mobile data",
                     value: viewModel.autoDownloadMobile
                 ) { option in
@@ -259,8 +226,6 @@ struct StorageView: View {
 
                 autoDownloadRow(
                     icon: "airplane",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
                     title: "When roaming",
                     value: viewModel.autoDownloadRoaming
                 ) { option in
@@ -277,11 +242,7 @@ struct StorageView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 14) {
-                    iconTile(
-                        systemName: "chart.line.uptrend.xyaxis",
-                        tint: SanchrColors.primary,
-                        background: Color(hex: 0xEEF2FF)
-                    )
+                    iconTile(systemName: "chart.line.uptrend.xyaxis")
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Low Data Mode")
@@ -331,65 +292,41 @@ struct StorageView: View {
                     }
             }
             .padding(18)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
+            .settingsCard()
         }
     }
 
     private var encryptedStorageCard: some View {
         HStack(alignment: .top, spacing: 14) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 42, height: 42)
-                .overlay {
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
+            SettingsIconTile(systemName: "shield", role: .accent)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Encrypted Storage")
                     .font(SanchrTypography.bodyBold)
-                    .foregroundColor(.white)
+                    .foregroundColor(SanchrExportColors.textPrimary)
                 Text("All downloaded media and cached messages remain protected with end-to-end encryption. Sanchr never has access to your private content.")
                     .font(SanchrTypography.caption)
-                    .foregroundColor(.white.opacity(0.88))
+                    .foregroundColor(SanchrExportColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(18)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: 0x4C1D95), SanchrColors.primary],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .settingsCard()
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 
     private func storageItemCard(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         bytes: Int64
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 14) {
-                iconTile(systemName: icon, tint: tint, background: background)
+                iconTile(systemName: icon)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
@@ -414,7 +351,7 @@ struct StorageView: View {
                         .frame(height: 8)
 
                     Capsule()
-                        .fill(tint)
+                        .fill(Color.sanchrPrimary)
                         .frame(
                             width: proxy.size.width * progress(for: bytes),
                             height: 8
@@ -424,23 +361,17 @@ struct StorageView: View {
             .frame(height: 8)
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-        }
+        .settingsCard()
     }
 
     private func manageRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
-        subtitle: String
+        subtitle: String,
+        role: SettingsIconRole = .neutral
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon, role: role)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -458,23 +389,17 @@ struct StorageView: View {
                     .tint(.sanchrPrimary)
             } else {
                 Image(systemName: "chevron.right")
+                    .symbolRenderingMode(.monochrome)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textTertiary)
             }
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-        }
+        .settingsCard()
     }
 
     private func autoDownloadRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         value: String,
         onSelect: @escaping (String) -> Void
@@ -487,7 +412,7 @@ struct StorageView: View {
             }
         } label: {
             HStack(spacing: 14) {
-                iconTile(systemName: icon, tint: tint, background: background)
+                iconTile(systemName: icon)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
@@ -501,29 +426,18 @@ struct StorageView: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
+                    .symbolRenderingMode(.monochrome)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textTertiary)
             }
             .padding(16)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
+            .settingsCard()
         }
         .buttonStyle(.plain)
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
+    private func iconTile(systemName: String, role: SettingsIconRole = .neutral) -> some View {
+        SettingsIconTile(systemName: systemName, role: role)
     }
 
     private func progress(for bytes: Int64) -> CGFloat {

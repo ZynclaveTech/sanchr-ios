@@ -98,14 +98,7 @@ struct BackupView: View {
             // Hero card
             Section {
                 VStack(spacing: SanchrSpacing.md) {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(hex: 0xEEF2FF))
-                        .frame(width: 56, height: 56)
-                        .overlay {
-                            Image(systemName: "shield.fill")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.sanchrPrimary)
-                        }
+                    SettingsIconTile(systemName: "shield", role: .accent, size: 56, iconSize: 24)
 
                     Text("Protect your chat history")
                         .font(SanchrTypography.sectionHeader)
@@ -138,9 +131,9 @@ struct BackupView: View {
 
             // What gets backed up
             Section("WHAT GETS BACKED UP") {
-                backupContentRow(icon: "💬", title: "Messages & conversations", subtitle: "All chats, group info, contacts")
-                backupContentRow(icon: "🔐", title: "Vault items", subtitle: "Encrypted vault media & keys")
-                backupContentRow(icon: "🖼️", title: "Photos & videos", subtitle: "Re-downloaded from Sanchr on restore")
+                backupContentRow(icon: "message", title: "Messages & conversations", subtitle: "All chats, group info, contacts")
+                backupContentRow(icon: "lock.doc", title: "Vault items", subtitle: "Encrypted vault media & keys")
+                backupContentRow(icon: "photo.on.rectangle", title: "Photos & videos", subtitle: "Re-downloaded from Sanchr on restore")
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
@@ -179,7 +172,7 @@ struct BackupView: View {
                         }
                     }
                 } label: {
-                    Label("View Recovery Key", systemImage: "key.fill")
+                    Label("View Recovery Key", systemImage: "key")
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
                 }
@@ -242,14 +235,7 @@ struct BackupView: View {
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: SanchrSpacing.sm) {
             HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(hex: 0xEEF2FF))
-                    .frame(width: 42, height: 42)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.sanchrPrimary)
-                    }
+                SettingsIconTile(systemName: "shield", role: .accent)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Backup Active")
@@ -378,9 +364,7 @@ struct BackupView: View {
             showingRestoreSheet = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "arrow.clockwise.circle.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Color(hex: 0x06B6D4))
+                SettingsIconTile(systemName: "arrow.clockwise.circle", size: 36, iconSize: 18)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Restore from Backup")
                         .font(SanchrTypography.bodyBold)
@@ -399,7 +383,7 @@ struct BackupView: View {
 
     private func backupContentRow(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 14) {
-            Text(icon).font(.title2)
+            SettingsIconTile(systemName: icon, size: 36, iconSize: 16)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(SanchrTypography.body)
