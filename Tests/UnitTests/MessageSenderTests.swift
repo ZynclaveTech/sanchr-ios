@@ -443,6 +443,182 @@ final class MessageSenderTests: XCTestCase {
         XCTAssertTrue(sendCalls.isEmpty, "encrypted sender must not be called after upload failure")
     }
 
+    func test_sendMedia_image_happyPath_roundtripsEncryptionKey() async throws {
+        let (sut, db, uploader, sender, _) = makeSUT()
+        let key   = Data(repeating: 0xAA, count: 32)
+        let nonce = Data(repeating: 0xBB, count: 12)
+        await uploader.setResult(.success(MediaUploadOutcome(
+            mediaId: "img-123",
+            remoteURL: "https://example.invalid/img-123",
+            thumbnailRemoteURL: nil,
+            encryptedFileSize: 4096,
+            plaintextFileSize: 2048,
+            encryptionKey: key,
+            encryptionNonce: nonce,
+            encryptionTag: Data(repeating: 0xCC, count: 16),
+            plaintextDigest: Data(repeating: 0xDD, count: 32)
+        )))
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-img-1",
+            serverTimestampMs: 1_700_001_000_000
+        )))
+
+        let attachment = Message.MediaAttachment(
+            url: URL(fileURLWithPath: "/tmp/photo.jpg"),
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: "image/jpeg",
+            sizeBytes: 2048,
+            width: 1080,
+            height: 720,
+            blurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+        )
+
+        _ = try await sut.sendMedia(attachment: attachment, caption: nil, to: "chat-A", progress: { _ in })
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        let confirmed = db.savedMessages[1]
+        guard case .image(let stored) = confirmed.content else {
+            return XCTFail("Expected .image content on confirmed row")
+        }
+        XCTAssertEqual(stored.encryptionKey, key,
+            "Encryption key must be roundtripped from upload outcome into the stored attachment")
+        XCTAssertEqual(stored.encryptionIV, nonce,
+            "Encryption nonce must be roundtripped from upload outcome into the stored attachment")
+        XCTAssertEqual(stored.width, 1080, "Image width must be preserved through the send pipeline")
+        XCTAssertEqual(stored.height, 720, "Image height must be preserved")
+        XCTAssertEqual(stored.blurHash, "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+            "BlurHash must be preserved for receiver placeholder")
+        XCTAssertEqual(stored.url.absoluteString, "sanchr-media://img-123",
+            "URL must be rewritten to sanchr-media:// scheme after upload")
+    }
+
+    func test_sendMedia_video_usesVideoContentTypeString() async throws {
+        let (sut, db, uploader, sender, _) = makeSUT()
+        await uploader.setResult(.success(MediaUploadOutcome(
+            mediaId: "vid-456",
+            remoteURL: "https://example.invalid/vid-456",
+            thumbnailRemoteURL: nil,
+            encryptedFileSize: 8192,
+            plaintextFileSize: 4096,
+            encryptionKey: Data(repeating: 0x01, count: 32),
+            encryptionNonce: Data(repeating: 0x02, count: 12),
+            encryptionTag: Data(repeating: 0x03, count: 16),
+            plaintextDigest: Data(repeating: 0x04, count: 32)
+        )))
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-vid-1",
+            serverTimestampMs: 1_700_002_000_000
+        )))
+
+        let attachment = Message.MediaAttachment(
+            url: URL(fileURLWithPath: "/tmp/video.mp4"),
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: "video/mp4",
+            sizeBytes: 4096,
+            width: 1920,
+            height: 1080,
+            durationSeconds: 15.5
+        )
+
+        _ = try await sut.sendMedia(attachment: attachment, caption: nil, to: "chat-B", progress: { _ in })
+
+        let calls = await sender.calls
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls[0].contentType, "video",
+            "video/mp4 MIME must map to 'video' content type string — required by receive-path decoder")
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        guard case .video(let stored) = db.savedMessages[1].content else {
+            return XCTFail("Expected .video content on confirmed row")
+        }
+        XCTAssertEqual(stored.durationSeconds, 15.5, "Video duration must be preserved")
+    }
+
+    func test_sendMedia_document_usesDocumentContentTypeAndPreservesFilename() async throws {
+        let (sut, db, uploader, sender, _) = makeSUT()
+        await uploader.setResult(.success(MediaUploadOutcome(
+            mediaId: "doc-789",
+            remoteURL: "https://example.invalid/doc-789",
+            thumbnailRemoteURL: nil,
+            encryptedFileSize: 16_384,
+            plaintextFileSize: 8_192,
+            encryptionKey: Data(repeating: 0xEE, count: 32),
+            encryptionNonce: Data(repeating: 0xFF, count: 12),
+            encryptionTag: Data(repeating: 0x10, count: 16),
+            plaintextDigest: Data(repeating: 0x20, count: 32)
+        )))
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-doc-1",
+            serverTimestampMs: 1_700_003_000_000
+        )))
+
+        let attachment = Message.MediaAttachment(
+            url: URL(fileURLWithPath: "/tmp/report.pdf"),
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: "application/pdf",
+            sizeBytes: 8_192,
+            filename: "Q4-Report.pdf"
+        )
+
+        _ = try await sut.sendMedia(attachment: attachment, caption: nil, to: "chat-C", progress: { _ in })
+
+        let calls = await sender.calls
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls[0].contentType, "document",
+            "application/pdf MIME must map to 'document' — not image/video/audio")
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        guard case .document(let stored) = db.savedMessages[1].content else {
+            return XCTFail("Expected .document content on confirmed row")
+        }
+        XCTAssertEqual(stored.filename, "Q4-Report.pdf",
+            "Filename must survive the upload+rebuild pipeline so the receiver can show it")
+    }
+
+    func test_sendMedia_captionBakedIntoStoredAttachment() async throws {
+        let (sut, db, uploader, sender, _) = makeSUT()
+        await uploader.setResult(.success(MediaUploadOutcome(
+            mediaId: "img-cap",
+            remoteURL: "https://example.invalid/img-cap",
+            thumbnailRemoteURL: nil,
+            encryptedFileSize: 2048,
+            plaintextFileSize: 1024,
+            encryptionKey: Data(repeating: 0x55, count: 32),
+            encryptionNonce: Data(repeating: 0x66, count: 12),
+            encryptionTag: Data(repeating: 0x77, count: 16),
+            plaintextDigest: Data(repeating: 0x88, count: 32)
+        )))
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-cap-1",
+            serverTimestampMs: 1_700_004_000_000
+        )))
+
+        let attachment = Message.MediaAttachment(
+            url: URL(fileURLWithPath: "/tmp/sunset.jpg"),
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: "image/jpeg",
+            sizeBytes: 1024
+        )
+
+        _ = try await sut.sendMedia(
+            attachment: attachment,
+            caption: "Golden hour 🌅",
+            to: "chat-D",
+            progress: { _ in }
+        )
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        guard case .image(let stored) = db.savedMessages[1].content else {
+            return XCTFail("Expected .image content on confirmed row")
+        }
+        XCTAssertEqual(stored.caption, "Golden hour 🌅",
+            "Caption passed to sendMedia must be stored in the confirmed attachment so the receiver can display it")
+    }
+
     // MARK: Serialization
 
     func test_concurrentSends_serializeViaActor() async throws {
