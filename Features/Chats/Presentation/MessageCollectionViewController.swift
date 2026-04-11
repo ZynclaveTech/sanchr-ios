@@ -14,9 +14,49 @@ struct MessageItem: Hashable {
     let isGroupedWithNext: Bool
     let uploadProgress: Double?
     let uploadLabel: String?
+    let isUnreadDivider: Bool
 
-    func hash(into hasher: inout Hasher) { hasher.combine(message.id) }
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.message.id == rhs.message.id }
+    init(
+        message: Message,
+        isGroupedWithPrev: Bool,
+        isGroupedWithNext: Bool,
+        uploadProgress: Double?,
+        uploadLabel: String?,
+        isUnreadDivider: Bool = false
+    ) {
+        self.message         = message
+        self.isGroupedWithPrev = isGroupedWithPrev
+        self.isGroupedWithNext = isGroupedWithNext
+        self.uploadProgress  = uploadProgress
+        self.uploadLabel     = uploadLabel
+        self.isUnreadDivider = isUnreadDivider
+    }
+
+    func hash(into hasher: inout Hasher) {
+        isUnreadDivider ? hasher.combine("__unread_divider__") : hasher.combine(message.id)
+    }
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        if lhs.isUnreadDivider && rhs.isUnreadDivider { return true }
+        if lhs.isUnreadDivider || rhs.isUnreadDivider { return false }
+        return lhs.message.id == rhs.message.id
+    }
+
+    /// Synthetic item used as the "New Messages" divider.
+    static let unreadDivider = MessageItem(
+        message: Message(
+            id: "__unread_divider__",
+            conversationId: "", senderId: "",
+            timestamp: .distantPast,
+            content: .text(""),
+            status: .sent,
+            isOutgoing: false
+        ),
+        isGroupedWithPrev: false,
+        isGroupedWithNext: false,
+        uploadProgress: nil,
+        uploadLabel: nil,
+        isUnreadDivider: true
+    )
 }
 
 private struct MessageItemRenderSignature: Hashable {
@@ -199,6 +239,11 @@ final class MessageCollectionViewController: UIViewController {
     /// Pending snapshot to apply after viewDidLoad.
     private var pendingRenderInput: TranscriptRenderInput?
 
+    /// ID of the first unread message. When set, a "New Messages" divider
+    /// is injected immediately above that message in the snapshot.
+    /// Set from `TranscriptRenderInput.firstUnreadMessageId` by the SwiftUI bridge.
+    var firstUnreadMessageId: String?
+
     // MARK: - Swipe-to-Reply
 
     private let swipeThreshold: CGFloat = 60
@@ -332,6 +377,15 @@ final class MessageCollectionViewController: UIViewController {
 
     private func makeCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
         UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { [weak self] cell, _, item in
+            if item.isUnreadDivider {
+                cell.contentConfiguration = UIHostingConfiguration {
+                    UnreadDividerRow()
+                }
+                .margins(.all, 0)
+                .background(.clear)
+                return
+            }
+
             cell.contentConfiguration = UIHostingConfiguration {
                 VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
                     MessageBubble(
@@ -415,7 +469,8 @@ final class MessageCollectionViewController: UIViewController {
                 uploadProgress: uploadProgress,
                 uploadStatusLabel: uploadStatusLabel,
                 version: lastAppliedTranscriptVersion ?? 0,
-                scrollCommand: pendingScrollCommand
+                scrollCommand: pendingScrollCommand,
+                firstUnreadMessageId: firstUnreadMessageId
             )
             return
         }
@@ -426,18 +481,23 @@ final class MessageCollectionViewController: UIViewController {
         let previousItemCount = lastItemCount
         let previousMessageIDs = lastMessageIDs
         var newMessageIDs: [String] = []
+        let groupingThreshold: TimeInterval = 180
 
         for section in sections {
             let sectionId = MessageListSection.messages(date: section.title)
             snapshot.appendSections([sectionId])
 
-            let items: [MessageItem] = section.messages.enumerated().map { index, message in
+            var sectionItems: [MessageItem] = []
+
+            for (index, message) in section.messages.enumerated() {
                 let prev = index > 0 ? section.messages[index - 1] : nil
                 let next = index < section.messages.count - 1 ? section.messages[index + 1] : nil
+                let isFirstUnread = message.id == firstUnreadMessageId
 
-                let groupingThreshold: TimeInterval = 180
-
-                let isGroupedWithPrev = prev?.senderId == message.senderId
+                // Never visually group the first unread message with its predecessor
+                // since the divider row separates them.
+                let isGroupedWithPrev = !isFirstUnread
+                    && prev?.senderId == message.senderId
                     && prev?.isOutgoing == message.isOutgoing
                     && message.timestamp.timeIntervalSince(prev?.timestamp ?? .distantPast) < groupingThreshold
 
@@ -445,16 +505,18 @@ final class MessageCollectionViewController: UIViewController {
                     && next?.isOutgoing == message.isOutgoing
                     && (next?.timestamp ?? .distantFuture).timeIntervalSince(message.timestamp) < groupingThreshold
 
-                return MessageItem(
+                if isFirstUnread { sectionItems.append(.unreadDivider) }
+                sectionItems.append(MessageItem(
                     message: message,
                     isGroupedWithPrev: isGroupedWithPrev,
                     isGroupedWithNext: isGroupedWithNext,
                     uploadProgress: uploadProgress[message.id],
                     uploadLabel: uploadStatusLabel[message.id]
-                )
+                ))
             }
 
-            for item in items {
+            for item in sectionItems {
+                guard !item.isUnreadDivider else { continue }
                 newMessageIDs.append(item.message.id)
                 let signature = item.renderSignature
                 if lastRenderedItemSignatures[item.message.id] != nil,
@@ -465,7 +527,7 @@ final class MessageCollectionViewController: UIViewController {
                 newRenderedItemSignatures[item.message.id] = signature
             }
 
-            snapshot.appendItems(items, toSection: sectionId)
+            snapshot.appendItems(sectionItems, toSection: sectionId)
         }
 
         if !itemsToReconfigure.isEmpty {
@@ -966,6 +1028,29 @@ private struct ReactionPillsRow: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+// MARK: - Unread Divider
+
+/// "— New Messages —" separator rendered above the first unread message.
+private struct UnreadDividerRow: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(SanchrExportColors.line)
+                .frame(height: 1)
+            Text("New Messages")
+                .font(SanchrTypography.captionSmall)
+                .fontWeight(.semibold)
+                .foregroundColor(SanchrColors.primary)
+                .fixedSize()
+            Rectangle()
+                .fill(SanchrExportColors.line)
+                .frame(height: 1)
+        }
+        .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
+        .padding(.vertical, 10)
     }
 }
 

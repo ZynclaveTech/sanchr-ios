@@ -1,4 +1,5 @@
 import PencilKit
+import SanchrShared
 import SwiftUI
 
 // MARK: - Main Editor View
@@ -93,7 +94,7 @@ struct ImageEditorView: View {
                 onComplete(state.render(canvasSize: canvasSize))
             }
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.sanchrPrimary)
+            .foregroundStyle(SanchrColors.primary)
         }
     }
 

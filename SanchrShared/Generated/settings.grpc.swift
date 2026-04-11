@@ -40,6 +40,11 @@ public protocol Sanchr_Settings_SettingsServiceClientProtocol: GRPCClient {
     _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
+
+  func setRegistrationLock(
+    _ request: Sanchr_Settings_SetRegistrationLockRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>
 }
 
 extension Sanchr_Settings_SettingsServiceClientProtocol {
@@ -136,6 +141,18 @@ extension Sanchr_Settings_SettingsServiceClientProtocol {
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
     )
   }
+
+  public func setRegistrationLock(
+    _ request: Sanchr_Settings_SetRegistrationLockRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.setRegistrationLock.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetRegistrationLockInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -224,6 +241,11 @@ public protocol Sanchr_Settings_SettingsServiceAsyncClientProtocol: GRPCClient {
     _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
+
+  func makeSetRegistrationLockCall(
+    _ request: Sanchr_Settings_SetRegistrationLockRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -295,6 +317,18 @@ extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
     )
   }
+
+  public func makeSetRegistrationLockCall(
+    _ request: Sanchr_Settings_SetRegistrationLockRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.setRegistrationLock.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetRegistrationLockInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -358,6 +392,18 @@ extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
     )
   }
+
+  public func setRegistrationLock(
+    _ request: Sanchr_Settings_SetRegistrationLockRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Settings_SetRegistrationLockResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.setRegistrationLock.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetRegistrationLockInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -393,6 +439,9 @@ public protocol Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'getStorageUsage'.
   func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'setRegistrationLock'.
+  func makeSetRegistrationLockInterceptors() -> [ClientInterceptor<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>]
 }
 
 public enum Sanchr_Settings_SettingsServiceClientMetadata {

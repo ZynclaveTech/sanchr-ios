@@ -14,6 +14,9 @@ struct TranscriptRenderInput {
     let uploadStatusLabel: [String: String]
     let version: UInt64
     let scrollCommand: TranscriptScrollCommand?
+    /// ID of the first unread message. When set, a "New Messages" divider
+    /// is injected immediately above this message in the collection view.
+    let firstUnreadMessageId: String?
 }
 
 /// SwiftUI bridge for `MessageCollectionViewController`.
@@ -76,6 +79,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onBubbleTap(interaction)
         }
 
+        vc.firstUnreadMessageId = renderInput.firstUnreadMessageId
         vc.update(renderInput: renderInput)
 
         return vc
@@ -110,6 +114,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
             onBubbleTap(interaction)
         }
 
+        vc.firstUnreadMessageId = renderInput.firstUnreadMessageId
         vc.update(renderInput: renderInput)
     }
 }

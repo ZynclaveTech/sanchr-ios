@@ -57,6 +57,11 @@ final class ChatDetailViewModel {
     /// Whether there are more messages to load.
     var hasMoreMessages: Bool = true
 
+    /// ID of the first unread message on conversation entry.
+    /// Drives the "New Messages" divider in the transcript.
+    /// Cleared when the user leaves the conversation.
+    var firstUnreadMessageId: String?
+
     private var lastPaginationAnchor: Date?
     private var typingIdleTask: Task<Void, Never>?
     private var peerTypingClearTask: Task<Void, Never>?
@@ -157,6 +162,7 @@ final class ChatDetailViewModel {
     @MainActor
     func onConversationDisappear(pushManager: PushManager) {
         pushManager.setActiveConversation(nil)
+        firstUnreadMessageId = nil
     }
 
     func configurePeer(
@@ -229,6 +235,7 @@ final class ChatDetailViewModel {
 
     func loadMessages(
         conversationId: String,
+        unreadCount: Int = 0,
         messageRepository: MessageRepositoryProtocol
     ) async {
         guard !isLoading else { return }
@@ -246,6 +253,15 @@ final class ChatDetailViewModel {
             rebuildSections()
             hasMoreMessages = messages.count >= 50
             lastPaginationAnchor = nil
+
+            // Compute first unread message for the divider. Only set once per
+            // conversation entry; cleared in onConversationDisappear.
+            if unreadCount > 0, messages.count > unreadCount {
+                firstUnreadMessageId = messages[messages.count - unreadCount].id
+            } else {
+                firstUnreadMessageId = nil
+            }
+
             SanchrLogger.chat.info(
                 "Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
         } catch {

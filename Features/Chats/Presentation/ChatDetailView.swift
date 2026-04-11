@@ -97,8 +97,15 @@ struct ChatDetailView: View {
                 await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
                 await viewModel.loadMessages(
                     conversationId: conversation.id,
+                    unreadCount: conversation.unreadCount,
                     messageRepository: container.messageRepository
                 )
+                // If there are unread messages, scroll to the divider instead of bottom.
+                if let firstUnreadId = viewModel.firstUnreadMessageId {
+                    issueTranscriptScroll(
+                        to: .message(id: firstUnreadId, sequence: nextTranscriptScrollSequence())
+                    )
+                }
             }
             .onAppear {
                 viewModel.configurePeer(recipient)
@@ -787,9 +794,6 @@ struct ChatDetailView: View {
             onReply: { message in
                 viewModel.setReply(to: message)
             },
-            onForward: { message in
-                messageToForward = message
-            },
             onReact: { emoji, messageId in
                 let userId = container.signalProtocol.localUserId
                 viewModel.toggleReaction(
@@ -798,6 +802,9 @@ struct ChatDetailView: View {
                     conversationId: conversation.id,
                     userId: userId
                 )
+            },
+            onForward: { message in
+                messageToForward = message
             },
             onLoadMore: {
                 Task {
@@ -1206,7 +1213,8 @@ struct ChatDetailView: View {
             uploadProgress: viewModel.uploadProgress,
             uploadStatusLabel: viewModel.uploadStatusLabel,
             version: viewModel.transcriptVersion,
-            scrollCommand: transcriptScrollCommand
+            scrollCommand: transcriptScrollCommand,
+            firstUnreadMessageId: viewModel.firstUnreadMessageId
         )
     }
 

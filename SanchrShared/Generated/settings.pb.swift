@@ -150,6 +150,11 @@ public struct Sanchr_Settings_UserSettings: @unchecked Sendable {
     set {_uniqueStorage()._lowDataMode = newValue}
   }
 
+  public var registrationLockEnabled: Bool {
+    get {_storage._registrationLockEnabled}
+    set {_uniqueStorage()._registrationLockEnabled = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -301,7 +306,7 @@ extension Sanchr_Settings_GetSettingsRequest: SwiftProtobuf.Message, SwiftProtob
 
 extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserSettings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}sanchr_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}sanchr_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0\u{3}registration_lock_enabled\0")
 
   fileprivate class _StorageClass {
     var _readReceipts: Bool = false
@@ -326,6 +331,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
     var _autoDownloadMobile: String = String()
     var _autoDownloadRoaming: String = String()
     var _lowDataMode: Bool = false
+    var _registrationLockEnabled: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -358,6 +364,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
       _autoDownloadMobile = source._autoDownloadMobile
       _autoDownloadRoaming = source._autoDownloadRoaming
       _lowDataMode = source._lowDataMode
+      _registrationLockEnabled = source._registrationLockEnabled
     }
   }
 
@@ -398,6 +405,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
         case 20: try { try decoder.decodeSingularStringField(value: &_storage._autoDownloadMobile) }()
         case 21: try { try decoder.decodeSingularStringField(value: &_storage._autoDownloadRoaming) }()
         case 22: try { try decoder.decodeSingularBoolField(value: &_storage._lowDataMode) }()
+        case 23: try { try decoder.decodeSingularBoolField(value: &_storage._registrationLockEnabled) }()
         default: break
         }
       }
@@ -472,6 +480,9 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
       if _storage._lowDataMode != false {
         try visitor.visitSingularBoolField(value: _storage._lowDataMode, fieldNumber: 22)
       }
+      if _storage._registrationLockEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._registrationLockEnabled, fieldNumber: 23)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -503,6 +514,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
         if _storage._autoDownloadMobile != rhs_storage._autoDownloadMobile {return false}
         if _storage._autoDownloadRoaming != rhs_storage._autoDownloadRoaming {return false}
         if _storage._lowDataMode != rhs_storage._lowDataMode {return false}
+        if _storage._registrationLockEnabled != rhs_storage._registrationLockEnabled {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -775,6 +787,78 @@ extension Sanchr_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProt
     if lhs.otherBytes != rhs.otherBytes {return false}
     if lhs.totalBytes != rhs.totalBytes {return false}
     if lhs.limitBytes != rhs.limitBytes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+public struct Sanchr_Settings_SetRegistrationLockRequest: Sendable {
+  public var enabled: Bool = false
+  public var pin: String = String()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  public init() {}
+}
+
+public struct Sanchr_Settings_SetRegistrationLockResponse: Sendable {
+  public var success: Bool = false
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+  public init() {}
+}
+
+extension Sanchr_Settings_SetRegistrationLockRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetRegistrationLockRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}pin\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.pin) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    if !self.pin.isEmpty {
+      try visitor.visitSingularStringField(value: self.pin, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Settings_SetRegistrationLockRequest, rhs: Sanchr_Settings_SetRegistrationLockRequest) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.pin != rhs.pin {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Settings_SetRegistrationLockResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetRegistrationLockResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.success) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.success != false {
+      try visitor.visitSingularBoolField(value: self.success, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Settings_SetRegistrationLockResponse, rhs: Sanchr_Settings_SetRegistrationLockResponse) -> Bool {
+    if lhs.success != rhs.success {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
