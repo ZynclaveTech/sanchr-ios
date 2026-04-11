@@ -67,6 +67,7 @@ message CallOfferEvent {
   string call_type = 3;
   bytes sdp_offer = 4;
   bytes srtp_key_params = 5;
+  bytes encrypted_sdp_payload = 6;  // Signal-encrypt(SealedCallPayload JSON)
 }
 
 message CallLifecycleEvent {

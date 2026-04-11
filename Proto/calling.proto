@@ -27,8 +27,9 @@ message CallResponse {
 
 message CallSignal {
   string call_id = 1;
+  reserved 2;                       // was sdp_answer — do not reuse
+  reserved "sdp_answer";
   oneof signal {
-    reserved 2;                       // was sdp_answer — do not reuse
     bytes ice_candidate = 3;          // unchanged
     CallControl control = 4;          // unchanged
     bytes encrypted_sdp_answer = 5;   // Signal-encrypt(SealedCallPayload JSON)
