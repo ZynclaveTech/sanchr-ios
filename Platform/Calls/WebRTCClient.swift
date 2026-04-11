@@ -374,13 +374,19 @@ final class WebRTCClient: NSObject {
         guard let device = AVCaptureDevice.default(
             .builtInWideAngleCamera, for: .video, position: position)
         else {
-            SanchrLogger.calls.error("No camera found for position \(position.rawValue)")
+            SanchrLogger.calls.error("No camera found for position \(position == .front ? "front" : "back")")
             return
         }
-        guard let format = device.formats.last(where: {
-            let dims = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
-            return dims.width <= 1280 && dims.height <= 720
-        }) ?? device.formats.first else {
+        guard let format = device.formats
+            .filter({
+                let d = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+                return d.width <= 1280 && d.height <= 720
+            })
+            .max(by: {
+                let a = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+                let b = CMVideoFormatDescriptionGetDimensions($1.formatDescription)
+                return (a.width * a.height) < (b.width * b.height)
+            }) ?? device.formats.first else {
             SanchrLogger.calls.error("No suitable format found")
             return
         }

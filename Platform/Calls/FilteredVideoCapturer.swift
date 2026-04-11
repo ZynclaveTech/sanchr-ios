@@ -130,7 +130,6 @@ extension FilteredVideoCapturer: AVCaptureVideoDataOutputSampleBufferDelegate {
         let height = CVPixelBufferGetHeight(pixelBuffer)
 
         lock.lock()
-        let activeFilter = _currentFilter
         let ciFilter = _cachedCIFilter
         lock.unlock()
 
