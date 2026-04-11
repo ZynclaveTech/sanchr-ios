@@ -126,7 +126,7 @@ struct BackupView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(.sanchrPrimary)
+                            .background(Color.sanchrPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md))
                     }
                     .buttonStyle(.plain)
@@ -314,7 +314,7 @@ struct BackupView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(.sanchrPrimary)
+                .background(Color.sanchrPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
             }
             .buttonStyle(.plain)

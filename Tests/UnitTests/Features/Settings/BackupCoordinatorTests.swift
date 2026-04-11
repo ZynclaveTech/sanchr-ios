@@ -1,4 +1,5 @@
 import XCTest
+import SanchrShared
 @testable import Sanchr
 
 @MainActor
@@ -10,16 +11,18 @@ final class BackupCoordinatorTests: XCTestCase {
         let service = MockBackupArchiveService()
         let older = Date().addingTimeInterval(-3600)  // 1 hour ago
         let newer = Date()
+        // Service contract: listBackups() returns entries sorted descending by committedAt.
+        // The coordinator is a pure pass-through; we seed the mock in the expected sort order.
         service.listBackupsResult = [
-            BackupListEntry(id: "b1", committedAt: older, byteSize: 1024, messageCount: 5),
             BackupListEntry(id: "b2", committedAt: newer, byteSize: 2048, messageCount: 10),
+            BackupListEntry(id: "b1", committedAt: older, byteSize: 1024, messageCount: 5),
         ]
         let coordinator = makeCoordinator(service: service)
 
         let entries = try await coordinator.listBackups()
 
         XCTAssertEqual(entries.count, 2)
-        XCTAssertEqual(entries[0].id, "b2")  // newer first
+        XCTAssertEqual(entries[0].id, "b2")  // newer first (service-sorted)
         XCTAssertEqual(entries[1].id, "b1")
     }
 

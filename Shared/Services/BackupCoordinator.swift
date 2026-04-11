@@ -3,7 +3,7 @@ import LocalAuthentication
 import SanchrShared
 
 @Observable
-final class BackupCoordinator {
+final class BackupCoordinator: @unchecked Sendable {
     private let backupService: BackupArchiveServiceProtocol
     private let recoveryKeyManager: RecoveryKeyManagerProtocol
     private let backupKeyDeriver: BackupKeyDeriverProtocol
