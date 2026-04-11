@@ -25,54 +25,54 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-struct Sanchr_Calling_CallOffer: Sendable {
+public struct Sanchr_Calling_CallOffer: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// kept for server backward compat; unused when delivery_token is set
-  var recipientID: String = String()
+  public var recipientID: String = String()
 
   /// "voice" or "video"
-  var callType: String = String()
+  public var callType: String = String()
 
   /// sealed sender routing token
-  var deliveryToken: Data = Data()
+  public var deliveryToken: Data = Data()
 
   /// Signal-encrypt(SealedCallPayload JSON)
-  var encryptedSdpPayload: Data = Data()
+  public var encryptedSdpPayload: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_CallResponse: Sendable {
+public struct Sanchr_Calling_CallResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var callID: String = String()
+  public var callID: String = String()
 
   /// "ringing", "busy", "unavailable"
-  var status: String = String()
+  public var status: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_CallSignal: Sendable {
+public struct Sanchr_Calling_CallSignal: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var callID: String = String()
+  public var callID: String = String()
 
-  var signal: Sanchr_Calling_CallSignal.OneOf_Signal? = nil
+  public var signal: Sanchr_Calling_CallSignal.OneOf_Signal? = nil
 
   /// unchanged
-  var iceCandidate: Data {
+  public var iceCandidate: Data {
     get {
       if case .iceCandidate(let v)? = signal {return v}
       return Data()
@@ -81,7 +81,7 @@ struct Sanchr_Calling_CallSignal: Sendable {
   }
 
   /// unchanged
-  var control: Sanchr_Calling_CallControl {
+  public var control: Sanchr_Calling_CallControl {
     get {
       if case .control(let v)? = signal {return v}
       return Sanchr_Calling_CallControl()
@@ -90,7 +90,7 @@ struct Sanchr_Calling_CallSignal: Sendable {
   }
 
   /// Signal-encrypt(SealedCallPayload JSON)
-  var encryptedSdpAnswer: Data {
+  public var encryptedSdpAnswer: Data {
     get {
       if case .encryptedSdpAnswer(let v)? = signal {return v}
       return Data()
@@ -98,9 +98,9 @@ struct Sanchr_Calling_CallSignal: Sendable {
     set {signal = .encryptedSdpAnswer(newValue)}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  enum OneOf_Signal: Equatable, Sendable {
+  public enum OneOf_Signal: Equatable, Sendable {
     /// unchanged
     case iceCandidate(Data)
     /// unchanged
@@ -110,125 +110,125 @@ struct Sanchr_Calling_CallSignal: Sendable {
 
   }
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_CallControl: Sendable {
+public struct Sanchr_Calling_CallControl: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// "ringing", "accepted", "declined", "busy", "ended", "missed"
-  var action: String = String()
+  public var action: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_EndCallRequest: Sendable {
+public struct Sanchr_Calling_EndCallRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var callID: String = String()
+  public var callID: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_EndCallResponse: Sendable {
+public struct Sanchr_Calling_EndCallResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_GetCallHistoryRequest: Sendable {
+public struct Sanchr_Calling_GetCallHistoryRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var limit: Int32 = 0
+  public var limit: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_GetCallHistoryResponse: Sendable {
+public struct Sanchr_Calling_GetCallHistoryResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var entries: [Sanchr_Calling_CallLogEntry] = []
+  public var entries: [Sanchr_Calling_CallLogEntry] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_CallLogEntry: Sendable {
+public struct Sanchr_Calling_CallLogEntry: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var callID: String = String()
+  public var callID: String = String()
 
-  var peerID: String = String()
+  public var peerID: String = String()
 
-  var peerName: String = String()
+  public var peerName: String = String()
 
   /// "voice" or "video"
-  var callType: String = String()
+  public var callType: String = String()
 
   /// "incoming" or "outgoing"
-  var direction: String = String()
+  public var direction: String = String()
 
   /// "completed", "missed", "declined", "busy"
-  var status: String = String()
+  public var status: String = String()
 
-  var startedAt: Int64 = 0
+  public var startedAt: Int64 = 0
 
-  var endedAt: Int64 = 0
+  public var endedAt: Int64 = 0
 
-  var durationSecs: Int32 = 0
+  public var durationSecs: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_GetTurnCredentialsRequest: Sendable {
+public struct Sanchr_Calling_GetTurnCredentialsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Calling_TurnCredentials: Sendable {
+public struct Sanchr_Calling_TurnCredentials: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var urls: [String] = []
+  public var urls: [String] = []
 
-  var username: String = String()
+  public var username: String = String()
 
-  var credential: String = String()
+  public var credential: String = String()
 
-  var ttl: Int64 = 0
+  public var ttl: Int64 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -236,10 +236,10 @@ struct Sanchr_Calling_TurnCredentials: Sendable {
 fileprivate let _protobuf_package = "sanchr.calling"
 
 extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CallOffer"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{4}\u{3}delivery_token\0\u{3}encrypted_sdp_payload\0\u{b}sdp_offer\0\u{b}srtp_key_params\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
+  public static let protoMessageName: String = _protobuf_package + ".CallOffer"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{4}\u{3}delivery_token\0\u{3}encrypted_sdp_payload\0\u{b}sdp_offer\0\u{b}srtp_key_params\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -254,7 +254,7 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.recipientID.isEmpty {
       try visitor.visitSingularStringField(value: self.recipientID, fieldNumber: 1)
     }
@@ -270,7 +270,7 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_CallOffer, rhs: Sanchr_Calling_CallOffer) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallOffer, rhs: Sanchr_Calling_CallOffer) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.callType != rhs.callType {return false}
     if lhs.deliveryToken != rhs.deliveryToken {return false}
@@ -281,10 +281,10 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
 }
 
 extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CallResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{1}status\0")
+  public static let protoMessageName: String = _protobuf_package + ".CallResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{1}status\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -297,7 +297,7 @@ extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.callID.isEmpty {
       try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
     }
@@ -307,7 +307,7 @@ extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_CallResponse, rhs: Sanchr_Calling_CallResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallResponse, rhs: Sanchr_Calling_CallResponse) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.status != rhs.status {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -316,10 +316,10 @@ extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
 }
 
 extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CallSignal"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{4}\u{2}ice_candidate\0\u{1}control\0\u{3}encrypted_sdp_answer\0\u{b}sdp_answer\0\u{c}\u{2}\u{1}")
+  public static let protoMessageName: String = _protobuf_package + ".CallSignal"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{4}\u{2}ice_candidate\0\u{1}control\0\u{3}encrypted_sdp_answer\0\u{b}sdp_answer\0\u{c}\u{2}\u{1}")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -360,7 +360,7 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -386,7 +386,7 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_CallSignal, rhs: Sanchr_Calling_CallSignal) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallSignal, rhs: Sanchr_Calling_CallSignal) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.signal != rhs.signal {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -395,10 +395,10 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
 }
 
 extension Sanchr_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CallControl"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0")
+  public static let protoMessageName: String = _protobuf_package + ".CallControl"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -410,14 +410,14 @@ extension Sanchr_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._Mess
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.action.isEmpty {
       try visitor.visitSingularStringField(value: self.action, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_CallControl, rhs: Sanchr_Calling_CallControl) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallControl, rhs: Sanchr_Calling_CallControl) -> Bool {
     if lhs.action != rhs.action {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -425,10 +425,10 @@ extension Sanchr_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._Mess
 }
 
 extension Sanchr_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".EndCallRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0")
+  public static let protoMessageName: String = _protobuf_package + ".EndCallRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -440,14 +440,14 @@ extension Sanchr_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.callID.isEmpty {
       try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_EndCallRequest, rhs: Sanchr_Calling_EndCallRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_EndCallRequest, rhs: Sanchr_Calling_EndCallRequest) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -455,29 +455,29 @@ extension Sanchr_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._M
 }
 
 extension Sanchr_Calling_EndCallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".EndCallResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".EndCallResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_EndCallResponse, rhs: Sanchr_Calling_EndCallResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_EndCallResponse, rhs: Sanchr_Calling_EndCallResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetCallHistoryRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0")
+  public static let protoMessageName: String = _protobuf_package + ".GetCallHistoryRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -489,14 +489,14 @@ extension Sanchr_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProt
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.limit != 0 {
       try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_GetCallHistoryRequest, rhs: Sanchr_Calling_GetCallHistoryRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetCallHistoryRequest, rhs: Sanchr_Calling_GetCallHistoryRequest) -> Bool {
     if lhs.limit != rhs.limit {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -504,10 +504,10 @@ extension Sanchr_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProt
 }
 
 extension Sanchr_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetCallHistoryResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}entries\0")
+  public static let protoMessageName: String = _protobuf_package + ".GetCallHistoryResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}entries\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -519,14 +519,14 @@ extension Sanchr_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.entries.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.entries, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_GetCallHistoryResponse, rhs: Sanchr_Calling_GetCallHistoryResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetCallHistoryResponse, rhs: Sanchr_Calling_GetCallHistoryResponse) -> Bool {
     if lhs.entries != rhs.entries {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -534,10 +534,10 @@ extension Sanchr_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CallLogEntry"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}peer_id\0\u{3}peer_name\0\u{3}call_type\0\u{1}direction\0\u{1}status\0\u{3}started_at\0\u{3}ended_at\0\u{3}duration_secs\0")
+  public static let protoMessageName: String = _protobuf_package + ".CallLogEntry"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}peer_id\0\u{3}peer_name\0\u{3}call_type\0\u{1}direction\0\u{1}status\0\u{3}started_at\0\u{3}ended_at\0\u{3}duration_secs\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -557,7 +557,7 @@ extension Sanchr_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._Mes
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.callID.isEmpty {
       try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
     }
@@ -588,7 +588,7 @@ extension Sanchr_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_CallLogEntry, rhs: Sanchr_Calling_CallLogEntry) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallLogEntry, rhs: Sanchr_Calling_CallLogEntry) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.peerID != rhs.peerID {return false}
     if lhs.peerName != rhs.peerName {return false}
@@ -604,29 +604,29 @@ extension Sanchr_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._Mes
 }
 
 extension Sanchr_Calling_GetTurnCredentialsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetTurnCredentialsRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".GetTurnCredentialsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_GetTurnCredentialsRequest, rhs: Sanchr_Calling_GetTurnCredentialsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetTurnCredentialsRequest, rhs: Sanchr_Calling_GetTurnCredentialsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".TurnCredentials"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}urls\0\u{1}username\0\u{1}credential\0\u{1}ttl\0")
+  public static let protoMessageName: String = _protobuf_package + ".TurnCredentials"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}urls\0\u{1}username\0\u{1}credential\0\u{1}ttl\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -641,7 +641,7 @@ extension Sanchr_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.urls.isEmpty {
       try visitor.visitRepeatedStringField(value: self.urls, fieldNumber: 1)
     }
@@ -657,7 +657,7 @@ extension Sanchr_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Calling_TurnCredentials, rhs: Sanchr_Calling_TurnCredentials) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_TurnCredentials, rhs: Sanchr_Calling_TurnCredentials) -> Bool {
     if lhs.urls != rhs.urls {return false}
     if lhs.username != rhs.username {return false}
     if lhs.credential != rhs.credential {return false}

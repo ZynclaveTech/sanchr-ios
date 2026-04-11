@@ -57,11 +57,6 @@ public protocol Sanchr_Messaging_MessagingServiceClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>
 
-  func getPresenceSnapshot(
-    _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>
-
   func sendReaction(
     _ request: Sanchr_Messaging_Reaction,
     callOptions: CallOptions?
@@ -235,24 +230,6 @@ extension Sanchr_Messaging_MessagingServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? []
-    )
-  }
-
-  /// Unary call to GetPresenceSnapshot
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to GetPresenceSnapshot.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func getPresenceSnapshot(
-    _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse> {
-    return self.makeUnaryCall(
-      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
     )
   }
 
@@ -430,11 +407,6 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>
 
-  func makeGetPresenceSnapshotCall(
-    _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>
-
   func makeSendReactionCall(
     _ request: Sanchr_Messaging_Reaction,
     callOptions: CallOptions?
@@ -557,18 +529,6 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetConversationsInterceptors() ?? []
-    )
-  }
-
-  public func makeGetPresenceSnapshotCall(
-    _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
     )
   }
 
@@ -731,18 +691,6 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
     )
   }
 
-  public func getPresenceSnapshot(
-    _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Sanchr_Messaging_GetPresenceSnapshotResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? []
-    )
-  }
-
   public func sendReaction(
     _ request: Sanchr_Messaging_Reaction,
     callOptions: CallOptions? = nil
@@ -835,9 +783,6 @@ public protocol Sanchr_Messaging_MessagingServiceClientInterceptorFactoryProtoco
   /// - Returns: Interceptors to use when invoking 'getConversations'.
   func makeGetConversationsInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'getPresenceSnapshot'.
-  func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>]
-
   /// - Returns: Interceptors to use when invoking 'sendReaction'.
   func makeSendReactionInterceptors() -> [ClientInterceptor<Sanchr_Messaging_Reaction, Sanchr_Messaging_Reaction>]
 
@@ -864,7 +809,6 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteMessage,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendReceipt,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getConversations,
-      Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getPresenceSnapshot,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendReaction,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens,
@@ -921,12 +865,6 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let getPresenceSnapshot = GRPCMethodDescriptor(
-      name: "GetPresenceSnapshot",
-      path: "/sanchr.messaging.MessagingService/GetPresenceSnapshot",
-      type: GRPCCallType.unary
-    )
-
     public static let sendReaction = GRPCMethodDescriptor(
       name: "SendReaction",
       path: "/sanchr.messaging.MessagingService/SendReaction",
@@ -972,8 +910,6 @@ public protocol Sanchr_Messaging_MessagingServiceProvider: CallHandlerProvider {
   func sendReceipt(request: Sanchr_Messaging_ReceiptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_ReceiptResponse>
 
   func getConversations(request: Sanchr_Messaging_GetConversationsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_GetConversationsResponse>
-
-  func getPresenceSnapshot(request: Sanchr_Messaging_GetPresenceSnapshotRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_GetPresenceSnapshotResponse>
 
   func sendReaction(request: Sanchr_Messaging_Reaction, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_Reaction>
 
@@ -1068,15 +1004,6 @@ extension Sanchr_Messaging_MessagingServiceProvider {
         userFunction: self.getConversations(request:context:)
       )
 
-    case "GetPresenceSnapshot":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_GetPresenceSnapshotRequest>(),
-        responseSerializer: ProtobufSerializer<Sanchr_Messaging_GetPresenceSnapshotResponse>(),
-        interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? [],
-        userFunction: self.getPresenceSnapshot(request:context:)
-      )
-
     case "SendReaction":
       return UnaryServerHandler(
         context: context,
@@ -1166,11 +1093,6 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncProvider: CallHandlerProvi
     request: Sanchr_Messaging_GetConversationsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Messaging_GetConversationsResponse
-
-  func getPresenceSnapshot(
-    request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Sanchr_Messaging_GetPresenceSnapshotResponse
 
   func sendReaction(
     request: Sanchr_Messaging_Reaction,
@@ -1284,15 +1206,6 @@ extension Sanchr_Messaging_MessagingServiceAsyncProvider {
         wrapping: { try await self.getConversations(request: $0, context: $1) }
       )
 
-    case "GetPresenceSnapshot":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_GetPresenceSnapshotRequest>(),
-        responseSerializer: ProtobufSerializer<Sanchr_Messaging_GetPresenceSnapshotResponse>(),
-        interceptors: self.interceptors?.makeGetPresenceSnapshotInterceptors() ?? [],
-        wrapping: { try await self.getPresenceSnapshot(request: $0, context: $1) }
-      )
-
     case "SendReaction":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1369,10 +1282,6 @@ public protocol Sanchr_Messaging_MessagingServiceServerInterceptorFactoryProtoco
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetConversationsInterceptors() -> [ServerInterceptor<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>]
 
-  /// - Returns: Interceptors to use when handling 'getPresenceSnapshot'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetPresenceSnapshotInterceptors() -> [ServerInterceptor<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>]
-
   /// - Returns: Interceptors to use when handling 'sendReaction'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSendReactionInterceptors() -> [ServerInterceptor<Sanchr_Messaging_Reaction, Sanchr_Messaging_Reaction>]
@@ -1403,7 +1312,6 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.deleteMessage,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.sendReceipt,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getConversations,
-      Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getPresenceSnapshot,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.sendReaction,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getSenderCertificate,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getDeliveryTokens,
@@ -1457,12 +1365,6 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
     public static let getConversations = GRPCMethodDescriptor(
       name: "GetConversations",
       path: "/sanchr.messaging.MessagingService/GetConversations",
-      type: GRPCCallType.unary
-    )
-
-    public static let getPresenceSnapshot = GRPCMethodDescriptor(
-      name: "GetPresenceSnapshot",
-      path: "/sanchr.messaging.MessagingService/GetPresenceSnapshot",
       type: GRPCCallType.unary
     )
 

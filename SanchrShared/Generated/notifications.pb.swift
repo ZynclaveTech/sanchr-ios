@@ -20,61 +20,61 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-struct Sanchr_Notifications_RegisterPushTokenRequest: Sendable {
+public struct Sanchr_Notifications_RegisterPushTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var token: String = String()
+  public var token: String = String()
 
   /// "ios" or "android"
-  var platform: String = String()
+  public var platform: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Notifications_RegisterPushTokenResponse: Sendable {
+public struct Sanchr_Notifications_RegisterPushTokenResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Notifications_UpdateNotificationPrefsRequest: Sendable {
+public struct Sanchr_Notifications_UpdateNotificationPrefsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var messageNotifications: Bool = false
+  public var messageNotifications: Bool = false
 
-  var groupNotifications: Bool = false
+  public var groupNotifications: Bool = false
 
-  var callNotifications: Bool = false
+  public var callNotifications: Bool = false
 
-  var notificationSound: String = String()
+  public var notificationSound: String = String()
 
-  var vibrate: Bool = false
+  public var vibrate: Bool = false
 
-  var showPreview: Bool = false
+  public var showPreview: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Notifications_UpdateNotificationPrefsResponse: Sendable {
+public struct Sanchr_Notifications_UpdateNotificationPrefsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -82,10 +82,10 @@ struct Sanchr_Notifications_UpdateNotificationPrefsResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.notifications"
 
 extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}platform\0")
+  public static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}platform\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -98,7 +98,7 @@ extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, 
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.token.isEmpty {
       try visitor.visitSingularStringField(value: self.token, fieldNumber: 1)
     }
@@ -108,7 +108,7 @@ extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Notifications_RegisterPushTokenRequest, rhs: Sanchr_Notifications_RegisterPushTokenRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_RegisterPushTokenRequest, rhs: Sanchr_Notifications_RegisterPushTokenRequest) -> Bool {
     if lhs.token != rhs.token {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -117,29 +117,29 @@ extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, 
 }
 
 extension Sanchr_Notifications_RegisterPushTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Notifications_RegisterPushTokenResponse, rhs: Sanchr_Notifications_RegisterPushTokenResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_RegisterPushTokenResponse, rhs: Sanchr_Notifications_RegisterPushTokenResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{1}vibrate\0\u{3}show_preview\0")
+  public static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{1}vibrate\0\u{3}show_preview\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -156,7 +156,7 @@ extension Sanchr_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Mes
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.messageNotifications != false {
       try visitor.visitSingularBoolField(value: self.messageNotifications, fieldNumber: 1)
     }
@@ -178,7 +178,7 @@ extension Sanchr_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsRequest, rhs: Sanchr_Notifications_UpdateNotificationPrefsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsRequest, rhs: Sanchr_Notifications_UpdateNotificationPrefsRequest) -> Bool {
     if lhs.messageNotifications != rhs.messageNotifications {return false}
     if lhs.groupNotifications != rhs.groupNotifications {return false}
     if lhs.callNotifications != rhs.callNotifications {return false}
@@ -191,19 +191,19 @@ extension Sanchr_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Mes
 }
 
 extension Sanchr_Notifications_UpdateNotificationPrefsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsResponse, rhs: Sanchr_Notifications_UpdateNotificationPrefsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsResponse, rhs: Sanchr_Notifications_UpdateNotificationPrefsResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

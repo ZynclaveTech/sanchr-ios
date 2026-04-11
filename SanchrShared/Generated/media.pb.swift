@@ -20,8 +20,8 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-enum Sanchr_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
-  typealias RawValue = Int
+public enum Sanchr_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
 
   /// E2EE message attachment (private, presigned access)
   case attachment // = 0
@@ -30,11 +30,11 @@ enum Sanchr_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
   case avatar // = 1
   case UNRECOGNIZED(Int)
 
-  init() {
+  public init() {
     self = .attachment
   }
 
-  init?(rawValue: Int) {
+  public init?(rawValue: Int) {
     switch rawValue {
     case 0: self = .attachment
     case 1: self = .avatar
@@ -42,7 +42,7 @@ enum Sanchr_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
     }
   }
 
-  var rawValue: Int {
+  public var rawValue: Int {
     switch self {
     case .attachment: return 0
     case .avatar: return 1
@@ -51,91 +51,91 @@ enum Sanchr_Media_MediaPurpose: SwiftProtobuf.Enum, Swift.CaseIterable {
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  static let allCases: [Sanchr_Media_MediaPurpose] = [
+  public static let allCases: [Sanchr_Media_MediaPurpose] = [
     .attachment,
     .avatar,
   ]
 
 }
 
-struct Sanchr_Media_GetUploadUrlRequest: Sendable {
+public struct Sanchr_Media_GetUploadUrlRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var fileSize: Int64 = 0
+  public var fileSize: Int64 = 0
 
   /// MIME type: "image/jpeg", "video/mp4", etc.
-  var contentType: String = String()
+  public var contentType: String = String()
 
   /// hash of encrypted blob for dedup
-  var sha256Hash: String = String()
+  public var sha256Hash: String = String()
 
   /// controls ACL and storage path
-  var purpose: Sanchr_Media_MediaPurpose = .attachment
+  public var purpose: Sanchr_Media_MediaPurpose = .attachment
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Media_GetDownloadUrlRequest: Sendable {
+public struct Sanchr_Media_GetDownloadUrlRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var mediaID: String = String()
+  public var mediaID: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Media_PresignedUrlResponse: Sendable {
+public struct Sanchr_Media_PresignedUrlResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// presigned PUT/GET URL (for upload/download)
-  var url: String = String()
+  public var url: String = String()
 
-  var mediaID: String = String()
+  public var mediaID: String = String()
 
   /// seconds until URL expires
-  var expiresIn: Int64 = 0
+  public var expiresIn: Int64 = 0
 
   /// permanent CDN URL for display (empty if no CDN configured)
-  var displayURL: String = String()
+  public var displayURL: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Media_ConfirmUploadRequest: Sendable {
+public struct Sanchr_Media_ConfirmUploadRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var mediaID: String = String()
+  public var mediaID: String = String()
 
-  var fileSize: Int64 = 0
+  public var fileSize: Int64 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Media_ConfirmUploadResponse: Sendable {
+public struct Sanchr_Media_ConfirmUploadResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var mediaID: String = String()
+  public var mediaID: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -143,14 +143,14 @@ struct Sanchr_Media_ConfirmUploadResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.media"
 
 extension Sanchr_Media_MediaPurpose: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MEDIA_PURPOSE_ATTACHMENT\0\u{1}MEDIA_PURPOSE_AVATAR\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MEDIA_PURPOSE_ATTACHMENT\0\u{1}MEDIA_PURPOSE_AVATAR\0")
 }
 
 extension Sanchr_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetUploadUrlRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}file_size\0\u{3}content_type\0\u{3}sha256_hash\0\u{1}purpose\0")
+  public static let protoMessageName: String = _protobuf_package + ".GetUploadUrlRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}file_size\0\u{3}content_type\0\u{3}sha256_hash\0\u{1}purpose\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -165,7 +165,7 @@ extension Sanchr_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.fileSize != 0 {
       try visitor.visitSingularInt64Field(value: self.fileSize, fieldNumber: 1)
     }
@@ -181,7 +181,7 @@ extension Sanchr_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Media_GetUploadUrlRequest, rhs: Sanchr_Media_GetUploadUrlRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Media_GetUploadUrlRequest, rhs: Sanchr_Media_GetUploadUrlRequest) -> Bool {
     if lhs.fileSize != rhs.fileSize {return false}
     if lhs.contentType != rhs.contentType {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
@@ -192,10 +192,10 @@ extension Sanchr_Media_GetUploadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Sanchr_Media_GetDownloadUrlRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetDownloadUrlRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0")
+  public static let protoMessageName: String = _protobuf_package + ".GetDownloadUrlRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -207,14 +207,14 @@ extension Sanchr_Media_GetDownloadUrlRequest: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.mediaID.isEmpty {
       try visitor.visitSingularStringField(value: self.mediaID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Media_GetDownloadUrlRequest, rhs: Sanchr_Media_GetDownloadUrlRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Media_GetDownloadUrlRequest, rhs: Sanchr_Media_GetDownloadUrlRequest) -> Bool {
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -222,10 +222,10 @@ extension Sanchr_Media_GetDownloadUrlRequest: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Sanchr_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PresignedUrlResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}media_id\0\u{3}expires_in\0\u{3}display_url\0")
+  public static let protoMessageName: String = _protobuf_package + ".PresignedUrlResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}media_id\0\u{3}expires_in\0\u{3}display_url\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -240,7 +240,7 @@ extension Sanchr_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.url.isEmpty {
       try visitor.visitSingularStringField(value: self.url, fieldNumber: 1)
     }
@@ -256,7 +256,7 @@ extension Sanchr_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Media_PresignedUrlResponse, rhs: Sanchr_Media_PresignedUrlResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Media_PresignedUrlResponse, rhs: Sanchr_Media_PresignedUrlResponse) -> Bool {
     if lhs.url != rhs.url {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.expiresIn != rhs.expiresIn {return false}
@@ -267,10 +267,10 @@ extension Sanchr_Media_PresignedUrlResponse: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Media_ConfirmUploadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ConfirmUploadRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0\u{3}file_size\0")
+  public static let protoMessageName: String = _protobuf_package + ".ConfirmUploadRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0\u{3}file_size\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -283,7 +283,7 @@ extension Sanchr_Media_ConfirmUploadRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.mediaID.isEmpty {
       try visitor.visitSingularStringField(value: self.mediaID, fieldNumber: 1)
     }
@@ -293,7 +293,7 @@ extension Sanchr_Media_ConfirmUploadRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Media_ConfirmUploadRequest, rhs: Sanchr_Media_ConfirmUploadRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Media_ConfirmUploadRequest, rhs: Sanchr_Media_ConfirmUploadRequest) -> Bool {
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.fileSize != rhs.fileSize {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -302,10 +302,10 @@ extension Sanchr_Media_ConfirmUploadRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Media_ConfirmUploadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ConfirmUploadResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0")
+  public static let protoMessageName: String = _protobuf_package + ".ConfirmUploadResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}media_id\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -317,14 +317,14 @@ extension Sanchr_Media_ConfirmUploadResponse: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.mediaID.isEmpty {
       try visitor.visitSingularStringField(value: self.mediaID, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Media_ConfirmUploadResponse, rhs: Sanchr_Media_ConfirmUploadResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Media_ConfirmUploadResponse, rhs: Sanchr_Media_ConfirmUploadResponse) -> Bool {
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

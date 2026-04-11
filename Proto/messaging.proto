@@ -10,7 +10,6 @@ service MessagingService {
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
   rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
-  rpc GetPresenceSnapshot(GetPresenceSnapshotRequest) returns (GetPresenceSnapshotResponse);
   rpc SendReaction(Reaction) returns (Reaction);
   rpc GetSenderCertificate(SenderCertificateRequest) returns (SenderCertificateResponse);
   rpc GetDeliveryTokens(DeliveryTokenRequest) returns (DeliveryTokenResponse);
@@ -42,8 +41,8 @@ message SendMessageResponse {
 message ClientEvent {
   oneof event {
     TypingIndicator typing = 1;
-    ReceiptRequest receipt = 2;
-    PresenceHeartbeat heartbeat = 3;
+    // field 2 reserved — formerly ReceiptRequest (removed: sealed receipts)
+    // field 3 reserved — formerly PresenceHeartbeat (removed: P2P presence)
   }
 }
 
@@ -52,7 +51,7 @@ message ServerEvent {
     EncryptedEnvelope message = 1;
     TypingIndicator typing = 2;
     ReceiptUpdate receipt = 3;
-    PresenceUpdate presence = 4;
+    // field 4 reserved — formerly PresenceUpdate (removed: P2P presence)
     PreKeyCountLow pre_key_count_low = 5;
     CallOfferEvent call_offer = 6;
     CallLifecycleEvent call_lifecycle = 7;
@@ -166,14 +165,6 @@ message GetConversationsRequest {}
 
 message GetConversationsResponse {
   repeated Conversation conversations = 1;
-}
-
-message GetPresenceSnapshotRequest {
-  repeated string user_ids = 1;
-}
-
-message GetPresenceSnapshotResponse {
-  repeated PresenceUpdate users = 1;
 }
 
 message Conversation {

@@ -20,208 +20,208 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-struct Sanchr_Auth_DeviceInfo: Sendable {
+public struct Sanchr_Auth_DeviceInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var deviceName: String = String()
+  public var deviceName: String = String()
 
-  var platform: String = String()
+  public var platform: String = String()
 
-  var installationID: String = String()
+  public var installationID: String = String()
 
-  var supportsDeliveryAck: Bool = false
+  public var supportsDeliveryAck: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_RegisterRequest: Sendable {
+public struct Sanchr_Auth_RegisterRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var phoneNumber: String = String()
+  public var phoneNumber: String = String()
 
-  var displayName: String = String()
+  public var displayName: String = String()
 
-  var password: String = String()
+  public var password: String = String()
 
-  var email: String = String()
+  public var email: String = String()
 
-  var device: Sanchr_Auth_DeviceInfo {
+  public var device: Sanchr_Auth_DeviceInfo {
     get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
-  var hasDevice: Bool {self._device != nil}
+  public var hasDevice: Bool {self._device != nil}
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
-  mutating func clearDevice() {self._device = nil}
+  public mutating func clearDevice() {self._device = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-struct Sanchr_Auth_VerifyOTPRequest: Sendable {
+public struct Sanchr_Auth_VerifyOTPRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var phoneNumber: String = String()
+  public var phoneNumber: String = String()
 
-  var otpCode: String = String()
+  public var otpCode: String = String()
 
-  var device: Sanchr_Auth_DeviceInfo {
+  public var device: Sanchr_Auth_DeviceInfo {
     get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
-  var hasDevice: Bool {self._device != nil}
+  public var hasDevice: Bool {self._device != nil}
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
-  mutating func clearDevice() {self._device = nil}
+  public mutating func clearDevice() {self._device = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-struct Sanchr_Auth_LoginRequest: Sendable {
+public struct Sanchr_Auth_LoginRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var phoneNumber: String = String()
+  public var phoneNumber: String = String()
 
-  var password: String = String()
+  public var password: String = String()
 
-  var device: Sanchr_Auth_DeviceInfo {
+  public var device: Sanchr_Auth_DeviceInfo {
     get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
-  var hasDevice: Bool {self._device != nil}
+  public var hasDevice: Bool {self._device != nil}
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
-  mutating func clearDevice() {self._device = nil}
+  public mutating func clearDevice() {self._device = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-struct Sanchr_Auth_RefreshTokenRequest: Sendable {
+public struct Sanchr_Auth_RefreshTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var refreshToken: String = String()
+  public var refreshToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_LogoutRequest: Sendable {
+public struct Sanchr_Auth_LogoutRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var refreshToken: String = String()
+  public var refreshToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_AuthResponse: Sendable {
+public struct Sanchr_Auth_AuthResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var accessToken: String = String()
+  public var accessToken: String = String()
 
-  var refreshToken: String = String()
+  public var refreshToken: String = String()
 
-  var user: Sanchr_Auth_User {
+  public var user: Sanchr_Auth_User {
     get {_user ?? Sanchr_Auth_User()}
     set {_user = newValue}
   }
   /// Returns true if `user` has been explicitly set.
-  var hasUser: Bool {self._user != nil}
+  public var hasUser: Bool {self._user != nil}
   /// Clears the value of `user`. Subsequent reads from it will return its default value.
-  mutating func clearUser() {self._user = nil}
+  public mutating func clearUser() {self._user = nil}
 
-  var deviceID: Int32 = 0
+  public var deviceID: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _user: Sanchr_Auth_User? = nil
 }
 
-struct Sanchr_Auth_LogoutResponse: Sendable {
+public struct Sanchr_Auth_LogoutResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_DeleteAccountRequest: Sendable {
+public struct Sanchr_Auth_DeleteAccountRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_DeleteAccountResponse: Sendable {
+public struct Sanchr_Auth_DeleteAccountResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var success: Bool = false
+  public var success: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Auth_User: Sendable {
+public struct Sanchr_Auth_User: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var id: String = String()
+  public var id: String = String()
 
-  var phoneNumber: String = String()
+  public var phoneNumber: String = String()
 
-  var displayName: String = String()
+  public var displayName: String = String()
 
-  var email: String = String()
+  public var email: String = String()
 
-  var avatarURL: String = String()
+  public var avatarURL: String = String()
 
-  var statusText: String = String()
+  public var statusText: String = String()
 
-  var createdAt: String = String()
+  public var createdAt: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -229,10 +229,10 @@ struct Sanchr_Auth_User: Sendable {
 fileprivate let _protobuf_package = "sanchr.auth"
 
 extension Sanchr_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_name\0\u{1}platform\0\u{3}installation_id\0\u{3}supports_delivery_ack\0")
+  public static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_name\0\u{1}platform\0\u{3}installation_id\0\u{3}supports_delivery_ack\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -247,7 +247,7 @@ extension Sanchr_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.deviceName.isEmpty {
       try visitor.visitSingularStringField(value: self.deviceName, fieldNumber: 1)
     }
@@ -263,7 +263,7 @@ extension Sanchr_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_DeviceInfo, rhs: Sanchr_Auth_DeviceInfo) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeviceInfo, rhs: Sanchr_Auth_DeviceInfo) -> Bool {
     if lhs.deviceName != rhs.deviceName {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.installationID != rhs.installationID {return false}
@@ -274,10 +274,10 @@ extension Sanchr_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 }
 
 extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".RegisterRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}display_name\0\u{1}password\0\u{1}email\0\u{1}device\0")
+  public static let protoMessageName: String = _protobuf_package + ".RegisterRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}display_name\0\u{1}password\0\u{1}email\0\u{1}device\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -293,7 +293,7 @@ extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -316,7 +316,7 @@ extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_RegisterRequest, rhs: Sanchr_Auth_RegisterRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_RegisterRequest, rhs: Sanchr_Auth_RegisterRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.password != rhs.password {return false}
@@ -328,10 +328,10 @@ extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
 }
 
 extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".VerifyOTPRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}otp_code\0\u{1}device\0")
+  public static let protoMessageName: String = _protobuf_package + ".VerifyOTPRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}otp_code\0\u{1}device\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -345,7 +345,7 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -362,7 +362,7 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_VerifyOTPRequest, rhs: Sanchr_Auth_VerifyOTPRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_VerifyOTPRequest, rhs: Sanchr_Auth_VerifyOTPRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.otpCode != rhs.otpCode {return false}
     if lhs._device != rhs._device {return false}
@@ -372,10 +372,10 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".LoginRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}password\0\u{1}device\0")
+  public static let protoMessageName: String = _protobuf_package + ".LoginRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}password\0\u{1}device\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -389,7 +389,7 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -406,7 +406,7 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_LoginRequest, rhs: Sanchr_Auth_LoginRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LoginRequest, rhs: Sanchr_Auth_LoginRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.password != rhs.password {return false}
     if lhs._device != rhs._device {return false}
@@ -416,10 +416,10 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
 }
 
 extension Sanchr_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".RefreshTokenRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
+  public static let protoMessageName: String = _protobuf_package + ".RefreshTokenRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -431,14 +431,14 @@ extension Sanchr_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.refreshToken.isEmpty {
       try visitor.visitSingularStringField(value: self.refreshToken, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_RefreshTokenRequest, rhs: Sanchr_Auth_RefreshTokenRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_RefreshTokenRequest, rhs: Sanchr_Auth_RefreshTokenRequest) -> Bool {
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -446,10 +446,10 @@ extension Sanchr_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Sanchr_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".LogoutRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
+  public static let protoMessageName: String = _protobuf_package + ".LogoutRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -461,14 +461,14 @@ extension Sanchr_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._Messa
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.refreshToken.isEmpty {
       try visitor.visitSingularStringField(value: self.refreshToken, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_LogoutRequest, rhs: Sanchr_Auth_LogoutRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LogoutRequest, rhs: Sanchr_Auth_LogoutRequest) -> Bool {
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -476,10 +476,10 @@ extension Sanchr_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._Messa
 }
 
 extension Sanchr_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".AuthResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}access_token\0\u{3}refresh_token\0\u{1}user\0\u{3}device_id\0")
+  public static let protoMessageName: String = _protobuf_package + ".AuthResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}access_token\0\u{3}refresh_token\0\u{1}user\0\u{3}device_id\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -494,7 +494,7 @@ extension Sanchr_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._Messag
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -514,7 +514,7 @@ extension Sanchr_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_AuthResponse, rhs: Sanchr_Auth_AuthResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_AuthResponse, rhs: Sanchr_Auth_AuthResponse) -> Bool {
     if lhs.accessToken != rhs.accessToken {return false}
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs._user != rhs._user {return false}
@@ -525,48 +525,48 @@ extension Sanchr_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._Messag
 }
 
 extension Sanchr_Auth_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".LogoutResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".LogoutResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_LogoutResponse, rhs: Sanchr_Auth_LogoutResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LogoutResponse, rhs: Sanchr_Auth_LogoutResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Auth_DeleteAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeleteAccountRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{c}\u{1}\u{1}")
+  public static let protoMessageName: String = _protobuf_package + ".DeleteAccountRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{c}\u{1}\u{1}")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_DeleteAccountRequest, rhs: Sanchr_Auth_DeleteAccountRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeleteAccountRequest, rhs: Sanchr_Auth_DeleteAccountRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeleteAccountResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0")
+  public static let protoMessageName: String = _protobuf_package + ".DeleteAccountResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -578,14 +578,14 @@ extension Sanchr_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.success != false {
       try visitor.visitSingularBoolField(value: self.success, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_DeleteAccountResponse, rhs: Sanchr_Auth_DeleteAccountResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeleteAccountResponse, rhs: Sanchr_Auth_DeleteAccountResponse) -> Bool {
     if lhs.success != rhs.success {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -593,10 +593,10 @@ extension Sanchr_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Sanchr_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".User"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}phone_number\0\u{3}display_name\0\u{1}email\0\u{3}avatar_url\0\u{3}status_text\0\u{3}created_at\0")
+  public static let protoMessageName: String = _protobuf_package + ".User"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}phone_number\0\u{3}display_name\0\u{1}email\0\u{3}avatar_url\0\u{3}status_text\0\u{3}created_at\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -614,7 +614,7 @@ extension Sanchr_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -639,7 +639,7 @@ extension Sanchr_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Auth_User, rhs: Sanchr_Auth_User) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_User, rhs: Sanchr_Auth_User) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.displayName != rhs.displayName {return false}

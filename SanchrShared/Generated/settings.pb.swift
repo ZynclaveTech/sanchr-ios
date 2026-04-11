@@ -25,255 +25,255 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-struct Sanchr_Settings_GetSettingsRequest: Sendable {
+public struct Sanchr_Settings_GetSettingsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Settings_UserSettings: @unchecked Sendable {
+public struct Sanchr_Settings_UserSettings: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var readReceipts: Bool {
+  public var readReceipts: Bool {
     get {_storage._readReceipts}
     set {_uniqueStorage()._readReceipts = newValue}
   }
 
-  var onlineStatusVisible: Bool {
+  public var onlineStatusVisible: Bool {
     get {_storage._onlineStatusVisible}
     set {_uniqueStorage()._onlineStatusVisible = newValue}
   }
 
-  var typingIndicator: Bool {
+  public var typingIndicator: Bool {
     get {_storage._typingIndicator}
     set {_uniqueStorage()._typingIndicator = newValue}
   }
 
-  var profilePhotoVisibility: String {
+  public var profilePhotoVisibility: String {
     get {_storage._profilePhotoVisibility}
     set {_uniqueStorage()._profilePhotoVisibility = newValue}
   }
 
-  var sanchrModeEnabled: Bool {
+  public var sanchrModeEnabled: Bool {
     get {_storage._sanchrModeEnabled}
     set {_uniqueStorage()._sanchrModeEnabled = newValue}
   }
 
-  var screenLockEnabled: Bool {
+  public var screenLockEnabled: Bool {
     get {_storage._screenLockEnabled}
     set {_uniqueStorage()._screenLockEnabled = newValue}
   }
 
-  var screenLockTimeout: Int32 {
+  public var screenLockTimeout: Int32 {
     get {_storage._screenLockTimeout}
     set {_uniqueStorage()._screenLockTimeout = newValue}
   }
 
-  var screenshotProtection: Bool {
+  public var screenshotProtection: Bool {
     get {_storage._screenshotProtection}
     set {_uniqueStorage()._screenshotProtection = newValue}
   }
 
-  var biometricLock: Bool {
+  public var biometricLock: Bool {
     get {_storage._biometricLock}
     set {_uniqueStorage()._biometricLock = newValue}
   }
 
-  var messageNotifications: Bool {
+  public var messageNotifications: Bool {
     get {_storage._messageNotifications}
     set {_uniqueStorage()._messageNotifications = newValue}
   }
 
-  var groupNotifications: Bool {
+  public var groupNotifications: Bool {
     get {_storage._groupNotifications}
     set {_uniqueStorage()._groupNotifications = newValue}
   }
 
-  var callNotifications: Bool {
+  public var callNotifications: Bool {
     get {_storage._callNotifications}
     set {_uniqueStorage()._callNotifications = newValue}
   }
 
-  var notificationSound: String {
+  public var notificationSound: String {
     get {_storage._notificationSound}
     set {_uniqueStorage()._notificationSound = newValue}
   }
 
-  var notificationVibrate: Bool {
+  public var notificationVibrate: Bool {
     get {_storage._notificationVibrate}
     set {_uniqueStorage()._notificationVibrate = newValue}
   }
 
-  var showPreview: Bool {
+  public var showPreview: Bool {
     get {_storage._showPreview}
     set {_uniqueStorage()._showPreview = newValue}
   }
 
-  var theme: String {
+  public var theme: String {
     get {_storage._theme}
     set {_uniqueStorage()._theme = newValue}
   }
 
-  var fontSize: String {
+  public var fontSize: String {
     get {_storage._fontSize}
     set {_uniqueStorage()._fontSize = newValue}
   }
 
-  var chatWallpaper: String {
+  public var chatWallpaper: String {
     get {_storage._chatWallpaper}
     set {_uniqueStorage()._chatWallpaper = newValue}
   }
 
-  var autoDownloadWifi: String {
+  public var autoDownloadWifi: String {
     get {_storage._autoDownloadWifi}
     set {_uniqueStorage()._autoDownloadWifi = newValue}
   }
 
-  var autoDownloadMobile: String {
+  public var autoDownloadMobile: String {
     get {_storage._autoDownloadMobile}
     set {_uniqueStorage()._autoDownloadMobile = newValue}
   }
 
-  var autoDownloadRoaming: String {
+  public var autoDownloadRoaming: String {
     get {_storage._autoDownloadRoaming}
     set {_uniqueStorage()._autoDownloadRoaming = newValue}
   }
 
-  var lowDataMode: Bool {
+  public var lowDataMode: Bool {
     get {_storage._lowDataMode}
     set {_uniqueStorage()._lowDataMode = newValue}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-struct Sanchr_Settings_UpdateSettingsRequest: Sendable {
+public struct Sanchr_Settings_UpdateSettingsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var settings: Sanchr_Settings_UserSettings {
+  public var settings: Sanchr_Settings_UserSettings {
     get {_settings ?? Sanchr_Settings_UserSettings()}
     set {_settings = newValue}
   }
   /// Returns true if `settings` has been explicitly set.
-  var hasSettings: Bool {self._settings != nil}
+  public var hasSettings: Bool {self._settings != nil}
   /// Clears the value of `settings`. Subsequent reads from it will return its default value.
-  mutating func clearSettings() {self._settings = nil}
+  public mutating func clearSettings() {self._settings = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _settings: Sanchr_Settings_UserSettings? = nil
 }
 
-struct Sanchr_Settings_UpdateProfileRequest: Sendable {
+public struct Sanchr_Settings_UpdateProfileRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var displayName: String = String()
+  public var displayName: String = String()
 
-  var avatarURL: String = String()
+  public var avatarURL: String = String()
 
-  var statusText: String = String()
+  public var statusText: String = String()
 
   /// Encrypted profile fields (AES-256-GCM; server stores as opaque blobs).
-  var profileKey: Data = Data()
+  public var profileKey: Data = Data()
 
-  var encryptedDisplayName: Data = Data()
+  public var encryptedDisplayName: Data = Data()
 
-  var encryptedBio: Data = Data()
+  public var encryptedBio: Data = Data()
 
-  var encryptedAvatarURL: Data = Data()
+  public var encryptedAvatarURL: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Settings_ProfileResponse: Sendable {
+public struct Sanchr_Settings_ProfileResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var id: String = String()
+  public var id: String = String()
 
-  var displayName: String = String()
+  public var displayName: String = String()
 
-  var avatarURL: String = String()
+  public var avatarURL: String = String()
 
-  var statusText: String = String()
+  public var statusText: String = String()
 
   /// Server echoes back the encrypted fields so the caller can verify persistence.
-  var profileKey: Data = Data()
+  public var profileKey: Data = Data()
 
-  var encryptedDisplayName: Data = Data()
+  public var encryptedDisplayName: Data = Data()
 
-  var encryptedBio: Data = Data()
+  public var encryptedBio: Data = Data()
 
-  var encryptedAvatarURL: Data = Data()
+  public var encryptedAvatarURL: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Settings_ToggleSanchrModeRequest: Sendable {
+public struct Sanchr_Settings_ToggleSanchrModeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var enabled: Bool = false
+  public var enabled: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Settings_GetStorageUsageRequest: Sendable {
+public struct Sanchr_Settings_GetStorageUsageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_Settings_StorageUsageResponse: Sendable {
+public struct Sanchr_Settings_StorageUsageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var photosBytes: Int64 = 0
+  public var photosBytes: Int64 = 0
 
-  var videosBytes: Int64 = 0
+  public var videosBytes: Int64 = 0
 
-  var documentsBytes: Int64 = 0
+  public var documentsBytes: Int64 = 0
 
-  var voiceBytes: Int64 = 0
+  public var voiceBytes: Int64 = 0
 
-  var otherBytes: Int64 = 0
+  public var otherBytes: Int64 = 0
 
-  var totalBytes: Int64 = 0
+  public var totalBytes: Int64 = 0
 
-  var limitBytes: Int64 = 0
+  public var limitBytes: Int64 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -281,27 +281,27 @@ struct Sanchr_Settings_StorageUsageResponse: Sendable {
 fileprivate let _protobuf_package = "sanchr.settings"
 
 extension Sanchr_Settings_GetSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetSettingsRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".GetSettingsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_GetSettingsRequest, rhs: Sanchr_Settings_GetSettingsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_GetSettingsRequest, rhs: Sanchr_Settings_GetSettingsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UserSettings"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}sanchr_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0")
+  public static let protoMessageName: String = _protobuf_package + ".UserSettings"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}sanchr_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0")
 
   fileprivate class _StorageClass {
     var _readReceipts: Bool = false
@@ -368,7 +368,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
     return _storage
   }
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     _ = _uniqueStorage()
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
@@ -404,7 +404,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       if _storage._readReceipts != false {
         try visitor.visitSingularBoolField(value: _storage._readReceipts, fieldNumber: 1)
@@ -476,7 +476,7 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_UserSettings, rhs: Sanchr_Settings_UserSettings) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UserSettings, rhs: Sanchr_Settings_UserSettings) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -513,10 +513,10 @@ extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateSettingsRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}settings\0")
+  public static let protoMessageName: String = _protobuf_package + ".UpdateSettingsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}settings\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -528,7 +528,7 @@ extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -539,7 +539,7 @@ extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_UpdateSettingsRequest, rhs: Sanchr_Settings_UpdateSettingsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UpdateSettingsRequest, rhs: Sanchr_Settings_UpdateSettingsRequest) -> Bool {
     if lhs._settings != rhs._settings {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -547,10 +547,10 @@ extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateProfileRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
+  public static let protoMessageName: String = _protobuf_package + ".UpdateProfileRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -568,7 +568,7 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.displayName.isEmpty {
       try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 1)
     }
@@ -593,7 +593,7 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_UpdateProfileRequest, rhs: Sanchr_Settings_UpdateProfileRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UpdateProfileRequest, rhs: Sanchr_Settings_UpdateProfileRequest) -> Bool {
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
@@ -607,10 +607,10 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
 }
 
 extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ProfileResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
+  public static let protoMessageName: String = _protobuf_package + ".ProfileResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -629,7 +629,7 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -657,7 +657,7 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_ProfileResponse, rhs: Sanchr_Settings_ProfileResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_ProfileResponse, rhs: Sanchr_Settings_ProfileResponse) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -672,10 +672,10 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Sanchr_Settings_ToggleSanchrModeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ToggleSanchrModeRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
+  public static let protoMessageName: String = _protobuf_package + ".ToggleSanchrModeRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -687,14 +687,14 @@ extension Sanchr_Settings_ToggleSanchrModeRequest: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.enabled != false {
       try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_ToggleSanchrModeRequest, rhs: Sanchr_Settings_ToggleSanchrModeRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_ToggleSanchrModeRequest, rhs: Sanchr_Settings_ToggleSanchrModeRequest) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -702,29 +702,29 @@ extension Sanchr_Settings_ToggleSanchrModeRequest: SwiftProtobuf.Message, SwiftP
 }
 
 extension Sanchr_Settings_GetStorageUsageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetStorageUsageRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".GetStorageUsageRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_GetStorageUsageRequest, rhs: Sanchr_Settings_GetStorageUsageRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_GetStorageUsageRequest, rhs: Sanchr_Settings_GetStorageUsageRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Sanchr_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".StorageUsageResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}photos_bytes\0\u{3}videos_bytes\0\u{3}documents_bytes\0\u{3}voice_bytes\0\u{3}other_bytes\0\u{3}total_bytes\0\u{3}limit_bytes\0")
+  public static let protoMessageName: String = _protobuf_package + ".StorageUsageResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}photos_bytes\0\u{3}videos_bytes\0\u{3}documents_bytes\0\u{3}voice_bytes\0\u{3}other_bytes\0\u{3}total_bytes\0\u{3}limit_bytes\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -742,7 +742,7 @@ extension Sanchr_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProt
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.photosBytes != 0 {
       try visitor.visitSingularInt64Field(value: self.photosBytes, fieldNumber: 1)
     }
@@ -767,7 +767,7 @@ extension Sanchr_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_Settings_StorageUsageResponse, rhs: Sanchr_Settings_StorageUsageResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_StorageUsageResponse, rhs: Sanchr_Settings_StorageUsageResponse) -> Bool {
     if lhs.photosBytes != rhs.photosBytes {return false}
     if lhs.videosBytes != rhs.videosBytes {return false}
     if lhs.documentsBytes != rhs.documentsBytes {return false}
