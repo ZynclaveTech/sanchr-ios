@@ -241,6 +241,11 @@ targets:
           - fetch
           - processing
           - voip
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         BGTaskSchedulerPermittedIdentifiers:
           - com.sanchr.sync.messages
           - com.sanchr.sync.refresh
