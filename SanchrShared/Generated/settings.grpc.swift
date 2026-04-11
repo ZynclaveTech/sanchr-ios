@@ -488,6 +488,12 @@ public enum Sanchr_Settings_SettingsServiceClientMetadata {
       path: "/sanchr.settings.SettingsService/GetStorageUsage",
       type: GRPCCallType.unary
     )
+
+    public static let setRegistrationLock = GRPCMethodDescriptor(
+      name: "SetRegistrationLock",
+      path: "/sanchr.settings.SettingsService/SetRegistrationLock",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -504,6 +510,8 @@ public protocol Sanchr_Settings_SettingsServiceProvider: CallHandlerProvider {
   func toggleSanchrMode(request: Sanchr_Settings_ToggleSanchrModeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_UserSettings>
 
   func getStorageUsage(request: Sanchr_Settings_GetStorageUsageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_StorageUsageResponse>
+
+  func setRegistrationLock(request: Sanchr_Settings_SetRegistrationLockRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_SetRegistrationLockResponse>
 }
 
 extension Sanchr_Settings_SettingsServiceProvider {
@@ -563,6 +571,15 @@ extension Sanchr_Settings_SettingsServiceProvider {
         userFunction: self.getStorageUsage(request:context:)
       )
 
+    case "SetRegistrationLock":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_SetRegistrationLockRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_SetRegistrationLockResponse>(),
+        interceptors: self.interceptors?.makeSetRegistrationLockInterceptors() ?? [],
+        userFunction: self.setRegistrationLock(request:context:)
+      )
+
     default:
       return nil
     }
@@ -599,6 +616,11 @@ public protocol Sanchr_Settings_SettingsServiceAsyncProvider: CallHandlerProvide
     request: Sanchr_Settings_GetStorageUsageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Settings_StorageUsageResponse
+
+  func setRegistrationLock(
+    request: Sanchr_Settings_SetRegistrationLockRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Settings_SetRegistrationLockResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -665,6 +687,15 @@ extension Sanchr_Settings_SettingsServiceAsyncProvider {
         wrapping: { try await self.getStorageUsage(request: $0, context: $1) }
       )
 
+    case "SetRegistrationLock":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_SetRegistrationLockRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_SetRegistrationLockResponse>(),
+        interceptors: self.interceptors?.makeSetRegistrationLockInterceptors() ?? [],
+        wrapping: { try await self.setRegistrationLock(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -692,6 +723,10 @@ public protocol Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when handling 'getStorageUsage'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetStorageUsageInterceptors() -> [ServerInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
+
+  /// - Returns: Interceptors to use when handling 'setRegistrationLock'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSetRegistrationLockInterceptors() -> [ServerInterceptor<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>]
 }
 
 public enum Sanchr_Settings_SettingsServiceServerMetadata {
@@ -704,6 +739,7 @@ public enum Sanchr_Settings_SettingsServiceServerMetadata {
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.updateProfile,
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.toggleSanchrMode,
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.setRegistrationLock,
     ]
   )
 
@@ -735,6 +771,12 @@ public enum Sanchr_Settings_SettingsServiceServerMetadata {
     public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
       path: "/sanchr.settings.SettingsService/GetStorageUsage",
+      type: GRPCCallType.unary
+    )
+
+    public static let setRegistrationLock = GRPCMethodDescriptor(
+      name: "SetRegistrationLock",
+      path: "/sanchr.settings.SettingsService/SetRegistrationLock",
       type: GRPCCallType.unary
     )
   }

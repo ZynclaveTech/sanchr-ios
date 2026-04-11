@@ -28,6 +28,7 @@ final class SettingsViewModel {
     var screenLockTimeout: Int32 = 60
     var screenshotProtection: Bool = false
     var biometricLock: Bool = false
+    var registrationLockEnabled: Bool = false
 
     // MARK: - Appearance
 
@@ -217,6 +218,7 @@ final class SettingsViewModel {
         screenLockTimeout = settings.screenLockTimeout
         screenshotProtection = settings.screenshotProtection
         biometricLock = settings.biometricLock
+        registrationLockEnabled = settings.registrationLockEnabled
         messageNotifications = settings.messageNotifications
         groupNotifications = settings.groupNotifications
         callNotifications = settings.callNotifications
@@ -243,6 +245,7 @@ final class SettingsViewModel {
         settings.screenLockTimeout = screenLockTimeout
         settings.screenshotProtection = screenshotProtection
         settings.biometricLock = biometricLock
+        settings.registrationLockEnabled = registrationLockEnabled
         settings.messageNotifications = messageNotifications
         settings.groupNotifications = groupNotifications
         settings.callNotifications = callNotifications

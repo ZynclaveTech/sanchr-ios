@@ -61,6 +61,19 @@ enum SettingsUseCases {
         }
     }
 
+    /// Enables or disables registration lock with the given PIN.
+    struct SetRegistrationLock: Sendable {
+        private let settingsDataSource: SettingsDataSource
+
+        init(settingsDataSource: SettingsDataSource) {
+            self.settingsDataSource = settingsDataSource
+        }
+
+        func execute(enabled: Bool, pin: String) async throws -> Sanchr_Settings_SetRegistrationLockResponse {
+            try await settingsDataSource.setRegistrationLock(enabled: enabled, pin: pin)
+        }
+    }
+
     /// Fetches storage usage breakdown.
     struct GetStorageUsage: Sendable {
         private let settingsDataSource: SettingsDataSource

@@ -65,6 +65,19 @@ final class SettingsDataSource: @unchecked Sendable {
         return try await settingsClient.toggleSanchrMode(request)
     }
 
+    // MARK: - Set Registration Lock
+
+    /// Enables or disables registration lock with the supplied PIN.
+    /// The PIN is sent over TLS; the backend hashes it before storing.
+    func setRegistrationLock(enabled: Bool, pin: String) async throws -> Sanchr_Settings_SetRegistrationLockResponse {
+        var request = Sanchr_Settings_SetRegistrationLockRequest()
+        request.enabled = enabled
+        request.pin = pin
+
+        SanchrLogger.network.info("SettingsDataSource: setRegistrationLock enabled=\(enabled)")
+        return try await settingsClient.setRegistrationLock(request)
+    }
+
     // MARK: - Get Storage Usage
 
     /// Retrieves storage usage breakdown by media type.
