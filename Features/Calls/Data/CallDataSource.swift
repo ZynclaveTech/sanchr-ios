@@ -14,14 +14,18 @@ final class CallDataSource: @unchecked Sendable {
 
     // MARK: - Call Signaling
 
-    /// Sends an SDP offer to initiate a call with the specified recipient.
-    func initiateCall(recipientId: String, callType: String, sdpOffer: Data) async throws
-        -> Sanchr_Calling_CallResponse
-    {
+    /// Sends a sealed, Signal-encrypted call offer to the server.
+    func initiateCall(
+        recipientId: String,
+        callType: String,
+        deliveryToken: Data,
+        encryptedSdpPayload: Data
+    ) async throws -> Sanchr_Calling_CallResponse {
         var request = Sanchr_Calling_CallOffer()
-        request.recipientID = recipientId
+        request.recipientID = recipientId       // kept for server backward compat
         request.callType = callType
-        request.sdpOffer = sdpOffer
+        request.deliveryToken = deliveryToken
+        request.encryptedSdpPayload = encryptedSdpPayload
         return try await callService.initiateCall(request)
     }
 

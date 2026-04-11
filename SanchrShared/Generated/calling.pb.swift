@@ -35,9 +35,11 @@ public struct Sanchr_Calling_CallOffer: Sendable {
   /// "voice" or "video"
   public var callType: String = String()
 
-  public var sdpOffer: Data = Data()
+  /// sealed sender routing token (field 5)
+  public var deliveryToken: Data = Data()
 
-  public var srtpKeyParams: Data = Data()
+  /// Signal-encrypt(SealedCallPayload JSON) (field 6)
+  public var encryptedSdpPayload: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -68,12 +70,13 @@ public struct Sanchr_Calling_CallSignal: Sendable {
 
   public var signal: Sanchr_Calling_CallSignal.OneOf_Signal? = nil
 
-  public var sdpAnswer: Data {
+  /// Signal-encrypt(SealedCallPayload JSON) — field 5 in oneof
+  public var encryptedSdpAnswer: Data {
     get {
-      if case .sdpAnswer(let v)? = signal {return v}
+      if case .encryptedSdpAnswer(let v)? = signal {return v}
       return Data()
     }
-    set {signal = .sdpAnswer(newValue)}
+    set {signal = .encryptedSdpAnswer(newValue)}
   }
 
   public var iceCandidate: Data {
@@ -95,7 +98,7 @@ public struct Sanchr_Calling_CallSignal: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Signal: Equatable, Sendable {
-    case sdpAnswer(Data)
+    case encryptedSdpAnswer(Data)
     case iceCandidate(Data)
     case control(Sanchr_Calling_CallControl)
 
@@ -228,7 +231,12 @@ fileprivate let _protobuf_package = "sanchr.calling"
 
 extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallOffer"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "recipient_id"),
+    2: .standard(proto: "call_type"),
+    5: .standard(proto: "delivery_token"),
+    6: .standard(proto: "encrypted_sdp_payload"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -238,8 +246,8 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.recipientID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.callType) }()
-      case 3: try { try decoder.decodeSingularBytesField(value: &self.sdpOffer) }()
-      case 4: try { try decoder.decodeSingularBytesField(value: &self.srtpKeyParams) }()
+      case 5: try { try decoder.decodeSingularBytesField(value: &self.deliveryToken) }()
+      case 6: try { try decoder.decodeSingularBytesField(value: &self.encryptedSdpPayload) }()
       default: break
       }
     }
@@ -252,11 +260,11 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if !self.callType.isEmpty {
       try visitor.visitSingularStringField(value: self.callType, fieldNumber: 2)
     }
-    if !self.sdpOffer.isEmpty {
-      try visitor.visitSingularBytesField(value: self.sdpOffer, fieldNumber: 3)
+    if !self.deliveryToken.isEmpty {
+      try visitor.visitSingularBytesField(value: self.deliveryToken, fieldNumber: 5)
     }
-    if !self.srtpKeyParams.isEmpty {
-      try visitor.visitSingularBytesField(value: self.srtpKeyParams, fieldNumber: 4)
+    if !self.encryptedSdpPayload.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedSdpPayload, fieldNumber: 6)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -264,8 +272,8 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
   public static func ==(lhs: Sanchr_Calling_CallOffer, rhs: Sanchr_Calling_CallOffer) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.callType != rhs.callType {return false}
-    if lhs.sdpOffer != rhs.sdpOffer {return false}
-    if lhs.srtpKeyParams != rhs.srtpKeyParams {return false}
+    if lhs.deliveryToken != rhs.deliveryToken {return false}
+    if lhs.encryptedSdpPayload != rhs.encryptedSdpPayload {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -308,7 +316,12 @@ extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallSignal"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}sdp_answer\0\u{3}ice_candidate\0\u{1}control\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "call_id"),
+    3: .standard(proto: "ice_candidate"),
+    4: .same(proto: "control"),
+    5: .standard(proto: "encrypted_sdp_answer"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -317,14 +330,6 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.callID) }()
-      case 2: try {
-        var v: Data?
-        try decoder.decodeSingularBytesField(value: &v)
-        if let v = v {
-          if self.signal != nil {try decoder.handleConflictingOneOf()}
-          self.signal = .sdpAnswer(v)
-        }
-      }()
       case 3: try {
         var v: Data?
         try decoder.decodeSingularBytesField(value: &v)
@@ -346,6 +351,14 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.signal = .control(v)
         }
       }()
+      case 5: try {
+        var v: Data?
+        try decoder.decodeSingularBytesField(value: &v)
+        if let v = v {
+          if self.signal != nil {try decoder.handleConflictingOneOf()}
+          self.signal = .encryptedSdpAnswer(v)
+        }
+      }()
       default: break
       }
     }
@@ -360,10 +373,6 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
       try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
     }
     switch self.signal {
-    case .sdpAnswer?: try {
-      guard case .sdpAnswer(let v)? = self.signal else { preconditionFailure() }
-      try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
-    }()
     case .iceCandidate?: try {
       guard case .iceCandidate(let v)? = self.signal else { preconditionFailure() }
       try visitor.visitSingularBytesField(value: v, fieldNumber: 3)
@@ -371,6 +380,10 @@ extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Messa
     case .control?: try {
       guard case .control(let v)? = self.signal else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .encryptedSdpAnswer?: try {
+      guard case .encryptedSdpAnswer(let v)? = self.signal else { preconditionFailure() }
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 5)
     }()
     case nil: break
     }
