@@ -23,7 +23,7 @@ final class SettingsViewModel {
 
     // MARK: - Security Settings
 
-    var vyncModeEnabled: Bool = false
+    var sanchrModeEnabled: Bool = false
     var screenLockEnabled: Bool = false
     var screenLockTimeout: Int32 = 60
     var screenshotProtection: Bool = false
@@ -182,37 +182,37 @@ final class SettingsViewModel {
         }
     }
 
-    // MARK: - Toggle Vync Mode
+    // MARK: - Toggle Sanchr Mode
 
-    /// Set Vync Mode to the given value.
-    /// `enabled` must be the **desired** state (already reflected in `vyncModeEnabled`
-    /// by the Toggle binding before this is called). We never compute `!vyncModeEnabled`
+    /// Set Sanchr Mode to the given value.
+    /// `enabled` must be the **desired** state (already reflected in `sanchrModeEnabled`
+    /// by the Toggle binding before this is called). We never compute `!sanchrModeEnabled`
     /// here because that would read the post-tap value and invert it, causing a loop.
-    func setVyncMode(enabled: Bool, settingsDataSource: SettingsDataSource) async {
+    func setSanchrMode(enabled: Bool, settingsDataSource: SettingsDataSource) async {
         do {
-            let updated = try await settingsDataSource.toggleVyncMode(enabled: enabled)
+            let updated = try await settingsDataSource.toggleSanchrMode(enabled: enabled)
             privacySettings?.update(from: updated)
-            // Only write vyncModeEnabled back if the server overrode our value.
+            // Only write sanchrModeEnabled back if the server overrode our value.
             // Writing the same value is a no-op, but it still fires @Observable's
             // change tracking and re-triggers onChange → infinite loop.
-            if updated.vyncModeEnabled != vyncModeEnabled {
-                vyncModeEnabled = updated.vyncModeEnabled
+            if updated.sanchrModeEnabled != sanchrModeEnabled {
+                sanchrModeEnabled = updated.sanchrModeEnabled
             }
         } catch {
             // Revert the Toggle to its pre-tap state on failure.
-            vyncModeEnabled = !enabled
+            sanchrModeEnabled = !enabled
             errorMessage = error.localizedDescription
         }
     }
 
     // MARK: - Private Helpers
 
-    private func applySettings(_ settings: Vync_Settings_UserSettings) {
+    private func applySettings(_ settings: Sanchr_Settings_UserSettings) {
         readReceipts = settings.readReceipts
         onlineStatusVisible = settings.onlineStatusVisible
         typingIndicator = settings.typingIndicator
         profilePhotoVisibility = settings.profilePhotoVisibility
-        vyncModeEnabled = settings.vyncModeEnabled
+        sanchrModeEnabled = settings.sanchrModeEnabled
         screenLockEnabled = settings.screenLockEnabled
         screenLockTimeout = settings.screenLockTimeout
         screenshotProtection = settings.screenshotProtection
@@ -232,13 +232,13 @@ final class SettingsViewModel {
         lowDataMode = settings.lowDataMode
     }
 
-    private func buildSettings() -> Vync_Settings_UserSettings {
-        var settings = Vync_Settings_UserSettings()
+    private func buildSettings() -> Sanchr_Settings_UserSettings {
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = readReceipts
         settings.onlineStatusVisible = onlineStatusVisible
         settings.typingIndicator = typingIndicator
         settings.profilePhotoVisibility = profilePhotoVisibility
-        settings.vyncModeEnabled = vyncModeEnabled
+        settings.sanchrModeEnabled = sanchrModeEnabled
         settings.screenLockEnabled = screenLockEnabled
         settings.screenLockTimeout = screenLockTimeout
         settings.screenshotProtection = screenshotProtection

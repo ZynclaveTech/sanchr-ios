@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.media;
+package sanchr.media;
 
 service MediaService {
   rpc GetUploadUrl(GetUploadUrlRequest) returns (PresignedUrlResponse);

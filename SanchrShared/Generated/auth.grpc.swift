@@ -11,50 +11,45 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Auth_AuthServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Auth_AuthServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Auth_AuthServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Auth_AuthServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? { get }
 
   func register(
-    _ request: Vync_Auth_RegisterRequest,
+    _ request: Sanchr_Auth_RegisterRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse>
+  ) -> UnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>
 
   func verifyOTP(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse>
+  ) -> UnaryCall<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>
 
   func login(
-    _ request: Vync_Auth_LoginRequest,
+    _ request: Sanchr_Auth_LoginRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse>
+  ) -> UnaryCall<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>
 
   func refreshToken(
-    _ request: Vync_Auth_RefreshTokenRequest,
+    _ request: Sanchr_Auth_RefreshTokenRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>
+  ) -> UnaryCall<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>
 
   func logout(
-    _ request: Vync_Auth_LogoutRequest,
+    _ request: Sanchr_Auth_LogoutRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>
-
-  func changePassword(
-    _ request: Vync_Auth_ChangePasswordRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>
+  ) -> UnaryCall<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>
 
   func deleteAccount(
-    _ request: Vync_Auth_DeleteAccountRequest,
+    _ request: Sanchr_Auth_DeleteAccountRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>
+  ) -> UnaryCall<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>
 }
 
-extension Vync_Auth_AuthServiceClientProtocol {
+extension Sanchr_Auth_AuthServiceClientProtocol {
   public var serviceName: String {
-    return "vync.auth.AuthService"
+    return "sanchr.auth.AuthService"
   }
 
   /// Unary call to Register
@@ -64,11 +59,11 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func register(
-    _ request: Vync_Auth_RegisterRequest,
+    _ request: Sanchr_Auth_RegisterRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse> {
+  ) -> UnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.register.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.register.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
@@ -82,11 +77,11 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func verifyOTP(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse> {
+  ) -> UnaryCall<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeVerifyOTPInterceptors() ?? []
@@ -100,11 +95,11 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func login(
-    _ request: Vync_Auth_LoginRequest,
+    _ request: Sanchr_Auth_LoginRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse> {
+  ) -> UnaryCall<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.login.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.login.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLoginInterceptors() ?? []
@@ -118,11 +113,11 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func refreshToken(
-    _ request: Vync_Auth_RefreshTokenRequest,
+    _ request: Sanchr_Auth_RefreshTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse> {
+  ) -> UnaryCall<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRefreshTokenInterceptors() ?? []
@@ -136,32 +131,14 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func logout(
-    _ request: Vync_Auth_LogoutRequest,
+    _ request: Sanchr_Auth_LogoutRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse> {
+  ) -> UnaryCall<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.logout.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.logout.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLogoutInterceptors() ?? []
-    )
-  }
-
-  /// Unary call to ChangePassword
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to ChangePassword.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func changePassword(
-    _ request: Vync_Auth_ChangePasswordRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse> {
-    return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.changePassword.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
     )
   }
 
@@ -172,11 +149,11 @@ extension Vync_Auth_AuthServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func deleteAccount(
-    _ request: Vync_Auth_DeleteAccountRequest,
+    _ request: Sanchr_Auth_DeleteAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse> {
+  ) -> UnaryCall<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse> {
     return self.makeUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
@@ -185,24 +162,24 @@ extension Vync_Auth_AuthServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Auth_AuthServiceClient: @unchecked Sendable {}
+extension Sanchr_Auth_AuthServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Auth_AuthServiceNIOClient")
-public final class Vync_Auth_AuthServiceClient: Vync_Auth_AuthServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Auth_AuthServiceNIOClient")
+public final class Sanchr_Auth_AuthServiceClient: Sanchr_Auth_AuthServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.auth.AuthService service.
+  /// Creates a client for the sanchr.auth.AuthService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -211,7 +188,7 @@ public final class Vync_Auth_AuthServiceClient: Vync_Auth_AuthServiceClientProto
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -219,12 +196,12 @@ public final class Vync_Auth_AuthServiceClient: Vync_Auth_AuthServiceClientProto
   }
 }
 
-public struct Vync_Auth_AuthServiceNIOClient: Vync_Auth_AuthServiceClientProtocol {
+public struct Sanchr_Auth_AuthServiceNIOClient: Sanchr_Auth_AuthServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.auth.AuthService service.
+  /// Creates a client for the sanchr.auth.AuthService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -233,7 +210,7 @@ public struct Vync_Auth_AuthServiceNIOClient: Vync_Auth_AuthServiceClientProtoco
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -242,62 +219,57 @@ public struct Vync_Auth_AuthServiceNIOClient: Vync_Auth_AuthServiceClientProtoco
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Auth_AuthServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Auth_AuthServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? { get }
 
   func makeRegisterCall(
-    _ request: Vync_Auth_RegisterRequest,
+    _ request: Sanchr_Auth_RegisterRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>
 
   func makeVerifyOtpCall(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>
 
   func makeLoginCall(
-    _ request: Vync_Auth_LoginRequest,
+    _ request: Sanchr_Auth_LoginRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>
 
   func makeRefreshTokenCall(
-    _ request: Vync_Auth_RefreshTokenRequest,
+    _ request: Sanchr_Auth_RefreshTokenRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>
 
   func makeLogoutCall(
-    _ request: Vync_Auth_LogoutRequest,
+    _ request: Sanchr_Auth_LogoutRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>
-
-  func makeChangePasswordCall(
-    _ request: Vync_Auth_ChangePasswordRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>
 
   func makeDeleteAccountCall(
-    _ request: Vync_Auth_DeleteAccountRequest,
+    _ request: Sanchr_Auth_DeleteAccountRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Auth_AuthServiceAsyncClientProtocol {
+extension Sanchr_Auth_AuthServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Auth_AuthServiceClientMetadata.serviceDescriptor
+    return Sanchr_Auth_AuthServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeRegisterCall(
-    _ request: Vync_Auth_RegisterRequest,
+    _ request: Sanchr_Auth_RegisterRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.register.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.register.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
@@ -305,11 +277,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func makeVerifyOtpCall(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeVerifyOTPInterceptors() ?? []
@@ -317,9 +289,9 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func makeVerifyOTPCall(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse> {
     return self.makeVerifyOtpCall(
       request,
       callOptions: callOptions
@@ -327,11 +299,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func makeLoginCall(
-    _ request: Vync_Auth_LoginRequest,
+    _ request: Sanchr_Auth_LoginRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.login.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.login.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLoginInterceptors() ?? []
@@ -339,11 +311,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func makeRefreshTokenCall(
-    _ request: Vync_Auth_RefreshTokenRequest,
+    _ request: Sanchr_Auth_RefreshTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRefreshTokenInterceptors() ?? []
@@ -351,35 +323,23 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func makeLogoutCall(
-    _ request: Vync_Auth_LogoutRequest,
+    _ request: Sanchr_Auth_LogoutRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.logout.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.logout.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLogoutInterceptors() ?? []
     )
   }
 
-  public func makeChangePasswordCall(
-    _ request: Vync_Auth_ChangePasswordRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.changePassword.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
-    )
-  }
-
   public func makeDeleteAccountCall(
-    _ request: Vync_Auth_DeleteAccountRequest,
+    _ request: Sanchr_Auth_DeleteAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
@@ -388,13 +348,13 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Auth_AuthServiceAsyncClientProtocol {
+extension Sanchr_Auth_AuthServiceAsyncClientProtocol {
   public func register(
-    _ request: Vync_Auth_RegisterRequest,
+    _ request: Sanchr_Auth_RegisterRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_AuthResponse {
+  ) async throws -> Sanchr_Auth_AuthResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.register.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.register.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
@@ -402,11 +362,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func verifyOTP(
-    _ request: Vync_Auth_VerifyOTPRequest,
+    _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_AuthResponse {
+  ) async throws -> Sanchr_Auth_AuthResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.verifyOTP.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeVerifyOTPInterceptors() ?? []
@@ -414,11 +374,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func login(
-    _ request: Vync_Auth_LoginRequest,
+    _ request: Sanchr_Auth_LoginRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_AuthResponse {
+  ) async throws -> Sanchr_Auth_AuthResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.login.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.login.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLoginInterceptors() ?? []
@@ -426,11 +386,11 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func refreshToken(
-    _ request: Vync_Auth_RefreshTokenRequest,
+    _ request: Sanchr_Auth_RefreshTokenRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_AuthResponse {
+  ) async throws -> Sanchr_Auth_AuthResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.refreshToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRefreshTokenInterceptors() ?? []
@@ -438,35 +398,23 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
   }
 
   public func logout(
-    _ request: Vync_Auth_LogoutRequest,
+    _ request: Sanchr_Auth_LogoutRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_LogoutResponse {
+  ) async throws -> Sanchr_Auth_LogoutResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.logout.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.logout.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLogoutInterceptors() ?? []
     )
   }
 
-  public func changePassword(
-    _ request: Vync_Auth_ChangePasswordRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_ChangePasswordResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.changePassword.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? []
-    )
-  }
-
   public func deleteAccount(
-    _ request: Vync_Auth_DeleteAccountRequest,
+    _ request: Sanchr_Auth_DeleteAccountRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Auth_DeleteAccountResponse {
+  ) async throws -> Sanchr_Auth_DeleteAccountResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.deleteAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? []
@@ -475,15 +423,15 @@ extension Vync_Auth_AuthServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Auth_AuthServiceAsyncClient: Vync_Auth_AuthServiceAsyncClientProtocol {
+public struct Sanchr_Auth_AuthServiceAsyncClient: Sanchr_Auth_AuthServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -491,112 +439,100 @@ public struct Vync_Auth_AuthServiceAsyncClient: Vync_Auth_AuthServiceAsyncClient
   }
 }
 
-public protocol Vync_Auth_AuthServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'register'.
-  func makeRegisterInterceptors() -> [ClientInterceptor<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse>]
+  func makeRegisterInterceptors() -> [ClientInterceptor<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when invoking 'verifyOTP'.
-  func makeVerifyOTPInterceptors() -> [ClientInterceptor<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse>]
+  func makeVerifyOTPInterceptors() -> [ClientInterceptor<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when invoking 'login'.
-  func makeLoginInterceptors() -> [ClientInterceptor<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse>]
+  func makeLoginInterceptors() -> [ClientInterceptor<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when invoking 'refreshToken'.
-  func makeRefreshTokenInterceptors() -> [ClientInterceptor<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>]
+  func makeRefreshTokenInterceptors() -> [ClientInterceptor<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when invoking 'logout'.
-  func makeLogoutInterceptors() -> [ClientInterceptor<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'changePassword'.
-  func makeChangePasswordInterceptors() -> [ClientInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>]
+  func makeLogoutInterceptors() -> [ClientInterceptor<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>]
 
   /// - Returns: Interceptors to use when invoking 'deleteAccount'.
-  func makeDeleteAccountInterceptors() -> [ClientInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>]
+  func makeDeleteAccountInterceptors() -> [ClientInterceptor<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>]
 }
 
-public enum Vync_Auth_AuthServiceClientMetadata {
+public enum Sanchr_Auth_AuthServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "AuthService",
-    fullName: "vync.auth.AuthService",
+    fullName: "sanchr.auth.AuthService",
     methods: [
-      Vync_Auth_AuthServiceClientMetadata.Methods.register,
-      Vync_Auth_AuthServiceClientMetadata.Methods.verifyOTP,
-      Vync_Auth_AuthServiceClientMetadata.Methods.login,
-      Vync_Auth_AuthServiceClientMetadata.Methods.refreshToken,
-      Vync_Auth_AuthServiceClientMetadata.Methods.logout,
-      Vync_Auth_AuthServiceClientMetadata.Methods.changePassword,
-      Vync_Auth_AuthServiceClientMetadata.Methods.deleteAccount,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.register,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.verifyOTP,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.login,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.refreshToken,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.logout,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.deleteAccount,
     ]
   )
 
   public enum Methods {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
-      path: "/vync.auth.AuthService/Register",
+      path: "/sanchr.auth.AuthService/Register",
       type: GRPCCallType.unary
     )
 
     public static let verifyOTP = GRPCMethodDescriptor(
       name: "VerifyOTP",
-      path: "/vync.auth.AuthService/VerifyOTP",
+      path: "/sanchr.auth.AuthService/VerifyOTP",
       type: GRPCCallType.unary
     )
 
     public static let login = GRPCMethodDescriptor(
       name: "Login",
-      path: "/vync.auth.AuthService/Login",
+      path: "/sanchr.auth.AuthService/Login",
       type: GRPCCallType.unary
     )
 
     public static let refreshToken = GRPCMethodDescriptor(
       name: "RefreshToken",
-      path: "/vync.auth.AuthService/RefreshToken",
+      path: "/sanchr.auth.AuthService/RefreshToken",
       type: GRPCCallType.unary
     )
 
     public static let logout = GRPCMethodDescriptor(
       name: "Logout",
-      path: "/vync.auth.AuthService/Logout",
-      type: GRPCCallType.unary
-    )
-
-    public static let changePassword = GRPCMethodDescriptor(
-      name: "ChangePassword",
-      path: "/vync.auth.AuthService/ChangePassword",
+      path: "/sanchr.auth.AuthService/Logout",
       type: GRPCCallType.unary
     )
 
     public static let deleteAccount = GRPCMethodDescriptor(
       name: "DeleteAccount",
-      path: "/vync.auth.AuthService/DeleteAccount",
+      path: "/sanchr.auth.AuthService/DeleteAccount",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Auth_AuthServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Auth_AuthServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Auth_AuthServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Auth_AuthServiceServerInterceptorFactoryProtocol? { get }
 
-  func register(request: Vync_Auth_RegisterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_AuthResponse>
+  func register(request: Sanchr_Auth_RegisterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
-  func verifyOTP(request: Vync_Auth_VerifyOTPRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_AuthResponse>
+  func verifyOTP(request: Sanchr_Auth_VerifyOTPRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
-  func login(request: Vync_Auth_LoginRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_AuthResponse>
+  func login(request: Sanchr_Auth_LoginRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
-  func refreshToken(request: Vync_Auth_RefreshTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_AuthResponse>
+  func refreshToken(request: Sanchr_Auth_RefreshTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
-  func logout(request: Vync_Auth_LogoutRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_LogoutResponse>
+  func logout(request: Sanchr_Auth_LogoutRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_LogoutResponse>
 
-  func changePassword(request: Vync_Auth_ChangePasswordRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_ChangePasswordResponse>
-
-  func deleteAccount(request: Vync_Auth_DeleteAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Auth_DeleteAccountResponse>
+  func deleteAccount(request: Sanchr_Auth_DeleteAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_DeleteAccountResponse>
 }
 
-extension Vync_Auth_AuthServiceProvider {
+extension Sanchr_Auth_AuthServiceProvider {
   public var serviceName: Substring {
-    return Vync_Auth_AuthServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Auth_AuthServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -609,8 +545,8 @@ extension Vync_Auth_AuthServiceProvider {
     case "Register":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_RegisterRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RegisterRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRegisterInterceptors() ?? [],
         userFunction: self.register(request:context:)
       )
@@ -618,8 +554,8 @@ extension Vync_Auth_AuthServiceProvider {
     case "VerifyOTP":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_VerifyOTPRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_VerifyOTPRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeVerifyOTPInterceptors() ?? [],
         userFunction: self.verifyOTP(request:context:)
       )
@@ -627,8 +563,8 @@ extension Vync_Auth_AuthServiceProvider {
     case "Login":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_LoginRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_LoginRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeLoginInterceptors() ?? [],
         userFunction: self.login(request:context:)
       )
@@ -636,8 +572,8 @@ extension Vync_Auth_AuthServiceProvider {
     case "RefreshToken":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_RefreshTokenRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RefreshTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRefreshTokenInterceptors() ?? [],
         userFunction: self.refreshToken(request:context:)
       )
@@ -645,26 +581,17 @@ extension Vync_Auth_AuthServiceProvider {
     case "Logout":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_LogoutRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_LogoutResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_LogoutRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_LogoutResponse>(),
         interceptors: self.interceptors?.makeLogoutInterceptors() ?? [],
         userFunction: self.logout(request:context:)
-      )
-
-    case "ChangePassword":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_ChangePasswordRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_ChangePasswordResponse>(),
-        interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? [],
-        userFunction: self.changePassword(request:context:)
       )
 
     case "DeleteAccount":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_DeleteAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_DeleteAccountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_DeleteAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_DeleteAccountResponse>(),
         interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? [],
         userFunction: self.deleteAccount(request:context:)
       )
@@ -677,57 +604,52 @@ extension Vync_Auth_AuthServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Auth_AuthServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Auth_AuthServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Auth_AuthServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Auth_AuthServiceServerInterceptorFactoryProtocol? { get }
 
   func register(
-    request: Vync_Auth_RegisterRequest,
+    request: Sanchr_Auth_RegisterRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_AuthResponse
+  ) async throws -> Sanchr_Auth_AuthResponse
 
   func verifyOTP(
-    request: Vync_Auth_VerifyOTPRequest,
+    request: Sanchr_Auth_VerifyOTPRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_AuthResponse
+  ) async throws -> Sanchr_Auth_AuthResponse
 
   func login(
-    request: Vync_Auth_LoginRequest,
+    request: Sanchr_Auth_LoginRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_AuthResponse
+  ) async throws -> Sanchr_Auth_AuthResponse
 
   func refreshToken(
-    request: Vync_Auth_RefreshTokenRequest,
+    request: Sanchr_Auth_RefreshTokenRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_AuthResponse
+  ) async throws -> Sanchr_Auth_AuthResponse
 
   func logout(
-    request: Vync_Auth_LogoutRequest,
+    request: Sanchr_Auth_LogoutRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_LogoutResponse
-
-  func changePassword(
-    request: Vync_Auth_ChangePasswordRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_ChangePasswordResponse
+  ) async throws -> Sanchr_Auth_LogoutResponse
 
   func deleteAccount(
-    request: Vync_Auth_DeleteAccountRequest,
+    request: Sanchr_Auth_DeleteAccountRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Auth_DeleteAccountResponse
+  ) async throws -> Sanchr_Auth_DeleteAccountResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Auth_AuthServiceAsyncProvider {
+extension Sanchr_Auth_AuthServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Auth_AuthServiceServerMetadata.serviceDescriptor
+    return Sanchr_Auth_AuthServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Auth_AuthServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Auth_AuthServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Auth_AuthServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Auth_AuthServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -739,8 +661,8 @@ extension Vync_Auth_AuthServiceAsyncProvider {
     case "Register":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_RegisterRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RegisterRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRegisterInterceptors() ?? [],
         wrapping: { try await self.register(request: $0, context: $1) }
       )
@@ -748,8 +670,8 @@ extension Vync_Auth_AuthServiceAsyncProvider {
     case "VerifyOTP":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_VerifyOTPRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_VerifyOTPRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeVerifyOTPInterceptors() ?? [],
         wrapping: { try await self.verifyOTP(request: $0, context: $1) }
       )
@@ -757,8 +679,8 @@ extension Vync_Auth_AuthServiceAsyncProvider {
     case "Login":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_LoginRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_LoginRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeLoginInterceptors() ?? [],
         wrapping: { try await self.login(request: $0, context: $1) }
       )
@@ -766,8 +688,8 @@ extension Vync_Auth_AuthServiceAsyncProvider {
     case "RefreshToken":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_RefreshTokenRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_AuthResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RefreshTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRefreshTokenInterceptors() ?? [],
         wrapping: { try await self.refreshToken(request: $0, context: $1) }
       )
@@ -775,26 +697,17 @@ extension Vync_Auth_AuthServiceAsyncProvider {
     case "Logout":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_LogoutRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_LogoutResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_LogoutRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_LogoutResponse>(),
         interceptors: self.interceptors?.makeLogoutInterceptors() ?? [],
         wrapping: { try await self.logout(request: $0, context: $1) }
-      )
-
-    case "ChangePassword":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_ChangePasswordRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_ChangePasswordResponse>(),
-        interceptors: self.interceptors?.makeChangePasswordInterceptors() ?? [],
-        wrapping: { try await self.changePassword(request: $0, context: $1) }
       )
 
     case "DeleteAccount":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Auth_DeleteAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Auth_DeleteAccountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_DeleteAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_DeleteAccountResponse>(),
         interceptors: self.interceptors?.makeDeleteAccountInterceptors() ?? [],
         wrapping: { try await self.deleteAccount(request: $0, context: $1) }
       )
@@ -805,92 +718,81 @@ extension Vync_Auth_AuthServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Auth_AuthServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Auth_AuthServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'register'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeRegisterInterceptors() -> [ServerInterceptor<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse>]
+  func makeRegisterInterceptors() -> [ServerInterceptor<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when handling 'verifyOTP'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeVerifyOTPInterceptors() -> [ServerInterceptor<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse>]
+  func makeVerifyOTPInterceptors() -> [ServerInterceptor<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when handling 'login'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeLoginInterceptors() -> [ServerInterceptor<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse>]
+  func makeLoginInterceptors() -> [ServerInterceptor<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when handling 'refreshToken'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeRefreshTokenInterceptors() -> [ServerInterceptor<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>]
+  func makeRefreshTokenInterceptors() -> [ServerInterceptor<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>]
 
   /// - Returns: Interceptors to use when handling 'logout'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeLogoutInterceptors() -> [ServerInterceptor<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>]
-
-  /// - Returns: Interceptors to use when handling 'changePassword'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeChangePasswordInterceptors() -> [ServerInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>]
+  func makeLogoutInterceptors() -> [ServerInterceptor<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>]
 
   /// - Returns: Interceptors to use when handling 'deleteAccount'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeleteAccountInterceptors() -> [ServerInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>]
+  func makeDeleteAccountInterceptors() -> [ServerInterceptor<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>]
 }
 
-public enum Vync_Auth_AuthServiceServerMetadata {
+public enum Sanchr_Auth_AuthServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "AuthService",
-    fullName: "vync.auth.AuthService",
+    fullName: "sanchr.auth.AuthService",
     methods: [
-      Vync_Auth_AuthServiceServerMetadata.Methods.register,
-      Vync_Auth_AuthServiceServerMetadata.Methods.verifyOTP,
-      Vync_Auth_AuthServiceServerMetadata.Methods.login,
-      Vync_Auth_AuthServiceServerMetadata.Methods.refreshToken,
-      Vync_Auth_AuthServiceServerMetadata.Methods.logout,
-      Vync_Auth_AuthServiceServerMetadata.Methods.changePassword,
-      Vync_Auth_AuthServiceServerMetadata.Methods.deleteAccount,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.register,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.verifyOTP,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.login,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.refreshToken,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.logout,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.deleteAccount,
     ]
   )
 
   public enum Methods {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
-      path: "/vync.auth.AuthService/Register",
+      path: "/sanchr.auth.AuthService/Register",
       type: GRPCCallType.unary
     )
 
     public static let verifyOTP = GRPCMethodDescriptor(
       name: "VerifyOTP",
-      path: "/vync.auth.AuthService/VerifyOTP",
+      path: "/sanchr.auth.AuthService/VerifyOTP",
       type: GRPCCallType.unary
     )
 
     public static let login = GRPCMethodDescriptor(
       name: "Login",
-      path: "/vync.auth.AuthService/Login",
+      path: "/sanchr.auth.AuthService/Login",
       type: GRPCCallType.unary
     )
 
     public static let refreshToken = GRPCMethodDescriptor(
       name: "RefreshToken",
-      path: "/vync.auth.AuthService/RefreshToken",
+      path: "/sanchr.auth.AuthService/RefreshToken",
       type: GRPCCallType.unary
     )
 
     public static let logout = GRPCMethodDescriptor(
       name: "Logout",
-      path: "/vync.auth.AuthService/Logout",
-      type: GRPCCallType.unary
-    )
-
-    public static let changePassword = GRPCMethodDescriptor(
-      name: "ChangePassword",
-      path: "/vync.auth.AuthService/ChangePassword",
+      path: "/sanchr.auth.AuthService/Logout",
       type: GRPCCallType.unary
     )
 
     public static let deleteAccount = GRPCMethodDescriptor(
       name: "DeleteAccount",
-      path: "/vync.auth.AuthService/DeleteAccount",
+      path: "/sanchr.auth.AuthService/DeleteAccount",
       type: GRPCCallType.unary
     )
   }

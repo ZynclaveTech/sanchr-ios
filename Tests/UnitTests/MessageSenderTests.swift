@@ -71,6 +71,8 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     private var _savedMessages: [Message] = []
     private var _deletedIds: [String] = []
     private var _statusUpdates: [(id: String, status: Message.DeliveryStatus)] = []
+    var localUserId = "user-123"
+    var conversations: [String: Conversation] = [:]
     var saveMessageError: Error?
     var updateStatusError: Error?
 
@@ -90,6 +92,41 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {
         if let e = updateStatusError { throw e }
         queue.sync { _statusUpdates.append((id, status)) }
+    }
+
+    func fetchConversation(id: String) async throws -> Conversation? {
+        if let conversation = queue.sync(execute: { conversations[id] }) {
+            return conversation
+        }
+
+        let now = Date()
+        return Conversation(
+            id: id,
+            participants: [
+                User(
+                    id: localUserId,
+                    phoneNumber: "+15550000000",
+                    displayName: "Local User",
+                    isVerified: true,
+                    status: .online,
+                    isLocalUser: true
+                ),
+                User(
+                    id: id,
+                    phoneNumber: "+15551111111",
+                    displayName: "Peer \(id)",
+                    isVerified: true,
+                    status: .online
+                ),
+            ],
+            unreadCount: 0,
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: .oneToOne,
+            createdAt: now,
+            updatedAt: now
+        )
     }
 }
 

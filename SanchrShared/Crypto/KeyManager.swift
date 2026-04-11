@@ -51,7 +51,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Properties
 
     private let store: SanchrSignalStore
-    private let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
+    private let keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol
 
     /// Default number of one-time pre-keys to generate per batch.
     private static let defaultPreKeyBatchSize = 100
@@ -61,7 +61,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
-    public init(store: SanchrSignalStore, keyService: Vync_Keys_KeyServiceAsyncClientProtocol) {
+    public init(store: SanchrSignalStore, keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol) {
         self.store = store
         self.keyService = keyService
         SanchrLogger.crypto.info("SignalKeyManager initialized")
@@ -134,18 +134,18 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let oneTimePreKeys = try generateOneTimePreKeys(count: Self.defaultPreKeyBatchSize)
 
         // Build the proto key bundle
-        var bundle = Vync_Keys_KeyBundle()
+        var bundle = Sanchr_Keys_KeyBundle()
         bundle.identityPublicKey = Data(identityKeyPair.identityKey.serialize())
         bundle.registrationID = Int32(registrationId)
 
-        var signedPreKeyProto = Vync_Keys_SignedPreKey()
+        var signedPreKeyProto = Sanchr_Keys_SignedPreKey()
         signedPreKeyProto.keyID = Int32(signedPreKey.id)
         signedPreKeyProto.publicKey = Data(try signedPreKey.publicKey().serialize())
         signedPreKeyProto.signature = Data(signedPreKey.signature)
         signedPreKeyProto.timestamp = Int64(signedPreKey.timestamp)
         bundle.signedPreKey = signedPreKeyProto
 
-        var kyberPreKeyProto = Vync_Keys_KyberPreKey()
+        var kyberPreKeyProto = Sanchr_Keys_KyberPreKey()
         kyberPreKeyProto.keyID = Int32(kyberPreKey.id)
         kyberPreKeyProto.publicKey = Data(try kyberPreKey.publicKey().serialize())
         kyberPreKeyProto.signature = Data(kyberPreKey.signature)
@@ -153,7 +153,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         bundle.kyberPreKey = kyberPreKeyProto
 
         bundle.oneTimePreKeys = try oneTimePreKeys.map { preKey in
-            var otpk = Vync_Keys_OneTimePreKey()
+            var otpk = Sanchr_Keys_OneTimePreKey()
             otpk.keyID = Int32(preKey.id)
             otpk.publicKey = Data(try preKey.publicKey().serialize())
             return otpk
@@ -166,9 +166,9 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     public func replenishPreKeys() async throws {
         let newPreKeys = try generateOneTimePreKeys(count: Self.defaultPreKeyBatchSize)
 
-        var request = Vync_Keys_UploadOneTimePreKeysRequest()
+        var request = Sanchr_Keys_UploadOneTimePreKeysRequest()
         request.keys = try newPreKeys.map { preKey in
-            var otpk = Vync_Keys_OneTimePreKey()
+            var otpk = Sanchr_Keys_OneTimePreKey()
             otpk.keyID = Int32(preKey.id)
             otpk.publicKey = Data(try preKey.publicKey().serialize())
             return otpk
@@ -179,7 +179,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     }
 
     public func checkAndReplenishPreKeys(threshold: Int = 25) async throws {
-        let request = Vync_Keys_GetPreKeyCountRequest()
+        let request = Sanchr_Keys_GetPreKeyCountRequest()
         let response = try await keyService.getPreKeyCount(request)
 
         if response.count < Int32(threshold) {
@@ -193,7 +193,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     }
 
     public func fetchPreKeyCount() async throws -> Int {
-        let request = Vync_Keys_GetPreKeyCountRequest()
+        let request = Sanchr_Keys_GetPreKeyCountRequest()
         let response = try await keyService.getPreKeyCount(request)
         return Int(response.count)
     }
@@ -245,7 +245,7 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Pre-Key Bundle Fetching
 
     public func fetchPreKeyBundle(userId: String, deviceId: Int32) async throws -> PreKeyBundle {
-        var request = Vync_Keys_GetPreKeyBundleRequest()
+        var request = Sanchr_Keys_GetPreKeyBundleRequest()
         request.userID = userId
         request.deviceID = deviceId
 
@@ -322,8 +322,8 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
             .contains(where: { $0.deviceID == deviceId && $0.keyCapable })
     }
 
-    private func fetchDeviceInfo(recipientId: String) async throws -> [Vync_Keys_DeviceInfo] {
-        var request = Vync_Keys_GetUserDevicesRequest()
+    private func fetchDeviceInfo(recipientId: String) async throws -> [Sanchr_Keys_DeviceInfo] {
+        var request = Sanchr_Keys_GetUserDevicesRequest()
         request.userID = recipientId
         let response = try await keyService.getUserDevices(request)
         return response.devices

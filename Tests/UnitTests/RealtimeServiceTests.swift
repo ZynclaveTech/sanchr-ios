@@ -55,21 +55,21 @@ final class RealtimeServiceTests: XCTestCase {
             status: .delivered,
             isOutgoing: false
         )
-        var typing = Vync_Messaging_TypingIndicator()
+        var typing = Sanchr_Messaging_TypingIndicator()
         typing.conversationID = "conversation-1"
         typing.isTyping = true
         let typingConversationID = typing.conversationID
 
-        var preKeyCountLow = Vync_Messaging_PreKeyCountLow()
+        var preKeyCountLow = Sanchr_Messaging_PreKeyCountLow()
         preKeyCountLow.remainingCount = 1
 
-        var offer = Vync_Messaging_CallOfferEvent()
+        var offer = Sanchr_Messaging_CallOfferEvent()
         offer.callID = "call-1"
         offer.callerID = "remote-user"
         offer.callType = "voice"
         offer.sdpOffer = Data("offer".utf8)
 
-        var lifecycle = Vync_Messaging_CallLifecycleEvent()
+        var lifecycle = Sanchr_Messaging_CallLifecycleEvent()
         lifecycle.callID = "call-1"
         lifecycle.eventType = "ended"
         lifecycle.peerID = "remote-user"
@@ -86,7 +86,7 @@ final class RealtimeServiceTests: XCTestCase {
             forNotification: .sanchrRealtimeTypingChanged,
             object: nil
         ) { notification in
-            let indicator = notification.userInfo?[RealtimeNotificationKey.typing] as? Vync_Messaging_TypingIndicator
+            let indicator = notification.userInfo?[RealtimeNotificationKey.typing] as? Sanchr_Messaging_TypingIndicator
             return indicator?.conversationID == typingConversationID
         }
 

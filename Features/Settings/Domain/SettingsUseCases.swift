@@ -12,7 +12,7 @@ enum SettingsUseCases {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute() async throws -> Vync_Settings_UserSettings {
+        func execute() async throws -> Sanchr_Settings_UserSettings {
             try await settingsDataSource.getSettings()
         }
     }
@@ -25,8 +25,8 @@ enum SettingsUseCases {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute(settings: Vync_Settings_UserSettings) async throws
-            -> Vync_Settings_UserSettings
+        func execute(settings: Sanchr_Settings_UserSettings) async throws
+            -> Sanchr_Settings_UserSettings
         {
             try await settingsDataSource.updateSettings(settings: settings)
         }
@@ -41,23 +41,23 @@ enum SettingsUseCases {
         }
 
         func execute(name: String, avatarURL: String, status: String) async throws
-            -> Vync_Settings_ProfileResponse
+            -> Sanchr_Settings_ProfileResponse
         {
             try await settingsDataSource.updateProfile(
                 name: name, avatarURL: avatarURL, status: status)
         }
     }
 
-    /// Toggles Vync Mode (enhanced privacy).
-    struct ToggleVyncMode: Sendable {
+    /// Toggles Sanchr Mode (enhanced privacy).
+    struct ToggleSanchrMode: Sendable {
         private let settingsDataSource: SettingsDataSource
 
         init(settingsDataSource: SettingsDataSource) {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute(enabled: Bool) async throws -> Vync_Settings_UserSettings {
-            try await settingsDataSource.toggleVyncMode(enabled: enabled)
+        func execute(enabled: Bool) async throws -> Sanchr_Settings_UserSettings {
+            try await settingsDataSource.toggleSanchrMode(enabled: enabled)
         }
     }
 
@@ -69,7 +69,7 @@ enum SettingsUseCases {
             self.settingsDataSource = settingsDataSource
         }
 
-        func execute() async throws -> Vync_Settings_StorageUsageResponse {
+        func execute() async throws -> Sanchr_Settings_StorageUsageResponse {
             try await settingsDataSource.getStorageUsage()
         }
     }

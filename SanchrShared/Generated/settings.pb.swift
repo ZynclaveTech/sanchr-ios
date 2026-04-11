@@ -20,7 +20,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Settings_GetSettingsRequest: Sendable {
+public struct Sanchr_Settings_GetSettingsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -30,7 +30,7 @@ public struct Vync_Settings_GetSettingsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Settings_UserSettings: @unchecked Sendable {
+public struct Sanchr_Settings_UserSettings: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -55,9 +55,9 @@ public struct Vync_Settings_UserSettings: @unchecked Sendable {
     set {_uniqueStorage()._profilePhotoVisibility = newValue}
   }
 
-  public var vyncModeEnabled: Bool {
-    get {_storage._vyncModeEnabled}
-    set {_uniqueStorage()._vyncModeEnabled = newValue}
+  public var sanchrModeEnabled: Bool {
+    get {_storage._sanchrModeEnabled}
+    set {_uniqueStorage()._sanchrModeEnabled = newValue}
   }
 
   public var screenLockEnabled: Bool {
@@ -152,13 +152,13 @@ public struct Vync_Settings_UserSettings: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public struct Vync_Settings_UpdateSettingsRequest: Sendable {
+public struct Sanchr_Settings_UpdateSettingsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var settings: Vync_Settings_UserSettings {
-    get {_settings ?? Vync_Settings_UserSettings()}
+  public var settings: Sanchr_Settings_UserSettings {
+    get {_settings ?? Sanchr_Settings_UserSettings()}
     set {_settings = newValue}
   }
   /// Returns true if `settings` has been explicitly set.
@@ -170,10 +170,10 @@ public struct Vync_Settings_UpdateSettingsRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _settings: Vync_Settings_UserSettings? = nil
+  fileprivate var _settings: Sanchr_Settings_UserSettings? = nil
 }
 
-public struct Vync_Settings_UpdateProfileRequest: Sendable {
+public struct Sanchr_Settings_UpdateProfileRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -189,7 +189,7 @@ public struct Vync_Settings_UpdateProfileRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Settings_ProfileResponse: Sendable {
+public struct Sanchr_Settings_ProfileResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -207,7 +207,7 @@ public struct Vync_Settings_ProfileResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Settings_ToggleVyncModeRequest: Sendable {
+public struct Sanchr_Settings_ToggleSanchrModeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -219,7 +219,7 @@ public struct Vync_Settings_ToggleVyncModeRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Settings_GetStorageUsageRequest: Sendable {
+public struct Sanchr_Settings_GetStorageUsageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -229,7 +229,7 @@ public struct Vync_Settings_GetStorageUsageRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Settings_StorageUsageResponse: Sendable {
+public struct Sanchr_Settings_StorageUsageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -255,9 +255,9 @@ public struct Vync_Settings_StorageUsageResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.settings"
+fileprivate let _protobuf_package = "sanchr.settings"
 
-extension Vync_Settings_GetSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_GetSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSettingsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -270,22 +270,22 @@ extension Vync_Settings_GetSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_GetSettingsRequest, rhs: Vync_Settings_GetSettingsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_GetSettingsRequest, rhs: Sanchr_Settings_GetSettingsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserSettings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}vync_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}read_receipts\0\u{3}online_status_visible\0\u{3}typing_indicator\0\u{3}profile_photo_visibility\0\u{3}sanchr_mode_enabled\0\u{3}screen_lock_enabled\0\u{3}screen_lock_timeout\0\u{3}screenshot_protection\0\u{3}biometric_lock\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{3}notification_vibrate\0\u{3}show_preview\0\u{1}theme\0\u{3}font_size\0\u{3}chat_wallpaper\0\u{3}auto_download_wifi\0\u{3}auto_download_mobile\0\u{3}auto_download_roaming\0\u{3}low_data_mode\0")
 
   fileprivate class _StorageClass {
     var _readReceipts: Bool = false
     var _onlineStatusVisible: Bool = false
     var _typingIndicator: Bool = false
     var _profilePhotoVisibility: String = String()
-    var _vyncModeEnabled: Bool = false
+    var _sanchrModeEnabled: Bool = false
     var _screenLockEnabled: Bool = false
     var _screenLockTimeout: Int32 = 0
     var _screenshotProtection: Bool = false
@@ -317,7 +317,7 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
       _onlineStatusVisible = source._onlineStatusVisible
       _typingIndicator = source._typingIndicator
       _profilePhotoVisibility = source._profilePhotoVisibility
-      _vyncModeEnabled = source._vyncModeEnabled
+      _sanchrModeEnabled = source._sanchrModeEnabled
       _screenLockEnabled = source._screenLockEnabled
       _screenLockTimeout = source._screenLockTimeout
       _screenshotProtection = source._screenshotProtection
@@ -357,7 +357,7 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
         case 2: try { try decoder.decodeSingularBoolField(value: &_storage._onlineStatusVisible) }()
         case 3: try { try decoder.decodeSingularBoolField(value: &_storage._typingIndicator) }()
         case 4: try { try decoder.decodeSingularStringField(value: &_storage._profilePhotoVisibility) }()
-        case 5: try { try decoder.decodeSingularBoolField(value: &_storage._vyncModeEnabled) }()
+        case 5: try { try decoder.decodeSingularBoolField(value: &_storage._sanchrModeEnabled) }()
         case 6: try { try decoder.decodeSingularBoolField(value: &_storage._screenLockEnabled) }()
         case 7: try { try decoder.decodeSingularInt32Field(value: &_storage._screenLockTimeout) }()
         case 8: try { try decoder.decodeSingularBoolField(value: &_storage._screenshotProtection) }()
@@ -395,8 +395,8 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
       if !_storage._profilePhotoVisibility.isEmpty {
         try visitor.visitSingularStringField(value: _storage._profilePhotoVisibility, fieldNumber: 4)
       }
-      if _storage._vyncModeEnabled != false {
-        try visitor.visitSingularBoolField(value: _storage._vyncModeEnabled, fieldNumber: 5)
+      if _storage._sanchrModeEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._sanchrModeEnabled, fieldNumber: 5)
       }
       if _storage._screenLockEnabled != false {
         try visitor.visitSingularBoolField(value: _storage._screenLockEnabled, fieldNumber: 6)
@@ -453,7 +453,7 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_UserSettings, rhs: Vync_Settings_UserSettings) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UserSettings, rhs: Sanchr_Settings_UserSettings) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -462,7 +462,7 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
         if _storage._onlineStatusVisible != rhs_storage._onlineStatusVisible {return false}
         if _storage._typingIndicator != rhs_storage._typingIndicator {return false}
         if _storage._profilePhotoVisibility != rhs_storage._profilePhotoVisibility {return false}
-        if _storage._vyncModeEnabled != rhs_storage._vyncModeEnabled {return false}
+        if _storage._sanchrModeEnabled != rhs_storage._sanchrModeEnabled {return false}
         if _storage._screenLockEnabled != rhs_storage._screenLockEnabled {return false}
         if _storage._screenLockTimeout != rhs_storage._screenLockTimeout {return false}
         if _storage._screenshotProtection != rhs_storage._screenshotProtection {return false}
@@ -489,7 +489,7 @@ extension Vync_Settings_UserSettings: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Vync_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateSettingsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}settings\0")
 
@@ -516,14 +516,14 @@ extension Vync_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_UpdateSettingsRequest, rhs: Vync_Settings_UpdateSettingsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UpdateSettingsRequest, rhs: Sanchr_Settings_UpdateSettingsRequest) -> Bool {
     if lhs._settings != rhs._settings {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateProfileRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0")
 
@@ -554,7 +554,7 @@ extension Vync_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_UpdateProfileRequest, rhs: Vync_Settings_UpdateProfileRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_UpdateProfileRequest, rhs: Sanchr_Settings_UpdateProfileRequest) -> Bool {
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
@@ -563,7 +563,7 @@ extension Vync_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Vync_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ProfileResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0")
 
@@ -598,7 +598,7 @@ extension Vync_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_ProfileResponse, rhs: Vync_Settings_ProfileResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_ProfileResponse, rhs: Sanchr_Settings_ProfileResponse) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -608,8 +608,8 @@ extension Vync_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_Settings_ToggleVyncModeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ToggleVyncModeRequest"
+extension Sanchr_Settings_ToggleSanchrModeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ToggleSanchrModeRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -631,14 +631,14 @@ extension Vync_Settings_ToggleVyncModeRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_ToggleVyncModeRequest, rhs: Vync_Settings_ToggleVyncModeRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_ToggleSanchrModeRequest, rhs: Sanchr_Settings_ToggleSanchrModeRequest) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Settings_GetStorageUsageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_GetStorageUsageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetStorageUsageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -651,13 +651,13 @@ extension Vync_Settings_GetStorageUsageRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_GetStorageUsageRequest, rhs: Vync_Settings_GetStorageUsageRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_GetStorageUsageRequest, rhs: Sanchr_Settings_GetStorageUsageRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StorageUsageResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}photos_bytes\0\u{3}videos_bytes\0\u{3}documents_bytes\0\u{3}voice_bytes\0\u{3}other_bytes\0\u{3}total_bytes\0\u{3}limit_bytes\0")
 
@@ -704,7 +704,7 @@ extension Vync_Settings_StorageUsageResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Settings_StorageUsageResponse, rhs: Vync_Settings_StorageUsageResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Settings_StorageUsageResponse, rhs: Sanchr_Settings_StorageUsageResponse) -> Bool {
     if lhs.photosBytes != rhs.photosBytes {return false}
     if lhs.videosBytes != rhs.videosBytes {return false}
     if lhs.documentsBytes != rhs.documentsBytes {return false}

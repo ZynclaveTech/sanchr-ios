@@ -65,7 +65,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     // MARK: - Dependencies
 
-    private let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
+    private let notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol
 
     // MARK: - Constants
 
@@ -74,7 +74,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
-    init(notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol) {
+    init(notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol) {
         self.notificationService = notificationService
         super.init()
     }
@@ -153,7 +153,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
             return
         }
 
-        var request = Vync_Notifications_RegisterPushTokenRequest()
+        var request = Sanchr_Notifications_RegisterPushTokenRequest()
         request.token = token
         request.platform = "ios"
 

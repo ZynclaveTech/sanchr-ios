@@ -14,7 +14,7 @@ final class PrivacySettingsCache: @unchecked Sendable {
     private var _profilePhotoVisibility: String = "everyone"
     private var _blockedUserIds: Set<String> = []
 
-    var vyncModeEnabled: Bool {
+    var sanchrModeEnabled: Bool {
         lock.lock()
         defer { lock.unlock() }
         return _sanchrModeEnabled
@@ -57,18 +57,18 @@ final class PrivacySettingsCache: @unchecked Sendable {
     }
 
     /// Update cache from server settings response. Safe to call from any thread.
-    func update(from settings: Vync_Settings_UserSettings) {
+    func update(from settings: Sanchr_Settings_UserSettings) {
         lock.lock()
         _readReceipts = settings.readReceipts
         _typingIndicator = settings.typingIndicator
         _onlineStatusVisible = settings.onlineStatusVisible
-        _sanchrModeEnabled = settings.vyncModeEnabled
+        _sanchrModeEnabled = settings.sanchrModeEnabled
         _profilePhotoVisibility = settings.profilePhotoVisibility.isEmpty
             ? "everyone"
             : settings.profilePhotoVisibility
         lock.unlock()
         SanchrLogger.settings.info(
-            "Privacy cache updated: rr=\(settings.readReceipts), ti=\(settings.typingIndicator), os=\(settings.onlineStatusVisible), vm=\(settings.vyncModeEnabled), pp=\(settings.profilePhotoVisibility)"
+            "Privacy cache updated: rr=\(settings.readReceipts), ti=\(settings.typingIndicator), os=\(settings.onlineStatusVisible), vm=\(settings.sanchrModeEnabled), pp=\(settings.profilePhotoVisibility)"
         )
     }
 

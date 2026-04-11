@@ -40,7 +40,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
     func fetchContacts() async throws -> [User] {
         SanchrLogger.sync.info("Fetching contacts from server")
 
-        let request = Vync_Contacts_GetContactsRequest()
+        let request = Sanchr_Contacts_GetContactsRequest()
         let response = try await grpcClient.contactService.getContacts(request)
 
         let users = response.contacts.map { contact in
@@ -74,7 +74,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
             return Data(SHA256.hash(data: Data(normalized.utf8)))
         }
 
-        var request = Vync_Contacts_SyncContactsRequest()
+        var request = Sanchr_Contacts_SyncContactsRequest()
         request.phoneHashes = hashes
 
         let response = try await grpcClient.contactService.syncContacts(request)
@@ -109,7 +109,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         let normalized = phoneNumber.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
         let hash = Data(SHA256.hash(data: Data(normalized.utf8)))
 
-        var request = Vync_Contacts_SyncContactsRequest()
+        var request = Sanchr_Contacts_SyncContactsRequest()
         request.phoneHashes = [hash]
 
         let response = try await grpcClient.contactService.syncContacts(request)
@@ -134,7 +134,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
     func blockUser(userId: String) async throws {
         SanchrLogger.sync.info("Blocking user \(userId.prefix(8))...")
 
-        var request = Vync_Contacts_BlockContactRequest()
+        var request = Sanchr_Contacts_BlockContactRequest()
         request.contactUserID = userId
 
         _ = try await grpcClient.contactService.blockContact(request)
@@ -143,7 +143,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
     func unblockUser(userId: String) async throws {
         SanchrLogger.sync.info("Unblocking user \(userId.prefix(8))...")
 
-        var request = Vync_Contacts_UnblockContactRequest()
+        var request = Sanchr_Contacts_UnblockContactRequest()
         request.contactUserID = userId
 
         _ = try await grpcClient.contactService.unblockContact(request)
@@ -152,7 +152,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
     func fetchBlockedUsers() async throws -> [User] {
         SanchrLogger.sync.info("Fetching blocked users list")
 
-        let request = Vync_Contacts_GetBlockedListRequest()
+        let request = Sanchr_Contacts_GetBlockedListRequest()
         let response = try await grpcClient.contactService.getBlockedList(request)
 
         // The response only has user IDs; create placeholder users.
@@ -175,7 +175,7 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
     func updateProfile(displayName: String?, bio: String?, avatarData: Data?) async throws -> User {
         SanchrLogger.sync.info("Updating user profile")
 
-        var request = Vync_Settings_UpdateProfileRequest()
+        var request = Sanchr_Settings_UpdateProfileRequest()
         if let displayName { request.displayName = displayName }
         if let bio { request.statusText = bio }
         // Avatar upload would require media service; set URL if avatar was uploaded separately

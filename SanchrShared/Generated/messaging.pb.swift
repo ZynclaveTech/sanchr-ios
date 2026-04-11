@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public enum Vync_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+public enum Sanchr_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case online // = 1
@@ -58,7 +58,7 @@ public enum Vync_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterabl
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Vync_Messaging_PresenceStatus] = [
+  public static let allCases: [Sanchr_Messaging_PresenceStatus] = [
     .unspecified,
     .online,
     .offline,
@@ -67,7 +67,7 @@ public enum Vync_Messaging_PresenceStatus: SwiftProtobuf.Enum, Swift.CaseIterabl
 
 }
 
-public enum Vync_Messaging_DevicePresenceState: SwiftProtobuf.Enum, Swift.CaseIterable {
+public enum Sanchr_Messaging_DevicePresenceState: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case deviceStateUnspecified // = 0
   case foreground // = 1
@@ -100,7 +100,7 @@ public enum Vync_Messaging_DevicePresenceState: SwiftProtobuf.Enum, Swift.CaseIt
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Vync_Messaging_DevicePresenceState] = [
+  public static let allCases: [Sanchr_Messaging_DevicePresenceState] = [
     .deviceStateUnspecified,
     .foreground,
     .background,
@@ -109,7 +109,7 @@ public enum Vync_Messaging_DevicePresenceState: SwiftProtobuf.Enum, Swift.CaseIt
 
 }
 
-public struct Vync_Messaging_StartDirectConversationRequest: Sendable {
+public struct Sanchr_Messaging_StartDirectConversationRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -121,7 +121,7 @@ public struct Vync_Messaging_StartDirectConversationRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_DeviceMessage: Sendable {
+public struct Sanchr_Messaging_DeviceMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -137,14 +137,14 @@ public struct Vync_Messaging_DeviceMessage: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SendMessageRequest: Sendable {
+public struct Sanchr_Messaging_SendMessageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var conversationID: String = String()
 
-  public var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+  public var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
 
   public var contentType: String = String()
 
@@ -155,7 +155,7 @@ public struct Vync_Messaging_SendMessageRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SendMessageResponse: Sendable {
+public struct Sanchr_Messaging_SendMessageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -169,33 +169,33 @@ public struct Vync_Messaging_SendMessageResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_ClientEvent: Sendable {
+public struct Sanchr_Messaging_ClientEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var event: Vync_Messaging_ClientEvent.OneOf_Event? = nil
+  public var event: Sanchr_Messaging_ClientEvent.OneOf_Event? = nil
 
-  public var typing: Vync_Messaging_TypingIndicator {
+  public var typing: Sanchr_Messaging_TypingIndicator {
     get {
       if case .typing(let v)? = event {return v}
-      return Vync_Messaging_TypingIndicator()
+      return Sanchr_Messaging_TypingIndicator()
     }
     set {event = .typing(newValue)}
   }
 
-  public var receipt: Vync_Messaging_ReceiptRequest {
+  public var receipt: Sanchr_Messaging_ReceiptRequest {
     get {
       if case .receipt(let v)? = event {return v}
-      return Vync_Messaging_ReceiptRequest()
+      return Sanchr_Messaging_ReceiptRequest()
     }
     set {event = .receipt(newValue)}
   }
 
-  public var heartbeat: Vync_Messaging_PresenceHeartbeat {
+  public var heartbeat: Sanchr_Messaging_PresenceHeartbeat {
     get {
       if case .heartbeat(let v)? = event {return v}
-      return Vync_Messaging_PresenceHeartbeat()
+      return Sanchr_Messaging_PresenceHeartbeat()
     }
     set {event = .heartbeat(newValue)}
   }
@@ -203,90 +203,90 @@ public struct Vync_Messaging_ClientEvent: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Event: Equatable, Sendable {
-    case typing(Vync_Messaging_TypingIndicator)
-    case receipt(Vync_Messaging_ReceiptRequest)
-    case heartbeat(Vync_Messaging_PresenceHeartbeat)
+    case typing(Sanchr_Messaging_TypingIndicator)
+    case receipt(Sanchr_Messaging_ReceiptRequest)
+    case heartbeat(Sanchr_Messaging_PresenceHeartbeat)
 
   }
 
   public init() {}
 }
 
-public struct Vync_Messaging_ServerEvent: Sendable {
+public struct Sanchr_Messaging_ServerEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var event: Vync_Messaging_ServerEvent.OneOf_Event? = nil
+  public var event: Sanchr_Messaging_ServerEvent.OneOf_Event? = nil
 
-  public var message: Vync_Messaging_EncryptedEnvelope {
+  public var message: Sanchr_Messaging_EncryptedEnvelope {
     get {
       if case .message(let v)? = event {return v}
-      return Vync_Messaging_EncryptedEnvelope()
+      return Sanchr_Messaging_EncryptedEnvelope()
     }
     set {event = .message(newValue)}
   }
 
-  public var typing: Vync_Messaging_TypingIndicator {
+  public var typing: Sanchr_Messaging_TypingIndicator {
     get {
       if case .typing(let v)? = event {return v}
-      return Vync_Messaging_TypingIndicator()
+      return Sanchr_Messaging_TypingIndicator()
     }
     set {event = .typing(newValue)}
   }
 
-  public var receipt: Vync_Messaging_ReceiptUpdate {
+  public var receipt: Sanchr_Messaging_ReceiptUpdate {
     get {
       if case .receipt(let v)? = event {return v}
-      return Vync_Messaging_ReceiptUpdate()
+      return Sanchr_Messaging_ReceiptUpdate()
     }
     set {event = .receipt(newValue)}
   }
 
-  public var presence: Vync_Messaging_PresenceUpdate {
+  public var presence: Sanchr_Messaging_PresenceUpdate {
     get {
       if case .presence(let v)? = event {return v}
-      return Vync_Messaging_PresenceUpdate()
+      return Sanchr_Messaging_PresenceUpdate()
     }
     set {event = .presence(newValue)}
   }
 
-  public var preKeyCountLow: Vync_Messaging_PreKeyCountLow {
+  public var preKeyCountLow: Sanchr_Messaging_PreKeyCountLow {
     get {
       if case .preKeyCountLow(let v)? = event {return v}
-      return Vync_Messaging_PreKeyCountLow()
+      return Sanchr_Messaging_PreKeyCountLow()
     }
     set {event = .preKeyCountLow(newValue)}
   }
 
-  public var callOffer: Vync_Messaging_CallOfferEvent {
+  public var callOffer: Sanchr_Messaging_CallOfferEvent {
     get {
       if case .callOffer(let v)? = event {return v}
-      return Vync_Messaging_CallOfferEvent()
+      return Sanchr_Messaging_CallOfferEvent()
     }
     set {event = .callOffer(newValue)}
   }
 
-  public var callLifecycle: Vync_Messaging_CallLifecycleEvent {
+  public var callLifecycle: Sanchr_Messaging_CallLifecycleEvent {
     get {
       if case .callLifecycle(let v)? = event {return v}
-      return Vync_Messaging_CallLifecycleEvent()
+      return Sanchr_Messaging_CallLifecycleEvent()
     }
     set {event = .callLifecycle(newValue)}
   }
 
-  public var reaction: Vync_Messaging_Reaction {
+  public var reaction: Sanchr_Messaging_Reaction {
     get {
       if case .reaction(let v)? = event {return v}
-      return Vync_Messaging_Reaction()
+      return Sanchr_Messaging_Reaction()
     }
     set {event = .reaction(newValue)}
   }
 
-  public var sealedMessage: Vync_Messaging_SealedInboundMessage {
+  public var sealedMessage: Sanchr_Messaging_SealedInboundMessage {
     get {
       if case .sealedMessage(let v)? = event {return v}
-      return Vync_Messaging_SealedInboundMessage()
+      return Sanchr_Messaging_SealedInboundMessage()
     }
     set {event = .sealedMessage(newValue)}
   }
@@ -294,22 +294,22 @@ public struct Vync_Messaging_ServerEvent: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Event: Equatable, Sendable {
-    case message(Vync_Messaging_EncryptedEnvelope)
-    case typing(Vync_Messaging_TypingIndicator)
-    case receipt(Vync_Messaging_ReceiptUpdate)
-    case presence(Vync_Messaging_PresenceUpdate)
-    case preKeyCountLow(Vync_Messaging_PreKeyCountLow)
-    case callOffer(Vync_Messaging_CallOfferEvent)
-    case callLifecycle(Vync_Messaging_CallLifecycleEvent)
-    case reaction(Vync_Messaging_Reaction)
-    case sealedMessage(Vync_Messaging_SealedInboundMessage)
+    case message(Sanchr_Messaging_EncryptedEnvelope)
+    case typing(Sanchr_Messaging_TypingIndicator)
+    case receipt(Sanchr_Messaging_ReceiptUpdate)
+    case presence(Sanchr_Messaging_PresenceUpdate)
+    case preKeyCountLow(Sanchr_Messaging_PreKeyCountLow)
+    case callOffer(Sanchr_Messaging_CallOfferEvent)
+    case callLifecycle(Sanchr_Messaging_CallLifecycleEvent)
+    case reaction(Sanchr_Messaging_Reaction)
+    case sealedMessage(Sanchr_Messaging_SealedInboundMessage)
 
   }
 
   public init() {}
 }
 
-public struct Vync_Messaging_CallOfferEvent: Sendable {
+public struct Sanchr_Messaging_CallOfferEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -329,7 +329,7 @@ public struct Vync_Messaging_CallOfferEvent: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_CallLifecycleEvent: Sendable {
+public struct Sanchr_Messaging_CallLifecycleEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -347,7 +347,7 @@ public struct Vync_Messaging_CallLifecycleEvent: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_EncryptedEnvelope: Sendable {
+public struct Sanchr_Messaging_EncryptedEnvelope: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -371,7 +371,7 @@ public struct Vync_Messaging_EncryptedEnvelope: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_TypingIndicator: Sendable {
+public struct Sanchr_Messaging_TypingIndicator: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -387,7 +387,7 @@ public struct Vync_Messaging_TypingIndicator: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_ReceiptRequest: Sendable {
+public struct Sanchr_Messaging_ReceiptRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -403,7 +403,7 @@ public struct Vync_Messaging_ReceiptRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_ReceiptResponse: Sendable {
+public struct Sanchr_Messaging_ReceiptResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -413,7 +413,7 @@ public struct Vync_Messaging_ReceiptResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_ReceiptUpdate: Sendable {
+public struct Sanchr_Messaging_ReceiptUpdate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -433,12 +433,12 @@ public struct Vync_Messaging_ReceiptUpdate: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_PresenceHeartbeat: Sendable {
+public struct Sanchr_Messaging_PresenceHeartbeat: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var deviceState: Vync_Messaging_DevicePresenceState = .deviceStateUnspecified
+  public var deviceState: Sanchr_Messaging_DevicePresenceState = .deviceStateUnspecified
 
   public var sentAtMs: Int64 = 0
 
@@ -447,7 +447,7 @@ public struct Vync_Messaging_PresenceHeartbeat: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_PresenceUpdate: Sendable {
+public struct Sanchr_Messaging_PresenceUpdate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -458,14 +458,14 @@ public struct Vync_Messaging_PresenceUpdate: Sendable {
 
   public var lastSeen: Int64 = 0
 
-  public var statusCode: Vync_Messaging_PresenceStatus = .unspecified
+  public var statusCode: Sanchr_Messaging_PresenceStatus = .unspecified
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_PreKeyCountLow: Sendable {
+public struct Sanchr_Messaging_PreKeyCountLow: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -479,7 +479,7 @@ public struct Vync_Messaging_PreKeyCountLow: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SyncRequest: Sendable {
+public struct Sanchr_Messaging_SyncRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -491,7 +491,7 @@ public struct Vync_Messaging_SyncRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_AckedMessageRef: Sendable {
+public struct Sanchr_Messaging_AckedMessageRef: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -505,19 +505,19 @@ public struct Vync_Messaging_AckedMessageRef: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_AckMessagesRequest: Sendable {
+public struct Sanchr_Messaging_AckMessagesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var messages: [Vync_Messaging_AckedMessageRef] = []
+  public var messages: [Sanchr_Messaging_AckedMessageRef] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_AckMessagesResponse: Sendable {
+public struct Sanchr_Messaging_AckMessagesResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -527,7 +527,7 @@ public struct Vync_Messaging_AckMessagesResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_DeleteMessageRequest: Sendable {
+public struct Sanchr_Messaging_DeleteMessageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -541,7 +541,7 @@ public struct Vync_Messaging_DeleteMessageRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_DeleteMessageResponse: Sendable {
+public struct Sanchr_Messaging_DeleteMessageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -551,7 +551,7 @@ public struct Vync_Messaging_DeleteMessageResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_GetConversationsRequest: Sendable {
+public struct Sanchr_Messaging_GetConversationsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -561,19 +561,19 @@ public struct Vync_Messaging_GetConversationsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_GetConversationsResponse: Sendable {
+public struct Sanchr_Messaging_GetConversationsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var conversations: [Vync_Messaging_Conversation] = []
+  public var conversations: [Sanchr_Messaging_Conversation] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_GetPresenceSnapshotRequest: Sendable {
+public struct Sanchr_Messaging_GetPresenceSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -585,19 +585,19 @@ public struct Vync_Messaging_GetPresenceSnapshotRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_GetPresenceSnapshotResponse: Sendable {
+public struct Sanchr_Messaging_GetPresenceSnapshotResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var users: [Vync_Messaging_PresenceUpdate] = []
+  public var users: [Sanchr_Messaging_PresenceUpdate] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_Conversation: Sendable {
+public struct Sanchr_Messaging_Conversation: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -610,14 +610,14 @@ public struct Vync_Messaging_Conversation: Sendable {
 
   public var unreadCount: Int32 = 0
 
-  public var participants: [Vync_Messaging_Participant] = []
+  public var participants: [Sanchr_Messaging_Participant] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_Participant: Sendable {
+public struct Sanchr_Messaging_Participant: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -633,7 +633,7 @@ public struct Vync_Messaging_Participant: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_Reaction: Sendable {
+public struct Sanchr_Messaging_Reaction: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -655,7 +655,7 @@ public struct Vync_Messaging_Reaction: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SenderCertificateRequest: Sendable {
+public struct Sanchr_Messaging_SenderCertificateRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -665,7 +665,7 @@ public struct Vync_Messaging_SenderCertificateRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SenderCertificateResponse: Sendable {
+public struct Sanchr_Messaging_SenderCertificateResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -679,7 +679,7 @@ public struct Vync_Messaging_SenderCertificateResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_DeliveryTokenRequest: Sendable {
+public struct Sanchr_Messaging_DeliveryTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -691,7 +691,7 @@ public struct Vync_Messaging_DeliveryTokenRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_DeliveryTokenResponse: Sendable {
+public struct Sanchr_Messaging_DeliveryTokenResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -703,21 +703,21 @@ public struct Vync_Messaging_DeliveryTokenResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SendSealedMessageRequest: Sendable {
+public struct Sanchr_Messaging_SendSealedMessageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var deliveryToken: Data = Data()
 
-  public var deviceMessages: [Vync_Messaging_SealedDeviceMessage] = []
+  public var deviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Messaging_SealedDeviceMessage: Sendable {
+public struct Sanchr_Messaging_SealedDeviceMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -733,7 +733,7 @@ public struct Vync_Messaging_SealedDeviceMessage: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SendSealedMessageResponse: Sendable {
+public struct Sanchr_Messaging_SendSealedMessageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -745,7 +745,7 @@ public struct Vync_Messaging_SendSealedMessageResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Messaging_SealedInboundMessage: Sendable {
+public struct Sanchr_Messaging_SealedInboundMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -763,17 +763,17 @@ public struct Vync_Messaging_SealedInboundMessage: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.messaging"
+fileprivate let _protobuf_package = "sanchr.messaging"
 
-extension Vync_Messaging_PresenceStatus: SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_PresenceStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0PRESENCE_STATUS_UNSPECIFIED\0\u{1}ONLINE\0\u{1}OFFLINE\0\u{1}HIDDEN\0")
 }
 
-extension Vync_Messaging_DevicePresenceState: SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DevicePresenceState: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DEVICE_STATE_UNSPECIFIED\0\u{1}FOREGROUND\0\u{1}BACKGROUND\0\u{1}OFFLINE_DEVICE\0")
 }
 
-extension Vync_Messaging_StartDirectConversationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_StartDirectConversationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartDirectConversationRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0")
 
@@ -796,14 +796,14 @@ extension Vync_Messaging_StartDirectConversationRequest: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_StartDirectConversationRequest, rhs: Vync_Messaging_StartDirectConversationRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_StartDirectConversationRequest, rhs: Sanchr_Messaging_StartDirectConversationRequest) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_DeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeviceMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{1}ciphertext\0")
 
@@ -834,7 +834,7 @@ extension Vync_Messaging_DeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_DeviceMessage, rhs: Vync_Messaging_DeviceMessage) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_DeviceMessage, rhs: Sanchr_Messaging_DeviceMessage) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.ciphertext != rhs.ciphertext {return false}
@@ -843,7 +843,7 @@ extension Vync_Messaging_DeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Vync_Messaging_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}device_messages\0\u{3}content_type\0\u{3}expires_after_secs\0")
 
@@ -878,7 +878,7 @@ extension Vync_Messaging_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SendMessageRequest, rhs: Vync_Messaging_SendMessageRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SendMessageRequest, rhs: Sanchr_Messaging_SendMessageRequest) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.deviceMessages != rhs.deviceMessages {return false}
     if lhs.contentType != rhs.contentType {return false}
@@ -888,7 +888,7 @@ extension Vync_Messaging_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Vync_Messaging_SendMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SendMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendMessageResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}server_timestamp\0")
 
@@ -915,7 +915,7 @@ extension Vync_Messaging_SendMessageResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SendMessageResponse, rhs: Vync_Messaging_SendMessageResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SendMessageResponse, rhs: Sanchr_Messaging_SendMessageResponse) -> Bool {
     if lhs.messageID != rhs.messageID {return false}
     if lhs.serverTimestamp != rhs.serverTimestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -923,7 +923,7 @@ extension Vync_Messaging_SendMessageResponse: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}typing\0\u{1}receipt\0\u{1}heartbeat\0")
 
@@ -934,7 +934,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Vync_Messaging_TypingIndicator?
+        var v: Sanchr_Messaging_TypingIndicator?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -947,7 +947,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 2: try {
-        var v: Vync_Messaging_ReceiptRequest?
+        var v: Sanchr_Messaging_ReceiptRequest?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -960,7 +960,7 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 3: try {
-        var v: Vync_Messaging_PresenceHeartbeat?
+        var v: Sanchr_Messaging_PresenceHeartbeat?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1000,14 +1000,14 @@ extension Vync_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_ClientEvent, rhs: Vync_Messaging_ClientEvent) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_ClientEvent, rhs: Sanchr_Messaging_ClientEvent) -> Bool {
     if lhs.event != rhs.event {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{1}presence\0\u{3}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0\u{3}sealed_message\0")
 
@@ -1018,7 +1018,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Vync_Messaging_EncryptedEnvelope?
+        var v: Sanchr_Messaging_EncryptedEnvelope?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1031,7 +1031,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 2: try {
-        var v: Vync_Messaging_TypingIndicator?
+        var v: Sanchr_Messaging_TypingIndicator?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1044,7 +1044,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 3: try {
-        var v: Vync_Messaging_ReceiptUpdate?
+        var v: Sanchr_Messaging_ReceiptUpdate?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1057,7 +1057,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 4: try {
-        var v: Vync_Messaging_PresenceUpdate?
+        var v: Sanchr_Messaging_PresenceUpdate?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1070,7 +1070,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 5: try {
-        var v: Vync_Messaging_PreKeyCountLow?
+        var v: Sanchr_Messaging_PreKeyCountLow?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1083,7 +1083,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 6: try {
-        var v: Vync_Messaging_CallOfferEvent?
+        var v: Sanchr_Messaging_CallOfferEvent?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1096,7 +1096,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 7: try {
-        var v: Vync_Messaging_CallLifecycleEvent?
+        var v: Sanchr_Messaging_CallLifecycleEvent?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1109,7 +1109,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 8: try {
-        var v: Vync_Messaging_Reaction?
+        var v: Sanchr_Messaging_Reaction?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1122,7 +1122,7 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
         }
       }()
       case 9: try {
-        var v: Vync_Messaging_SealedInboundMessage?
+        var v: Sanchr_Messaging_SealedInboundMessage?
         var hadOneofValue = false
         if let current = self.event {
           hadOneofValue = true
@@ -1186,14 +1186,14 @@ extension Vync_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_ServerEvent, rhs: Vync_Messaging_ServerEvent) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_ServerEvent, rhs: Sanchr_Messaging_ServerEvent) -> Bool {
     if lhs.event != rhs.event {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallOfferEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}caller_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0")
 
@@ -1232,7 +1232,7 @@ extension Vync_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_CallOfferEvent, rhs: Vync_Messaging_CallOfferEvent) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_CallOfferEvent, rhs: Sanchr_Messaging_CallOfferEvent) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.callerID != rhs.callerID {return false}
     if lhs.callType != rhs.callType {return false}
@@ -1243,7 +1243,7 @@ extension Vync_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallLifecycleEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}peer_id\0\u{3}event_type\0\u{3}actor_id\0")
 
@@ -1278,7 +1278,7 @@ extension Vync_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_CallLifecycleEvent, rhs: Vync_Messaging_CallLifecycleEvent) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_CallLifecycleEvent, rhs: Sanchr_Messaging_CallLifecycleEvent) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.peerID != rhs.peerID {return false}
     if lhs.eventType != rhs.eventType {return false}
@@ -1288,7 +1288,7 @@ extension Vync_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Vync_Messaging_EncryptedEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_EncryptedEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EncryptedEnvelope"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0\u{3}sender_id\0\u{3}sender_device\0\u{1}ciphertext\0\u{3}content_type\0\u{3}server_timestamp\0")
 
@@ -1335,7 +1335,7 @@ extension Vync_Messaging_EncryptedEnvelope: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_EncryptedEnvelope, rhs: Vync_Messaging_EncryptedEnvelope) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_EncryptedEnvelope, rhs: Sanchr_Messaging_EncryptedEnvelope) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.messageID != rhs.messageID {return false}
     if lhs.senderID != rhs.senderID {return false}
@@ -1348,7 +1348,7 @@ extension Vync_Messaging_EncryptedEnvelope: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Vync_Messaging_TypingIndicator: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_TypingIndicator: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TypingIndicator"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}user_id\0\u{3}is_typing\0")
 
@@ -1379,7 +1379,7 @@ extension Vync_Messaging_TypingIndicator: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_TypingIndicator, rhs: Vync_Messaging_TypingIndicator) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_TypingIndicator, rhs: Sanchr_Messaging_TypingIndicator) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.userID != rhs.userID {return false}
     if lhs.isTyping != rhs.isTyping {return false}
@@ -1388,7 +1388,7 @@ extension Vync_Messaging_TypingIndicator: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Vync_Messaging_ReceiptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_ReceiptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReceiptRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0\u{1}status\0")
 
@@ -1419,7 +1419,7 @@ extension Vync_Messaging_ReceiptRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_ReceiptRequest, rhs: Vync_Messaging_ReceiptRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_ReceiptRequest, rhs: Sanchr_Messaging_ReceiptRequest) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.messageID != rhs.messageID {return false}
     if lhs.status != rhs.status {return false}
@@ -1428,7 +1428,7 @@ extension Vync_Messaging_ReceiptRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_Messaging_ReceiptResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_ReceiptResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReceiptResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -1441,13 +1441,13 @@ extension Vync_Messaging_ReceiptResponse: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_ReceiptResponse, rhs: Vync_Messaging_ReceiptResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_ReceiptResponse, rhs: Sanchr_Messaging_ReceiptResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_ReceiptUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_ReceiptUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReceiptUpdate"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0\u{3}recipient_id\0\u{1}status\0\u{1}timestamp\0")
 
@@ -1486,7 +1486,7 @@ extension Vync_Messaging_ReceiptUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_ReceiptUpdate, rhs: Vync_Messaging_ReceiptUpdate) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_ReceiptUpdate, rhs: Sanchr_Messaging_ReceiptUpdate) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.messageID != rhs.messageID {return false}
     if lhs.recipientID != rhs.recipientID {return false}
@@ -1497,7 +1497,7 @@ extension Vync_Messaging_ReceiptUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Vync_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PresenceHeartbeat"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_state\0\u{3}sent_at_ms\0")
 
@@ -1524,7 +1524,7 @@ extension Vync_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_PresenceHeartbeat, rhs: Vync_Messaging_PresenceHeartbeat) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_PresenceHeartbeat, rhs: Sanchr_Messaging_PresenceHeartbeat) -> Bool {
     if lhs.deviceState != rhs.deviceState {return false}
     if lhs.sentAtMs != rhs.sentAtMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -1532,7 +1532,7 @@ extension Vync_Messaging_PresenceHeartbeat: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PresenceUpdate"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}status\0\u{3}last_seen\0\u{3}status_code\0")
 
@@ -1567,7 +1567,7 @@ extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_PresenceUpdate, rhs: Vync_Messaging_PresenceUpdate) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_PresenceUpdate, rhs: Sanchr_Messaging_PresenceUpdate) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.status != rhs.status {return false}
     if lhs.lastSeen != rhs.lastSeen {return false}
@@ -1577,7 +1577,7 @@ extension Vync_Messaging_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_Messaging_PreKeyCountLow: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_PreKeyCountLow: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PreKeyCountLow"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}remaining_count\0")
 
@@ -1604,7 +1604,7 @@ extension Vync_Messaging_PreKeyCountLow: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_PreKeyCountLow, rhs: Vync_Messaging_PreKeyCountLow) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_PreKeyCountLow, rhs: Sanchr_Messaging_PreKeyCountLow) -> Bool {
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.remainingCount != rhs.remainingCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -1612,7 +1612,7 @@ extension Vync_Messaging_PreKeyCountLow: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_Messaging_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}since_timestamp\0")
 
@@ -1635,14 +1635,14 @@ extension Vync_Messaging_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SyncRequest, rhs: Vync_Messaging_SyncRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SyncRequest, rhs: Sanchr_Messaging_SyncRequest) -> Bool {
     if lhs.sinceTimestamp != rhs.sinceTimestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_AckedMessageRef: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_AckedMessageRef: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckedMessageRef"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0")
 
@@ -1669,7 +1669,7 @@ extension Vync_Messaging_AckedMessageRef: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_AckedMessageRef, rhs: Vync_Messaging_AckedMessageRef) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_AckedMessageRef, rhs: Sanchr_Messaging_AckedMessageRef) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.messageID != rhs.messageID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -1677,7 +1677,7 @@ extension Vync_Messaging_AckedMessageRef: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Vync_Messaging_AckMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_AckMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckMessagesRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}messages\0")
 
@@ -1700,14 +1700,14 @@ extension Vync_Messaging_AckMessagesRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_AckMessagesRequest, rhs: Vync_Messaging_AckMessagesRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_AckMessagesRequest, rhs: Sanchr_Messaging_AckMessagesRequest) -> Bool {
     if lhs.messages != rhs.messages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_AckMessagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_AckMessagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckMessagesResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -1720,13 +1720,13 @@ extension Vync_Messaging_AckMessagesResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_AckMessagesResponse, rhs: Vync_Messaging_AckMessagesResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_AckMessagesResponse, rhs: Sanchr_Messaging_AckMessagesResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_DeleteMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DeleteMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0")
 
@@ -1753,7 +1753,7 @@ extension Vync_Messaging_DeleteMessageRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_DeleteMessageRequest, rhs: Vync_Messaging_DeleteMessageRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_DeleteMessageRequest, rhs: Sanchr_Messaging_DeleteMessageRequest) -> Bool {
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.messageID != rhs.messageID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -1761,7 +1761,7 @@ extension Vync_Messaging_DeleteMessageRequest: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-extension Vync_Messaging_DeleteMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DeleteMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteMessageResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -1774,13 +1774,13 @@ extension Vync_Messaging_DeleteMessageResponse: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_DeleteMessageResponse, rhs: Vync_Messaging_DeleteMessageResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_DeleteMessageResponse, rhs: Sanchr_Messaging_DeleteMessageResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_GetConversationsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_GetConversationsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetConversationsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -1793,13 +1793,13 @@ extension Vync_Messaging_GetConversationsRequest: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_GetConversationsRequest, rhs: Vync_Messaging_GetConversationsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_GetConversationsRequest, rhs: Sanchr_Messaging_GetConversationsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_GetConversationsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_GetConversationsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetConversationsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}conversations\0")
 
@@ -1822,14 +1822,14 @@ extension Vync_Messaging_GetConversationsResponse: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_GetConversationsResponse, rhs: Vync_Messaging_GetConversationsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_GetConversationsResponse, rhs: Sanchr_Messaging_GetConversationsResponse) -> Bool {
     if lhs.conversations != rhs.conversations {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_GetPresenceSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_GetPresenceSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPresenceSnapshotRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_ids\0")
 
@@ -1852,14 +1852,14 @@ extension Vync_Messaging_GetPresenceSnapshotRequest: SwiftProtobuf.Message, Swif
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_GetPresenceSnapshotRequest, rhs: Vync_Messaging_GetPresenceSnapshotRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_GetPresenceSnapshotRequest, rhs: Sanchr_Messaging_GetPresenceSnapshotRequest) -> Bool {
     if lhs.userIds != rhs.userIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_GetPresenceSnapshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_GetPresenceSnapshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPresenceSnapshotResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0")
 
@@ -1882,14 +1882,14 @@ extension Vync_Messaging_GetPresenceSnapshotResponse: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_GetPresenceSnapshotResponse, rhs: Vync_Messaging_GetPresenceSnapshotResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_GetPresenceSnapshotResponse, rhs: Sanchr_Messaging_GetPresenceSnapshotResponse) -> Bool {
     if lhs.users != rhs.users {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Conversation"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{3}participant_ids\0\u{3}unread_count\0\u{1}participants\0")
 
@@ -1928,7 +1928,7 @@ extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_Conversation, rhs: Vync_Messaging_Conversation) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_Conversation, rhs: Sanchr_Messaging_Conversation) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.type != rhs.type {return false}
     if lhs.participantIds != rhs.participantIds {return false}
@@ -1939,7 +1939,7 @@ extension Vync_Messaging_Conversation: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Vync_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Participant"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0")
 
@@ -1970,7 +1970,7 @@ extension Vync_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_Participant, rhs: Vync_Messaging_Participant) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_Participant, rhs: Sanchr_Messaging_Participant) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -1979,7 +1979,7 @@ extension Vync_Messaging_Participant: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Vync_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Reaction"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}conversation_id\0\u{3}user_id\0\u{1}emoji\0\u{1}removed\0\u{1}timestamp\0")
 
@@ -2022,7 +2022,7 @@ extension Vync_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_Reaction, rhs: Vync_Messaging_Reaction) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_Reaction, rhs: Sanchr_Messaging_Reaction) -> Bool {
     if lhs.messageID != rhs.messageID {return false}
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.userID != rhs.userID {return false}
@@ -2034,7 +2034,7 @@ extension Vync_Messaging_Reaction: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Vync_Messaging_SenderCertificateRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SenderCertificateRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SenderCertificateRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -2047,13 +2047,13 @@ extension Vync_Messaging_SenderCertificateRequest: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SenderCertificateRequest, rhs: Vync_Messaging_SenderCertificateRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SenderCertificateRequest, rhs: Sanchr_Messaging_SenderCertificateRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_SenderCertificateResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SenderCertificateResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SenderCertificateResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}expiration\0")
 
@@ -2080,7 +2080,7 @@ extension Vync_Messaging_SenderCertificateResponse: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SenderCertificateResponse, rhs: Vync_Messaging_SenderCertificateResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SenderCertificateResponse, rhs: Sanchr_Messaging_SenderCertificateResponse) -> Bool {
     if lhs.certificate != rhs.certificate {return false}
     if lhs.expiration != rhs.expiration {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2088,7 +2088,7 @@ extension Vync_Messaging_SenderCertificateResponse: SwiftProtobuf.Message, Swift
   }
 }
 
-extension Vync_Messaging_DeliveryTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DeliveryTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeliveryTokenRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}count\0")
 
@@ -2111,14 +2111,14 @@ extension Vync_Messaging_DeliveryTokenRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_DeliveryTokenRequest, rhs: Vync_Messaging_DeliveryTokenRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_DeliveryTokenRequest, rhs: Sanchr_Messaging_DeliveryTokenRequest) -> Bool {
     if lhs.count != rhs.count {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_DeliveryTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_DeliveryTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeliveryTokenResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tokens\0")
 
@@ -2141,14 +2141,14 @@ extension Vync_Messaging_DeliveryTokenResponse: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_DeliveryTokenResponse, rhs: Vync_Messaging_DeliveryTokenResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_DeliveryTokenResponse, rhs: Sanchr_Messaging_DeliveryTokenResponse) -> Bool {
     if lhs.tokens != rhs.tokens {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendSealedMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}delivery_token\0\u{3}device_messages\0")
 
@@ -2175,7 +2175,7 @@ extension Vync_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SendSealedMessageRequest, rhs: Vync_Messaging_SendSealedMessageRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SendSealedMessageRequest, rhs: Sanchr_Messaging_SendSealedMessageRequest) -> Bool {
     if lhs.deliveryToken != rhs.deliveryToken {return false}
     if lhs.deviceMessages != rhs.deviceMessages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2183,7 +2183,7 @@ extension Vync_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, SwiftP
   }
 }
 
-extension Vync_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SealedDeviceMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0")
 
@@ -2214,7 +2214,7 @@ extension Vync_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SealedDeviceMessage, rhs: Vync_Messaging_SealedDeviceMessage) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SealedDeviceMessage, rhs: Sanchr_Messaging_SealedDeviceMessage) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
@@ -2223,7 +2223,7 @@ extension Vync_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Vync_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendSealedMessageResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_timestamp\0")
 
@@ -2246,14 +2246,14 @@ extension Vync_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SendSealedMessageResponse, rhs: Vync_Messaging_SendSealedMessageResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SendSealedMessageResponse, rhs: Sanchr_Messaging_SendSealedMessageResponse) -> Bool {
     if lhs.serverTimestamp != rhs.serverTimestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Messaging_SealedInboundMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Messaging_SealedInboundMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SealedInboundMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sealed_envelope\0\u{3}server_timestamp\0\u{3}message_id\0")
 
@@ -2284,7 +2284,7 @@ extension Vync_Messaging_SealedInboundMessage: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Messaging_SealedInboundMessage, rhs: Vync_Messaging_SealedInboundMessage) -> Bool {
+  public static func ==(lhs: Sanchr_Messaging_SealedInboundMessage, rhs: Sanchr_Messaging_SealedInboundMessage) -> Bool {
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
     if lhs.serverTimestamp != rhs.serverTimestamp {return false}
     if lhs.messageID != rhs.messageID {return false}

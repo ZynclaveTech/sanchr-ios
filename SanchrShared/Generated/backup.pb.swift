@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Backup_BackupMetadata: Sendable {
+public struct Sanchr_Backup_BackupMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -53,7 +53,7 @@ public struct Vync_Backup_BackupMetadata: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_CreateBackupUploadRequest: Sendable {
+public struct Sanchr_Backup_CreateBackupUploadRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -75,7 +75,7 @@ public struct Vync_Backup_CreateBackupUploadRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_CreateBackupUploadResponse: Sendable {
+public struct Sanchr_Backup_CreateBackupUploadResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -93,7 +93,7 @@ public struct Vync_Backup_CreateBackupUploadResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_CommitBackupRequest: Sendable {
+public struct Sanchr_Backup_CommitBackupRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -109,13 +109,13 @@ public struct Vync_Backup_CommitBackupRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_CommitBackupResponse: Sendable {
+public struct Sanchr_Backup_CommitBackupResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backup: Vync_Backup_BackupMetadata {
-    get {_backup ?? Vync_Backup_BackupMetadata()}
+  public var backup: Sanchr_Backup_BackupMetadata {
+    get {_backup ?? Sanchr_Backup_BackupMetadata()}
     set {_backup = newValue}
   }
   /// Returns true if `backup` has been explicitly set.
@@ -127,10 +127,10 @@ public struct Vync_Backup_CommitBackupResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _backup: Vync_Backup_BackupMetadata? = nil
+  fileprivate var _backup: Sanchr_Backup_BackupMetadata? = nil
 }
 
-public struct Vync_Backup_ListBackupsRequest: Sendable {
+public struct Sanchr_Backup_ListBackupsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -140,19 +140,19 @@ public struct Vync_Backup_ListBackupsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_ListBackupsResponse: Sendable {
+public struct Sanchr_Backup_ListBackupsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var backups: [Vync_Backup_BackupMetadata] = []
+  public var backups: [Sanchr_Backup_BackupMetadata] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Backup_GetBackupDownloadRequest: Sendable {
+public struct Sanchr_Backup_GetBackupDownloadRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -164,7 +164,7 @@ public struct Vync_Backup_GetBackupDownloadRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_GetBackupDownloadResponse: Sendable {
+public struct Sanchr_Backup_GetBackupDownloadResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -175,8 +175,8 @@ public struct Vync_Backup_GetBackupDownloadResponse: Sendable {
 
   public var expiresIn: Int64 = 0
 
-  public var backup: Vync_Backup_BackupMetadata {
-    get {_backup ?? Vync_Backup_BackupMetadata()}
+  public var backup: Sanchr_Backup_BackupMetadata {
+    get {_backup ?? Sanchr_Backup_BackupMetadata()}
     set {_backup = newValue}
   }
   /// Returns true if `backup` has been explicitly set.
@@ -188,10 +188,10 @@ public struct Vync_Backup_GetBackupDownloadResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _backup: Vync_Backup_BackupMetadata? = nil
+  fileprivate var _backup: Sanchr_Backup_BackupMetadata? = nil
 }
 
-public struct Vync_Backup_DeleteBackupRequest: Sendable {
+public struct Sanchr_Backup_DeleteBackupRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -203,7 +203,7 @@ public struct Vync_Backup_DeleteBackupRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Backup_DeleteBackupResponse: Sendable {
+public struct Sanchr_Backup_DeleteBackupResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -215,9 +215,9 @@ public struct Vync_Backup_DeleteBackupResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.backup"
+fileprivate let _protobuf_package = "sanchr.backup"
 
-extension Vync_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}format_version\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}created_at\0\u{3}committed_at\0")
 
@@ -272,7 +272,7 @@ extension Vync_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_BackupMetadata, rhs: Vync_Backup_BackupMetadata) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_BackupMetadata, rhs: Sanchr_Backup_BackupMetadata) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.lineageID != rhs.lineageID {return false}
     if lhs.formatVersion != rhs.formatVersion {return false}
@@ -287,7 +287,7 @@ extension Vync_Backup_BackupMetadata: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Vync_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}byte_size\0\u{3}sha256_hash\0\u{3}opaque_metadata\0\u{3}reserved_forward_secrecy_metadata\0\u{3}lineage_id\0\u{3}format_version\0")
 
@@ -330,7 +330,7 @@ extension Vync_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_CreateBackupUploadRequest, rhs: Vync_Backup_CreateBackupUploadRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_CreateBackupUploadRequest, rhs: Sanchr_Backup_CreateBackupUploadRequest) -> Bool {
     if lhs.byteSize != rhs.byteSize {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
     if lhs.opaqueMetadata != rhs.opaqueMetadata {return false}
@@ -342,7 +342,7 @@ extension Vync_Backup_CreateBackupUploadRequest: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Vync_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateBackupUploadResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}lineage_id\0\u{3}upload_url\0\u{3}expires_in\0")
 
@@ -377,7 +377,7 @@ extension Vync_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_CreateBackupUploadResponse, rhs: Vync_Backup_CreateBackupUploadResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_CreateBackupUploadResponse, rhs: Sanchr_Backup_CreateBackupUploadResponse) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.lineageID != rhs.lineageID {return false}
     if lhs.uploadURL != rhs.uploadURL {return false}
@@ -387,7 +387,7 @@ extension Vync_Backup_CreateBackupUploadResponse: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-extension Vync_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CommitBackupRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}byte_size\0\u{3}sha256_hash\0")
 
@@ -418,7 +418,7 @@ extension Vync_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_CommitBackupRequest, rhs: Vync_Backup_CommitBackupRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_CommitBackupRequest, rhs: Sanchr_Backup_CommitBackupRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.byteSize != rhs.byteSize {return false}
     if lhs.sha256Hash != rhs.sha256Hash {return false}
@@ -427,7 +427,7 @@ extension Vync_Backup_CommitBackupRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Vync_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CommitBackupResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backup\0")
 
@@ -454,14 +454,14 @@ extension Vync_Backup_CommitBackupResponse: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_CommitBackupResponse, rhs: Vync_Backup_CommitBackupResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_CommitBackupResponse, rhs: Sanchr_Backup_CommitBackupResponse) -> Bool {
     if lhs._backup != rhs._backup {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Backup_ListBackupsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_ListBackupsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListBackupsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -474,13 +474,13 @@ extension Vync_Backup_ListBackupsRequest: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_ListBackupsRequest, rhs: Vync_Backup_ListBackupsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_ListBackupsRequest, rhs: Sanchr_Backup_ListBackupsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListBackupsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}backups\0")
 
@@ -503,14 +503,14 @@ extension Vync_Backup_ListBackupsResponse: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_ListBackupsResponse, rhs: Vync_Backup_ListBackupsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_ListBackupsResponse, rhs: Sanchr_Backup_ListBackupsResponse) -> Bool {
     if lhs.backups != rhs.backups {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
 
@@ -533,14 +533,14 @@ extension Vync_Backup_GetBackupDownloadRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_GetBackupDownloadRequest, rhs: Vync_Backup_GetBackupDownloadRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_GetBackupDownloadRequest, rhs: Sanchr_Backup_GetBackupDownloadRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBackupDownloadResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0\u{3}download_url\0\u{3}expires_in\0\u{1}backup\0")
 
@@ -579,7 +579,7 @@ extension Vync_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_GetBackupDownloadResponse, rhs: Vync_Backup_GetBackupDownloadResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_GetBackupDownloadResponse, rhs: Sanchr_Backup_GetBackupDownloadResponse) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.downloadURL != rhs.downloadURL {return false}
     if lhs.expiresIn != rhs.expiresIn {return false}
@@ -589,7 +589,7 @@ extension Vync_Backup_GetBackupDownloadResponse: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Vync_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteBackupRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}backup_id\0")
 
@@ -612,14 +612,14 @@ extension Vync_Backup_DeleteBackupRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_DeleteBackupRequest, rhs: Vync_Backup_DeleteBackupRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_DeleteBackupRequest, rhs: Sanchr_Backup_DeleteBackupRequest) -> Bool {
     if lhs.backupID != rhs.backupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Backup_DeleteBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Backup_DeleteBackupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteBackupResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -632,7 +632,7 @@ extension Vync_Backup_DeleteBackupResponse: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Backup_DeleteBackupResponse, rhs: Vync_Backup_DeleteBackupResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Backup_DeleteBackupResponse, rhs: Sanchr_Backup_DeleteBackupResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

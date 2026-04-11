@@ -7,11 +7,11 @@ import SanchrShared
 final class ProfileDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
 
-    private var settingsClient: Vync_Settings_SettingsServiceAsyncClientProtocol {
+    private var settingsClient: Sanchr_Settings_SettingsServiceAsyncClientProtocol {
         grpcClient.settingsService
     }
 
-    private var mediaClient: Vync_Media_MediaServiceAsyncClientProtocol {
+    private var mediaClient: Sanchr_Media_MediaServiceAsyncClientProtocol {
         grpcClient.mediaService
     }
 
@@ -26,8 +26,8 @@ final class ProfileDataSource: @unchecked Sendable {
         name: String,
         avatarURL: String,
         status: String
-    ) async throws -> Vync_Settings_ProfileResponse {
-        var request = Vync_Settings_UpdateProfileRequest()
+    ) async throws -> Sanchr_Settings_ProfileResponse {
+        var request = Sanchr_Settings_UpdateProfileRequest()
         request.displayName = name
         request.avatarURL = avatarURL
         request.statusText = status
@@ -46,7 +46,7 @@ final class ProfileDataSource: @unchecked Sendable {
         let hashHex = digest.map { String(format: "%02x", $0) }.joined()
 
         // 2. Get presigned upload URL
-        var uploadRequest = Vync_Media_GetUploadUrlRequest()
+        var uploadRequest = Sanchr_Media_GetUploadUrlRequest()
         uploadRequest.fileSize = Int64(imageData.count)
         uploadRequest.contentType = "image/jpeg"
         uploadRequest.sha256Hash = hashHex
@@ -54,7 +54,7 @@ final class ProfileDataSource: @unchecked Sendable {
 
         SanchrLogger.network.info(
             "ProfileDataSource: getUploadUrl for avatar (\(imageData.count) bytes)")
-        let uploadResponse: Vync_Media_PresignedUrlResponse
+        let uploadResponse: Sanchr_Media_PresignedUrlResponse
         do {
             uploadResponse = try await mediaClient.getUploadUrl(uploadRequest)
         } catch {
@@ -71,7 +71,7 @@ final class ProfileDataSource: @unchecked Sendable {
         }
 
         // 4. Confirm upload
-        var confirmRequest = Vync_Media_ConfirmUploadRequest()
+        var confirmRequest = Sanchr_Media_ConfirmUploadRequest()
         confirmRequest.mediaID = uploadResponse.mediaID
         confirmRequest.fileSize = Int64(imageData.count)
         do {
@@ -101,11 +101,11 @@ final class ProfileDataSource: @unchecked Sendable {
     // MARK: - Get Profile
 
     /// Fetches the current user's profile via a settings read.
-    func getProfile() async throws -> Vync_Settings_ProfileResponse {
+    func getProfile() async throws -> Sanchr_Settings_ProfileResponse {
         // Use updateProfile with current values to get a response, or use getSettings
         // For now, use a minimal update to fetch current state
-        let settings = try await settingsClient.getSettings(Vync_Settings_GetSettingsRequest())
-        let profile = Vync_Settings_ProfileResponse()
+        let settings = try await settingsClient.getSettings(Sanchr_Settings_GetSettingsRequest())
+        let profile = Sanchr_Settings_ProfileResponse()
         // Settings doesn't return full profile; the profile is typically loaded from session
         _ = settings
         return profile

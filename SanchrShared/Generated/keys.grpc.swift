@@ -11,40 +11,40 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Keys_KeyServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Keys_KeyServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Keys_KeyServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Keys_KeyServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? { get }
 
   func uploadKeyBundle(
-    _ request: Vync_Keys_KeyBundle,
+    _ request: Sanchr_Keys_KeyBundle,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse>
+  ) -> UnaryCall<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse>
 
   func getPreKeyBundle(
-    _ request: Vync_Keys_GetPreKeyBundleRequest,
+    _ request: Sanchr_Keys_GetPreKeyBundleRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse>
+  ) -> UnaryCall<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse>
 
   func uploadOneTimePreKeys(
-    _ request: Vync_Keys_UploadOneTimePreKeysRequest,
+    _ request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse>
+  ) -> UnaryCall<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>
 
   func getPreKeyCount(
-    _ request: Vync_Keys_GetPreKeyCountRequest,
+    _ request: Sanchr_Keys_GetPreKeyCountRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse>
+  ) -> UnaryCall<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>
 
   func getUserDevices(
-    _ request: Vync_Keys_GetUserDevicesRequest,
+    _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse>
+  ) -> UnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>
 }
 
-extension Vync_Keys_KeyServiceClientProtocol {
+extension Sanchr_Keys_KeyServiceClientProtocol {
   public var serviceName: String {
-    return "vync.keys.KeyService"
+    return "sanchr.keys.KeyService"
   }
 
   /// Unary call to UploadKeyBundle
@@ -54,11 +54,11 @@ extension Vync_Keys_KeyServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func uploadKeyBundle(
-    _ request: Vync_Keys_KeyBundle,
+    _ request: Sanchr_Keys_KeyBundle,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse> {
+  ) -> UnaryCall<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse> {
     return self.makeUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadKeyBundleInterceptors() ?? []
@@ -72,11 +72,11 @@ extension Vync_Keys_KeyServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getPreKeyBundle(
-    _ request: Vync_Keys_GetPreKeyBundleRequest,
+    _ request: Sanchr_Keys_GetPreKeyBundleRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse> {
+  ) -> UnaryCall<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse> {
     return self.makeUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyBundleInterceptors() ?? []
@@ -90,11 +90,11 @@ extension Vync_Keys_KeyServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func uploadOneTimePreKeys(
-    _ request: Vync_Keys_UploadOneTimePreKeysRequest,
+    _ request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse> {
+  ) -> UnaryCall<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse> {
     return self.makeUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadOneTimePreKeysInterceptors() ?? []
@@ -108,11 +108,11 @@ extension Vync_Keys_KeyServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getPreKeyCount(
-    _ request: Vync_Keys_GetPreKeyCountRequest,
+    _ request: Sanchr_Keys_GetPreKeyCountRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse> {
+  ) -> UnaryCall<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse> {
     return self.makeUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyCountInterceptors() ?? []
@@ -126,11 +126,11 @@ extension Vync_Keys_KeyServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getUserDevices(
-    _ request: Vync_Keys_GetUserDevicesRequest,
+    _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse> {
+  ) -> UnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse> {
     return self.makeUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
@@ -139,24 +139,24 @@ extension Vync_Keys_KeyServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Keys_KeyServiceClient: @unchecked Sendable {}
+extension Sanchr_Keys_KeyServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Keys_KeyServiceNIOClient")
-public final class Vync_Keys_KeyServiceClient: Vync_Keys_KeyServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Keys_KeyServiceNIOClient")
+public final class Sanchr_Keys_KeyServiceClient: Sanchr_Keys_KeyServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.keys.KeyService service.
+  /// Creates a client for the sanchr.keys.KeyService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -165,7 +165,7 @@ public final class Vync_Keys_KeyServiceClient: Vync_Keys_KeyServiceClientProtoco
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -173,12 +173,12 @@ public final class Vync_Keys_KeyServiceClient: Vync_Keys_KeyServiceClientProtoco
   }
 }
 
-public struct Vync_Keys_KeyServiceNIOClient: Vync_Keys_KeyServiceClientProtocol {
+public struct Sanchr_Keys_KeyServiceNIOClient: Sanchr_Keys_KeyServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.keys.KeyService service.
+  /// Creates a client for the sanchr.keys.KeyService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -187,7 +187,7 @@ public struct Vync_Keys_KeyServiceNIOClient: Vync_Keys_KeyServiceClientProtocol 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -196,52 +196,52 @@ public struct Vync_Keys_KeyServiceNIOClient: Vync_Keys_KeyServiceClientProtocol 
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Keys_KeyServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Keys_KeyServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? { get }
 
   func makeUploadKeyBundleCall(
-    _ request: Vync_Keys_KeyBundle,
+    _ request: Sanchr_Keys_KeyBundle,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse>
 
   func makeGetPreKeyBundleCall(
-    _ request: Vync_Keys_GetPreKeyBundleRequest,
+    _ request: Sanchr_Keys_GetPreKeyBundleRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse>
 
   func makeUploadOneTimePreKeysCall(
-    _ request: Vync_Keys_UploadOneTimePreKeysRequest,
+    _ request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>
 
   func makeGetPreKeyCountCall(
-    _ request: Vync_Keys_GetPreKeyCountRequest,
+    _ request: Sanchr_Keys_GetPreKeyCountRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>
 
   func makeGetUserDevicesCall(
-    _ request: Vync_Keys_GetUserDevicesRequest,
+    _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Keys_KeyServiceAsyncClientProtocol {
+extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Keys_KeyServiceClientMetadata.serviceDescriptor
+    return Sanchr_Keys_KeyServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeUploadKeyBundleCall(
-    _ request: Vync_Keys_KeyBundle,
+    _ request: Sanchr_Keys_KeyBundle,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadKeyBundleInterceptors() ?? []
@@ -249,11 +249,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func makeGetPreKeyBundleCall(
-    _ request: Vync_Keys_GetPreKeyBundleRequest,
+    _ request: Sanchr_Keys_GetPreKeyBundleRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyBundleInterceptors() ?? []
@@ -261,11 +261,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func makeUploadOneTimePreKeysCall(
-    _ request: Vync_Keys_UploadOneTimePreKeysRequest,
+    _ request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadOneTimePreKeysInterceptors() ?? []
@@ -273,11 +273,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func makeGetPreKeyCountCall(
-    _ request: Vync_Keys_GetPreKeyCountRequest,
+    _ request: Sanchr_Keys_GetPreKeyCountRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyCountInterceptors() ?? []
@@ -285,11 +285,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func makeGetUserDevicesCall(
-    _ request: Vync_Keys_GetUserDevicesRequest,
+    _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
@@ -298,13 +298,13 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Keys_KeyServiceAsyncClientProtocol {
+extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
   public func uploadKeyBundle(
-    _ request: Vync_Keys_KeyBundle,
+    _ request: Sanchr_Keys_KeyBundle,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Keys_UploadKeyBundleResponse {
+  ) async throws -> Sanchr_Keys_UploadKeyBundleResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadKeyBundleInterceptors() ?? []
@@ -312,11 +312,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func getPreKeyBundle(
-    _ request: Vync_Keys_GetPreKeyBundleRequest,
+    _ request: Sanchr_Keys_GetPreKeyBundleRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Keys_PreKeyBundleResponse {
+  ) async throws -> Sanchr_Keys_PreKeyBundleResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyBundleInterceptors() ?? []
@@ -324,11 +324,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func uploadOneTimePreKeys(
-    _ request: Vync_Keys_UploadOneTimePreKeysRequest,
+    _ request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Keys_PreKeyCountResponse {
+  ) async throws -> Sanchr_Keys_PreKeyCountResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUploadOneTimePreKeysInterceptors() ?? []
@@ -336,11 +336,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func getPreKeyCount(
-    _ request: Vync_Keys_GetPreKeyCountRequest,
+    _ request: Sanchr_Keys_GetPreKeyCountRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Keys_PreKeyCountResponse {
+  ) async throws -> Sanchr_Keys_PreKeyCountResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPreKeyCountInterceptors() ?? []
@@ -348,11 +348,11 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
   }
 
   public func getUserDevices(
-    _ request: Vync_Keys_GetUserDevicesRequest,
+    _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Keys_GetUserDevicesResponse {
+  ) async throws -> Sanchr_Keys_GetUserDevicesResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
@@ -361,15 +361,15 @@ extension Vync_Keys_KeyServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Keys_KeyServiceAsyncClient: Vync_Keys_KeyServiceAsyncClientProtocol {
+public struct Sanchr_Keys_KeyServiceAsyncClient: Sanchr_Keys_KeyServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -377,88 +377,88 @@ public struct Vync_Keys_KeyServiceAsyncClient: Vync_Keys_KeyServiceAsyncClientPr
   }
 }
 
-public protocol Vync_Keys_KeyServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'uploadKeyBundle'.
-  func makeUploadKeyBundleInterceptors() -> [ClientInterceptor<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse>]
+  func makeUploadKeyBundleInterceptors() -> [ClientInterceptor<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getPreKeyBundle'.
-  func makeGetPreKeyBundleInterceptors() -> [ClientInterceptor<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse>]
+  func makeGetPreKeyBundleInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse>]
 
   /// - Returns: Interceptors to use when invoking 'uploadOneTimePreKeys'.
-  func makeUploadOneTimePreKeysInterceptors() -> [ClientInterceptor<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse>]
+  func makeUploadOneTimePreKeysInterceptors() -> [ClientInterceptor<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getPreKeyCount'.
-  func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse>]
+  func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getUserDevices'.
-  func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse>]
+  func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>]
 }
 
-public enum Vync_Keys_KeyServiceClientMetadata {
+public enum Sanchr_Keys_KeyServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "KeyService",
-    fullName: "vync.keys.KeyService",
+    fullName: "sanchr.keys.KeyService",
     methods: [
-      Vync_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle,
-      Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle,
-      Vync_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys,
-      Vync_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount,
-      Vync_Keys_KeyServiceClientMetadata.Methods.getUserDevices,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadKeyBundle,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyBundle,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices,
     ]
   )
 
   public enum Methods {
     public static let uploadKeyBundle = GRPCMethodDescriptor(
       name: "UploadKeyBundle",
-      path: "/vync.keys.KeyService/UploadKeyBundle",
+      path: "/sanchr.keys.KeyService/UploadKeyBundle",
       type: GRPCCallType.unary
     )
 
     public static let getPreKeyBundle = GRPCMethodDescriptor(
       name: "GetPreKeyBundle",
-      path: "/vync.keys.KeyService/GetPreKeyBundle",
+      path: "/sanchr.keys.KeyService/GetPreKeyBundle",
       type: GRPCCallType.unary
     )
 
     public static let uploadOneTimePreKeys = GRPCMethodDescriptor(
       name: "UploadOneTimePreKeys",
-      path: "/vync.keys.KeyService/UploadOneTimePreKeys",
+      path: "/sanchr.keys.KeyService/UploadOneTimePreKeys",
       type: GRPCCallType.unary
     )
 
     public static let getPreKeyCount = GRPCMethodDescriptor(
       name: "GetPreKeyCount",
-      path: "/vync.keys.KeyService/GetPreKeyCount",
+      path: "/sanchr.keys.KeyService/GetPreKeyCount",
       type: GRPCCallType.unary
     )
 
     public static let getUserDevices = GRPCMethodDescriptor(
       name: "GetUserDevices",
-      path: "/vync.keys.KeyService/GetUserDevices",
+      path: "/sanchr.keys.KeyService/GetUserDevices",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Keys_KeyServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Keys_KeyServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Keys_KeyServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol? { get }
 
-  func uploadKeyBundle(request: Vync_Keys_KeyBundle, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Keys_UploadKeyBundleResponse>
+  func uploadKeyBundle(request: Sanchr_Keys_KeyBundle, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_UploadKeyBundleResponse>
 
-  func getPreKeyBundle(request: Vync_Keys_GetPreKeyBundleRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Keys_PreKeyBundleResponse>
+  func getPreKeyBundle(request: Sanchr_Keys_GetPreKeyBundleRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_PreKeyBundleResponse>
 
-  func uploadOneTimePreKeys(request: Vync_Keys_UploadOneTimePreKeysRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Keys_PreKeyCountResponse>
+  func uploadOneTimePreKeys(request: Sanchr_Keys_UploadOneTimePreKeysRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_PreKeyCountResponse>
 
-  func getPreKeyCount(request: Vync_Keys_GetPreKeyCountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Keys_PreKeyCountResponse>
+  func getPreKeyCount(request: Sanchr_Keys_GetPreKeyCountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_PreKeyCountResponse>
 
-  func getUserDevices(request: Vync_Keys_GetUserDevicesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Keys_GetUserDevicesResponse>
+  func getUserDevices(request: Sanchr_Keys_GetUserDevicesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_GetUserDevicesResponse>
 }
 
-extension Vync_Keys_KeyServiceProvider {
+extension Sanchr_Keys_KeyServiceProvider {
   public var serviceName: Substring {
-    return Vync_Keys_KeyServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Keys_KeyServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -471,8 +471,8 @@ extension Vync_Keys_KeyServiceProvider {
     case "UploadKeyBundle":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_KeyBundle>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_UploadKeyBundleResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_KeyBundle>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_UploadKeyBundleResponse>(),
         interceptors: self.interceptors?.makeUploadKeyBundleInterceptors() ?? [],
         userFunction: self.uploadKeyBundle(request:context:)
       )
@@ -480,8 +480,8 @@ extension Vync_Keys_KeyServiceProvider {
     case "GetPreKeyBundle":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetPreKeyBundleRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyBundleResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetPreKeyBundleRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyBundleResponse>(),
         interceptors: self.interceptors?.makeGetPreKeyBundleInterceptors() ?? [],
         userFunction: self.getPreKeyBundle(request:context:)
       )
@@ -489,8 +489,8 @@ extension Vync_Keys_KeyServiceProvider {
     case "UploadOneTimePreKeys":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_UploadOneTimePreKeysRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyCountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_UploadOneTimePreKeysRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyCountResponse>(),
         interceptors: self.interceptors?.makeUploadOneTimePreKeysInterceptors() ?? [],
         userFunction: self.uploadOneTimePreKeys(request:context:)
       )
@@ -498,8 +498,8 @@ extension Vync_Keys_KeyServiceProvider {
     case "GetPreKeyCount":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetPreKeyCountRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyCountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetPreKeyCountRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyCountResponse>(),
         interceptors: self.interceptors?.makeGetPreKeyCountInterceptors() ?? [],
         userFunction: self.getPreKeyCount(request:context:)
       )
@@ -507,8 +507,8 @@ extension Vync_Keys_KeyServiceProvider {
     case "GetUserDevices":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetUserDevicesRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_GetUserDevicesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetUserDevicesRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_GetUserDevicesResponse>(),
         interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? [],
         userFunction: self.getUserDevices(request:context:)
       )
@@ -521,47 +521,47 @@ extension Vync_Keys_KeyServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Keys_KeyServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Keys_KeyServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Keys_KeyServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol? { get }
 
   func uploadKeyBundle(
-    request: Vync_Keys_KeyBundle,
+    request: Sanchr_Keys_KeyBundle,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Keys_UploadKeyBundleResponse
+  ) async throws -> Sanchr_Keys_UploadKeyBundleResponse
 
   func getPreKeyBundle(
-    request: Vync_Keys_GetPreKeyBundleRequest,
+    request: Sanchr_Keys_GetPreKeyBundleRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Keys_PreKeyBundleResponse
+  ) async throws -> Sanchr_Keys_PreKeyBundleResponse
 
   func uploadOneTimePreKeys(
-    request: Vync_Keys_UploadOneTimePreKeysRequest,
+    request: Sanchr_Keys_UploadOneTimePreKeysRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Keys_PreKeyCountResponse
+  ) async throws -> Sanchr_Keys_PreKeyCountResponse
 
   func getPreKeyCount(
-    request: Vync_Keys_GetPreKeyCountRequest,
+    request: Sanchr_Keys_GetPreKeyCountRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Keys_PreKeyCountResponse
+  ) async throws -> Sanchr_Keys_PreKeyCountResponse
 
   func getUserDevices(
-    request: Vync_Keys_GetUserDevicesRequest,
+    request: Sanchr_Keys_GetUserDevicesRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Keys_GetUserDevicesResponse
+  ) async throws -> Sanchr_Keys_GetUserDevicesResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Keys_KeyServiceAsyncProvider {
+extension Sanchr_Keys_KeyServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Keys_KeyServiceServerMetadata.serviceDescriptor
+    return Sanchr_Keys_KeyServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Keys_KeyServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Keys_KeyServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Keys_KeyServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -573,8 +573,8 @@ extension Vync_Keys_KeyServiceAsyncProvider {
     case "UploadKeyBundle":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_KeyBundle>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_UploadKeyBundleResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_KeyBundle>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_UploadKeyBundleResponse>(),
         interceptors: self.interceptors?.makeUploadKeyBundleInterceptors() ?? [],
         wrapping: { try await self.uploadKeyBundle(request: $0, context: $1) }
       )
@@ -582,8 +582,8 @@ extension Vync_Keys_KeyServiceAsyncProvider {
     case "GetPreKeyBundle":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetPreKeyBundleRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyBundleResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetPreKeyBundleRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyBundleResponse>(),
         interceptors: self.interceptors?.makeGetPreKeyBundleInterceptors() ?? [],
         wrapping: { try await self.getPreKeyBundle(request: $0, context: $1) }
       )
@@ -591,8 +591,8 @@ extension Vync_Keys_KeyServiceAsyncProvider {
     case "UploadOneTimePreKeys":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_UploadOneTimePreKeysRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyCountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_UploadOneTimePreKeysRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyCountResponse>(),
         interceptors: self.interceptors?.makeUploadOneTimePreKeysInterceptors() ?? [],
         wrapping: { try await self.uploadOneTimePreKeys(request: $0, context: $1) }
       )
@@ -600,8 +600,8 @@ extension Vync_Keys_KeyServiceAsyncProvider {
     case "GetPreKeyCount":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetPreKeyCountRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_PreKeyCountResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetPreKeyCountRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_PreKeyCountResponse>(),
         interceptors: self.interceptors?.makeGetPreKeyCountInterceptors() ?? [],
         wrapping: { try await self.getPreKeyCount(request: $0, context: $1) }
       )
@@ -609,8 +609,8 @@ extension Vync_Keys_KeyServiceAsyncProvider {
     case "GetUserDevices":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Keys_GetUserDevicesRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Keys_GetUserDevicesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetUserDevicesRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_GetUserDevicesResponse>(),
         interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? [],
         wrapping: { try await self.getUserDevices(request: $0, context: $1) }
       )
@@ -621,70 +621,70 @@ extension Vync_Keys_KeyServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Keys_KeyServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'uploadKeyBundle'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUploadKeyBundleInterceptors() -> [ServerInterceptor<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse>]
+  func makeUploadKeyBundleInterceptors() -> [ServerInterceptor<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse>]
 
   /// - Returns: Interceptors to use when handling 'getPreKeyBundle'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetPreKeyBundleInterceptors() -> [ServerInterceptor<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse>]
+  func makeGetPreKeyBundleInterceptors() -> [ServerInterceptor<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse>]
 
   /// - Returns: Interceptors to use when handling 'uploadOneTimePreKeys'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUploadOneTimePreKeysInterceptors() -> [ServerInterceptor<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse>]
+  func makeUploadOneTimePreKeysInterceptors() -> [ServerInterceptor<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>]
 
   /// - Returns: Interceptors to use when handling 'getPreKeyCount'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetPreKeyCountInterceptors() -> [ServerInterceptor<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse>]
+  func makeGetPreKeyCountInterceptors() -> [ServerInterceptor<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>]
 
   /// - Returns: Interceptors to use when handling 'getUserDevices'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetUserDevicesInterceptors() -> [ServerInterceptor<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse>]
+  func makeGetUserDevicesInterceptors() -> [ServerInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>]
 }
 
-public enum Vync_Keys_KeyServiceServerMetadata {
+public enum Sanchr_Keys_KeyServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "KeyService",
-    fullName: "vync.keys.KeyService",
+    fullName: "sanchr.keys.KeyService",
     methods: [
-      Vync_Keys_KeyServiceServerMetadata.Methods.uploadKeyBundle,
-      Vync_Keys_KeyServiceServerMetadata.Methods.getPreKeyBundle,
-      Vync_Keys_KeyServiceServerMetadata.Methods.uploadOneTimePreKeys,
-      Vync_Keys_KeyServiceServerMetadata.Methods.getPreKeyCount,
-      Vync_Keys_KeyServiceServerMetadata.Methods.getUserDevices,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.uploadKeyBundle,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.getPreKeyBundle,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.uploadOneTimePreKeys,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.getPreKeyCount,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.getUserDevices,
     ]
   )
 
   public enum Methods {
     public static let uploadKeyBundle = GRPCMethodDescriptor(
       name: "UploadKeyBundle",
-      path: "/vync.keys.KeyService/UploadKeyBundle",
+      path: "/sanchr.keys.KeyService/UploadKeyBundle",
       type: GRPCCallType.unary
     )
 
     public static let getPreKeyBundle = GRPCMethodDescriptor(
       name: "GetPreKeyBundle",
-      path: "/vync.keys.KeyService/GetPreKeyBundle",
+      path: "/sanchr.keys.KeyService/GetPreKeyBundle",
       type: GRPCCallType.unary
     )
 
     public static let uploadOneTimePreKeys = GRPCMethodDescriptor(
       name: "UploadOneTimePreKeys",
-      path: "/vync.keys.KeyService/UploadOneTimePreKeys",
+      path: "/sanchr.keys.KeyService/UploadOneTimePreKeys",
       type: GRPCCallType.unary
     )
 
     public static let getPreKeyCount = GRPCMethodDescriptor(
       name: "GetPreKeyCount",
-      path: "/vync.keys.KeyService/GetPreKeyCount",
+      path: "/sanchr.keys.KeyService/GetPreKeyCount",
       type: GRPCCallType.unary
     )
 
     public static let getUserDevices = GRPCMethodDescriptor(
       name: "GetUserDevices",
-      path: "/vync.keys.KeyService/GetUserDevices",
+      path: "/sanchr.keys.KeyService/GetUserDevices",
       type: GRPCCallType.unary
     )
   }

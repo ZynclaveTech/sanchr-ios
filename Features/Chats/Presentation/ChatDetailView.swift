@@ -432,7 +432,7 @@ struct ChatDetailView: View {
                 let userInfo = note.userInfo,
                 let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
                 conversationId == conversation.id,
-                let typing = userInfo[RealtimeNotificationKey.typing] as? Vync_Messaging_TypingIndicator
+                let typing = userInfo[RealtimeNotificationKey.typing] as? Sanchr_Messaging_TypingIndicator
             else {
                 return
             }
@@ -444,7 +444,7 @@ struct ChatDetailView: View {
                 let userInfo = note.userInfo,
                 let conversationId = userInfo[RealtimeNotificationKey.conversationId] as? String,
                 conversationId == conversation.id,
-                let receipt = userInfo[RealtimeNotificationKey.receipt] as? Vync_Messaging_ReceiptUpdate
+                let receipt = userInfo[RealtimeNotificationKey.receipt] as? Sanchr_Messaging_ReceiptUpdate
             else {
                 return
             }
@@ -454,7 +454,7 @@ struct ChatDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
             guard
                 let userInfo = note.userInfo,
-                let presence = userInfo[RealtimeNotificationKey.presence] as? Vync_Messaging_PresenceUpdate
+                let presence = userInfo[RealtimeNotificationKey.presence] as? Sanchr_Messaging_PresenceUpdate
             else {
                 return
             }

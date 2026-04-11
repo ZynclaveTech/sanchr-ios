@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Discovery_OprfDiscoverRequest: Sendable {
+public struct Sanchr_Discovery_OprfDiscoverRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -37,7 +37,7 @@ public struct Vync_Discovery_OprfDiscoverRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Discovery_OprfDiscoverResponse: Sendable {
+public struct Sanchr_Discovery_OprfDiscoverResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -49,7 +49,7 @@ public struct Vync_Discovery_OprfDiscoverResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Discovery_GetBloomFilterRequest: Sendable {
+public struct Sanchr_Discovery_GetBloomFilterRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -59,7 +59,7 @@ public struct Vync_Discovery_GetBloomFilterRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Discovery_GetBloomFilterResponse: Sendable {
+public struct Sanchr_Discovery_GetBloomFilterResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -79,7 +79,7 @@ public struct Vync_Discovery_GetBloomFilterResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Discovery_GetRegisteredSetRequest: Sendable {
+public struct Sanchr_Discovery_GetRegisteredSetRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -89,7 +89,7 @@ public struct Vync_Discovery_GetRegisteredSetRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Discovery_GetRegisteredSetResponse: Sendable {
+public struct Sanchr_Discovery_GetRegisteredSetResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -103,9 +103,9 @@ public struct Vync_Discovery_GetRegisteredSetResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.discovery"
+fileprivate let _protobuf_package = "sanchr.discovery"
 
-extension Vync_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OprfDiscoverRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blinded_points\0")
 
@@ -128,14 +128,14 @@ extension Vync_Discovery_OprfDiscoverRequest: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_OprfDiscoverRequest, rhs: Vync_Discovery_OprfDiscoverRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_OprfDiscoverRequest, rhs: Sanchr_Discovery_OprfDiscoverRequest) -> Bool {
     if lhs.blindedPoints != rhs.blindedPoints {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OprfDiscoverResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}evaluated_points\0")
 
@@ -158,14 +158,14 @@ extension Vync_Discovery_OprfDiscoverResponse: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_OprfDiscoverResponse, rhs: Vync_Discovery_OprfDiscoverResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_OprfDiscoverResponse, rhs: Sanchr_Discovery_OprfDiscoverResponse) -> Bool {
     if lhs.evaluatedPoints != rhs.evaluatedPoints {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Discovery_GetBloomFilterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_GetBloomFilterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBloomFilterRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -178,13 +178,13 @@ extension Vync_Discovery_GetBloomFilterRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_GetBloomFilterRequest, rhs: Vync_Discovery_GetBloomFilterRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_GetBloomFilterRequest, rhs: Sanchr_Discovery_GetBloomFilterRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBloomFilterResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}filter_bits\0\u{3}num_hashes\0\u{3}num_bits\0\u{3}daily_salt\0\u{3}generated_at\0")
 
@@ -223,7 +223,7 @@ extension Vync_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_GetBloomFilterResponse, rhs: Vync_Discovery_GetBloomFilterResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_GetBloomFilterResponse, rhs: Sanchr_Discovery_GetBloomFilterResponse) -> Bool {
     if lhs.filterBits != rhs.filterBits {return false}
     if lhs.numHashes != rhs.numHashes {return false}
     if lhs.numBits != rhs.numBits {return false}
@@ -234,7 +234,7 @@ extension Vync_Discovery_GetBloomFilterResponse: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Vync_Discovery_GetRegisteredSetRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_GetRegisteredSetRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -247,13 +247,13 @@ extension Vync_Discovery_GetRegisteredSetRequest: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_GetRegisteredSetRequest, rhs: Vync_Discovery_GetRegisteredSetRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_GetRegisteredSetRequest, rhs: Sanchr_Discovery_GetRegisteredSetRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Discovery_GetRegisteredSetResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Discovery_GetRegisteredSetResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetRegisteredSetResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}set_elements\0")
 
@@ -276,7 +276,7 @@ extension Vync_Discovery_GetRegisteredSetResponse: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Discovery_GetRegisteredSetResponse, rhs: Vync_Discovery_GetRegisteredSetResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Discovery_GetRegisteredSetResponse, rhs: Sanchr_Discovery_GetRegisteredSetResponse) -> Bool {
     if lhs.setElements != rhs.setElements {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

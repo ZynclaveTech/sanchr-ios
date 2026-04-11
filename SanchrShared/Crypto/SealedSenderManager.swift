@@ -115,7 +115,7 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
 
     // MARK: - Dependencies
 
-    private let messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol
+    private let messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol
     private let keychain: KeychainServiceProtocol
 
     // MARK: - State (guarded by `lock`)
@@ -138,7 +138,7 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
     // MARK: - Init
 
     public init(
-        messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol,
+        messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol,
         keychain: KeychainServiceProtocol
     ) {
         self.messagingService = messagingService
@@ -155,9 +155,9 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
         }
 
         // Slow path: fetch from server.
-        let response: Vync_Messaging_SenderCertificateResponse
+        let response: Sanchr_Messaging_SenderCertificateResponse
         do {
-            let request = Vync_Messaging_SenderCertificateRequest()
+            let request = Sanchr_Messaging_SenderCertificateRequest()
             response = try await messagingService.getSenderCertificate(request)
         } catch {
             SanchrLogger.crypto.error(
@@ -335,10 +335,10 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
 
     /// Fetches a batch of delivery tokens from the server and appends to the pool.
     private func fetchAndStoreTokens() async throws {
-        var request = Vync_Messaging_DeliveryTokenRequest()
+        var request = Sanchr_Messaging_DeliveryTokenRequest()
         request.count = Self.tokenBatchSize
 
-        let response: Vync_Messaging_DeliveryTokenResponse
+        let response: Sanchr_Messaging_DeliveryTokenResponse
         do {
             response = try await messagingService.getDeliveryTokens(request)
         } catch {

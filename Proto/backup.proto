@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.backup;
+package sanchr.backup;
 
 service BackupService {
   rpc CreateBackupUpload(CreateBackupUploadRequest) returns (CreateBackupUploadResponse);

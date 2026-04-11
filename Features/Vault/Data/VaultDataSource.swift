@@ -28,11 +28,11 @@ final class VaultDataSource: @unchecked Sendable {
     private let deviceSecretProvider: DeviceSecretProviderProtocol
     private let mediaEncryption: MediaEncryptionProtocol
 
-    private var vaultClient: Vync_Vault_VaultServiceAsyncClientProtocol {
+    private var vaultClient: Sanchr_Vault_VaultServiceAsyncClientProtocol {
         grpcClient.vaultService
     }
 
-    private var mediaClient: Vync_Media_MediaServiceAsyncClientProtocol {
+    private var mediaClient: Sanchr_Media_MediaServiceAsyncClientProtocol {
         grpcClient.mediaService
     }
 
@@ -58,19 +58,19 @@ final class VaultDataSource: @unchecked Sendable {
     func getVaultItems(
         limit: Int32 = 20,
         cursor: String = ""
-    ) async throws -> Vync_Vault_GetVaultItemsResponse {
+    ) async throws -> Sanchr_Vault_GetVaultItemsResponse {
         SanchrLogger.network.info(
             "VaultDataSource: getVaultItems limit=\(limit) cursor.len=\(cursor.count)"
         )
-        var request = Vync_Vault_GetVaultItemsRequest()
+        var request = Sanchr_Vault_GetVaultItemsRequest()
         request.limit = limit
         request.pagingToken = cursor
         return try await vaultClient.getVaultItems(request)
     }
 
     /// Point-lookup for a single vault item by ID. Returns the raw proto.
-    func getVaultItem(vaultItemId: String) async throws -> Vync_Vault_VaultItem {
-        var request = Vync_Vault_GetVaultItemRequest()
+    func getVaultItem(vaultItemId: String) async throws -> Sanchr_Vault_VaultItem {
+        var request = Sanchr_Vault_GetVaultItemRequest()
         request.vaultItemID = vaultItemId
         return try await vaultClient.getVaultItem(request)
     }
@@ -90,7 +90,7 @@ final class VaultDataSource: @unchecked Sendable {
         thumbnailData: Data? = nil,
         expiresAt: Int64 = 0,
         onProgress: (@Sendable (Double) -> Void)? = nil
-    ) async throws -> (proto: Vync_Vault_VaultItem, metadata: VaultItemMetadata) {
+    ) async throws -> (proto: Sanchr_Vault_VaultItem, metadata: VaultItemMetadata) {
         // 1. Generate a fresh vault_item_id and salt.
         let vaultItemId = UUID().uuidString.lowercased()
         // 32-byte salt via CryptoKit. Matches the canonical pattern in
@@ -119,12 +119,12 @@ final class VaultDataSource: @unchecked Sendable {
         let contentType = Self.contentType(for: mediaType)
         let hash = SHA256.hash(data: ciphertext).map { String(format: "%02x", $0) }.joined()
 
-        var uploadReq = Vync_Media_GetUploadUrlRequest()
+        var uploadReq = Sanchr_Media_GetUploadUrlRequest()
         uploadReq.fileSize = Int64(ciphertext.count)
         uploadReq.contentType = contentType
         uploadReq.sha256Hash = hash
         uploadReq.purpose = .attachment
-        let presigned: Vync_Media_PresignedUrlResponse
+        let presigned: Sanchr_Media_PresignedUrlResponse
         do {
             presigned = try await mediaClient.getUploadUrl(uploadReq)
         } catch {
@@ -158,7 +158,7 @@ final class VaultDataSource: @unchecked Sendable {
         }
 
         // 6. Confirm upload with the media service.
-        var confirmReq = Vync_Media_ConfirmUploadRequest()
+        var confirmReq = Sanchr_Media_ConfirmUploadRequest()
         confirmReq.mediaID = presigned.mediaID
         confirmReq.fileSize = Int64(ciphertext.count)
         do {
@@ -220,7 +220,7 @@ final class VaultDataSource: @unchecked Sendable {
         }
 
         // 8. Create the vault item row on the server.
-        var createReq = Vync_Vault_CreateVaultItemRequest()
+        var createReq = Sanchr_Vault_CreateVaultItemRequest()
         createReq.vaultItemID = vaultItemId
         createReq.mediaID = presigned.mediaID
         createReq.encryptedMetadata = encryptedMetadata
@@ -229,7 +229,7 @@ final class VaultDataSource: @unchecked Sendable {
         SanchrLogger.network.info(
             "VaultDataSource: createVaultItem \(vaultItemId.prefix(8))..."
         )
-        let vaultProto: Vync_Vault_VaultItem
+        let vaultProto: Sanchr_Vault_VaultItem
         do {
             vaultProto = try await vaultClient.createVaultItem(createReq)
         } catch {
@@ -259,7 +259,7 @@ final class VaultDataSource: @unchecked Sendable {
         SanchrLogger.network.info(
             "VaultDataSource: deleteVaultItem \(vaultItemId.prefix(8))..."
         )
-        var request = Vync_Vault_DeleteVaultItemRequest()
+        var request = Sanchr_Vault_DeleteVaultItemRequest()
         request.vaultItemID = vaultItemId
         _ = try await vaultClient.deleteVaultItem(request)
     }

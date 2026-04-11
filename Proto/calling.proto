@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.calling;
+package sanchr.calling;
 
 service CallSignalingService {
   rpc InitiateCall(CallOffer) returns (CallResponse);

@@ -11,40 +11,40 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Backup_BackupServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Backup_BackupServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Backup_BackupServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Backup_BackupServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? { get }
 
   func createBackupUpload(
-    _ request: Vync_Backup_CreateBackupUploadRequest,
+    _ request: Sanchr_Backup_CreateBackupUploadRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>
+  ) -> UnaryCall<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse>
 
   func commitBackup(
-    _ request: Vync_Backup_CommitBackupRequest,
+    _ request: Sanchr_Backup_CommitBackupRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>
+  ) -> UnaryCall<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse>
 
   func listBackups(
-    _ request: Vync_Backup_ListBackupsRequest,
+    _ request: Sanchr_Backup_ListBackupsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>
+  ) -> UnaryCall<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse>
 
   func getBackupDownload(
-    _ request: Vync_Backup_GetBackupDownloadRequest,
+    _ request: Sanchr_Backup_GetBackupDownloadRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>
+  ) -> UnaryCall<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse>
 
   func deleteBackup(
-    _ request: Vync_Backup_DeleteBackupRequest,
+    _ request: Sanchr_Backup_DeleteBackupRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>
+  ) -> UnaryCall<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse>
 }
 
-extension Vync_Backup_BackupServiceClientProtocol {
+extension Sanchr_Backup_BackupServiceClientProtocol {
   public var serviceName: String {
-    return "vync.backup.BackupService"
+    return "sanchr.backup.BackupService"
   }
 
   /// Unary call to CreateBackupUpload
@@ -54,11 +54,11 @@ extension Vync_Backup_BackupServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func createBackupUpload(
-    _ request: Vync_Backup_CreateBackupUploadRequest,
+    _ request: Sanchr_Backup_CreateBackupUploadRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse> {
+  ) -> UnaryCall<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse> {
     return self.makeUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCreateBackupUploadInterceptors() ?? []
@@ -72,11 +72,11 @@ extension Vync_Backup_BackupServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func commitBackup(
-    _ request: Vync_Backup_CommitBackupRequest,
+    _ request: Sanchr_Backup_CommitBackupRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse> {
+  ) -> UnaryCall<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse> {
     return self.makeUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCommitBackupInterceptors() ?? []
@@ -90,11 +90,11 @@ extension Vync_Backup_BackupServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func listBackups(
-    _ request: Vync_Backup_ListBackupsRequest,
+    _ request: Sanchr_Backup_ListBackupsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse> {
+  ) -> UnaryCall<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse> {
     return self.makeUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeListBackupsInterceptors() ?? []
@@ -108,11 +108,11 @@ extension Vync_Backup_BackupServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getBackupDownload(
-    _ request: Vync_Backup_GetBackupDownloadRequest,
+    _ request: Sanchr_Backup_GetBackupDownloadRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse> {
+  ) -> UnaryCall<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse> {
     return self.makeUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBackupDownloadInterceptors() ?? []
@@ -126,11 +126,11 @@ extension Vync_Backup_BackupServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func deleteBackup(
-    _ request: Vync_Backup_DeleteBackupRequest,
+    _ request: Sanchr_Backup_DeleteBackupRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse> {
+  ) -> UnaryCall<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse> {
     return self.makeUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteBackupInterceptors() ?? []
@@ -139,24 +139,24 @@ extension Vync_Backup_BackupServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Backup_BackupServiceClient: @unchecked Sendable {}
+extension Sanchr_Backup_BackupServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Backup_BackupServiceNIOClient")
-public final class Vync_Backup_BackupServiceClient: Vync_Backup_BackupServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Backup_BackupServiceNIOClient")
+public final class Sanchr_Backup_BackupServiceClient: Sanchr_Backup_BackupServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.backup.BackupService service.
+  /// Creates a client for the sanchr.backup.BackupService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -165,7 +165,7 @@ public final class Vync_Backup_BackupServiceClient: Vync_Backup_BackupServiceCli
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -173,12 +173,12 @@ public final class Vync_Backup_BackupServiceClient: Vync_Backup_BackupServiceCli
   }
 }
 
-public struct Vync_Backup_BackupServiceNIOClient: Vync_Backup_BackupServiceClientProtocol {
+public struct Sanchr_Backup_BackupServiceNIOClient: Sanchr_Backup_BackupServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.backup.BackupService service.
+  /// Creates a client for the sanchr.backup.BackupService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -187,7 +187,7 @@ public struct Vync_Backup_BackupServiceNIOClient: Vync_Backup_BackupServiceClien
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -196,52 +196,52 @@ public struct Vync_Backup_BackupServiceNIOClient: Vync_Backup_BackupServiceClien
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Backup_BackupServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Backup_BackupServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? { get }
 
   func makeCreateBackupUploadCall(
-    _ request: Vync_Backup_CreateBackupUploadRequest,
+    _ request: Sanchr_Backup_CreateBackupUploadRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse>
 
   func makeCommitBackupCall(
-    _ request: Vync_Backup_CommitBackupRequest,
+    _ request: Sanchr_Backup_CommitBackupRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse>
 
   func makeListBackupsCall(
-    _ request: Vync_Backup_ListBackupsRequest,
+    _ request: Sanchr_Backup_ListBackupsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse>
 
   func makeGetBackupDownloadCall(
-    _ request: Vync_Backup_GetBackupDownloadRequest,
+    _ request: Sanchr_Backup_GetBackupDownloadRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse>
 
   func makeDeleteBackupCall(
-    _ request: Vync_Backup_DeleteBackupRequest,
+    _ request: Sanchr_Backup_DeleteBackupRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Backup_BackupServiceAsyncClientProtocol {
+extension Sanchr_Backup_BackupServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Backup_BackupServiceClientMetadata.serviceDescriptor
+    return Sanchr_Backup_BackupServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeCreateBackupUploadCall(
-    _ request: Vync_Backup_CreateBackupUploadRequest,
+    _ request: Sanchr_Backup_CreateBackupUploadRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCreateBackupUploadInterceptors() ?? []
@@ -249,11 +249,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func makeCommitBackupCall(
-    _ request: Vync_Backup_CommitBackupRequest,
+    _ request: Sanchr_Backup_CommitBackupRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCommitBackupInterceptors() ?? []
@@ -261,11 +261,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func makeListBackupsCall(
-    _ request: Vync_Backup_ListBackupsRequest,
+    _ request: Sanchr_Backup_ListBackupsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeListBackupsInterceptors() ?? []
@@ -273,11 +273,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func makeGetBackupDownloadCall(
-    _ request: Vync_Backup_GetBackupDownloadRequest,
+    _ request: Sanchr_Backup_GetBackupDownloadRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBackupDownloadInterceptors() ?? []
@@ -285,11 +285,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func makeDeleteBackupCall(
-    _ request: Vync_Backup_DeleteBackupRequest,
+    _ request: Sanchr_Backup_DeleteBackupRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteBackupInterceptors() ?? []
@@ -298,13 +298,13 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Backup_BackupServiceAsyncClientProtocol {
+extension Sanchr_Backup_BackupServiceAsyncClientProtocol {
   public func createBackupUpload(
-    _ request: Vync_Backup_CreateBackupUploadRequest,
+    _ request: Sanchr_Backup_CreateBackupUploadRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Backup_CreateBackupUploadResponse {
+  ) async throws -> Sanchr_Backup_CreateBackupUploadResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.createBackupUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCreateBackupUploadInterceptors() ?? []
@@ -312,11 +312,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func commitBackup(
-    _ request: Vync_Backup_CommitBackupRequest,
+    _ request: Sanchr_Backup_CommitBackupRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Backup_CommitBackupResponse {
+  ) async throws -> Sanchr_Backup_CommitBackupResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.commitBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCommitBackupInterceptors() ?? []
@@ -324,11 +324,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func listBackups(
-    _ request: Vync_Backup_ListBackupsRequest,
+    _ request: Sanchr_Backup_ListBackupsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Backup_ListBackupsResponse {
+  ) async throws -> Sanchr_Backup_ListBackupsResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.listBackups.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeListBackupsInterceptors() ?? []
@@ -336,11 +336,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func getBackupDownload(
-    _ request: Vync_Backup_GetBackupDownloadRequest,
+    _ request: Sanchr_Backup_GetBackupDownloadRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Backup_GetBackupDownloadResponse {
+  ) async throws -> Sanchr_Backup_GetBackupDownloadResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.getBackupDownload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBackupDownloadInterceptors() ?? []
@@ -348,11 +348,11 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
   }
 
   public func deleteBackup(
-    _ request: Vync_Backup_DeleteBackupRequest,
+    _ request: Sanchr_Backup_DeleteBackupRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Backup_DeleteBackupResponse {
+  ) async throws -> Sanchr_Backup_DeleteBackupResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
+      path: Sanchr_Backup_BackupServiceClientMetadata.Methods.deleteBackup.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteBackupInterceptors() ?? []
@@ -361,15 +361,15 @@ extension Vync_Backup_BackupServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Backup_BackupServiceAsyncClient: Vync_Backup_BackupServiceAsyncClientProtocol {
+public struct Sanchr_Backup_BackupServiceAsyncClient: Sanchr_Backup_BackupServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -377,88 +377,88 @@ public struct Vync_Backup_BackupServiceAsyncClient: Vync_Backup_BackupServiceAsy
   }
 }
 
-public protocol Vync_Backup_BackupServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'createBackupUpload'.
-  func makeCreateBackupUploadInterceptors() -> [ClientInterceptor<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>]
+  func makeCreateBackupUploadInterceptors() -> [ClientInterceptor<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse>]
 
   /// - Returns: Interceptors to use when invoking 'commitBackup'.
-  func makeCommitBackupInterceptors() -> [ClientInterceptor<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>]
+  func makeCommitBackupInterceptors() -> [ClientInterceptor<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse>]
 
   /// - Returns: Interceptors to use when invoking 'listBackups'.
-  func makeListBackupsInterceptors() -> [ClientInterceptor<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>]
+  func makeListBackupsInterceptors() -> [ClientInterceptor<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getBackupDownload'.
-  func makeGetBackupDownloadInterceptors() -> [ClientInterceptor<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>]
+  func makeGetBackupDownloadInterceptors() -> [ClientInterceptor<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse>]
 
   /// - Returns: Interceptors to use when invoking 'deleteBackup'.
-  func makeDeleteBackupInterceptors() -> [ClientInterceptor<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>]
+  func makeDeleteBackupInterceptors() -> [ClientInterceptor<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse>]
 }
 
-public enum Vync_Backup_BackupServiceClientMetadata {
+public enum Sanchr_Backup_BackupServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "BackupService",
-    fullName: "vync.backup.BackupService",
+    fullName: "sanchr.backup.BackupService",
     methods: [
-      Vync_Backup_BackupServiceClientMetadata.Methods.createBackupUpload,
-      Vync_Backup_BackupServiceClientMetadata.Methods.commitBackup,
-      Vync_Backup_BackupServiceClientMetadata.Methods.listBackups,
-      Vync_Backup_BackupServiceClientMetadata.Methods.getBackupDownload,
-      Vync_Backup_BackupServiceClientMetadata.Methods.deleteBackup,
+      Sanchr_Backup_BackupServiceClientMetadata.Methods.createBackupUpload,
+      Sanchr_Backup_BackupServiceClientMetadata.Methods.commitBackup,
+      Sanchr_Backup_BackupServiceClientMetadata.Methods.listBackups,
+      Sanchr_Backup_BackupServiceClientMetadata.Methods.getBackupDownload,
+      Sanchr_Backup_BackupServiceClientMetadata.Methods.deleteBackup,
     ]
   )
 
   public enum Methods {
     public static let createBackupUpload = GRPCMethodDescriptor(
       name: "CreateBackupUpload",
-      path: "/vync.backup.BackupService/CreateBackupUpload",
+      path: "/sanchr.backup.BackupService/CreateBackupUpload",
       type: GRPCCallType.unary
     )
 
     public static let commitBackup = GRPCMethodDescriptor(
       name: "CommitBackup",
-      path: "/vync.backup.BackupService/CommitBackup",
+      path: "/sanchr.backup.BackupService/CommitBackup",
       type: GRPCCallType.unary
     )
 
     public static let listBackups = GRPCMethodDescriptor(
       name: "ListBackups",
-      path: "/vync.backup.BackupService/ListBackups",
+      path: "/sanchr.backup.BackupService/ListBackups",
       type: GRPCCallType.unary
     )
 
     public static let getBackupDownload = GRPCMethodDescriptor(
       name: "GetBackupDownload",
-      path: "/vync.backup.BackupService/GetBackupDownload",
+      path: "/sanchr.backup.BackupService/GetBackupDownload",
       type: GRPCCallType.unary
     )
 
     public static let deleteBackup = GRPCMethodDescriptor(
       name: "DeleteBackup",
-      path: "/vync.backup.BackupService/DeleteBackup",
+      path: "/sanchr.backup.BackupService/DeleteBackup",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Backup_BackupServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Backup_BackupServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Backup_BackupServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Backup_BackupServiceServerInterceptorFactoryProtocol? { get }
 
-  func createBackupUpload(request: Vync_Backup_CreateBackupUploadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Backup_CreateBackupUploadResponse>
+  func createBackupUpload(request: Sanchr_Backup_CreateBackupUploadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Backup_CreateBackupUploadResponse>
 
-  func commitBackup(request: Vync_Backup_CommitBackupRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Backup_CommitBackupResponse>
+  func commitBackup(request: Sanchr_Backup_CommitBackupRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Backup_CommitBackupResponse>
 
-  func listBackups(request: Vync_Backup_ListBackupsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Backup_ListBackupsResponse>
+  func listBackups(request: Sanchr_Backup_ListBackupsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Backup_ListBackupsResponse>
 
-  func getBackupDownload(request: Vync_Backup_GetBackupDownloadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Backup_GetBackupDownloadResponse>
+  func getBackupDownload(request: Sanchr_Backup_GetBackupDownloadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Backup_GetBackupDownloadResponse>
 
-  func deleteBackup(request: Vync_Backup_DeleteBackupRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Backup_DeleteBackupResponse>
+  func deleteBackup(request: Sanchr_Backup_DeleteBackupRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Backup_DeleteBackupResponse>
 }
 
-extension Vync_Backup_BackupServiceProvider {
+extension Sanchr_Backup_BackupServiceProvider {
   public var serviceName: Substring {
-    return Vync_Backup_BackupServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Backup_BackupServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -471,8 +471,8 @@ extension Vync_Backup_BackupServiceProvider {
     case "CreateBackupUpload":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_CreateBackupUploadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_CreateBackupUploadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_CreateBackupUploadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_CreateBackupUploadResponse>(),
         interceptors: self.interceptors?.makeCreateBackupUploadInterceptors() ?? [],
         userFunction: self.createBackupUpload(request:context:)
       )
@@ -480,8 +480,8 @@ extension Vync_Backup_BackupServiceProvider {
     case "CommitBackup":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_CommitBackupRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_CommitBackupResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_CommitBackupRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_CommitBackupResponse>(),
         interceptors: self.interceptors?.makeCommitBackupInterceptors() ?? [],
         userFunction: self.commitBackup(request:context:)
       )
@@ -489,8 +489,8 @@ extension Vync_Backup_BackupServiceProvider {
     case "ListBackups":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_ListBackupsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_ListBackupsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_ListBackupsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_ListBackupsResponse>(),
         interceptors: self.interceptors?.makeListBackupsInterceptors() ?? [],
         userFunction: self.listBackups(request:context:)
       )
@@ -498,8 +498,8 @@ extension Vync_Backup_BackupServiceProvider {
     case "GetBackupDownload":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_GetBackupDownloadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_GetBackupDownloadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_GetBackupDownloadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_GetBackupDownloadResponse>(),
         interceptors: self.interceptors?.makeGetBackupDownloadInterceptors() ?? [],
         userFunction: self.getBackupDownload(request:context:)
       )
@@ -507,8 +507,8 @@ extension Vync_Backup_BackupServiceProvider {
     case "DeleteBackup":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_DeleteBackupRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_DeleteBackupResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_DeleteBackupRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_DeleteBackupResponse>(),
         interceptors: self.interceptors?.makeDeleteBackupInterceptors() ?? [],
         userFunction: self.deleteBackup(request:context:)
       )
@@ -521,47 +521,47 @@ extension Vync_Backup_BackupServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Backup_BackupServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Backup_BackupServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Backup_BackupServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Backup_BackupServiceServerInterceptorFactoryProtocol? { get }
 
   func createBackupUpload(
-    request: Vync_Backup_CreateBackupUploadRequest,
+    request: Sanchr_Backup_CreateBackupUploadRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Backup_CreateBackupUploadResponse
+  ) async throws -> Sanchr_Backup_CreateBackupUploadResponse
 
   func commitBackup(
-    request: Vync_Backup_CommitBackupRequest,
+    request: Sanchr_Backup_CommitBackupRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Backup_CommitBackupResponse
+  ) async throws -> Sanchr_Backup_CommitBackupResponse
 
   func listBackups(
-    request: Vync_Backup_ListBackupsRequest,
+    request: Sanchr_Backup_ListBackupsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Backup_ListBackupsResponse
+  ) async throws -> Sanchr_Backup_ListBackupsResponse
 
   func getBackupDownload(
-    request: Vync_Backup_GetBackupDownloadRequest,
+    request: Sanchr_Backup_GetBackupDownloadRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Backup_GetBackupDownloadResponse
+  ) async throws -> Sanchr_Backup_GetBackupDownloadResponse
 
   func deleteBackup(
-    request: Vync_Backup_DeleteBackupRequest,
+    request: Sanchr_Backup_DeleteBackupRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Backup_DeleteBackupResponse
+  ) async throws -> Sanchr_Backup_DeleteBackupResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Backup_BackupServiceAsyncProvider {
+extension Sanchr_Backup_BackupServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Backup_BackupServiceServerMetadata.serviceDescriptor
+    return Sanchr_Backup_BackupServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Backup_BackupServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Backup_BackupServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Backup_BackupServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Backup_BackupServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -573,8 +573,8 @@ extension Vync_Backup_BackupServiceAsyncProvider {
     case "CreateBackupUpload":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_CreateBackupUploadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_CreateBackupUploadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_CreateBackupUploadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_CreateBackupUploadResponse>(),
         interceptors: self.interceptors?.makeCreateBackupUploadInterceptors() ?? [],
         wrapping: { try await self.createBackupUpload(request: $0, context: $1) }
       )
@@ -582,8 +582,8 @@ extension Vync_Backup_BackupServiceAsyncProvider {
     case "CommitBackup":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_CommitBackupRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_CommitBackupResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_CommitBackupRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_CommitBackupResponse>(),
         interceptors: self.interceptors?.makeCommitBackupInterceptors() ?? [],
         wrapping: { try await self.commitBackup(request: $0, context: $1) }
       )
@@ -591,8 +591,8 @@ extension Vync_Backup_BackupServiceAsyncProvider {
     case "ListBackups":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_ListBackupsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_ListBackupsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_ListBackupsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_ListBackupsResponse>(),
         interceptors: self.interceptors?.makeListBackupsInterceptors() ?? [],
         wrapping: { try await self.listBackups(request: $0, context: $1) }
       )
@@ -600,8 +600,8 @@ extension Vync_Backup_BackupServiceAsyncProvider {
     case "GetBackupDownload":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_GetBackupDownloadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_GetBackupDownloadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_GetBackupDownloadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_GetBackupDownloadResponse>(),
         interceptors: self.interceptors?.makeGetBackupDownloadInterceptors() ?? [],
         wrapping: { try await self.getBackupDownload(request: $0, context: $1) }
       )
@@ -609,8 +609,8 @@ extension Vync_Backup_BackupServiceAsyncProvider {
     case "DeleteBackup":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Backup_DeleteBackupRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Backup_DeleteBackupResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Backup_DeleteBackupRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Backup_DeleteBackupResponse>(),
         interceptors: self.interceptors?.makeDeleteBackupInterceptors() ?? [],
         wrapping: { try await self.deleteBackup(request: $0, context: $1) }
       )
@@ -621,70 +621,70 @@ extension Vync_Backup_BackupServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Backup_BackupServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Backup_BackupServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'createBackupUpload'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeCreateBackupUploadInterceptors() -> [ServerInterceptor<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>]
+  func makeCreateBackupUploadInterceptors() -> [ServerInterceptor<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse>]
 
   /// - Returns: Interceptors to use when handling 'commitBackup'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeCommitBackupInterceptors() -> [ServerInterceptor<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>]
+  func makeCommitBackupInterceptors() -> [ServerInterceptor<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse>]
 
   /// - Returns: Interceptors to use when handling 'listBackups'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeListBackupsInterceptors() -> [ServerInterceptor<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>]
+  func makeListBackupsInterceptors() -> [ServerInterceptor<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse>]
 
   /// - Returns: Interceptors to use when handling 'getBackupDownload'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetBackupDownloadInterceptors() -> [ServerInterceptor<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>]
+  func makeGetBackupDownloadInterceptors() -> [ServerInterceptor<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse>]
 
   /// - Returns: Interceptors to use when handling 'deleteBackup'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeleteBackupInterceptors() -> [ServerInterceptor<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>]
+  func makeDeleteBackupInterceptors() -> [ServerInterceptor<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse>]
 }
 
-public enum Vync_Backup_BackupServiceServerMetadata {
+public enum Sanchr_Backup_BackupServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "BackupService",
-    fullName: "vync.backup.BackupService",
+    fullName: "sanchr.backup.BackupService",
     methods: [
-      Vync_Backup_BackupServiceServerMetadata.Methods.createBackupUpload,
-      Vync_Backup_BackupServiceServerMetadata.Methods.commitBackup,
-      Vync_Backup_BackupServiceServerMetadata.Methods.listBackups,
-      Vync_Backup_BackupServiceServerMetadata.Methods.getBackupDownload,
-      Vync_Backup_BackupServiceServerMetadata.Methods.deleteBackup,
+      Sanchr_Backup_BackupServiceServerMetadata.Methods.createBackupUpload,
+      Sanchr_Backup_BackupServiceServerMetadata.Methods.commitBackup,
+      Sanchr_Backup_BackupServiceServerMetadata.Methods.listBackups,
+      Sanchr_Backup_BackupServiceServerMetadata.Methods.getBackupDownload,
+      Sanchr_Backup_BackupServiceServerMetadata.Methods.deleteBackup,
     ]
   )
 
   public enum Methods {
     public static let createBackupUpload = GRPCMethodDescriptor(
       name: "CreateBackupUpload",
-      path: "/vync.backup.BackupService/CreateBackupUpload",
+      path: "/sanchr.backup.BackupService/CreateBackupUpload",
       type: GRPCCallType.unary
     )
 
     public static let commitBackup = GRPCMethodDescriptor(
       name: "CommitBackup",
-      path: "/vync.backup.BackupService/CommitBackup",
+      path: "/sanchr.backup.BackupService/CommitBackup",
       type: GRPCCallType.unary
     )
 
     public static let listBackups = GRPCMethodDescriptor(
       name: "ListBackups",
-      path: "/vync.backup.BackupService/ListBackups",
+      path: "/sanchr.backup.BackupService/ListBackups",
       type: GRPCCallType.unary
     )
 
     public static let getBackupDownload = GRPCMethodDescriptor(
       name: "GetBackupDownload",
-      path: "/vync.backup.BackupService/GetBackupDownload",
+      path: "/sanchr.backup.BackupService/GetBackupDownload",
       type: GRPCCallType.unary
     )
 
     public static let deleteBackup = GRPCMethodDescriptor(
       name: "DeleteBackup",
-      path: "/vync.backup.BackupService/DeleteBackup",
+      path: "/sanchr.backup.BackupService/DeleteBackup",
       type: GRPCCallType.unary
     )
   }

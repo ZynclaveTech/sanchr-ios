@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_BackupPayload_BackupInfo: Sendable {
+public struct Sanchr_BackupPayload_BackupInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -51,7 +51,7 @@ public struct Vync_BackupPayload_BackupInfo: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupMediaPayload: Sendable {
+public struct Sanchr_BackupPayload_BackupMediaPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -83,7 +83,7 @@ public struct Vync_BackupPayload_BackupMediaPayload: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupLocationPayload: Sendable {
+public struct Sanchr_BackupPayload_BackupLocationPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -99,7 +99,7 @@ public struct Vync_BackupPayload_BackupLocationPayload: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupContactPayload: Sendable {
+public struct Sanchr_BackupPayload_BackupContactPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -113,7 +113,7 @@ public struct Vync_BackupPayload_BackupContactPayload: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupContactRecord: Sendable {
+public struct Sanchr_BackupPayload_BackupContactRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -151,7 +151,7 @@ public struct Vync_BackupPayload_BackupContactRecord: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupConversationRecord: @unchecked Sendable {
+public struct Sanchr_BackupPayload_BackupConversationRecord: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -258,7 +258,7 @@ public struct Vync_BackupPayload_BackupConversationRecord: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public struct Vync_BackupPayload_BackupMessageRecord: Sendable {
+public struct Sanchr_BackupPayload_BackupMessageRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -292,7 +292,7 @@ public struct Vync_BackupPayload_BackupMessageRecord: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupVaultItemRecord: Sendable {
+public struct Sanchr_BackupPayload_BackupVaultItemRecord: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -326,49 +326,49 @@ public struct Vync_BackupPayload_BackupVaultItemRecord: Sendable {
   public init() {}
 }
 
-public struct Vync_BackupPayload_BackupFrame: Sendable {
+public struct Sanchr_BackupPayload_BackupFrame: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var frame: Vync_BackupPayload_BackupFrame.OneOf_Frame? = nil
+  public var frame: Sanchr_BackupPayload_BackupFrame.OneOf_Frame? = nil
 
-  public var info: Vync_BackupPayload_BackupInfo {
+  public var info: Sanchr_BackupPayload_BackupInfo {
     get {
       if case .info(let v)? = frame {return v}
-      return Vync_BackupPayload_BackupInfo()
+      return Sanchr_BackupPayload_BackupInfo()
     }
     set {frame = .info(newValue)}
   }
 
-  public var contact: Vync_BackupPayload_BackupContactRecord {
+  public var contact: Sanchr_BackupPayload_BackupContactRecord {
     get {
       if case .contact(let v)? = frame {return v}
-      return Vync_BackupPayload_BackupContactRecord()
+      return Sanchr_BackupPayload_BackupContactRecord()
     }
     set {frame = .contact(newValue)}
   }
 
-  public var conversation: Vync_BackupPayload_BackupConversationRecord {
+  public var conversation: Sanchr_BackupPayload_BackupConversationRecord {
     get {
       if case .conversation(let v)? = frame {return v}
-      return Vync_BackupPayload_BackupConversationRecord()
+      return Sanchr_BackupPayload_BackupConversationRecord()
     }
     set {frame = .conversation(newValue)}
   }
 
-  public var message: Vync_BackupPayload_BackupMessageRecord {
+  public var message: Sanchr_BackupPayload_BackupMessageRecord {
     get {
       if case .message(let v)? = frame {return v}
-      return Vync_BackupPayload_BackupMessageRecord()
+      return Sanchr_BackupPayload_BackupMessageRecord()
     }
     set {frame = .message(newValue)}
   }
 
-  public var vaultItem: Vync_BackupPayload_BackupVaultItemRecord {
+  public var vaultItem: Sanchr_BackupPayload_BackupVaultItemRecord {
     get {
       if case .vaultItem(let v)? = frame {return v}
-      return Vync_BackupPayload_BackupVaultItemRecord()
+      return Sanchr_BackupPayload_BackupVaultItemRecord()
     }
     set {frame = .vaultItem(newValue)}
   }
@@ -376,11 +376,11 @@ public struct Vync_BackupPayload_BackupFrame: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Frame: Equatable, Sendable {
-    case info(Vync_BackupPayload_BackupInfo)
-    case contact(Vync_BackupPayload_BackupContactRecord)
-    case conversation(Vync_BackupPayload_BackupConversationRecord)
-    case message(Vync_BackupPayload_BackupMessageRecord)
-    case vaultItem(Vync_BackupPayload_BackupVaultItemRecord)
+    case info(Sanchr_BackupPayload_BackupInfo)
+    case contact(Sanchr_BackupPayload_BackupContactRecord)
+    case conversation(Sanchr_BackupPayload_BackupConversationRecord)
+    case message(Sanchr_BackupPayload_BackupMessageRecord)
+    case vaultItem(Sanchr_BackupPayload_BackupVaultItemRecord)
 
   }
 
@@ -389,9 +389,9 @@ public struct Vync_BackupPayload_BackupFrame: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.backup_payload"
+fileprivate let _protobuf_package = "sanchr.backup_payload"
 
-extension Vync_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{3}exported_at_ms\0\u{1}platform\0\u{3}app_version\0\u{3}contact_count\0\u{3}conversation_count\0\u{3}message_count\0\u{3}vault_item_count\0")
 
@@ -442,7 +442,7 @@ extension Vync_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupInfo, rhs: Vync_BackupPayload_BackupInfo) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupInfo, rhs: Sanchr_BackupPayload_BackupInfo) -> Bool {
     if lhs.formatVersion != rhs.formatVersion {return false}
     if lhs.exportedAtMs != rhs.exportedAtMs {return false}
     if lhs.platform != rhs.platform {return false}
@@ -456,7 +456,7 @@ extension Vync_BackupPayload_BackupInfo: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Vync_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupMediaPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}thumbnail_url\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}mime_type\0\u{3}size_bytes\0\u{1}caption\0\u{1}width\0\u{1}height\0\u{3}duration_ms\0\u{3}file_name\0")
 
@@ -519,7 +519,7 @@ extension Vync_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupMediaPayload, rhs: Vync_BackupPayload_BackupMediaPayload) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupMediaPayload, rhs: Sanchr_BackupPayload_BackupMediaPayload) -> Bool {
     if lhs.url != rhs.url {return false}
     if lhs.thumbnailURL != rhs.thumbnailURL {return false}
     if lhs.encryptionKey != rhs.encryptionKey {return false}
@@ -536,7 +536,7 @@ extension Vync_BackupPayload_BackupMediaPayload: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Vync_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupLocationPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}latitude\0\u{1}longitude\0\u{1}label\0")
 
@@ -567,7 +567,7 @@ extension Vync_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupLocationPayload, rhs: Vync_BackupPayload_BackupLocationPayload) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupLocationPayload, rhs: Sanchr_BackupPayload_BackupLocationPayload) -> Bool {
     if lhs.latitude != rhs.latitude {return false}
     if lhs.longitude != rhs.longitude {return false}
     if lhs.label != rhs.label {return false}
@@ -576,7 +576,7 @@ extension Vync_BackupPayload_BackupLocationPayload: SwiftProtobuf.Message, Swift
   }
 }
 
-extension Vync_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupContactPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}phone_number\0")
 
@@ -603,7 +603,7 @@ extension Vync_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupContactPayload, rhs: Vync_BackupPayload_BackupContactPayload) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupContactPayload, rhs: Sanchr_BackupPayload_BackupContactPayload) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -611,7 +611,7 @@ extension Vync_BackupPayload_BackupContactPayload: SwiftProtobuf.Message, SwiftP
   }
 }
 
-extension Vync_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupContactRecord"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}user_id\0\u{3}phone_number\0\u{3}display_name\0\u{3}avatar_url\0\u{1}bio\0\u{3}is_verified\0\u{3}last_seen_ms\0\u{1}status\0\u{3}is_local_user\0\u{3}is_registered\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}last_synced_at_ms\0")
 
@@ -686,7 +686,7 @@ extension Vync_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupContactRecord, rhs: Vync_BackupPayload_BackupContactRecord) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupContactRecord, rhs: Sanchr_BackupPayload_BackupContactRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.userID != rhs.userID {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
@@ -706,7 +706,7 @@ extension Vync_BackupPayload_BackupContactRecord: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-extension Vync_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupConversationRecord"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}type\0\u{1}title\0\u{3}avatar_url\0\u{3}participant_ids\0\u{3}last_message_id\0\u{3}last_message_preview\0\u{3}last_message_timestamp_ms\0\u{3}last_message_sender_id\0\u{3}last_message_status\0\u{3}last_message_content_type\0\u{3}last_message_content_body\0\u{3}unread_count\0\u{3}is_pinned\0\u{3}is_muted\0\u{3}is_archived\0\u{3}disappearing_duration_ms\0\u{3}created_at_ms\0\u{3}updated_at_ms\0")
 
@@ -865,7 +865,7 @@ extension Vync_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, Sw
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupConversationRecord, rhs: Vync_BackupPayload_BackupConversationRecord) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupConversationRecord, rhs: Sanchr_BackupPayload_BackupConversationRecord) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -898,7 +898,7 @@ extension Vync_BackupPayload_BackupConversationRecord: SwiftProtobuf.Message, Sw
   }
 }
 
-extension Vync_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupMessageRecord"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}conversation_id\0\u{3}sender_id\0\u{3}timestamp_ms\0\u{3}content_type\0\u{3}content_body\0\u{3}preview_text\0\u{1}status\0\u{3}is_outgoing\0\u{3}reply_to_message_id\0\u{3}expires_at_ms\0\u{3}is_deleted\0")
 
@@ -965,7 +965,7 @@ extension Vync_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupMessageRecord, rhs: Vync_BackupPayload_BackupMessageRecord) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupMessageRecord, rhs: Sanchr_BackupPayload_BackupMessageRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.senderID != rhs.senderID {return false}
@@ -983,7 +983,7 @@ extension Vync_BackupPayload_BackupMessageRecord: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-extension Vync_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupVaultItemRecord"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}type\0\u{3}size_bytes\0\u{3}encryption_key\0\u{3}encryption_iv\0\u{3}encrypted_thumbnail_url\0\u{3}created_at_ms\0\u{3}updated_at_ms\0\u{3}is_cached_locally\0\u{3}remote_url\0\u{3}local_url\0")
 
@@ -1050,7 +1050,7 @@ extension Vync_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupVaultItemRecord, rhs: Vync_BackupPayload_BackupVaultItemRecord) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupVaultItemRecord, rhs: Sanchr_BackupPayload_BackupVaultItemRecord) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.name != rhs.name {return false}
     if lhs.type != rhs.type {return false}
@@ -1068,7 +1068,7 @@ extension Vync_BackupPayload_BackupVaultItemRecord: SwiftProtobuf.Message, Swift
   }
 }
 
-extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BackupFrame"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}info\0\u{1}contact\0\u{1}conversation\0\u{1}message\0\u{3}vault_item\0")
 
@@ -1079,7 +1079,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Vync_BackupPayload_BackupInfo?
+        var v: Sanchr_BackupPayload_BackupInfo?
         var hadOneofValue = false
         if let current = self.frame {
           hadOneofValue = true
@@ -1092,7 +1092,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
         }
       }()
       case 2: try {
-        var v: Vync_BackupPayload_BackupContactRecord?
+        var v: Sanchr_BackupPayload_BackupContactRecord?
         var hadOneofValue = false
         if let current = self.frame {
           hadOneofValue = true
@@ -1105,7 +1105,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
         }
       }()
       case 3: try {
-        var v: Vync_BackupPayload_BackupConversationRecord?
+        var v: Sanchr_BackupPayload_BackupConversationRecord?
         var hadOneofValue = false
         if let current = self.frame {
           hadOneofValue = true
@@ -1118,7 +1118,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
         }
       }()
       case 4: try {
-        var v: Vync_BackupPayload_BackupMessageRecord?
+        var v: Sanchr_BackupPayload_BackupMessageRecord?
         var hadOneofValue = false
         if let current = self.frame {
           hadOneofValue = true
@@ -1131,7 +1131,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
         }
       }()
       case 5: try {
-        var v: Vync_BackupPayload_BackupVaultItemRecord?
+        var v: Sanchr_BackupPayload_BackupVaultItemRecord?
         var hadOneofValue = false
         if let current = self.frame {
           hadOneofValue = true
@@ -1179,7 +1179,7 @@ extension Vync_BackupPayload_BackupFrame: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_BackupPayload_BackupFrame, rhs: Vync_BackupPayload_BackupFrame) -> Bool {
+  public static func ==(lhs: Sanchr_BackupPayload_BackupFrame, rhs: Sanchr_BackupPayload_BackupFrame) -> Bool {
     if lhs.frame != rhs.frame {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

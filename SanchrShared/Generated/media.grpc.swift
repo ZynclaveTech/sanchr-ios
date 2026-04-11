@@ -11,30 +11,30 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Media_MediaServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Media_MediaServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Media_MediaServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Media_MediaServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? { get }
 
   func getUploadUrl(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse>
+  ) -> UnaryCall<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse>
 
   func getDownloadUrl(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse>
+  ) -> UnaryCall<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse>
 
   func confirmUpload(
-    _ request: Vync_Media_ConfirmUploadRequest,
+    _ request: Sanchr_Media_ConfirmUploadRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse>
+  ) -> UnaryCall<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse>
 }
 
-extension Vync_Media_MediaServiceClientProtocol {
+extension Sanchr_Media_MediaServiceClientProtocol {
   public var serviceName: String {
-    return "vync.media.MediaService"
+    return "sanchr.media.MediaService"
   }
 
   /// Unary call to GetUploadUrl
@@ -44,11 +44,11 @@ extension Vync_Media_MediaServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getUploadUrl(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> UnaryCall<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUploadUrlInterceptors() ?? []
@@ -62,11 +62,11 @@ extension Vync_Media_MediaServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getDownloadUrl(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> UnaryCall<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetDownloadUrlInterceptors() ?? []
@@ -80,11 +80,11 @@ extension Vync_Media_MediaServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func confirmUpload(
-    _ request: Vync_Media_ConfirmUploadRequest,
+    _ request: Sanchr_Media_ConfirmUploadRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse> {
+  ) -> UnaryCall<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse> {
     return self.makeUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeConfirmUploadInterceptors() ?? []
@@ -93,24 +93,24 @@ extension Vync_Media_MediaServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Media_MediaServiceClient: @unchecked Sendable {}
+extension Sanchr_Media_MediaServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Media_MediaServiceNIOClient")
-public final class Vync_Media_MediaServiceClient: Vync_Media_MediaServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Media_MediaServiceNIOClient")
+public final class Sanchr_Media_MediaServiceClient: Sanchr_Media_MediaServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.media.MediaService service.
+  /// Creates a client for the sanchr.media.MediaService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -119,7 +119,7 @@ public final class Vync_Media_MediaServiceClient: Vync_Media_MediaServiceClientP
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -127,12 +127,12 @@ public final class Vync_Media_MediaServiceClient: Vync_Media_MediaServiceClientP
   }
 }
 
-public struct Vync_Media_MediaServiceNIOClient: Vync_Media_MediaServiceClientProtocol {
+public struct Sanchr_Media_MediaServiceNIOClient: Sanchr_Media_MediaServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.media.MediaService service.
+  /// Creates a client for the sanchr.media.MediaService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -141,7 +141,7 @@ public struct Vync_Media_MediaServiceNIOClient: Vync_Media_MediaServiceClientPro
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -150,42 +150,42 @@ public struct Vync_Media_MediaServiceNIOClient: Vync_Media_MediaServiceClientPro
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Media_MediaServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Media_MediaServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? { get }
 
   func makeGetUploadURLCall(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse>
 
   func makeGetDownloadURLCall(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse>
 
   func makeConfirmUploadCall(
-    _ request: Vync_Media_ConfirmUploadRequest,
+    _ request: Sanchr_Media_ConfirmUploadRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Media_MediaServiceAsyncClientProtocol {
+extension Sanchr_Media_MediaServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Media_MediaServiceClientMetadata.serviceDescriptor
+    return Sanchr_Media_MediaServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeGetUploadURLCall(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUploadUrlInterceptors() ?? []
@@ -193,9 +193,9 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func makeGetUploadUrlCall(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeGetUploadURLCall(
       request,
       callOptions: callOptions
@@ -203,11 +203,11 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func makeGetDownloadURLCall(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetDownloadUrlInterceptors() ?? []
@@ -215,9 +215,9 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func makeGetDownloadUrlCall(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse> {
     return self.makeGetDownloadURLCall(
       request,
       callOptions: callOptions
@@ -225,11 +225,11 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func makeConfirmUploadCall(
-    _ request: Vync_Media_ConfirmUploadRequest,
+    _ request: Sanchr_Media_ConfirmUploadRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeConfirmUploadInterceptors() ?? []
@@ -238,13 +238,13 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Media_MediaServiceAsyncClientProtocol {
+extension Sanchr_Media_MediaServiceAsyncClientProtocol {
   public func getUploadUrl(
-    _ request: Vync_Media_GetUploadUrlRequest,
+    _ request: Sanchr_Media_GetUploadUrlRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Media_PresignedUrlResponse {
+  ) async throws -> Sanchr_Media_PresignedUrlResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getUploadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUploadUrlInterceptors() ?? []
@@ -252,11 +252,11 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func getDownloadUrl(
-    _ request: Vync_Media_GetDownloadUrlRequest,
+    _ request: Sanchr_Media_GetDownloadUrlRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Media_PresignedUrlResponse {
+  ) async throws -> Sanchr_Media_PresignedUrlResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.getDownloadUrl.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetDownloadUrlInterceptors() ?? []
@@ -264,11 +264,11 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
   }
 
   public func confirmUpload(
-    _ request: Vync_Media_ConfirmUploadRequest,
+    _ request: Sanchr_Media_ConfirmUploadRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Media_ConfirmUploadResponse {
+  ) async throws -> Sanchr_Media_ConfirmUploadResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
+      path: Sanchr_Media_MediaServiceClientMetadata.Methods.confirmUpload.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeConfirmUploadInterceptors() ?? []
@@ -277,15 +277,15 @@ extension Vync_Media_MediaServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Media_MediaServiceAsyncClient: Vync_Media_MediaServiceAsyncClientProtocol {
+public struct Sanchr_Media_MediaServiceAsyncClient: Sanchr_Media_MediaServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -293,64 +293,64 @@ public struct Vync_Media_MediaServiceAsyncClient: Vync_Media_MediaServiceAsyncCl
   }
 }
 
-public protocol Vync_Media_MediaServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'getUploadUrl'.
-  func makeGetUploadUrlInterceptors() -> [ClientInterceptor<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse>]
+  func makeGetUploadUrlInterceptors() -> [ClientInterceptor<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getDownloadUrl'.
-  func makeGetDownloadUrlInterceptors() -> [ClientInterceptor<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse>]
+  func makeGetDownloadUrlInterceptors() -> [ClientInterceptor<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse>]
 
   /// - Returns: Interceptors to use when invoking 'confirmUpload'.
-  func makeConfirmUploadInterceptors() -> [ClientInterceptor<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse>]
+  func makeConfirmUploadInterceptors() -> [ClientInterceptor<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse>]
 }
 
-public enum Vync_Media_MediaServiceClientMetadata {
+public enum Sanchr_Media_MediaServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "MediaService",
-    fullName: "vync.media.MediaService",
+    fullName: "sanchr.media.MediaService",
     methods: [
-      Vync_Media_MediaServiceClientMetadata.Methods.getUploadUrl,
-      Vync_Media_MediaServiceClientMetadata.Methods.getDownloadUrl,
-      Vync_Media_MediaServiceClientMetadata.Methods.confirmUpload,
+      Sanchr_Media_MediaServiceClientMetadata.Methods.getUploadUrl,
+      Sanchr_Media_MediaServiceClientMetadata.Methods.getDownloadUrl,
+      Sanchr_Media_MediaServiceClientMetadata.Methods.confirmUpload,
     ]
   )
 
   public enum Methods {
     public static let getUploadUrl = GRPCMethodDescriptor(
       name: "GetUploadUrl",
-      path: "/vync.media.MediaService/GetUploadUrl",
+      path: "/sanchr.media.MediaService/GetUploadUrl",
       type: GRPCCallType.unary
     )
 
     public static let getDownloadUrl = GRPCMethodDescriptor(
       name: "GetDownloadUrl",
-      path: "/vync.media.MediaService/GetDownloadUrl",
+      path: "/sanchr.media.MediaService/GetDownloadUrl",
       type: GRPCCallType.unary
     )
 
     public static let confirmUpload = GRPCMethodDescriptor(
       name: "ConfirmUpload",
-      path: "/vync.media.MediaService/ConfirmUpload",
+      path: "/sanchr.media.MediaService/ConfirmUpload",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Media_MediaServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Media_MediaServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Media_MediaServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Media_MediaServiceServerInterceptorFactoryProtocol? { get }
 
-  func getUploadUrl(request: Vync_Media_GetUploadUrlRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Media_PresignedUrlResponse>
+  func getUploadUrl(request: Sanchr_Media_GetUploadUrlRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Media_PresignedUrlResponse>
 
-  func getDownloadUrl(request: Vync_Media_GetDownloadUrlRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Media_PresignedUrlResponse>
+  func getDownloadUrl(request: Sanchr_Media_GetDownloadUrlRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Media_PresignedUrlResponse>
 
-  func confirmUpload(request: Vync_Media_ConfirmUploadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Media_ConfirmUploadResponse>
+  func confirmUpload(request: Sanchr_Media_ConfirmUploadRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Media_ConfirmUploadResponse>
 }
 
-extension Vync_Media_MediaServiceProvider {
+extension Sanchr_Media_MediaServiceProvider {
   public var serviceName: Substring {
-    return Vync_Media_MediaServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Media_MediaServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -363,8 +363,8 @@ extension Vync_Media_MediaServiceProvider {
     case "GetUploadUrl":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_GetUploadUrlRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_PresignedUrlResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_GetUploadUrlRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_PresignedUrlResponse>(),
         interceptors: self.interceptors?.makeGetUploadUrlInterceptors() ?? [],
         userFunction: self.getUploadUrl(request:context:)
       )
@@ -372,8 +372,8 @@ extension Vync_Media_MediaServiceProvider {
     case "GetDownloadUrl":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_GetDownloadUrlRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_PresignedUrlResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_GetDownloadUrlRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_PresignedUrlResponse>(),
         interceptors: self.interceptors?.makeGetDownloadUrlInterceptors() ?? [],
         userFunction: self.getDownloadUrl(request:context:)
       )
@@ -381,8 +381,8 @@ extension Vync_Media_MediaServiceProvider {
     case "ConfirmUpload":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_ConfirmUploadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_ConfirmUploadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_ConfirmUploadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_ConfirmUploadResponse>(),
         interceptors: self.interceptors?.makeConfirmUploadInterceptors() ?? [],
         userFunction: self.confirmUpload(request:context:)
       )
@@ -395,37 +395,37 @@ extension Vync_Media_MediaServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Media_MediaServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Media_MediaServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Media_MediaServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Media_MediaServiceServerInterceptorFactoryProtocol? { get }
 
   func getUploadUrl(
-    request: Vync_Media_GetUploadUrlRequest,
+    request: Sanchr_Media_GetUploadUrlRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Media_PresignedUrlResponse
+  ) async throws -> Sanchr_Media_PresignedUrlResponse
 
   func getDownloadUrl(
-    request: Vync_Media_GetDownloadUrlRequest,
+    request: Sanchr_Media_GetDownloadUrlRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Media_PresignedUrlResponse
+  ) async throws -> Sanchr_Media_PresignedUrlResponse
 
   func confirmUpload(
-    request: Vync_Media_ConfirmUploadRequest,
+    request: Sanchr_Media_ConfirmUploadRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Media_ConfirmUploadResponse
+  ) async throws -> Sanchr_Media_ConfirmUploadResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Media_MediaServiceAsyncProvider {
+extension Sanchr_Media_MediaServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Media_MediaServiceServerMetadata.serviceDescriptor
+    return Sanchr_Media_MediaServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Media_MediaServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Media_MediaServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Media_MediaServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Media_MediaServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -437,8 +437,8 @@ extension Vync_Media_MediaServiceAsyncProvider {
     case "GetUploadUrl":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_GetUploadUrlRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_PresignedUrlResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_GetUploadUrlRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_PresignedUrlResponse>(),
         interceptors: self.interceptors?.makeGetUploadUrlInterceptors() ?? [],
         wrapping: { try await self.getUploadUrl(request: $0, context: $1) }
       )
@@ -446,8 +446,8 @@ extension Vync_Media_MediaServiceAsyncProvider {
     case "GetDownloadUrl":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_GetDownloadUrlRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_PresignedUrlResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_GetDownloadUrlRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_PresignedUrlResponse>(),
         interceptors: self.interceptors?.makeGetDownloadUrlInterceptors() ?? [],
         wrapping: { try await self.getDownloadUrl(request: $0, context: $1) }
       )
@@ -455,8 +455,8 @@ extension Vync_Media_MediaServiceAsyncProvider {
     case "ConfirmUpload":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Media_ConfirmUploadRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Media_ConfirmUploadResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Media_ConfirmUploadRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Media_ConfirmUploadResponse>(),
         interceptors: self.interceptors?.makeConfirmUploadInterceptors() ?? [],
         wrapping: { try await self.confirmUpload(request: $0, context: $1) }
       )
@@ -467,48 +467,48 @@ extension Vync_Media_MediaServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Media_MediaServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Media_MediaServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'getUploadUrl'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetUploadUrlInterceptors() -> [ServerInterceptor<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse>]
+  func makeGetUploadUrlInterceptors() -> [ServerInterceptor<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse>]
 
   /// - Returns: Interceptors to use when handling 'getDownloadUrl'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetDownloadUrlInterceptors() -> [ServerInterceptor<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse>]
+  func makeGetDownloadUrlInterceptors() -> [ServerInterceptor<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse>]
 
   /// - Returns: Interceptors to use when handling 'confirmUpload'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeConfirmUploadInterceptors() -> [ServerInterceptor<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse>]
+  func makeConfirmUploadInterceptors() -> [ServerInterceptor<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse>]
 }
 
-public enum Vync_Media_MediaServiceServerMetadata {
+public enum Sanchr_Media_MediaServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "MediaService",
-    fullName: "vync.media.MediaService",
+    fullName: "sanchr.media.MediaService",
     methods: [
-      Vync_Media_MediaServiceServerMetadata.Methods.getUploadUrl,
-      Vync_Media_MediaServiceServerMetadata.Methods.getDownloadUrl,
-      Vync_Media_MediaServiceServerMetadata.Methods.confirmUpload,
+      Sanchr_Media_MediaServiceServerMetadata.Methods.getUploadUrl,
+      Sanchr_Media_MediaServiceServerMetadata.Methods.getDownloadUrl,
+      Sanchr_Media_MediaServiceServerMetadata.Methods.confirmUpload,
     ]
   )
 
   public enum Methods {
     public static let getUploadUrl = GRPCMethodDescriptor(
       name: "GetUploadUrl",
-      path: "/vync.media.MediaService/GetUploadUrl",
+      path: "/sanchr.media.MediaService/GetUploadUrl",
       type: GRPCCallType.unary
     )
 
     public static let getDownloadUrl = GRPCMethodDescriptor(
       name: "GetDownloadUrl",
-      path: "/vync.media.MediaService/GetDownloadUrl",
+      path: "/sanchr.media.MediaService/GetDownloadUrl",
       type: GRPCCallType.unary
     )
 
     public static let confirmUpload = GRPCMethodDescriptor(
       name: "ConfirmUpload",
-      path: "/vync.media.MediaService/ConfirmUpload",
+      path: "/sanchr.media.MediaService/ConfirmUpload",
       type: GRPCCallType.unary
     )
   }

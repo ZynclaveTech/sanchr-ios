@@ -19,9 +19,6 @@ protocol AuthRepositoryProtocol: AnyObject, Sendable {
     /// Logs out and invalidates the current session on the server.
     func logout(accessToken: String) async throws
 
-    /// Changes the current account password.
-    func changePassword(currentPassword: String, newPassword: String) async throws
-
     /// Permanently deletes the authenticated user's account on the server.
     func deleteAccount() async throws
 
@@ -57,7 +54,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         self.secureStorage = secureStorage
     }
 
-    private var authService: Vync_Auth_AuthServiceAsyncClientProtocol {
+    private var authService: Sanchr_Auth_AuthServiceAsyncClientProtocol {
         grpcClient.authService
     }
 
@@ -69,7 +66,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         // New users are staged; existing users get an OTP generated for login.
         // Both paths return OK — the server handles user-enumeration prevention.
         do {
-            var registerReq = Vync_Auth_RegisterRequest()
+            var registerReq = Sanchr_Auth_RegisterRequest()
             registerReq.phoneNumber = phoneNumber
             registerReq.displayName = sanitizedDisplayName(displayName)
             registerReq.password = Self.otpBootstrapPassword()
@@ -91,12 +88,12 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
     func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens {
         SanchrLogger.auth.info("Verifying OTP for \(phoneNumber.prefix(4))****")
 
-        var request = Vync_Auth_VerifyOTPRequest()
+        var request = Sanchr_Auth_VerifyOTPRequest()
         request.phoneNumber = phoneNumber
         request.otpCode = code
         request.device = try makeDeviceInfo()
 
-        let response: Vync_Auth_AuthResponse
+        let response: Sanchr_Auth_AuthResponse
         do {
             response = try await authService.verifyOTP(request)
         } catch {
@@ -124,10 +121,10 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
     func refreshToken(refreshToken: String) async throws -> AuthTokens {
         SanchrLogger.auth.info("Refreshing token")
 
-        var request = Vync_Auth_RefreshTokenRequest()
+        var request = Sanchr_Auth_RefreshTokenRequest()
         request.refreshToken = refreshToken
 
-        let response: Vync_Auth_AuthResponse
+        let response: Sanchr_Auth_AuthResponse
         do {
             response = try await authService.refreshToken(request)
         } catch {
@@ -157,22 +154,15 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         // Retrieve the refresh token to invalidate on the server
         guard let refreshToken = try secureStorage.readRefreshToken() else { return }
 
-        var request = Vync_Auth_LogoutRequest()
+        var request = Sanchr_Auth_LogoutRequest()
         request.refreshToken = refreshToken
 
         _ = try await authService.logout(request)
     }
 
-    func changePassword(currentPassword: String, newPassword: String) async throws {
-        var request = Vync_Auth_ChangePasswordRequest()
-        request.currentPassword = currentPassword
-        request.newPassword = newPassword
-        _ = try await authService.changePassword(request)
-    }
-
     func deleteAccount() async throws {
         SanchrLogger.auth.warning("Submitting account deletion request")
-        let request = Vync_Auth_DeleteAccountRequest()
+        let request = Sanchr_Auth_DeleteAccountRequest()
         do {
             let response = try await authService.deleteAccount(request)
             guard response.success else {
@@ -197,7 +187,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         return "\(type(of: error)): \(error.localizedDescription)"
     }
 
-    private static func mapTokens(_ response: Vync_Auth_AuthResponse) -> AuthTokens {
+    private static func mapTokens(_ response: Sanchr_Auth_AuthResponse) -> AuthTokens {
         AuthTokens(
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
@@ -210,8 +200,8 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         )
     }
 
-    private func makeDeviceInfo() throws -> Vync_Auth_DeviceInfo {
-        var device = Vync_Auth_DeviceInfo()
+    private func makeDeviceInfo() throws -> Sanchr_Auth_DeviceInfo {
+        var device = Sanchr_Auth_DeviceInfo()
         device.deviceName = "iPhone"
         device.platform = "ios"
         device.installationID = try secureStorage.readOrCreateInstallationId()

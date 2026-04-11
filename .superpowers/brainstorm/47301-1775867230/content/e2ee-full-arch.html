@@ -1,0 +1,120 @@
+<h2>Full E2EE Calls — Three-Layer Model</h2>
+<p class="subtitle">Option C: media-level, signaling-level, and metadata-level protection</p>
+
+<div class="section">
+  <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+
+    <!-- Layer 1 -->
+    <div style="background:#0f2a1a; border:2px solid #22c55e; border-radius:10px; padding:16px;">
+      <div style="color:#86efac; font-weight:bold; font-size:13px; margin-bottom:4px;">LAYER 1 — Media</div>
+      <div style="color:#4ade80; font-size:20px; font-weight:bold; margin-bottom:8px;">DTLS–SRTP<br>+ fingerprint binding</div>
+      <div style="color:#94a3b8; font-size:12px; line-height:1.7;">
+        Alice's SDP offer is <strong style="color:#d1fae5;">encrypted with Bob's Signal session key</strong> before hitting the server. The DTLS fingerprint is inside the ciphertext — server can't swap it.<br><br>
+        Bob decrypts using the Signal session already established for messages. He verifies it really came from Alice.
+      </div>
+      <div style="margin-top:12px; padding:8px; background:#052010; border-radius:6px; font-size:11px; color:#86efac;">
+        📦 &nbsp;<code>CallOffer.encryptedSdpPayload</code><br>= Signal-encrypt({ sdpOffer, dtlsFingerprint, timestamp })
+      </div>
+    </div>
+
+    <!-- Layer 2 -->
+    <div style="background:#1a1a3a; border:2px solid #818cf8; border-radius:10px; padding:16px;">
+      <div style="color:#a5b4fc; font-weight:bold; font-size:13px; margin-bottom:4px;">LAYER 2 — Identity</div>
+      <div style="color:#818cf8; font-size:20px; font-weight:bold; margin-bottom:8px;">Sealed Sender<br>for calls</div>
+      <div style="color:#94a3b8; font-size:12px; line-height:1.7;">
+        The call initiation is wrapped in a sealed delivery token — same mechanism as messages. Server sees <em>"someone is ringing user 9f2a…"</em> but not who.<br><br>
+        Only Bob can decrypt the delivery cert and learn it's Alice.
+      </div>
+      <div style="margin-top:12px; padding:8px; background:#0a0a20; border-radius:6px; font-size:11px; color:#a5b4fc;">
+        🪪 &nbsp;Reuses existing <code>SealedSenderManager</code><br>+ delivery token infrastructure
+      </div>
+    </div>
+
+    <!-- Layer 3 -->
+    <div style="background:#2a1a0a; border:2px solid #f59e0b; border-radius:10px; padding:16px;">
+      <div style="color:#fcd34d; font-weight:bold; font-size:13px; margin-bottom:4px;">LAYER 3 — Metadata</div>
+      <div style="color:#f59e0b; font-size:20px; font-weight:bold; margin-bottom:8px;">Duration<br>padding</div>
+      <div style="color:#94a3b8; font-size:12px; line-height:1.7;">
+        Call duration is a powerful fingerprint. After the real call ends, both sides send <strong style="color:#fde68a;">SRTP-encrypted silence/padding</strong> to the nearest time bucket (1, 5, 15, 30, 60 min).<br><br>
+        Server sees traffic for the padded duration, not the real one.
+      </div>
+      <div style="margin-top:12px; padding:8px; background:#150d00; border-radius:6px; font-size:11px; color:#fcd34d;">
+        ⏱ &nbsp;Bucket: ceil(real duration / bucket) × bucket<br>
+        Padding: encrypted silence frames
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>The complete sealed call flow</h3>
+  <div style="background: var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; font-size:12px; color:#94a3b8; line-height:2;">
+
+    <div style="display:grid; grid-template-columns: 120px 1fr 120px 1fr 120px; align-items:start; gap:4px;">
+
+      <div style="text-align:center; padding:8px; background:#1a3a5c; border-radius:8px; color:#7dd3fc; font-weight:bold;">Alice</div>
+      <div></div>
+      <div style="text-align:center; padding:8px; background:#1e3a2a; border-radius:8px; color:#86efac; font-weight:bold;">Server</div>
+      <div></div>
+      <div style="text-align:center; padding:8px; background:#1a3a5c; border-radius:8px; color:#7dd3fc; font-weight:bold;">Bob</div>
+
+      <!-- Step 1 -->
+      <div style="text-align:right; color:#d1fae5; padding-top:8px; font-size:11px;">1. createOffer()<br>get DTLS fingerprint</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:1px dashed #334155;"></div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+
+      <!-- Step 2 -->
+      <div style="text-align:right; color:#d1fae5; padding-top:8px; font-size:11px;">2. Signal-encrypt(sdp+fingerprint) → blob</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:1px dashed #334155;"></div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+
+      <!-- Step 3 -->
+      <div style="text-align:right; color:#a5b4fc; padding-top:8px; font-size:11px;">3. SealedSend(blob)<br>→ delivery token</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px solid #818cf8;"><div style="text-align:center; margin-top:-10px; font-size:10px; color:#818cf8;">── sealed blob (opaque) ──▶</div></div></div>
+      <div style="text-align:center; color:#fca5a5; padding-top:12px; font-size:11px;">sees opaque<br>blob only</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px solid #818cf8;"><div style="text-align:center; margin-top:-10px; font-size:10px; color:#818cf8;">── sealed blob ──▶</div></div></div>
+      <div style="text-align:left; color:#d1fae5; padding-top:8px; font-size:11px;">4. Unseal delivery cert<br>→ learns it's Alice</div>
+
+      <!-- Step 5 -->
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div style="text-align:left; color:#d1fae5; padding-top:8px; font-size:11px;">5. Signal-decrypt blob<br>→ trusted SDP + fingerprint</div>
+
+      <!-- Step 6 -->
+      <div></div>
+      <div></div>
+      <div></div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px solid #818cf8;"><div style="text-align:center; margin-top:-10px; font-size:10px; color:#818cf8;">◀── sealed SDP answer ──</div></div></div>
+      <div style="text-align:left; color:#d1fae5; padding-top:8px; font-size:11px;">6. createAnswer()<br>Signal-encrypt(answer)</div>
+
+      <!-- Step 7 -->
+      <div style="text-align:right; color:#22c55e; padding-top:8px; font-size:11px;">7. DTLS handshake<br>verified fingerprint</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px solid #22c55e;"><div style="text-align:center; margin-top:-10px; font-size:10px; color:#22c55e;">═══════ DTLS (peer-to-peer) ═══════</div></div></div>
+      <div style="text-align:center; color:#fca5a5; padding-top:12px; font-size:11px;">sees SRTP stream<br>can't decrypt</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px solid #22c55e;"></div></div>
+      <div style="text-align:left; color:#22c55e; padding-top:8px; font-size:11px;">7. DTLS verified ✓</div>
+
+      <!-- Step 8 -->
+      <div style="text-align:right; color:#f59e0b; padding-top:8px; font-size:11px;">8. Call ends<br>→ pad to next bucket</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px dashed #f59e0b;"><div style="text-align:center; margin-top:-10px; font-size:10px; color:#f59e0b;">── encrypted silence (padding) ──</div></div></div>
+      <div style="text-align:center; color:#fca5a5; padding-top:12px; font-size:11px;">sees N-min call<br>real was M-min</div>
+      <div style="display:flex; align-items:center; padding-top:12px;"><div style="flex:1; border-top:2px dashed #f59e0b;"></div></div>
+      <div style="text-align:left; color:#f59e0b; padding-top:8px; font-size:11px;">8. Receives padding<br>discards silently</div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div style="background:#1e1e2e; border:1px solid #6366f1; border-radius:8px; padding:14px; font-size:13px;">
+    <span style="color:#a5b4fc; font-weight:bold;">What the server learns with Option C:</span>
+    <span style="color:#94a3b8;"> &nbsp;Someone using Sanchr made a call of approximately N minutes (to the nearest bucket). It cannot determine who called who, cannot decrypt audio/video, cannot tamper with the fingerprint, and gets no DTLS key material.</span>
+  </div>
+</div>

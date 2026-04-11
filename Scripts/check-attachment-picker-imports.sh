@@ -27,7 +27,7 @@ FORBIDDEN_PATTERNS=(
     'MKMapView'
     'SignalProtocolManager'
     'MediaEncryptor'
-    'Vync_Messaging_'
+    'Sanchr_Messaging_'
 )
 
 EXIT_CODE=0

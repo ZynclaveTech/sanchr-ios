@@ -114,7 +114,7 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             contentHash: contentHash
         )
 
-        var createRequest = Vync_Backup_CreateBackupUploadRequest()
+        var createRequest = Sanchr_Backup_CreateBackupUploadRequest()
         createRequest.byteSize = Int64(encryptedArchive.ciphertext.count)
         createRequest.sha256Hash = Self.sha256Hex(encryptedArchive.ciphertext)
         createRequest.opaqueMetadata = encryptedArchive.metadataJSON
@@ -129,7 +129,7 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             session: session
         )
 
-        var commitRequest = Vync_Backup_CommitBackupRequest()
+        var commitRequest = Sanchr_Backup_CommitBackupRequest()
         commitRequest.backupID = upload.backupID
         commitRequest.byteSize = createRequest.byteSize
         commitRequest.sha256Hash = createRequest.sha256Hash
@@ -153,12 +153,12 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             throw AppError.backupFailed(reason: "Backup keys are unavailable for this account.")
         }
 
-        let backups = try await grpcClient.backupService.listBackups(Vync_Backup_ListBackupsRequest()).backups
+        let backups = try await grpcClient.backupService.listBackups(Sanchr_Backup_ListBackupsRequest()).backups
         guard let selected = Self.selectLatestBackup(from: backups, preferredLineageID: configuration?.lineageId) else {
             throw AppError.backupUnavailable
         }
 
-        var request = Vync_Backup_GetBackupDownloadRequest()
+        var request = Sanchr_Backup_GetBackupDownloadRequest()
         request.backupID = selected.backupID
         let response = try await grpcClient.backupService.getBackupDownload(request)
         let ciphertext = try await Self.downloadObject(from: response.downloadURL, session: session)
@@ -196,21 +196,21 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
     }
 
     func deleteRemoteBackups(lineageID: String?) async throws {
-        let response = try await grpcClient.backupService.listBackups(Vync_Backup_ListBackupsRequest())
+        let response = try await grpcClient.backupService.listBackups(Sanchr_Backup_ListBackupsRequest())
         let candidates = response.backups.filter { backup in
             guard let lineageID, !lineageID.isEmpty else { return true }
             return backup.lineageID == lineageID
         }
 
         for backup in candidates {
-            var request = Vync_Backup_DeleteBackupRequest()
+            var request = Sanchr_Backup_DeleteBackupRequest()
             request.backupID = backup.backupID
             _ = try await grpcClient.backupService.deleteBackup(request)
         }
     }
 
     func listBackups() async throws -> [BackupListEntry] {
-        let response = try await grpcClient.backupService.listBackups(Vync_Backup_ListBackupsRequest())
+        let response = try await grpcClient.backupService.listBackups(Sanchr_Backup_ListBackupsRequest())
         return response.backups
             .map { meta -> BackupListEntry in
                 let date = Self.parseServerDate(
@@ -247,7 +247,7 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             throw AppError.backupFailed(reason: "Backup keys are unavailable for this account.")
         }
 
-        var request = Vync_Backup_GetBackupDownloadRequest()
+        var request = Sanchr_Backup_GetBackupDownloadRequest()
         request.backupID = backupId
         let response = try await grpcClient.backupService.getBackupDownload(request)
         let ciphertext = try await Self.downloadObject(from: response.downloadURL, session: session)
@@ -293,9 +293,9 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
     }
 
     private static func selectLatestBackup(
-        from backups: [Vync_Backup_BackupMetadata],
+        from backups: [Sanchr_Backup_BackupMetadata],
         preferredLineageID: String?
-    ) -> Vync_Backup_BackupMetadata? {
+    ) -> Sanchr_Backup_BackupMetadata? {
         let filtered = backups.filter { backup in
             guard let preferredLineageID, !preferredLineageID.isEmpty else { return true }
             return backup.lineageID == preferredLineageID

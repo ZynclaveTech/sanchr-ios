@@ -127,7 +127,7 @@ struct SettingsView: View {
                     ]
                 )
 
-                if viewModel.vyncModeEnabled {
+                if viewModel.sanchrModeEnabled {
                     activatedCard
                 }
 
@@ -274,10 +274,10 @@ struct SettingsView: View {
 
     private var toggleBinding: Binding<Bool> {
         Binding(
-            get: { viewModel.vyncModeEnabled },
+            get: { viewModel.sanchrModeEnabled },
             set: { newValue in
                 Task {
-                    await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
+                    await viewModel.setSanchrMode(enabled: newValue, settingsDataSource: settingsDataSource)
                 }
             }
         )

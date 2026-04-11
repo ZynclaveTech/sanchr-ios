@@ -719,7 +719,7 @@ final class ChatDetailViewModel {
 
     /// Decrypts an incoming encrypted envelope and appends the plaintext message to the list.
     func handleIncomingEnvelope(
-        _ envelope: Vync_Messaging_EncryptedEnvelope,
+        _ envelope: Sanchr_Messaging_EncryptedEnvelope,
         signalProtocol: SignalProtocolManagerProtocol
     ) async {
         do {
@@ -909,7 +909,7 @@ final class ChatDetailViewModel {
         appendMessageChronologically(message)
     }
 
-    func handleTypingIndicator(_ indicator: Vync_Messaging_TypingIndicator) {
+    func handleTypingIndicator(_ indicator: Sanchr_Messaging_TypingIndicator) {
         guard showsTypingIndicators else {
             peerIsTyping = false
             peerTypingName = ""
@@ -920,7 +920,7 @@ final class ChatDetailViewModel {
         peerTypingName = indicator.userID
     }
 
-    func handlePresenceUpdate(_ update: Vync_Messaging_PresenceUpdate, participantId: String?) {
+    func handlePresenceUpdate(_ update: Sanchr_Messaging_PresenceUpdate, participantId: String?) {
         guard let participantId, update.userID == participantId else { return }
 
         switch update.statusCode {
@@ -943,7 +943,7 @@ final class ChatDetailViewModel {
         }
     }
 
-    func handleReceipt(_ receipt: Vync_Messaging_ReceiptUpdate) {
+    func handleReceipt(_ receipt: Sanchr_Messaging_ReceiptUpdate) {
         guard let index = messages.firstIndex(where: { $0.id == receipt.messageID }) else { return }
         if let status = Message.DeliveryStatus(rawValue: receipt.status) {
             messages[index].status = status

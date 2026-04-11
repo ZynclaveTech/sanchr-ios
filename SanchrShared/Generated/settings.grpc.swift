@@ -11,40 +11,40 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Settings_SettingsServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Settings_SettingsServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Settings_SettingsServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Settings_SettingsServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? { get }
 
   func getSettings(
-    _ request: Vync_Settings_GetSettingsRequest,
+    _ request: Sanchr_Settings_GetSettingsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings>
+  ) -> UnaryCall<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings>
 
   func updateSettings(
-    _ request: Vync_Settings_UpdateSettingsRequest,
+    _ request: Sanchr_Settings_UpdateSettingsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings>
+  ) -> UnaryCall<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings>
 
   func updateProfile(
-    _ request: Vync_Settings_UpdateProfileRequest,
+    _ request: Sanchr_Settings_UpdateProfileRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse>
+  ) -> UnaryCall<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse>
 
-  func toggleVyncMode(
-    _ request: Vync_Settings_ToggleVyncModeRequest,
+  func toggleSanchrMode(
+    _ request: Sanchr_Settings_ToggleSanchrModeRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings>
+  ) -> UnaryCall<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>
 
   func getStorageUsage(
-    _ request: Vync_Settings_GetStorageUsageRequest,
+    _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse>
+  ) -> UnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
 }
 
-extension Vync_Settings_SettingsServiceClientProtocol {
+extension Sanchr_Settings_SettingsServiceClientProtocol {
   public var serviceName: String {
-    return "vync.settings.SettingsService"
+    return "sanchr.settings.SettingsService"
   }
 
   /// Unary call to GetSettings
@@ -54,11 +54,11 @@ extension Vync_Settings_SettingsServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getSettings(
-    _ request: Vync_Settings_GetSettingsRequest,
+    _ request: Sanchr_Settings_GetSettingsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings> {
+  ) -> UnaryCall<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings> {
     return self.makeUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetSettingsInterceptors() ?? []
@@ -72,11 +72,11 @@ extension Vync_Settings_SettingsServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func updateSettings(
-    _ request: Vync_Settings_UpdateSettingsRequest,
+    _ request: Sanchr_Settings_UpdateSettingsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings> {
+  ) -> UnaryCall<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings> {
     return self.makeUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateSettingsInterceptors() ?? []
@@ -90,32 +90,32 @@ extension Vync_Settings_SettingsServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func updateProfile(
-    _ request: Vync_Settings_UpdateProfileRequest,
+    _ request: Sanchr_Settings_UpdateProfileRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse> {
+  ) -> UnaryCall<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse> {
     return self.makeUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateProfileInterceptors() ?? []
     )
   }
 
-  /// Unary call to ToggleVyncMode
+  /// Unary call to ToggleSanchrMode
   ///
   /// - Parameters:
-  ///   - request: Request to send to ToggleVyncMode.
+  ///   - request: Request to send to ToggleSanchrMode.
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func toggleVyncMode(
-    _ request: Vync_Settings_ToggleVyncModeRequest,
+  public func toggleSanchrMode(
+    _ request: Sanchr_Settings_ToggleSanchrModeRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings> {
+  ) -> UnaryCall<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings> {
     return self.makeUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.toggleVyncMode.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeToggleVyncModeInterceptors() ?? []
+      interceptors: self.interceptors?.makeToggleSanchrModeInterceptors() ?? []
     )
   }
 
@@ -126,11 +126,11 @@ extension Vync_Settings_SettingsServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getStorageUsage(
-    _ request: Vync_Settings_GetStorageUsageRequest,
+    _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse> {
+  ) -> UnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse> {
     return self.makeUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
@@ -139,24 +139,24 @@ extension Vync_Settings_SettingsServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Settings_SettingsServiceClient: @unchecked Sendable {}
+extension Sanchr_Settings_SettingsServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Settings_SettingsServiceNIOClient")
-public final class Vync_Settings_SettingsServiceClient: Vync_Settings_SettingsServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Settings_SettingsServiceNIOClient")
+public final class Sanchr_Settings_SettingsServiceClient: Sanchr_Settings_SettingsServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.settings.SettingsService service.
+  /// Creates a client for the sanchr.settings.SettingsService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -165,7 +165,7 @@ public final class Vync_Settings_SettingsServiceClient: Vync_Settings_SettingsSe
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -173,12 +173,12 @@ public final class Vync_Settings_SettingsServiceClient: Vync_Settings_SettingsSe
   }
 }
 
-public struct Vync_Settings_SettingsServiceNIOClient: Vync_Settings_SettingsServiceClientProtocol {
+public struct Sanchr_Settings_SettingsServiceNIOClient: Sanchr_Settings_SettingsServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.settings.SettingsService service.
+  /// Creates a client for the sanchr.settings.SettingsService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -187,7 +187,7 @@ public struct Vync_Settings_SettingsServiceNIOClient: Vync_Settings_SettingsServ
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -196,52 +196,52 @@ public struct Vync_Settings_SettingsServiceNIOClient: Vync_Settings_SettingsServ
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Settings_SettingsServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Settings_SettingsServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? { get }
 
   func makeGetSettingsCall(
-    _ request: Vync_Settings_GetSettingsRequest,
+    _ request: Sanchr_Settings_GetSettingsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings>
 
   func makeUpdateSettingsCall(
-    _ request: Vync_Settings_UpdateSettingsRequest,
+    _ request: Sanchr_Settings_UpdateSettingsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings>
 
   func makeUpdateProfileCall(
-    _ request: Vync_Settings_UpdateProfileRequest,
+    _ request: Sanchr_Settings_UpdateProfileRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse>
 
-  func makeToggleVyncModeCall(
-    _ request: Vync_Settings_ToggleVyncModeRequest,
+  func makeToggleSanchrModeCall(
+    _ request: Sanchr_Settings_ToggleSanchrModeRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>
 
   func makeGetStorageUsageCall(
-    _ request: Vync_Settings_GetStorageUsageRequest,
+    _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Settings_SettingsServiceAsyncClientProtocol {
+extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Settings_SettingsServiceClientMetadata.serviceDescriptor
+    return Sanchr_Settings_SettingsServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeGetSettingsCall(
-    _ request: Vync_Settings_GetSettingsRequest,
+    _ request: Sanchr_Settings_GetSettingsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetSettingsInterceptors() ?? []
@@ -249,11 +249,11 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
   }
 
   public func makeUpdateSettingsCall(
-    _ request: Vync_Settings_UpdateSettingsRequest,
+    _ request: Sanchr_Settings_UpdateSettingsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateSettingsInterceptors() ?? []
@@ -261,35 +261,35 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
   }
 
   public func makeUpdateProfileCall(
-    _ request: Vync_Settings_UpdateProfileRequest,
+    _ request: Sanchr_Settings_UpdateProfileRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateProfileInterceptors() ?? []
     )
   }
 
-  public func makeToggleVyncModeCall(
-    _ request: Vync_Settings_ToggleVyncModeRequest,
+  public func makeToggleSanchrModeCall(
+    _ request: Sanchr_Settings_ToggleSanchrModeRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.toggleVyncMode.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeToggleVyncModeInterceptors() ?? []
+      interceptors: self.interceptors?.makeToggleSanchrModeInterceptors() ?? []
     )
   }
 
   public func makeGetStorageUsageCall(
-    _ request: Vync_Settings_GetStorageUsageRequest,
+    _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
@@ -298,13 +298,13 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Settings_SettingsServiceAsyncClientProtocol {
+extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
   public func getSettings(
-    _ request: Vync_Settings_GetSettingsRequest,
+    _ request: Sanchr_Settings_GetSettingsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Settings_UserSettings {
+  ) async throws -> Sanchr_Settings_UserSettings {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetSettingsInterceptors() ?? []
@@ -312,11 +312,11 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
   }
 
   public func updateSettings(
-    _ request: Vync_Settings_UpdateSettingsRequest,
+    _ request: Sanchr_Settings_UpdateSettingsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Settings_UserSettings {
+  ) async throws -> Sanchr_Settings_UserSettings {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateSettings.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateSettingsInterceptors() ?? []
@@ -324,35 +324,35 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
   }
 
   public func updateProfile(
-    _ request: Vync_Settings_UpdateProfileRequest,
+    _ request: Sanchr_Settings_UpdateProfileRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Settings_ProfileResponse {
+  ) async throws -> Sanchr_Settings_ProfileResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateProfileInterceptors() ?? []
     )
   }
 
-  public func toggleVyncMode(
-    _ request: Vync_Settings_ToggleVyncModeRequest,
+  public func toggleSanchrMode(
+    _ request: Sanchr_Settings_ToggleSanchrModeRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Settings_UserSettings {
+  ) async throws -> Sanchr_Settings_UserSettings {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.toggleVyncMode.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeToggleVyncModeInterceptors() ?? []
+      interceptors: self.interceptors?.makeToggleSanchrModeInterceptors() ?? []
     )
   }
 
   public func getStorageUsage(
-    _ request: Vync_Settings_GetStorageUsageRequest,
+    _ request: Sanchr_Settings_GetStorageUsageRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Settings_StorageUsageResponse {
+  ) async throws -> Sanchr_Settings_StorageUsageResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
@@ -361,15 +361,15 @@ extension Vync_Settings_SettingsServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Settings_SettingsServiceAsyncClient: Vync_Settings_SettingsServiceAsyncClientProtocol {
+public struct Sanchr_Settings_SettingsServiceAsyncClient: Sanchr_Settings_SettingsServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -377,88 +377,88 @@ public struct Vync_Settings_SettingsServiceAsyncClient: Vync_Settings_SettingsSe
   }
 }
 
-public protocol Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'getSettings'.
-  func makeGetSettingsInterceptors() -> [ClientInterceptor<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings>]
+  func makeGetSettingsInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when invoking 'updateSettings'.
-  func makeUpdateSettingsInterceptors() -> [ClientInterceptor<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings>]
+  func makeUpdateSettingsInterceptors() -> [ClientInterceptor<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when invoking 'updateProfile'.
-  func makeUpdateProfileInterceptors() -> [ClientInterceptor<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse>]
+  func makeUpdateProfileInterceptors() -> [ClientInterceptor<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'toggleVyncMode'.
-  func makeToggleVyncModeInterceptors() -> [ClientInterceptor<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings>]
+  /// - Returns: Interceptors to use when invoking 'toggleSanchrMode'.
+  func makeToggleSanchrModeInterceptors() -> [ClientInterceptor<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when invoking 'getStorageUsage'.
-  func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse>]
+  func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
 }
 
-public enum Vync_Settings_SettingsServiceClientMetadata {
+public enum Sanchr_Settings_SettingsServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "SettingsService",
-    fullName: "vync.settings.SettingsService",
+    fullName: "sanchr.settings.SettingsService",
     methods: [
-      Vync_Settings_SettingsServiceClientMetadata.Methods.getSettings,
-      Vync_Settings_SettingsServiceClientMetadata.Methods.updateSettings,
-      Vync_Settings_SettingsServiceClientMetadata.Methods.updateProfile,
-      Vync_Settings_SettingsServiceClientMetadata.Methods.toggleVyncMode,
-      Vync_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.getSettings,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateSettings,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage,
     ]
   )
 
   public enum Methods {
     public static let getSettings = GRPCMethodDescriptor(
       name: "GetSettings",
-      path: "/vync.settings.SettingsService/GetSettings",
+      path: "/sanchr.settings.SettingsService/GetSettings",
       type: GRPCCallType.unary
     )
 
     public static let updateSettings = GRPCMethodDescriptor(
       name: "UpdateSettings",
-      path: "/vync.settings.SettingsService/UpdateSettings",
+      path: "/sanchr.settings.SettingsService/UpdateSettings",
       type: GRPCCallType.unary
     )
 
     public static let updateProfile = GRPCMethodDescriptor(
       name: "UpdateProfile",
-      path: "/vync.settings.SettingsService/UpdateProfile",
+      path: "/sanchr.settings.SettingsService/UpdateProfile",
       type: GRPCCallType.unary
     )
 
-    public static let toggleVyncMode = GRPCMethodDescriptor(
-      name: "ToggleVyncMode",
-      path: "/vync.settings.SettingsService/ToggleVyncMode",
+    public static let toggleSanchrMode = GRPCMethodDescriptor(
+      name: "ToggleSanchrMode",
+      path: "/sanchr.settings.SettingsService/ToggleSanchrMode",
       type: GRPCCallType.unary
     )
 
     public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
-      path: "/vync.settings.SettingsService/GetStorageUsage",
+      path: "/sanchr.settings.SettingsService/GetStorageUsage",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Settings_SettingsServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Settings_SettingsServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Settings_SettingsServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol? { get }
 
-  func getSettings(request: Vync_Settings_GetSettingsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Settings_UserSettings>
+  func getSettings(request: Sanchr_Settings_GetSettingsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_UserSettings>
 
-  func updateSettings(request: Vync_Settings_UpdateSettingsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Settings_UserSettings>
+  func updateSettings(request: Sanchr_Settings_UpdateSettingsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_UserSettings>
 
-  func updateProfile(request: Vync_Settings_UpdateProfileRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Settings_ProfileResponse>
+  func updateProfile(request: Sanchr_Settings_UpdateProfileRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_ProfileResponse>
 
-  func toggleVyncMode(request: Vync_Settings_ToggleVyncModeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Settings_UserSettings>
+  func toggleSanchrMode(request: Sanchr_Settings_ToggleSanchrModeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_UserSettings>
 
-  func getStorageUsage(request: Vync_Settings_GetStorageUsageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Settings_StorageUsageResponse>
+  func getStorageUsage(request: Sanchr_Settings_GetStorageUsageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_StorageUsageResponse>
 }
 
-extension Vync_Settings_SettingsServiceProvider {
+extension Sanchr_Settings_SettingsServiceProvider {
   public var serviceName: Substring {
-    return Vync_Settings_SettingsServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Settings_SettingsServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -471,8 +471,8 @@ extension Vync_Settings_SettingsServiceProvider {
     case "GetSettings":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_GetSettingsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetSettingsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
         interceptors: self.interceptors?.makeGetSettingsInterceptors() ?? [],
         userFunction: self.getSettings(request:context:)
       )
@@ -480,8 +480,8 @@ extension Vync_Settings_SettingsServiceProvider {
     case "UpdateSettings":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_UpdateSettingsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_UpdateSettingsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
         interceptors: self.interceptors?.makeUpdateSettingsInterceptors() ?? [],
         userFunction: self.updateSettings(request:context:)
       )
@@ -489,26 +489,26 @@ extension Vync_Settings_SettingsServiceProvider {
     case "UpdateProfile":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_UpdateProfileRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_ProfileResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_UpdateProfileRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_ProfileResponse>(),
         interceptors: self.interceptors?.makeUpdateProfileInterceptors() ?? [],
         userFunction: self.updateProfile(request:context:)
       )
 
-    case "ToggleVyncMode":
+    case "ToggleSanchrMode":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_ToggleVyncModeRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
-        interceptors: self.interceptors?.makeToggleVyncModeInterceptors() ?? [],
-        userFunction: self.toggleVyncMode(request:context:)
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_ToggleSanchrModeRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
+        interceptors: self.interceptors?.makeToggleSanchrModeInterceptors() ?? [],
+        userFunction: self.toggleSanchrMode(request:context:)
       )
 
     case "GetStorageUsage":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_GetStorageUsageRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_StorageUsageResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetStorageUsageRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_StorageUsageResponse>(),
         interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? [],
         userFunction: self.getStorageUsage(request:context:)
       )
@@ -521,47 +521,47 @@ extension Vync_Settings_SettingsServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Settings_SettingsServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Settings_SettingsServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Settings_SettingsServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol? { get }
 
   func getSettings(
-    request: Vync_Settings_GetSettingsRequest,
+    request: Sanchr_Settings_GetSettingsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Settings_UserSettings
+  ) async throws -> Sanchr_Settings_UserSettings
 
   func updateSettings(
-    request: Vync_Settings_UpdateSettingsRequest,
+    request: Sanchr_Settings_UpdateSettingsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Settings_UserSettings
+  ) async throws -> Sanchr_Settings_UserSettings
 
   func updateProfile(
-    request: Vync_Settings_UpdateProfileRequest,
+    request: Sanchr_Settings_UpdateProfileRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Settings_ProfileResponse
+  ) async throws -> Sanchr_Settings_ProfileResponse
 
-  func toggleVyncMode(
-    request: Vync_Settings_ToggleVyncModeRequest,
+  func toggleSanchrMode(
+    request: Sanchr_Settings_ToggleSanchrModeRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Settings_UserSettings
+  ) async throws -> Sanchr_Settings_UserSettings
 
   func getStorageUsage(
-    request: Vync_Settings_GetStorageUsageRequest,
+    request: Sanchr_Settings_GetStorageUsageRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Settings_StorageUsageResponse
+  ) async throws -> Sanchr_Settings_StorageUsageResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Settings_SettingsServiceAsyncProvider {
+extension Sanchr_Settings_SettingsServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Settings_SettingsServiceServerMetadata.serviceDescriptor
+    return Sanchr_Settings_SettingsServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Settings_SettingsServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Settings_SettingsServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Settings_SettingsServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -573,8 +573,8 @@ extension Vync_Settings_SettingsServiceAsyncProvider {
     case "GetSettings":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_GetSettingsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetSettingsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
         interceptors: self.interceptors?.makeGetSettingsInterceptors() ?? [],
         wrapping: { try await self.getSettings(request: $0, context: $1) }
       )
@@ -582,8 +582,8 @@ extension Vync_Settings_SettingsServiceAsyncProvider {
     case "UpdateSettings":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_UpdateSettingsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_UpdateSettingsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
         interceptors: self.interceptors?.makeUpdateSettingsInterceptors() ?? [],
         wrapping: { try await self.updateSettings(request: $0, context: $1) }
       )
@@ -591,26 +591,26 @@ extension Vync_Settings_SettingsServiceAsyncProvider {
     case "UpdateProfile":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_UpdateProfileRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_ProfileResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_UpdateProfileRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_ProfileResponse>(),
         interceptors: self.interceptors?.makeUpdateProfileInterceptors() ?? [],
         wrapping: { try await self.updateProfile(request: $0, context: $1) }
       )
 
-    case "ToggleVyncMode":
+    case "ToggleSanchrMode":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_ToggleVyncModeRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_UserSettings>(),
-        interceptors: self.interceptors?.makeToggleVyncModeInterceptors() ?? [],
-        wrapping: { try await self.toggleVyncMode(request: $0, context: $1) }
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_ToggleSanchrModeRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_UserSettings>(),
+        interceptors: self.interceptors?.makeToggleSanchrModeInterceptors() ?? [],
+        wrapping: { try await self.toggleSanchrMode(request: $0, context: $1) }
       )
 
     case "GetStorageUsage":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Settings_GetStorageUsageRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Settings_StorageUsageResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetStorageUsageRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_StorageUsageResponse>(),
         interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? [],
         wrapping: { try await self.getStorageUsage(request: $0, context: $1) }
       )
@@ -621,70 +621,70 @@ extension Vync_Settings_SettingsServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Settings_SettingsServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'getSettings'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetSettingsInterceptors() -> [ServerInterceptor<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings>]
+  func makeGetSettingsInterceptors() -> [ServerInterceptor<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when handling 'updateSettings'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUpdateSettingsInterceptors() -> [ServerInterceptor<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings>]
+  func makeUpdateSettingsInterceptors() -> [ServerInterceptor<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when handling 'updateProfile'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUpdateProfileInterceptors() -> [ServerInterceptor<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse>]
+  func makeUpdateProfileInterceptors() -> [ServerInterceptor<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse>]
 
-  /// - Returns: Interceptors to use when handling 'toggleVyncMode'.
+  /// - Returns: Interceptors to use when handling 'toggleSanchrMode'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeToggleVyncModeInterceptors() -> [ServerInterceptor<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings>]
+  func makeToggleSanchrModeInterceptors() -> [ServerInterceptor<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>]
 
   /// - Returns: Interceptors to use when handling 'getStorageUsage'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetStorageUsageInterceptors() -> [ServerInterceptor<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse>]
+  func makeGetStorageUsageInterceptors() -> [ServerInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
 }
 
-public enum Vync_Settings_SettingsServiceServerMetadata {
+public enum Sanchr_Settings_SettingsServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "SettingsService",
-    fullName: "vync.settings.SettingsService",
+    fullName: "sanchr.settings.SettingsService",
     methods: [
-      Vync_Settings_SettingsServiceServerMetadata.Methods.getSettings,
-      Vync_Settings_SettingsServiceServerMetadata.Methods.updateSettings,
-      Vync_Settings_SettingsServiceServerMetadata.Methods.updateProfile,
-      Vync_Settings_SettingsServiceServerMetadata.Methods.toggleVyncMode,
-      Vync_Settings_SettingsServiceServerMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.getSettings,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.updateSettings,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.updateProfile,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.toggleSanchrMode,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.getStorageUsage,
     ]
   )
 
   public enum Methods {
     public static let getSettings = GRPCMethodDescriptor(
       name: "GetSettings",
-      path: "/vync.settings.SettingsService/GetSettings",
+      path: "/sanchr.settings.SettingsService/GetSettings",
       type: GRPCCallType.unary
     )
 
     public static let updateSettings = GRPCMethodDescriptor(
       name: "UpdateSettings",
-      path: "/vync.settings.SettingsService/UpdateSettings",
+      path: "/sanchr.settings.SettingsService/UpdateSettings",
       type: GRPCCallType.unary
     )
 
     public static let updateProfile = GRPCMethodDescriptor(
       name: "UpdateProfile",
-      path: "/vync.settings.SettingsService/UpdateProfile",
+      path: "/sanchr.settings.SettingsService/UpdateProfile",
       type: GRPCCallType.unary
     )
 
-    public static let toggleVyncMode = GRPCMethodDescriptor(
-      name: "ToggleVyncMode",
-      path: "/vync.settings.SettingsService/ToggleVyncMode",
+    public static let toggleSanchrMode = GRPCMethodDescriptor(
+      name: "ToggleSanchrMode",
+      path: "/sanchr.settings.SettingsService/ToggleSanchrMode",
       type: GRPCCallType.unary
     )
 
     public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
-      path: "/vync.settings.SettingsService/GetStorageUsage",
+      path: "/sanchr.settings.SettingsService/GetStorageUsage",
       type: GRPCCallType.unary
     )
   }

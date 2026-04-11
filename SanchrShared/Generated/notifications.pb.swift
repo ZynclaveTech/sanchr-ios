@@ -20,7 +20,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Notifications_RegisterPushTokenRequest: Sendable {
+public struct Sanchr_Notifications_RegisterPushTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -35,7 +35,7 @@ public struct Vync_Notifications_RegisterPushTokenRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Notifications_RegisterPushTokenResponse: Sendable {
+public struct Sanchr_Notifications_RegisterPushTokenResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -45,7 +45,7 @@ public struct Vync_Notifications_RegisterPushTokenResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Notifications_UpdateNotificationPrefsRequest: Sendable {
+public struct Sanchr_Notifications_UpdateNotificationPrefsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -67,7 +67,7 @@ public struct Vync_Notifications_UpdateNotificationPrefsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Notifications_UpdateNotificationPrefsResponse: Sendable {
+public struct Sanchr_Notifications_UpdateNotificationPrefsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -79,9 +79,9 @@ public struct Vync_Notifications_UpdateNotificationPrefsResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.notifications"
+fileprivate let _protobuf_package = "sanchr.notifications"
 
-extension Vync_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}platform\0")
 
@@ -108,7 +108,7 @@ extension Vync_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, Sw
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Notifications_RegisterPushTokenRequest, rhs: Vync_Notifications_RegisterPushTokenRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_RegisterPushTokenRequest, rhs: Sanchr_Notifications_RegisterPushTokenRequest) -> Bool {
     if lhs.token != rhs.token {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -116,7 +116,7 @@ extension Vync_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, Sw
   }
 }
 
-extension Vync_Notifications_RegisterPushTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Notifications_RegisterPushTokenResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -129,13 +129,13 @@ extension Vync_Notifications_RegisterPushTokenResponse: SwiftProtobuf.Message, S
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Notifications_RegisterPushTokenResponse, rhs: Vync_Notifications_RegisterPushTokenResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_RegisterPushTokenResponse, rhs: Sanchr_Notifications_RegisterPushTokenResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_notifications\0\u{3}group_notifications\0\u{3}call_notifications\0\u{3}notification_sound\0\u{1}vibrate\0\u{3}show_preview\0")
 
@@ -178,7 +178,7 @@ extension Vync_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Notifications_UpdateNotificationPrefsRequest, rhs: Vync_Notifications_UpdateNotificationPrefsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsRequest, rhs: Sanchr_Notifications_UpdateNotificationPrefsRequest) -> Bool {
     if lhs.messageNotifications != rhs.messageNotifications {return false}
     if lhs.groupNotifications != rhs.groupNotifications {return false}
     if lhs.callNotifications != rhs.callNotifications {return false}
@@ -190,7 +190,7 @@ extension Vync_Notifications_UpdateNotificationPrefsRequest: SwiftProtobuf.Messa
   }
 }
 
-extension Vync_Notifications_UpdateNotificationPrefsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Notifications_UpdateNotificationPrefsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateNotificationPrefsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -203,7 +203,7 @@ extension Vync_Notifications_UpdateNotificationPrefsResponse: SwiftProtobuf.Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Notifications_UpdateNotificationPrefsResponse, rhs: Vync_Notifications_UpdateNotificationPrefsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Notifications_UpdateNotificationPrefsResponse, rhs: Sanchr_Notifications_UpdateNotificationPrefsResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -5,16 +5,16 @@ import SanchrShared
 
 final class ChatDataSourceTests: XCTestCase {
     func testMapToDomainConversationUsesServerParticipantProfiles() {
-        var conversation = Vync_Messaging_Conversation()
+        var conversation = Sanchr_Messaging_Conversation()
         conversation.id = "conversation-1"
         conversation.type = "direct"
         conversation.participantIds = ["local-user", "remote-user"]
 
-        var localParticipant = Vync_Messaging_Participant()
+        var localParticipant = Sanchr_Messaging_Participant()
         localParticipant.userID = "local-user"
         localParticipant.displayName = "Local User"
 
-        var remoteParticipant = Vync_Messaging_Participant()
+        var remoteParticipant = Sanchr_Messaging_Participant()
         remoteParticipant.userID = "remote-user"
         remoteParticipant.displayName = "Remote User"
         remoteParticipant.avatarURL = "https://cdn.example.com/avatar.png"

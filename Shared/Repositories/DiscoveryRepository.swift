@@ -30,7 +30,7 @@ final class DiscoveryRepository: DiscoveryRepositoryProtocol, @unchecked Sendabl
         let (blindingFactors, blindedPoints) = oprfClient.blind(phoneNumbers: phoneNumbers)
 
         // Step 2: Send blinded points to server for OPRF evaluation
-        var request = Vync_Discovery_OprfDiscoverRequest()
+        var request = Sanchr_Discovery_OprfDiscoverRequest()
         request.blindedPoints = blindedPoints
 
         let response = try await grpcClient.discoveryService.oprfDiscover(request)
@@ -42,7 +42,7 @@ final class DiscoveryRepository: DiscoveryRepositoryProtocol, @unchecked Sendabl
         )
 
         // Step 4: Get registered user set from server
-        let setRequest = Vync_Discovery_GetRegisteredSetRequest()
+        let setRequest = Sanchr_Discovery_GetRegisteredSetRequest()
         let setResponse = try await grpcClient.discoveryService.getRegisteredSet(setRequest)
         let registeredSet = Set(setResponse.setElements)
 
@@ -56,7 +56,7 @@ final class DiscoveryRepository: DiscoveryRepositoryProtocol, @unchecked Sendabl
     }
 
     func bloomFilterCheck(phoneNumbers: [String]) async throws -> [Bool] {
-        let request = Vync_Discovery_GetBloomFilterRequest()
+        let request = Sanchr_Discovery_GetBloomFilterRequest()
         let response = try await grpcClient.discoveryService.getBloomFilter(request)
 
         // Reconstruct Bloom filter from server response

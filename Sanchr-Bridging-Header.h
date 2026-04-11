@@ -9,6 +9,6 @@
 #ifndef Sanchr_Bridging_Header_h
 #define Sanchr_Bridging_Header_h
 
-#include "Platform/Crypto/VyncOPRF/vync_oprf.h"
+#include "Platform/Crypto/SanchrOPRF/sanchr_oprf.h"
 
 #endif

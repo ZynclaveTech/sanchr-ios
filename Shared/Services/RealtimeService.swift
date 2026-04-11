@@ -42,7 +42,7 @@ final class RealtimeService: @unchecked Sendable {
     private var streamTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private(set) var isRunning = false
-    private(set) var presenceCache: [String: Vync_Messaging_PresenceUpdate] = [:]
+    private(set) var presenceCache: [String: Sanchr_Messaging_PresenceUpdate] = [:]
     private var trackedPeerIds: Set<String> = []
     private var reconnectAttempt: Int = 0
     @ObservationIgnored private var networkCancellable: AnyCancellable?
@@ -216,7 +216,7 @@ final class RealtimeService: @unchecked Sendable {
         trackedPeerIds.remove(userId)
     }
 
-    func cachedPresence(for userId: String) -> Vync_Messaging_PresenceUpdate? {
+    func cachedPresence(for userId: String) -> Sanchr_Messaging_PresenceUpdate? {
         presenceCache[userId]
     }
 
@@ -334,7 +334,7 @@ final class RealtimeService: @unchecked Sendable {
     }
 
     @discardableResult
-    func refreshPresenceSnapshot(for userIds: [String]) async -> [Vync_Messaging_PresenceUpdate] {
+    func refreshPresenceSnapshot(for userIds: [String]) async -> [Sanchr_Messaging_PresenceUpdate] {
         let uniqueUserIds = Array(Set(userIds.filter { !$0.isEmpty }))
         guard sessionService.isAuthenticated, !uniqueUserIds.isEmpty else { return [] }
 
@@ -369,7 +369,7 @@ final class RealtimeService: @unchecked Sendable {
         }
     }
 
-    private func sendPresenceHeartbeat(_ state: Vync_Messaging_DevicePresenceState) async throws {
+    private func sendPresenceHeartbeat(_ state: Sanchr_Messaging_DevicePresenceState) async throws {
         try await messageRepository.sendPresenceHeartbeat(
             deviceState: state,
             sentAtMs: Int64(Date().timeIntervalSince1970 * 1000)

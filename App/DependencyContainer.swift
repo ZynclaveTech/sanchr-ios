@@ -374,7 +374,7 @@ final class DependencyContainer: @unchecked Sendable {
     }()
 
     /// Convenience accessor for the notification gRPC client (used by NotificationsView).
-    var notificationServiceClient: Vync_Notifications_NotificationServiceAsyncClientProtocol {
+    var notificationServiceClient: Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
         grpcClient.notificationService
     }
 

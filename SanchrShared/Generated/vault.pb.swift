@@ -25,29 +25,24 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Vault_CreateVaultItemRequest: Sendable {
+public struct Sanchr_Vault_CreateVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Client-generated UUIDv4 for idempotent crash recovery. Server uses this as
-  /// the primary key; retries with the same ID are a no-op that return the
-  /// existing row.
+  /// Client-generated UUIDv4 for idempotent crash recovery. Server uses this as the primary key; retries with the same ID are a no-op that return the existing row.
   public var vaultItemID: String = String()
 
-  /// UUID of an already-uploaded media_object (via MediaService.GetUploadUrl +
-  /// ConfirmUpload). The caller MUST own this media_id or the request is
-  /// rejected.
+  /// UUID of an already-uploaded media_object (via MediaService.GetUploadUrl + ConfirmUpload). The caller MUST own this media_id or the request is rejected.
   public var mediaID: String = String()
 
-  /// Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side with
-  /// AccessK_vault. Contains name, mime type, size, thumbnail, sender id, etc.
-  /// Server treats this as an opaque byte string. Max 64 KiB; exceeding this
-  /// returns INVALID_ARGUMENT.
+  /// Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side
+  /// with AccessK_vault. Contains name, mime type, size, thumbnail, sender
+  /// id, etc. Server treats this as an opaque byte string. Max 64 KiB;
+  /// exceeding this returns INVALID_ARGUMENT.
   public var encryptedMetadata: Data = Data()
 
-  /// Client-computed expiry hint (Unix millis). Used by the server-side orphan
-  /// sweep for lifecycle management. Not cryptographically enforced.
+  /// Client-computed expiry hint (Unix millis). Used by the server-side orphan sweep for lifecycle management. Not cryptographically enforced.
   public var expiresAt: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -55,7 +50,7 @@ public struct Vync_Vault_CreateVaultItemRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_VaultItem: Sendable {
+public struct Sanchr_Vault_VaultItem: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -77,7 +72,7 @@ public struct Vync_Vault_VaultItem: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_GetVaultItemsRequest: Sendable {
+public struct Sanchr_Vault_GetVaultItemsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -93,12 +88,12 @@ public struct Vync_Vault_GetVaultItemsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_GetVaultItemsResponse: Sendable {
+public struct Sanchr_Vault_GetVaultItemsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var items: [Vync_Vault_VaultItem] = []
+  public var items: [Sanchr_Vault_VaultItem] = []
 
   /// Empty string when no more pages. Forward this value as the next request's paging_token.
   public var nextCursor: String = String()
@@ -108,7 +103,7 @@ public struct Vync_Vault_GetVaultItemsResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_GetVaultItemRequest: Sendable {
+public struct Sanchr_Vault_GetVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -120,7 +115,7 @@ public struct Vync_Vault_GetVaultItemRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_DeleteVaultItemRequest: Sendable {
+public struct Sanchr_Vault_DeleteVaultItemRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -132,7 +127,7 @@ public struct Vync_Vault_DeleteVaultItemRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Vault_DeleteVaultItemResponse: Sendable {
+public struct Sanchr_Vault_DeleteVaultItemResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -144,9 +139,9 @@ public struct Vync_Vault_DeleteVaultItemResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.vault"
+fileprivate let _protobuf_package = "sanchr.vault"
 
-extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateVaultItemRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}expires_at\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{b}ttl_seconds\0\u{c}\u{5}\u{1}\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}")
 
@@ -181,7 +176,7 @@ extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_CreateVaultItemRequest, rhs: Vync_Vault_CreateVaultItemRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_CreateVaultItemRequest, rhs: Sanchr_Vault_CreateVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
@@ -191,7 +186,7 @@ extension Vync_Vault_CreateVaultItemRequest: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VaultItem"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0\u{3}media_id\0\u{3}encrypted_metadata\0\u{3}created_at\0\u{3}expires_at\0\u{b}item_id\0\u{b}media_type\0\u{b}encrypted_url\0\u{b}encrypted_key\0\u{b}thumbnail_url\0\u{b}file_name\0\u{b}file_size\0\u{b}sender_id\0\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{9}\u{1}\u{c}\u{a}\u{1}")
 
@@ -230,7 +225,7 @@ extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_VaultItem, rhs: Vync_Vault_VaultItem) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_VaultItem, rhs: Sanchr_Vault_VaultItem) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.mediaID != rhs.mediaID {return false}
     if lhs.encryptedMetadata != rhs.encryptedMetadata {return false}
@@ -241,7 +236,7 @@ extension Vync_Vault_VaultItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0\u{3}paging_token\0\u{b}filter\0\u{b}before_item_id\0\u{c}\u{3}\u{1}")
 
@@ -268,7 +263,7 @@ extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_GetVaultItemsRequest, rhs: Vync_Vault_GetVaultItemsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_GetVaultItemsRequest, rhs: Sanchr_Vault_GetVaultItemsRequest) -> Bool {
     if lhs.limit != rhs.limit {return false}
     if lhs.pagingToken != rhs.pagingToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -276,7 +271,7 @@ extension Vync_Vault_GetVaultItemsRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetVaultItemsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{3}next_cursor\0\u{b}total_photos\0\u{b}total_videos\0\u{b}total_files\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
 
@@ -303,7 +298,7 @@ extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_GetVaultItemsResponse, rhs: Vync_Vault_GetVaultItemsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_GetVaultItemsResponse, rhs: Sanchr_Vault_GetVaultItemsResponse) -> Bool {
     if lhs.items != rhs.items {return false}
     if lhs.nextCursor != rhs.nextCursor {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -311,7 +306,7 @@ extension Vync_Vault_GetVaultItemsResponse: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Vync_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetVaultItemRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
@@ -334,14 +329,14 @@ extension Vync_Vault_GetVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_GetVaultItemRequest, rhs: Vync_Vault_GetVaultItemRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_GetVaultItemRequest, rhs: Sanchr_Vault_GetVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}vault_item_id\0")
 
@@ -364,14 +359,14 @@ extension Vync_Vault_DeleteVaultItemRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_DeleteVaultItemRequest, rhs: Vync_Vault_DeleteVaultItemRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_DeleteVaultItemRequest, rhs: Sanchr_Vault_DeleteVaultItemRequest) -> Bool {
     if lhs.vaultItemID != rhs.vaultItemID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Vault_DeleteVaultItemResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Vault_DeleteVaultItemResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteVaultItemResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -384,7 +379,7 @@ extension Vync_Vault_DeleteVaultItemResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Vault_DeleteVaultItemResponse, rhs: Vync_Vault_DeleteVaultItemResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Vault_DeleteVaultItemResponse, rhs: Sanchr_Vault_DeleteVaultItemResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

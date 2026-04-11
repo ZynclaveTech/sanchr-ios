@@ -11,30 +11,30 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Discovery_DiscoveryServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Discovery_DiscoveryServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Discovery_DiscoveryServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Discovery_DiscoveryServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? { get }
 
   func oprfDiscover(
-    _ request: Vync_Discovery_OprfDiscoverRequest,
+    _ request: Sanchr_Discovery_OprfDiscoverRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>
+  ) -> UnaryCall<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse>
 
   func getBloomFilter(
-    _ request: Vync_Discovery_GetBloomFilterRequest,
+    _ request: Sanchr_Discovery_GetBloomFilterRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>
+  ) -> UnaryCall<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse>
 
   func getRegisteredSet(
-    _ request: Vync_Discovery_GetRegisteredSetRequest,
+    _ request: Sanchr_Discovery_GetRegisteredSetRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>
+  ) -> UnaryCall<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse>
 }
 
-extension Vync_Discovery_DiscoveryServiceClientProtocol {
+extension Sanchr_Discovery_DiscoveryServiceClientProtocol {
   public var serviceName: String {
-    return "vync.discovery.DiscoveryService"
+    return "sanchr.discovery.DiscoveryService"
   }
 
   /// Unary call to OprfDiscover
@@ -44,11 +44,11 @@ extension Vync_Discovery_DiscoveryServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func oprfDiscover(
-    _ request: Vync_Discovery_OprfDiscoverRequest,
+    _ request: Sanchr_Discovery_OprfDiscoverRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse> {
+  ) -> UnaryCall<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse> {
     return self.makeUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOprfDiscoverInterceptors() ?? []
@@ -62,11 +62,11 @@ extension Vync_Discovery_DiscoveryServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getBloomFilter(
-    _ request: Vync_Discovery_GetBloomFilterRequest,
+    _ request: Sanchr_Discovery_GetBloomFilterRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse> {
+  ) -> UnaryCall<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse> {
     return self.makeUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBloomFilterInterceptors() ?? []
@@ -80,11 +80,11 @@ extension Vync_Discovery_DiscoveryServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getRegisteredSet(
-    _ request: Vync_Discovery_GetRegisteredSetRequest,
+    _ request: Sanchr_Discovery_GetRegisteredSetRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse> {
+  ) -> UnaryCall<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse> {
     return self.makeUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetRegisteredSetInterceptors() ?? []
@@ -93,24 +93,24 @@ extension Vync_Discovery_DiscoveryServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Discovery_DiscoveryServiceClient: @unchecked Sendable {}
+extension Sanchr_Discovery_DiscoveryServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Discovery_DiscoveryServiceNIOClient")
-public final class Vync_Discovery_DiscoveryServiceClient: Vync_Discovery_DiscoveryServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Discovery_DiscoveryServiceNIOClient")
+public final class Sanchr_Discovery_DiscoveryServiceClient: Sanchr_Discovery_DiscoveryServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.discovery.DiscoveryService service.
+  /// Creates a client for the sanchr.discovery.DiscoveryService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -119,7 +119,7 @@ public final class Vync_Discovery_DiscoveryServiceClient: Vync_Discovery_Discove
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -127,12 +127,12 @@ public final class Vync_Discovery_DiscoveryServiceClient: Vync_Discovery_Discove
   }
 }
 
-public struct Vync_Discovery_DiscoveryServiceNIOClient: Vync_Discovery_DiscoveryServiceClientProtocol {
+public struct Sanchr_Discovery_DiscoveryServiceNIOClient: Sanchr_Discovery_DiscoveryServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.discovery.DiscoveryService service.
+  /// Creates a client for the sanchr.discovery.DiscoveryService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -141,7 +141,7 @@ public struct Vync_Discovery_DiscoveryServiceNIOClient: Vync_Discovery_Discovery
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -150,42 +150,42 @@ public struct Vync_Discovery_DiscoveryServiceNIOClient: Vync_Discovery_Discovery
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Discovery_DiscoveryServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? { get }
 
   func makeOprfDiscoverCall(
-    _ request: Vync_Discovery_OprfDiscoverRequest,
+    _ request: Sanchr_Discovery_OprfDiscoverRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse>
 
   func makeGetBloomFilterCall(
-    _ request: Vync_Discovery_GetBloomFilterRequest,
+    _ request: Sanchr_Discovery_GetBloomFilterRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse>
 
   func makeGetRegisteredSetCall(
-    _ request: Vync_Discovery_GetRegisteredSetRequest,
+    _ request: Sanchr_Discovery_GetRegisteredSetRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
+extension Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Discovery_DiscoveryServiceClientMetadata.serviceDescriptor
+    return Sanchr_Discovery_DiscoveryServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeOprfDiscoverCall(
-    _ request: Vync_Discovery_OprfDiscoverRequest,
+    _ request: Sanchr_Discovery_OprfDiscoverRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOprfDiscoverInterceptors() ?? []
@@ -193,11 +193,11 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
   }
 
   public func makeGetBloomFilterCall(
-    _ request: Vync_Discovery_GetBloomFilterRequest,
+    _ request: Sanchr_Discovery_GetBloomFilterRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBloomFilterInterceptors() ?? []
@@ -205,11 +205,11 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
   }
 
   public func makeGetRegisteredSetCall(
-    _ request: Vync_Discovery_GetRegisteredSetRequest,
+    _ request: Sanchr_Discovery_GetRegisteredSetRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetRegisteredSetInterceptors() ?? []
@@ -218,13 +218,13 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
+extension Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol {
   public func oprfDiscover(
-    _ request: Vync_Discovery_OprfDiscoverRequest,
+    _ request: Sanchr_Discovery_OprfDiscoverRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Discovery_OprfDiscoverResponse {
+  ) async throws -> Sanchr_Discovery_OprfDiscoverResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOprfDiscoverInterceptors() ?? []
@@ -232,11 +232,11 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
   }
 
   public func getBloomFilter(
-    _ request: Vync_Discovery_GetBloomFilterRequest,
+    _ request: Sanchr_Discovery_GetBloomFilterRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Discovery_GetBloomFilterResponse {
+  ) async throws -> Sanchr_Discovery_GetBloomFilterResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBloomFilterInterceptors() ?? []
@@ -244,11 +244,11 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
   }
 
   public func getRegisteredSet(
-    _ request: Vync_Discovery_GetRegisteredSetRequest,
+    _ request: Sanchr_Discovery_GetRegisteredSetRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Discovery_GetRegisteredSetResponse {
+  ) async throws -> Sanchr_Discovery_GetRegisteredSetResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
+      path: Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetRegisteredSetInterceptors() ?? []
@@ -257,15 +257,15 @@ extension Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Discovery_DiscoveryServiceAsyncClient: Vync_Discovery_DiscoveryServiceAsyncClientProtocol {
+public struct Sanchr_Discovery_DiscoveryServiceAsyncClient: Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -273,64 +273,64 @@ public struct Vync_Discovery_DiscoveryServiceAsyncClient: Vync_Discovery_Discove
   }
 }
 
-public protocol Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'oprfDiscover'.
-  func makeOprfDiscoverInterceptors() -> [ClientInterceptor<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>]
+  func makeOprfDiscoverInterceptors() -> [ClientInterceptor<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getBloomFilter'.
-  func makeGetBloomFilterInterceptors() -> [ClientInterceptor<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>]
+  func makeGetBloomFilterInterceptors() -> [ClientInterceptor<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getRegisteredSet'.
-  func makeGetRegisteredSetInterceptors() -> [ClientInterceptor<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>]
+  func makeGetRegisteredSetInterceptors() -> [ClientInterceptor<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse>]
 }
 
-public enum Vync_Discovery_DiscoveryServiceClientMetadata {
+public enum Sanchr_Discovery_DiscoveryServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "DiscoveryService",
-    fullName: "vync.discovery.DiscoveryService",
+    fullName: "sanchr.discovery.DiscoveryService",
     methods: [
-      Vync_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover,
-      Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter,
-      Vync_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet,
+      Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.oprfDiscover,
+      Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getBloomFilter,
+      Sanchr_Discovery_DiscoveryServiceClientMetadata.Methods.getRegisteredSet,
     ]
   )
 
   public enum Methods {
     public static let oprfDiscover = GRPCMethodDescriptor(
       name: "OprfDiscover",
-      path: "/vync.discovery.DiscoveryService/OprfDiscover",
+      path: "/sanchr.discovery.DiscoveryService/OprfDiscover",
       type: GRPCCallType.unary
     )
 
     public static let getBloomFilter = GRPCMethodDescriptor(
       name: "GetBloomFilter",
-      path: "/vync.discovery.DiscoveryService/GetBloomFilter",
+      path: "/sanchr.discovery.DiscoveryService/GetBloomFilter",
       type: GRPCCallType.unary
     )
 
     public static let getRegisteredSet = GRPCMethodDescriptor(
       name: "GetRegisteredSet",
-      path: "/vync.discovery.DiscoveryService/GetRegisteredSet",
+      path: "/sanchr.discovery.DiscoveryService/GetRegisteredSet",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Discovery_DiscoveryServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Discovery_DiscoveryServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? { get }
 
-  func oprfDiscover(request: Vync_Discovery_OprfDiscoverRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Discovery_OprfDiscoverResponse>
+  func oprfDiscover(request: Sanchr_Discovery_OprfDiscoverRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Discovery_OprfDiscoverResponse>
 
-  func getBloomFilter(request: Vync_Discovery_GetBloomFilterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Discovery_GetBloomFilterResponse>
+  func getBloomFilter(request: Sanchr_Discovery_GetBloomFilterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Discovery_GetBloomFilterResponse>
 
-  func getRegisteredSet(request: Vync_Discovery_GetRegisteredSetRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Discovery_GetRegisteredSetResponse>
+  func getRegisteredSet(request: Sanchr_Discovery_GetRegisteredSetRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Discovery_GetRegisteredSetResponse>
 }
 
-extension Vync_Discovery_DiscoveryServiceProvider {
+extension Sanchr_Discovery_DiscoveryServiceProvider {
   public var serviceName: Substring {
-    return Vync_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -343,8 +343,8 @@ extension Vync_Discovery_DiscoveryServiceProvider {
     case "OprfDiscover":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_OprfDiscoverRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_OprfDiscoverResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_OprfDiscoverRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_OprfDiscoverResponse>(),
         interceptors: self.interceptors?.makeOprfDiscoverInterceptors() ?? [],
         userFunction: self.oprfDiscover(request:context:)
       )
@@ -352,8 +352,8 @@ extension Vync_Discovery_DiscoveryServiceProvider {
     case "GetBloomFilter":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_GetBloomFilterRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_GetBloomFilterResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_GetBloomFilterRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_GetBloomFilterResponse>(),
         interceptors: self.interceptors?.makeGetBloomFilterInterceptors() ?? [],
         userFunction: self.getBloomFilter(request:context:)
       )
@@ -361,8 +361,8 @@ extension Vync_Discovery_DiscoveryServiceProvider {
     case "GetRegisteredSet":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_GetRegisteredSetRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_GetRegisteredSetResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_GetRegisteredSetRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_GetRegisteredSetResponse>(),
         interceptors: self.interceptors?.makeGetRegisteredSetInterceptors() ?? [],
         userFunction: self.getRegisteredSet(request:context:)
       )
@@ -375,37 +375,37 @@ extension Vync_Discovery_DiscoveryServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Discovery_DiscoveryServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Discovery_DiscoveryServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? { get }
 
   func oprfDiscover(
-    request: Vync_Discovery_OprfDiscoverRequest,
+    request: Sanchr_Discovery_OprfDiscoverRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Discovery_OprfDiscoverResponse
+  ) async throws -> Sanchr_Discovery_OprfDiscoverResponse
 
   func getBloomFilter(
-    request: Vync_Discovery_GetBloomFilterRequest,
+    request: Sanchr_Discovery_GetBloomFilterRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Discovery_GetBloomFilterResponse
+  ) async throws -> Sanchr_Discovery_GetBloomFilterResponse
 
   func getRegisteredSet(
-    request: Vync_Discovery_GetRegisteredSetRequest,
+    request: Sanchr_Discovery_GetRegisteredSetRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Discovery_GetRegisteredSetResponse
+  ) async throws -> Sanchr_Discovery_GetRegisteredSetResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Discovery_DiscoveryServiceAsyncProvider {
+extension Sanchr_Discovery_DiscoveryServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor
+    return Sanchr_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Discovery_DiscoveryServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -417,8 +417,8 @@ extension Vync_Discovery_DiscoveryServiceAsyncProvider {
     case "OprfDiscover":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_OprfDiscoverRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_OprfDiscoverResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_OprfDiscoverRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_OprfDiscoverResponse>(),
         interceptors: self.interceptors?.makeOprfDiscoverInterceptors() ?? [],
         wrapping: { try await self.oprfDiscover(request: $0, context: $1) }
       )
@@ -426,8 +426,8 @@ extension Vync_Discovery_DiscoveryServiceAsyncProvider {
     case "GetBloomFilter":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_GetBloomFilterRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_GetBloomFilterResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_GetBloomFilterRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_GetBloomFilterResponse>(),
         interceptors: self.interceptors?.makeGetBloomFilterInterceptors() ?? [],
         wrapping: { try await self.getBloomFilter(request: $0, context: $1) }
       )
@@ -435,8 +435,8 @@ extension Vync_Discovery_DiscoveryServiceAsyncProvider {
     case "GetRegisteredSet":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Discovery_GetRegisteredSetRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Discovery_GetRegisteredSetResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Discovery_GetRegisteredSetRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Discovery_GetRegisteredSetResponse>(),
         interceptors: self.interceptors?.makeGetRegisteredSetInterceptors() ?? [],
         wrapping: { try await self.getRegisteredSet(request: $0, context: $1) }
       )
@@ -447,48 +447,48 @@ extension Vync_Discovery_DiscoveryServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Discovery_DiscoveryServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'oprfDiscover'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeOprfDiscoverInterceptors() -> [ServerInterceptor<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>]
+  func makeOprfDiscoverInterceptors() -> [ServerInterceptor<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse>]
 
   /// - Returns: Interceptors to use when handling 'getBloomFilter'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetBloomFilterInterceptors() -> [ServerInterceptor<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>]
+  func makeGetBloomFilterInterceptors() -> [ServerInterceptor<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse>]
 
   /// - Returns: Interceptors to use when handling 'getRegisteredSet'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetRegisteredSetInterceptors() -> [ServerInterceptor<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>]
+  func makeGetRegisteredSetInterceptors() -> [ServerInterceptor<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse>]
 }
 
-public enum Vync_Discovery_DiscoveryServiceServerMetadata {
+public enum Sanchr_Discovery_DiscoveryServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "DiscoveryService",
-    fullName: "vync.discovery.DiscoveryService",
+    fullName: "sanchr.discovery.DiscoveryService",
     methods: [
-      Vync_Discovery_DiscoveryServiceServerMetadata.Methods.oprfDiscover,
-      Vync_Discovery_DiscoveryServiceServerMetadata.Methods.getBloomFilter,
-      Vync_Discovery_DiscoveryServiceServerMetadata.Methods.getRegisteredSet,
+      Sanchr_Discovery_DiscoveryServiceServerMetadata.Methods.oprfDiscover,
+      Sanchr_Discovery_DiscoveryServiceServerMetadata.Methods.getBloomFilter,
+      Sanchr_Discovery_DiscoveryServiceServerMetadata.Methods.getRegisteredSet,
     ]
   )
 
   public enum Methods {
     public static let oprfDiscover = GRPCMethodDescriptor(
       name: "OprfDiscover",
-      path: "/vync.discovery.DiscoveryService/OprfDiscover",
+      path: "/sanchr.discovery.DiscoveryService/OprfDiscover",
       type: GRPCCallType.unary
     )
 
     public static let getBloomFilter = GRPCMethodDescriptor(
       name: "GetBloomFilter",
-      path: "/vync.discovery.DiscoveryService/GetBloomFilter",
+      path: "/sanchr.discovery.DiscoveryService/GetBloomFilter",
       type: GRPCCallType.unary
     )
 
     public static let getRegisteredSet = GRPCMethodDescriptor(
       name: "GetRegisteredSet",
-      path: "/vync.discovery.DiscoveryService/GetRegisteredSet",
+      path: "/sanchr.discovery.DiscoveryService/GetRegisteredSet",
       type: GRPCCallType.unary
     )
   }

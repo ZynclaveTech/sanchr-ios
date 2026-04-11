@@ -18,8 +18,8 @@ final class AttachmentPickerViewStructuralTests: XCTestCase {
 
         let identifiers = buttons.map { $0.accessibilityIdentifier ?? "" }
         XCTAssertEqual(identifiers, [
+            "attachmentPicker.actionPill.camera",
             "attachmentPicker.actionPill.photos",
-            "attachmentPicker.actionPill.gif",
             "attachmentPicker.actionPill.file",
             "attachmentPicker.actionPill.contact",
             "attachmentPicker.actionPill.location"

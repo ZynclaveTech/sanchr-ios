@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.vault;
+package sanchr.vault;
 
 // Forward-secure vault, compliant with the research paper "Threat-Driven
 // Extensions to the Signal Protocol" — Defense 2.
@@ -23,24 +23,19 @@ message CreateVaultItemRequest {
   reserved "media_type", "encrypted_url", "encrypted_key", "thumbnail_url",
            "file_name", "file_size", "sender_id", "ttl_seconds";
 
-  // Client-generated UUIDv4 for idempotent crash recovery. Server uses this as
-  // the primary key; retries with the same ID are a no-op that return the
-  // existing row.
+  // Client-generated UUIDv4 for idempotent crash recovery. Server uses this as the primary key; retries with the same ID are a no-op that return the existing row.
   string vault_item_id = 1;
 
-  // UUID of an already-uploaded media_object (via MediaService.GetUploadUrl +
-  // ConfirmUpload). The caller MUST own this media_id or the request is
-  // rejected.
+  // UUID of an already-uploaded media_object (via MediaService.GetUploadUrl + ConfirmUpload). The caller MUST own this media_id or the request is rejected.
   string media_id = 2;
 
-  // Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side with
-  // AccessK_vault. Contains name, mime type, size, thumbnail, sender id, etc.
-  // Server treats this as an opaque byte string. Max 64 KiB; exceeding this
-  // returns INVALID_ARGUMENT.
+  // Opaque AES-GCM ciphertext of the metadata envelope, keyed client-side
+  // with AccessK_vault. Contains name, mime type, size, thumbnail, sender
+  // id, etc. Server treats this as an opaque byte string. Max 64 KiB;
+  // exceeding this returns INVALID_ARGUMENT.
   bytes encrypted_metadata = 3;
 
-  // Client-computed expiry hint (Unix millis). Used by the server-side orphan
-  // sweep for lifecycle management. Not cryptographically enforced.
+  // Client-computed expiry hint (Unix millis). Used by the server-side orphan sweep for lifecycle management. Not cryptographically enforced.
   int64 expires_at = 4;
 }
 

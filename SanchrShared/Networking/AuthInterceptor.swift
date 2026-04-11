@@ -17,11 +17,11 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
     /// Sealed sender messages authenticate via delivery token, not JWT.
     private static var unauthenticatedPaths: Set<String> {
         [
-            "/vync.auth.AuthService/Register",
-            "/vync.auth.AuthService/VerifyOTP",
-            "/vync.auth.AuthService/Login",
-            "/vync.auth.AuthService/RefreshToken",
-            "/vync.messaging.MessagingService/SendSealedMessage",
+            "/sanchr.auth.AuthService/Register",
+            "/sanchr.auth.AuthService/VerifyOTP",
+            "/sanchr.auth.AuthService/Login",
+            "/sanchr.auth.AuthService/RefreshToken",
+            "/sanchr.messaging.MessagingService/SendSealedMessage",
         ]
     }
 
@@ -101,112 +101,111 @@ public final class AuthInterceptorFactory: @unchecked Sendable {
 
 // MARK: - AuthService Interceptors
 
-extension AuthInterceptorFactory: Vync_Auth_AuthServiceClientInterceptorFactoryProtocol {
-    public func makeRegisterInterceptors() -> [ClientInterceptor<Vync_Auth_RegisterRequest, Vync_Auth_AuthResponse>] { makeInterceptors() }
-    public func makeVerifyOTPInterceptors() -> [ClientInterceptor<Vync_Auth_VerifyOTPRequest, Vync_Auth_AuthResponse>] { makeInterceptors() }
-    public func makeLoginInterceptors() -> [ClientInterceptor<Vync_Auth_LoginRequest, Vync_Auth_AuthResponse>] { makeInterceptors() }
-    public func makeRefreshTokenInterceptors() -> [ClientInterceptor<Vync_Auth_RefreshTokenRequest, Vync_Auth_AuthResponse>] { makeInterceptors() }
-    public func makeLogoutInterceptors() -> [ClientInterceptor<Vync_Auth_LogoutRequest, Vync_Auth_LogoutResponse>] { makeInterceptors() }
-    public func makeChangePasswordInterceptors() -> [ClientInterceptor<Vync_Auth_ChangePasswordRequest, Vync_Auth_ChangePasswordResponse>] { makeInterceptors() }
-    public func makeDeleteAccountInterceptors() -> [ClientInterceptor<Vync_Auth_DeleteAccountRequest, Vync_Auth_DeleteAccountResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol {
+    public func makeRegisterInterceptors() -> [ClientInterceptor<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>] { makeInterceptors() }
+    public func makeVerifyOTPInterceptors() -> [ClientInterceptor<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>] { makeInterceptors() }
+    public func makeLoginInterceptors() -> [ClientInterceptor<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>] { makeInterceptors() }
+    public func makeRefreshTokenInterceptors() -> [ClientInterceptor<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>] { makeInterceptors() }
+    public func makeLogoutInterceptors() -> [ClientInterceptor<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>] { makeInterceptors() }
+    public func makeDeleteAccountInterceptors() -> [ClientInterceptor<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>] { makeInterceptors() }
 }
 
 // MARK: - MessagingService Interceptors
 
-extension AuthInterceptorFactory: Vync_Messaging_MessagingServiceClientInterceptorFactoryProtocol {
-    public func makeSendMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_SendMessageRequest, Vync_Messaging_SendMessageResponse>] { makeInterceptors() }
-    public func makeStartDirectConversationInterceptors() -> [ClientInterceptor<Vync_Messaging_StartDirectConversationRequest, Vync_Messaging_Conversation>] { makeInterceptors() }
-    public func makeMessageStreamInterceptors() -> [ClientInterceptor<Vync_Messaging_ClientEvent, Vync_Messaging_ServerEvent>] { makeInterceptors() }
-    public func makeSyncMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_SyncRequest, Vync_Messaging_EncryptedEnvelope>] { makeInterceptors() }
-    public func makeAckMessagesInterceptors() -> [ClientInterceptor<Vync_Messaging_AckMessagesRequest, Vync_Messaging_AckMessagesResponse>] { makeInterceptors() }
-    public func makeDeleteMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_DeleteMessageRequest, Vync_Messaging_DeleteMessageResponse>] { makeInterceptors() }
-    public func makeSendReceiptInterceptors() -> [ClientInterceptor<Vync_Messaging_ReceiptRequest, Vync_Messaging_ReceiptResponse>] { makeInterceptors() }
-    public func makeGetConversationsInterceptors() -> [ClientInterceptor<Vync_Messaging_GetConversationsRequest, Vync_Messaging_GetConversationsResponse>] { makeInterceptors() }
-    public func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Vync_Messaging_GetPresenceSnapshotRequest, Vync_Messaging_GetPresenceSnapshotResponse>] { makeInterceptors() }
-    public func makeSendReactionInterceptors() -> [ClientInterceptor<Vync_Messaging_Reaction, Vync_Messaging_Reaction>] { makeInterceptors() }
-    public func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Vync_Messaging_SenderCertificateRequest, Vync_Messaging_SenderCertificateResponse>] { makeInterceptors() }
-    public func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Vync_Messaging_DeliveryTokenRequest, Vync_Messaging_DeliveryTokenResponse>] { makeInterceptors() }
-    public func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Vync_Messaging_SendSealedMessageRequest, Vync_Messaging_SendSealedMessageResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Messaging_MessagingServiceClientInterceptorFactoryProtocol {
+    public func makeSendMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SendMessageRequest, Sanchr_Messaging_SendMessageResponse>] { makeInterceptors() }
+    public func makeStartDirectConversationInterceptors() -> [ClientInterceptor<Sanchr_Messaging_StartDirectConversationRequest, Sanchr_Messaging_Conversation>] { makeInterceptors() }
+    public func makeMessageStreamInterceptors() -> [ClientInterceptor<Sanchr_Messaging_ClientEvent, Sanchr_Messaging_ServerEvent>] { makeInterceptors() }
+    public func makeSyncMessagesInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SyncRequest, Sanchr_Messaging_EncryptedEnvelope>] { makeInterceptors() }
+    public func makeAckMessagesInterceptors() -> [ClientInterceptor<Sanchr_Messaging_AckMessagesRequest, Sanchr_Messaging_AckMessagesResponse>] { makeInterceptors() }
+    public func makeDeleteMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>] { makeInterceptors() }
+    public func makeSendReceiptInterceptors() -> [ClientInterceptor<Sanchr_Messaging_ReceiptRequest, Sanchr_Messaging_ReceiptResponse>] { makeInterceptors() }
+    public func makeGetConversationsInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>] { makeInterceptors() }
+    public func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>] { makeInterceptors() }
+    public func makeSendReactionInterceptors() -> [ClientInterceptor<Sanchr_Messaging_Reaction, Sanchr_Messaging_Reaction>] { makeInterceptors() }
+    public func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SenderCertificateRequest, Sanchr_Messaging_SenderCertificateResponse>] { makeInterceptors() }
+    public func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeliveryTokenRequest, Sanchr_Messaging_DeliveryTokenResponse>] { makeInterceptors() }
+    public func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>] { makeInterceptors() }
 }
 
 // MARK: - ContactService Interceptors
 
-extension AuthInterceptorFactory: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol {
-    public func makeSyncContactsInterceptors() -> [ClientInterceptor<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse>] { makeInterceptors() }
-    public func makeGetContactsInterceptors() -> [ClientInterceptor<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse>] { makeInterceptors() }
-    public func makeBlockContactInterceptors() -> [ClientInterceptor<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse>] { makeInterceptors() }
-    public func makeUnblockContactInterceptors() -> [ClientInterceptor<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse>] { makeInterceptors() }
-    public func makeGetBlockedListInterceptors() -> [ClientInterceptor<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol {
+    public func makeSyncContactsInterceptors() -> [ClientInterceptor<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse>] { makeInterceptors() }
+    public func makeGetContactsInterceptors() -> [ClientInterceptor<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse>] { makeInterceptors() }
+    public func makeBlockContactInterceptors() -> [ClientInterceptor<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse>] { makeInterceptors() }
+    public func makeUnblockContactInterceptors() -> [ClientInterceptor<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse>] { makeInterceptors() }
+    public func makeGetBlockedListInterceptors() -> [ClientInterceptor<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse>] { makeInterceptors() }
 }
 
 // MARK: - KeyService Interceptors
 
-extension AuthInterceptorFactory: Vync_Keys_KeyServiceClientInterceptorFactoryProtocol {
-    public func makeUploadKeyBundleInterceptors() -> [ClientInterceptor<Vync_Keys_KeyBundle, Vync_Keys_UploadKeyBundleResponse>] { makeInterceptors() }
-    public func makeGetPreKeyBundleInterceptors() -> [ClientInterceptor<Vync_Keys_GetPreKeyBundleRequest, Vync_Keys_PreKeyBundleResponse>] { makeInterceptors() }
-    public func makeUploadOneTimePreKeysInterceptors() -> [ClientInterceptor<Vync_Keys_UploadOneTimePreKeysRequest, Vync_Keys_PreKeyCountResponse>] { makeInterceptors() }
-    public func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Vync_Keys_GetPreKeyCountRequest, Vync_Keys_PreKeyCountResponse>] { makeInterceptors() }
-    public func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Vync_Keys_GetUserDevicesRequest, Vync_Keys_GetUserDevicesResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol {
+    public func makeUploadKeyBundleInterceptors() -> [ClientInterceptor<Sanchr_Keys_KeyBundle, Sanchr_Keys_UploadKeyBundleResponse>] { makeInterceptors() }
+    public func makeGetPreKeyBundleInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyBundleRequest, Sanchr_Keys_PreKeyBundleResponse>] { makeInterceptors() }
+    public func makeUploadOneTimePreKeysInterceptors() -> [ClientInterceptor<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>] { makeInterceptors() }
+    public func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>] { makeInterceptors() }
+    public func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>] { makeInterceptors() }
 }
 
 // MARK: - MediaService Interceptors
 
-extension AuthInterceptorFactory: Vync_Media_MediaServiceClientInterceptorFactoryProtocol {
-    public func makeGetUploadUrlInterceptors() -> [ClientInterceptor<Vync_Media_GetUploadUrlRequest, Vync_Media_PresignedUrlResponse>] { makeInterceptors() }
-    public func makeGetDownloadUrlInterceptors() -> [ClientInterceptor<Vync_Media_GetDownloadUrlRequest, Vync_Media_PresignedUrlResponse>] { makeInterceptors() }
-    public func makeConfirmUploadInterceptors() -> [ClientInterceptor<Vync_Media_ConfirmUploadRequest, Vync_Media_ConfirmUploadResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Media_MediaServiceClientInterceptorFactoryProtocol {
+    public func makeGetUploadUrlInterceptors() -> [ClientInterceptor<Sanchr_Media_GetUploadUrlRequest, Sanchr_Media_PresignedUrlResponse>] { makeInterceptors() }
+    public func makeGetDownloadUrlInterceptors() -> [ClientInterceptor<Sanchr_Media_GetDownloadUrlRequest, Sanchr_Media_PresignedUrlResponse>] { makeInterceptors() }
+    public func makeConfirmUploadInterceptors() -> [ClientInterceptor<Sanchr_Media_ConfirmUploadRequest, Sanchr_Media_ConfirmUploadResponse>] { makeInterceptors() }
 }
 
 // MARK: - SettingsService Interceptors
 
-extension AuthInterceptorFactory: Vync_Settings_SettingsServiceClientInterceptorFactoryProtocol {
-    public func makeGetSettingsInterceptors() -> [ClientInterceptor<Vync_Settings_GetSettingsRequest, Vync_Settings_UserSettings>] { makeInterceptors() }
-    public func makeUpdateSettingsInterceptors() -> [ClientInterceptor<Vync_Settings_UpdateSettingsRequest, Vync_Settings_UserSettings>] { makeInterceptors() }
-    public func makeUpdateProfileInterceptors() -> [ClientInterceptor<Vync_Settings_UpdateProfileRequest, Vync_Settings_ProfileResponse>] { makeInterceptors() }
-    public func makeToggleVyncModeInterceptors() -> [ClientInterceptor<Vync_Settings_ToggleVyncModeRequest, Vync_Settings_UserSettings>] { makeInterceptors() }
-    public func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Vync_Settings_GetStorageUsageRequest, Vync_Settings_StorageUsageResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol {
+    public func makeGetSettingsInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetSettingsRequest, Sanchr_Settings_UserSettings>] { makeInterceptors() }
+    public func makeUpdateSettingsInterceptors() -> [ClientInterceptor<Sanchr_Settings_UpdateSettingsRequest, Sanchr_Settings_UserSettings>] { makeInterceptors() }
+    public func makeUpdateProfileInterceptors() -> [ClientInterceptor<Sanchr_Settings_UpdateProfileRequest, Sanchr_Settings_ProfileResponse>] { makeInterceptors() }
+    public func makeToggleSanchrModeInterceptors() -> [ClientInterceptor<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>] { makeInterceptors() }
+    public func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>] { makeInterceptors() }
 }
 
 // MARK: - NotificationService Interceptors
 
-extension AuthInterceptorFactory: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol {
-    public func makeRegisterPushTokenInterceptors() -> [ClientInterceptor<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse>] { makeInterceptors() }
-    public func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol {
+    public func makeRegisterPushTokenInterceptors() -> [ClientInterceptor<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>] { makeInterceptors() }
+    public func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>] { makeInterceptors() }
 }
 
 // MARK: - VaultService Interceptors
 
-extension AuthInterceptorFactory: Vync_Vault_VaultServiceClientInterceptorFactoryProtocol {
-    public func makeCreateVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_CreateVaultItemRequest, Vync_Vault_VaultItem>] { makeInterceptors() }
-    public func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemsRequest, Vync_Vault_GetVaultItemsResponse>] { makeInterceptors() }
-    public func makeGetVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_GetVaultItemRequest, Vync_Vault_VaultItem>] { makeInterceptors() }
-    public func makeDeleteVaultItemInterceptors() -> [ClientInterceptor<Vync_Vault_DeleteVaultItemRequest, Vync_Vault_DeleteVaultItemResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Vault_VaultServiceClientInterceptorFactoryProtocol {
+    public func makeCreateVaultItemInterceptors() -> [ClientInterceptor<Sanchr_Vault_CreateVaultItemRequest, Sanchr_Vault_VaultItem>] { makeInterceptors() }
+    public func makeGetVaultItemsInterceptors() -> [ClientInterceptor<Sanchr_Vault_GetVaultItemsRequest, Sanchr_Vault_GetVaultItemsResponse>] { makeInterceptors() }
+    public func makeGetVaultItemInterceptors() -> [ClientInterceptor<Sanchr_Vault_GetVaultItemRequest, Sanchr_Vault_VaultItem>] { makeInterceptors() }
+    public func makeDeleteVaultItemInterceptors() -> [ClientInterceptor<Sanchr_Vault_DeleteVaultItemRequest, Sanchr_Vault_DeleteVaultItemResponse>] { makeInterceptors() }
 }
 
 // MARK: - BackupService Interceptors
 
-extension AuthInterceptorFactory: Vync_Backup_BackupServiceClientInterceptorFactoryProtocol {
-    public func makeCreateBackupUploadInterceptors() -> [ClientInterceptor<Vync_Backup_CreateBackupUploadRequest, Vync_Backup_CreateBackupUploadResponse>] { makeInterceptors() }
-    public func makeCommitBackupInterceptors() -> [ClientInterceptor<Vync_Backup_CommitBackupRequest, Vync_Backup_CommitBackupResponse>] { makeInterceptors() }
-    public func makeListBackupsInterceptors() -> [ClientInterceptor<Vync_Backup_ListBackupsRequest, Vync_Backup_ListBackupsResponse>] { makeInterceptors() }
-    public func makeGetBackupDownloadInterceptors() -> [ClientInterceptor<Vync_Backup_GetBackupDownloadRequest, Vync_Backup_GetBackupDownloadResponse>] { makeInterceptors() }
-    public func makeDeleteBackupInterceptors() -> [ClientInterceptor<Vync_Backup_DeleteBackupRequest, Vync_Backup_DeleteBackupResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Backup_BackupServiceClientInterceptorFactoryProtocol {
+    public func makeCreateBackupUploadInterceptors() -> [ClientInterceptor<Sanchr_Backup_CreateBackupUploadRequest, Sanchr_Backup_CreateBackupUploadResponse>] { makeInterceptors() }
+    public func makeCommitBackupInterceptors() -> [ClientInterceptor<Sanchr_Backup_CommitBackupRequest, Sanchr_Backup_CommitBackupResponse>] { makeInterceptors() }
+    public func makeListBackupsInterceptors() -> [ClientInterceptor<Sanchr_Backup_ListBackupsRequest, Sanchr_Backup_ListBackupsResponse>] { makeInterceptors() }
+    public func makeGetBackupDownloadInterceptors() -> [ClientInterceptor<Sanchr_Backup_GetBackupDownloadRequest, Sanchr_Backup_GetBackupDownloadResponse>] { makeInterceptors() }
+    public func makeDeleteBackupInterceptors() -> [ClientInterceptor<Sanchr_Backup_DeleteBackupRequest, Sanchr_Backup_DeleteBackupResponse>] { makeInterceptors() }
 }
 
 // MARK: - DiscoveryService Interceptors
 
-extension AuthInterceptorFactory: Vync_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol {
-    public func makeOprfDiscoverInterceptors() -> [ClientInterceptor<Vync_Discovery_OprfDiscoverRequest, Vync_Discovery_OprfDiscoverResponse>] { makeInterceptors() }
-    public func makeGetBloomFilterInterceptors() -> [ClientInterceptor<Vync_Discovery_GetBloomFilterRequest, Vync_Discovery_GetBloomFilterResponse>] { makeInterceptors() }
-    public func makeGetRegisteredSetInterceptors() -> [ClientInterceptor<Vync_Discovery_GetRegisteredSetRequest, Vync_Discovery_GetRegisteredSetResponse>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Discovery_DiscoveryServiceClientInterceptorFactoryProtocol {
+    public func makeOprfDiscoverInterceptors() -> [ClientInterceptor<Sanchr_Discovery_OprfDiscoverRequest, Sanchr_Discovery_OprfDiscoverResponse>] { makeInterceptors() }
+    public func makeGetBloomFilterInterceptors() -> [ClientInterceptor<Sanchr_Discovery_GetBloomFilterRequest, Sanchr_Discovery_GetBloomFilterResponse>] { makeInterceptors() }
+    public func makeGetRegisteredSetInterceptors() -> [ClientInterceptor<Sanchr_Discovery_GetRegisteredSetRequest, Sanchr_Discovery_GetRegisteredSetResponse>] { makeInterceptors() }
 }
 
 // MARK: - CallSignalingService Interceptors
 
-extension AuthInterceptorFactory: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol {
-    public func makeInitiateCallInterceptors() -> [ClientInterceptor<Vync_Calling_CallOffer, Vync_Calling_CallResponse>] { makeInterceptors() }
-    public func makeCallStreamInterceptors() -> [ClientInterceptor<Vync_Calling_CallSignal, Vync_Calling_CallSignal>] { makeInterceptors() }
-    public func makeEndCallInterceptors() -> [ClientInterceptor<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse>] { makeInterceptors() }
-    public func makeGetCallHistoryInterceptors() -> [ClientInterceptor<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse>] { makeInterceptors() }
-    public func makeGetTurnCredentialsInterceptors() -> [ClientInterceptor<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials>] { makeInterceptors() }
+extension AuthInterceptorFactory: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol {
+    public func makeInitiateCallInterceptors() -> [ClientInterceptor<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse>] { makeInterceptors() }
+    public func makeCallStreamInterceptors() -> [ClientInterceptor<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal>] { makeInterceptors() }
+    public func makeEndCallInterceptors() -> [ClientInterceptor<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse>] { makeInterceptors() }
+    public func makeGetCallHistoryInterceptors() -> [ClientInterceptor<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse>] { makeInterceptors() }
+    public func makeGetTurnCredentialsInterceptors() -> [ClientInterceptor<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials>] { makeInterceptors() }
 }

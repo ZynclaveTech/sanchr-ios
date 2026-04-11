@@ -1,6 +1,6 @@
 syntax = "proto3";
-package vync.ekf;
-option java_package = "com.vync.ekf";
+package sanchr.ekf;
+option java_package = "com.sanchr.ekf";
 
 message EkfRotationNeeded {
     string user_id = 1;

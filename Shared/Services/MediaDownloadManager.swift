@@ -83,7 +83,7 @@ actor MediaDownloadManager {
             let mediaId = attachment.url.host ?? attachment.url.lastPathComponent
             SanchrLogger.media.info("Resolving download URL for mediaId=\(mediaId.prefix(8))...")
 
-            var request = Vync_Media_GetDownloadUrlRequest()
+            var request = Sanchr_Media_GetDownloadUrlRequest()
             request.mediaID = mediaId
             let response = try await grpcClient.mediaService.getDownloadUrl(request)
 

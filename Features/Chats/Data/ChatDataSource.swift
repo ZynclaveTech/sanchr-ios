@@ -9,7 +9,7 @@ final class ChatDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
 
     /// Convenience accessor for the messaging async client from the gRPC manager.
-    private var messagingClient: Vync_Messaging_MessagingServiceAsyncClientProtocol {
+    private var messagingClient: Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
         grpcClient.messagingService
     }
 
@@ -20,8 +20,8 @@ final class ChatDataSource: @unchecked Sendable {
     // MARK: - Start Direct Conversation
 
     /// Creates or retrieves a 1:1 conversation with the given recipient.
-    func startDirectConversation(recipientID: String) async throws -> Vync_Messaging_Conversation {
-        var request = Vync_Messaging_StartDirectConversationRequest()
+    func startDirectConversation(recipientID: String) async throws -> Sanchr_Messaging_Conversation {
+        var request = Sanchr_Messaging_StartDirectConversationRequest()
         request.recipientID = recipientID
 
         SanchrLogger.chat.info(
@@ -35,11 +35,11 @@ final class ChatDataSource: @unchecked Sendable {
     /// The caller is responsible for encrypting the ciphertext per-device.
     func sendMessage(
         conversationID: String,
-        deviceMessages: [Vync_Messaging_DeviceMessage],
+        deviceMessages: [Sanchr_Messaging_DeviceMessage],
         contentType: String = "text",
         expiresAfterSecs: Int64 = 0
-    ) async throws -> Vync_Messaging_SendMessageResponse {
-        var request = Vync_Messaging_SendMessageRequest()
+    ) async throws -> Sanchr_Messaging_SendMessageResponse {
+        var request = Sanchr_Messaging_SendMessageRequest()
         request.conversationID = conversationID
         request.deviceMessages = deviceMessages
         request.contentType = contentType
@@ -61,8 +61,8 @@ final class ChatDataSource: @unchecked Sendable {
         recipientIds: [String],
         signalSessionManager: SignalProtocolManagerProtocol,
         contentType: String = "text"
-    ) async throws -> Vync_Messaging_SendMessageResponse {
-        var allDeviceMessages: [Vync_Messaging_DeviceMessage] = []
+    ) async throws -> Sanchr_Messaging_SendMessageResponse {
+        var allDeviceMessages: [Sanchr_Messaging_DeviceMessage] = []
 
         for recipientId in recipientIds {
             if let sessionManager = signalSessionManager as? SignalSessionManager {
@@ -87,7 +87,7 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Decrypts an incoming EncryptedEnvelope to plaintext using the Signal Protocol.
     func decryptIncomingMessage(
-        envelope: Vync_Messaging_EncryptedEnvelope,
+        envelope: Sanchr_Messaging_EncryptedEnvelope,
         signalSessionManager: SignalProtocolManagerProtocol
     ) async throws -> Data {
         return try await signalSessionManager.decryptEnvelope(envelope)
@@ -96,8 +96,8 @@ final class ChatDataSource: @unchecked Sendable {
     // MARK: - Get Conversations
 
     /// Fetches all conversations for the authenticated user.
-    func getConversations() async throws -> [Vync_Messaging_Conversation] {
-        let request = Vync_Messaging_GetConversationsRequest()
+    func getConversations() async throws -> [Sanchr_Messaging_Conversation] {
+        let request = Sanchr_Messaging_GetConversationsRequest()
 
         SanchrLogger.chat.info("ChatDataSource: getConversations")
         let response = try await messagingClient.getConversations(request)
@@ -108,7 +108,7 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Deletes a message from a conversation on the server.
     func deleteMessage(conversationID: String, messageID: String) async throws {
-        var request = Vync_Messaging_DeleteMessageRequest()
+        var request = Sanchr_Messaging_DeleteMessageRequest()
         request.conversationID = conversationID
         request.messageID = messageID
 
@@ -120,7 +120,7 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Sends a delivery/read receipt for a message.
     func sendReceipt(conversationID: String, messageID: String, status: String) async throws {
-        var request = Vync_Messaging_ReceiptRequest()
+        var request = Sanchr_Messaging_ReceiptRequest()
         request.conversationID = conversationID
         request.messageID = messageID
         request.status = status
@@ -135,9 +135,9 @@ final class ChatDataSource: @unchecked Sendable {
     /// Syncs messages from the server since a given timestamp.
     /// Returns a GRPCAsyncResponseStream of encrypted envelopes.
     func syncMessages(sinceTimestamp: Int64) -> GRPCAsyncResponseStream<
-        Vync_Messaging_EncryptedEnvelope
+        Sanchr_Messaging_EncryptedEnvelope
     > {
-        var request = Vync_Messaging_SyncRequest()
+        var request = Sanchr_Messaging_SyncRequest()
         request.sinceTimestamp = sinceTimestamp
 
         SanchrLogger.chat.info("ChatDataSource: syncMessages since \(sinceTimestamp)")
@@ -148,8 +148,8 @@ final class ChatDataSource: @unchecked Sendable {
 
     /// Opens a bidirectional stream for real-time events (messages, typing, presence).
     func openMessageStream(
-        clientEvents: AsyncStream<Vync_Messaging_ClientEvent>
-    ) -> GRPCAsyncResponseStream<Vync_Messaging_ServerEvent> {
+        clientEvents: AsyncStream<Sanchr_Messaging_ClientEvent>
+    ) -> GRPCAsyncResponseStream<Sanchr_Messaging_ServerEvent> {
         SanchrLogger.chat.info("ChatDataSource: opening message stream")
         return messagingClient.messageStream(clientEvents)
     }
@@ -160,7 +160,7 @@ final class ChatDataSource: @unchecked Sendable {
     /// When a `contactsLookup` dictionary is provided, resolves participant display names
     /// and phone numbers from cached contacts instead of showing raw UUIDs.
     static func mapToDomainConversation(
-        _ proto: Vync_Messaging_Conversation,
+        _ proto: Sanchr_Messaging_Conversation,
         contactsLookup: [String: User] = [:],
         localUserId: String? = nil
     ) -> Conversation {

@@ -82,7 +82,7 @@ enum CallUseCases {
             self.callDataSource = callDataSource
         }
 
-        func execute() async throws -> Vync_Calling_TurnCredentials {
+        func execute() async throws -> Sanchr_Calling_TurnCredentials {
             return try await callDataSource.fetchTurnCredentials()
         }
     }

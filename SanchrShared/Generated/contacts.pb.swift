@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Contacts_SyncContactsRequest: Sendable {
+public struct Sanchr_Contacts_SyncContactsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -37,19 +37,19 @@ public struct Vync_Contacts_SyncContactsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_SyncContactsResponse: Sendable {
+public struct Sanchr_Contacts_SyncContactsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var matches: [Vync_Contacts_MatchedContact] = []
+  public var matches: [Sanchr_Contacts_MatchedContact] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Contacts_MatchedContact: Sendable {
+public struct Sanchr_Contacts_MatchedContact: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -69,7 +69,7 @@ public struct Vync_Contacts_MatchedContact: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_GetContactsRequest: Sendable {
+public struct Sanchr_Contacts_GetContactsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -79,19 +79,19 @@ public struct Vync_Contacts_GetContactsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_GetContactsResponse: Sendable {
+public struct Sanchr_Contacts_GetContactsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var contacts: [Vync_Contacts_Contact] = []
+  public var contacts: [Sanchr_Contacts_Contact] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Contacts_Contact: Sendable {
+public struct Sanchr_Contacts_Contact: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -115,7 +115,7 @@ public struct Vync_Contacts_Contact: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_BlockContactRequest: Sendable {
+public struct Sanchr_Contacts_BlockContactRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -127,7 +127,7 @@ public struct Vync_Contacts_BlockContactRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_BlockContactResponse: Sendable {
+public struct Sanchr_Contacts_BlockContactResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -137,7 +137,7 @@ public struct Vync_Contacts_BlockContactResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_UnblockContactRequest: Sendable {
+public struct Sanchr_Contacts_UnblockContactRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -149,7 +149,7 @@ public struct Vync_Contacts_UnblockContactRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_UnblockContactResponse: Sendable {
+public struct Sanchr_Contacts_UnblockContactResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -159,7 +159,7 @@ public struct Vync_Contacts_UnblockContactResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_GetBlockedListRequest: Sendable {
+public struct Sanchr_Contacts_GetBlockedListRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -169,7 +169,7 @@ public struct Vync_Contacts_GetBlockedListRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Contacts_GetBlockedListResponse: Sendable {
+public struct Sanchr_Contacts_GetBlockedListResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -183,9 +183,9 @@ public struct Vync_Contacts_GetBlockedListResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.contacts"
+fileprivate let _protobuf_package = "sanchr.contacts"
 
-extension Vync_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncContactsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_hashes\0")
 
@@ -208,14 +208,14 @@ extension Vync_Contacts_SyncContactsRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_SyncContactsRequest, rhs: Vync_Contacts_SyncContactsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_SyncContactsRequest, rhs: Sanchr_Contacts_SyncContactsRequest) -> Bool {
     if lhs.phoneHashes != rhs.phoneHashes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncContactsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}matches\0")
 
@@ -238,14 +238,14 @@ extension Vync_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_SyncContactsResponse, rhs: Vync_Contacts_SyncContactsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_SyncContactsResponse, rhs: Sanchr_Contacts_SyncContactsResponse) -> Bool {
     if lhs.matches != rhs.matches {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MatchedContact"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0")
 
@@ -284,7 +284,7 @@ extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_MatchedContact, rhs: Vync_Contacts_MatchedContact) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_MatchedContact, rhs: Sanchr_Contacts_MatchedContact) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -295,7 +295,7 @@ extension Vync_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Vync_Contacts_GetContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_GetContactsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetContactsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -308,13 +308,13 @@ extension Vync_Contacts_GetContactsRequest: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_GetContactsRequest, rhs: Vync_Contacts_GetContactsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_GetContactsRequest, rhs: Sanchr_Contacts_GetContactsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetContactsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}contacts\0")
 
@@ -337,14 +337,14 @@ extension Vync_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_GetContactsResponse, rhs: Vync_Contacts_GetContactsResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_GetContactsResponse, rhs: Sanchr_Contacts_GetContactsResponse) -> Bool {
     if lhs.contacts != rhs.contacts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Contact"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0")
 
@@ -391,7 +391,7 @@ extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_Contact, rhs: Vync_Contacts_Contact) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_Contact, rhs: Sanchr_Contacts_Contact) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
@@ -404,7 +404,7 @@ extension Vync_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Vync_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BlockContactRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
 
@@ -427,14 +427,14 @@ extension Vync_Contacts_BlockContactRequest: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_BlockContactRequest, rhs: Vync_Contacts_BlockContactRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_BlockContactRequest, rhs: Sanchr_Contacts_BlockContactRequest) -> Bool {
     if lhs.contactUserID != rhs.contactUserID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_BlockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_BlockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BlockContactResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -447,13 +447,13 @@ extension Vync_Contacts_BlockContactResponse: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_BlockContactResponse, rhs: Vync_Contacts_BlockContactResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_BlockContactResponse, rhs: Sanchr_Contacts_BlockContactResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UnblockContactRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}contact_user_id\0")
 
@@ -476,14 +476,14 @@ extension Vync_Contacts_UnblockContactRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_UnblockContactRequest, rhs: Vync_Contacts_UnblockContactRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_UnblockContactRequest, rhs: Sanchr_Contacts_UnblockContactRequest) -> Bool {
     if lhs.contactUserID != rhs.contactUserID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_UnblockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_UnblockContactResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UnblockContactResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -496,13 +496,13 @@ extension Vync_Contacts_UnblockContactResponse: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_UnblockContactResponse, rhs: Vync_Contacts_UnblockContactResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_UnblockContactResponse, rhs: Sanchr_Contacts_UnblockContactResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_GetBlockedListRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_GetBlockedListRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBlockedListRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -515,13 +515,13 @@ extension Vync_Contacts_GetBlockedListRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_GetBlockedListRequest, rhs: Vync_Contacts_GetBlockedListRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_GetBlockedListRequest, rhs: Sanchr_Contacts_GetBlockedListRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Contacts_GetBlockedListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Contacts_GetBlockedListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetBlockedListResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blocked_user_ids\0")
 
@@ -544,7 +544,7 @@ extension Vync_Contacts_GetBlockedListResponse: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Contacts_GetBlockedListResponse, rhs: Vync_Contacts_GetBlockedListResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Contacts_GetBlockedListResponse, rhs: Sanchr_Contacts_GetBlockedListResponse) -> Bool {
     if lhs.blockedUserIds != rhs.blockedUserIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

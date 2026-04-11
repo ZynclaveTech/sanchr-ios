@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Calling_CallOffer: Sendable {
+public struct Sanchr_Calling_CallOffer: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -44,7 +44,7 @@ public struct Vync_Calling_CallOffer: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_CallResponse: Sendable {
+public struct Sanchr_Calling_CallResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -59,14 +59,14 @@ public struct Vync_Calling_CallResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_CallSignal: Sendable {
+public struct Sanchr_Calling_CallSignal: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var callID: String = String()
 
-  public var signal: Vync_Calling_CallSignal.OneOf_Signal? = nil
+  public var signal: Sanchr_Calling_CallSignal.OneOf_Signal? = nil
 
   public var sdpAnswer: Data {
     get {
@@ -84,10 +84,10 @@ public struct Vync_Calling_CallSignal: Sendable {
     set {signal = .iceCandidate(newValue)}
   }
 
-  public var control: Vync_Calling_CallControl {
+  public var control: Sanchr_Calling_CallControl {
     get {
       if case .control(let v)? = signal {return v}
-      return Vync_Calling_CallControl()
+      return Sanchr_Calling_CallControl()
     }
     set {signal = .control(newValue)}
   }
@@ -97,14 +97,14 @@ public struct Vync_Calling_CallSignal: Sendable {
   public enum OneOf_Signal: Equatable, Sendable {
     case sdpAnswer(Data)
     case iceCandidate(Data)
-    case control(Vync_Calling_CallControl)
+    case control(Sanchr_Calling_CallControl)
 
   }
 
   public init() {}
 }
 
-public struct Vync_Calling_CallControl: Sendable {
+public struct Sanchr_Calling_CallControl: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -117,7 +117,7 @@ public struct Vync_Calling_CallControl: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_EndCallRequest: Sendable {
+public struct Sanchr_Calling_EndCallRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -129,7 +129,7 @@ public struct Vync_Calling_EndCallRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_EndCallResponse: Sendable {
+public struct Sanchr_Calling_EndCallResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -139,7 +139,7 @@ public struct Vync_Calling_EndCallResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_GetCallHistoryRequest: Sendable {
+public struct Sanchr_Calling_GetCallHistoryRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -151,19 +151,19 @@ public struct Vync_Calling_GetCallHistoryRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_GetCallHistoryResponse: Sendable {
+public struct Sanchr_Calling_GetCallHistoryResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var entries: [Vync_Calling_CallLogEntry] = []
+  public var entries: [Sanchr_Calling_CallLogEntry] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Calling_CallLogEntry: Sendable {
+public struct Sanchr_Calling_CallLogEntry: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -194,7 +194,7 @@ public struct Vync_Calling_CallLogEntry: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_GetTurnCredentialsRequest: Sendable {
+public struct Sanchr_Calling_GetTurnCredentialsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -204,7 +204,7 @@ public struct Vync_Calling_GetTurnCredentialsRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Calling_TurnCredentials: Sendable {
+public struct Sanchr_Calling_TurnCredentials: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -224,9 +224,9 @@ public struct Vync_Calling_TurnCredentials: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.calling"
+fileprivate let _protobuf_package = "sanchr.calling"
 
-extension Vync_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallOffer"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0")
 
@@ -261,7 +261,7 @@ extension Vync_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_CallOffer, rhs: Vync_Calling_CallOffer) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallOffer, rhs: Sanchr_Calling_CallOffer) -> Bool {
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.callType != rhs.callType {return false}
     if lhs.sdpOffer != rhs.sdpOffer {return false}
@@ -271,7 +271,7 @@ extension Vync_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Vync_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{1}status\0")
 
@@ -298,7 +298,7 @@ extension Vync_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_CallResponse, rhs: Vync_Calling_CallResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallResponse, rhs: Sanchr_Calling_CallResponse) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.status != rhs.status {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -306,7 +306,7 @@ extension Vync_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Vync_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallSignal"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}sdp_answer\0\u{3}ice_candidate\0\u{1}control\0")
 
@@ -334,7 +334,7 @@ extension Vync_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Message
         }
       }()
       case 4: try {
-        var v: Vync_Calling_CallControl?
+        var v: Sanchr_Calling_CallControl?
         var hadOneofValue = false
         if let current = self.signal {
           hadOneofValue = true
@@ -377,7 +377,7 @@ extension Vync_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_CallSignal, rhs: Vync_Calling_CallSignal) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallSignal, rhs: Sanchr_Calling_CallSignal) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.signal != rhs.signal {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -385,7 +385,7 @@ extension Vync_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Vync_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallControl"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0")
 
@@ -408,14 +408,14 @@ extension Vync_Calling_CallControl: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_CallControl, rhs: Vync_Calling_CallControl) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallControl, rhs: Sanchr_Calling_CallControl) -> Bool {
     if lhs.action != rhs.action {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EndCallRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0")
 
@@ -438,14 +438,14 @@ extension Vync_Calling_EndCallRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_EndCallRequest, rhs: Vync_Calling_EndCallRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_EndCallRequest, rhs: Sanchr_Calling_EndCallRequest) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_EndCallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_EndCallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EndCallResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -458,13 +458,13 @@ extension Vync_Calling_EndCallResponse: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_EndCallResponse, rhs: Vync_Calling_EndCallResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_EndCallResponse, rhs: Sanchr_Calling_EndCallResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCallHistoryRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0")
 
@@ -487,14 +487,14 @@ extension Vync_Calling_GetCallHistoryRequest: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_GetCallHistoryRequest, rhs: Vync_Calling_GetCallHistoryRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetCallHistoryRequest, rhs: Sanchr_Calling_GetCallHistoryRequest) -> Bool {
     if lhs.limit != rhs.limit {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCallHistoryResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}entries\0")
 
@@ -517,14 +517,14 @@ extension Vync_Calling_GetCallHistoryResponse: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_GetCallHistoryResponse, rhs: Vync_Calling_GetCallHistoryResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetCallHistoryResponse, rhs: Sanchr_Calling_GetCallHistoryResponse) -> Bool {
     if lhs.entries != rhs.entries {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallLogEntry"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}peer_id\0\u{3}peer_name\0\u{3}call_type\0\u{1}direction\0\u{1}status\0\u{3}started_at\0\u{3}ended_at\0\u{3}duration_secs\0")
 
@@ -579,7 +579,7 @@ extension Vync_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_CallLogEntry, rhs: Vync_Calling_CallLogEntry) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_CallLogEntry, rhs: Sanchr_Calling_CallLogEntry) -> Bool {
     if lhs.callID != rhs.callID {return false}
     if lhs.peerID != rhs.peerID {return false}
     if lhs.peerName != rhs.peerName {return false}
@@ -594,7 +594,7 @@ extension Vync_Calling_CallLogEntry: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Vync_Calling_GetTurnCredentialsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_GetTurnCredentialsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetTurnCredentialsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -607,13 +607,13 @@ extension Vync_Calling_GetTurnCredentialsRequest: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_GetTurnCredentialsRequest, rhs: Vync_Calling_GetTurnCredentialsRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_GetTurnCredentialsRequest, rhs: Sanchr_Calling_GetTurnCredentialsRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TurnCredentials"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}urls\0\u{1}username\0\u{1}credential\0\u{1}ttl\0")
 
@@ -648,7 +648,7 @@ extension Vync_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Calling_TurnCredentials, rhs: Vync_Calling_TurnCredentials) -> Bool {
+  public static func ==(lhs: Sanchr_Calling_TurnCredentials, rhs: Sanchr_Calling_TurnCredentials) -> Bool {
     if lhs.urls != rhs.urls {return false}
     if lhs.username != rhs.username {return false}
     if lhs.credential != rhs.credential {return false}

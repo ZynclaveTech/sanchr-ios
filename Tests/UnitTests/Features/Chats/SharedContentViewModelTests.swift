@@ -39,7 +39,10 @@ final class SharedContentViewModelTests: XCTestCase {
 
     func test_loadMore_appendsToExistingBuckets() async {
         let db = StubFetchDatabase()
-        db.fetchMessagesResult = [Self.image(id: "i1", at: 100)]
+        db.fetchMessagesResult = [Self.image(id: "i1", at: 100)] + Self.fillerTexts(
+            count: 99,
+            startingAt: 1_000
+        )
         let vm = SharedContentViewModel()
 
         await vm.loadInitial(conversationId: "conv", localDatabase: db)
@@ -125,6 +128,16 @@ final class SharedContentViewModelTests: XCTestCase {
             mimeType: mime,
             sizeBytes: 0
         )
+    }
+
+    private static func fillerTexts(count: Int, startingAt ts: TimeInterval) -> [Message] {
+        (0..<count).map { index in
+            text(
+                id: "f\(index)",
+                at: ts + Double(index),
+                body: "no link \(index)"
+            )
+        }
     }
 }
 

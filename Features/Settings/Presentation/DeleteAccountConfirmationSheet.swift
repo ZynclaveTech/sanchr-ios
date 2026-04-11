@@ -3,12 +3,11 @@ import SanchrShared
 
 /// Two-step confirmation sheet for permanent account deletion.
 ///
-/// Mirrors the inline pattern used by `ChangePasswordSheet`: local @State
-/// owns the flow (`isDeletingAccount`, `deleteAccountError`) and delegates
-/// to `container.authService.deleteAccount()`. On success the shared
-/// `SessionService` flips `isAuthenticated` to false, which the existing
-/// root navigation observer already uses to route back to onboarding —
-/// no new navigation plumbing required.
+/// Local @State owns the flow (`isDeletingAccount`, `deleteAccountError`)
+/// and delegates to `container.authService.deleteAccount()`. On success
+/// the shared `SessionService` flips `isAuthenticated` to false, which the
+/// existing root navigation observer already uses to route back to
+/// onboarding.
 struct DeleteAccountConfirmationSheet: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss

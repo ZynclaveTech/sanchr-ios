@@ -25,7 +25,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Keys_SignedPreKey: Sendable {
+public struct Sanchr_Keys_SignedPreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -43,7 +43,7 @@ public struct Vync_Keys_SignedPreKey: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_OneTimePreKey: Sendable {
+public struct Sanchr_Keys_OneTimePreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -57,7 +57,7 @@ public struct Vync_Keys_OneTimePreKey: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_KyberPreKey: Sendable {
+public struct Sanchr_Keys_KyberPreKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -75,15 +75,15 @@ public struct Vync_Keys_KyberPreKey: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_KeyBundle: Sendable {
+public struct Sanchr_Keys_KeyBundle: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var identityPublicKey: Data = Data()
 
-  public var signedPreKey: Vync_Keys_SignedPreKey {
-    get {_signedPreKey ?? Vync_Keys_SignedPreKey()}
+  public var signedPreKey: Sanchr_Keys_SignedPreKey {
+    get {_signedPreKey ?? Sanchr_Keys_SignedPreKey()}
     set {_signedPreKey = newValue}
   }
   /// Returns true if `signedPreKey` has been explicitly set.
@@ -91,14 +91,14 @@ public struct Vync_Keys_KeyBundle: Sendable {
   /// Clears the value of `signedPreKey`. Subsequent reads from it will return its default value.
   public mutating func clearSignedPreKey() {self._signedPreKey = nil}
 
-  public var oneTimePreKeys: [Vync_Keys_OneTimePreKey] = []
+  public var oneTimePreKeys: [Sanchr_Keys_OneTimePreKey] = []
 
   public var registrationID: Int32 = 0
 
   public var deviceID: Int32 = 0
 
-  public var kyberPreKey: Vync_Keys_KyberPreKey {
-    get {_kyberPreKey ?? Vync_Keys_KyberPreKey()}
+  public var kyberPreKey: Sanchr_Keys_KyberPreKey {
+    get {_kyberPreKey ?? Sanchr_Keys_KyberPreKey()}
     set {_kyberPreKey = newValue}
   }
   /// Returns true if `kyberPreKey` has been explicitly set.
@@ -110,11 +110,11 @@ public struct Vync_Keys_KeyBundle: Sendable {
 
   public init() {}
 
-  fileprivate var _signedPreKey: Vync_Keys_SignedPreKey? = nil
-  fileprivate var _kyberPreKey: Vync_Keys_KyberPreKey? = nil
+  fileprivate var _signedPreKey: Sanchr_Keys_SignedPreKey? = nil
+  fileprivate var _kyberPreKey: Sanchr_Keys_KyberPreKey? = nil
 }
 
-public struct Vync_Keys_UploadKeyBundleResponse: Sendable {
+public struct Sanchr_Keys_UploadKeyBundleResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -124,7 +124,7 @@ public struct Vync_Keys_UploadKeyBundleResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_GetPreKeyBundleRequest: Sendable {
+public struct Sanchr_Keys_GetPreKeyBundleRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -138,15 +138,15 @@ public struct Vync_Keys_GetPreKeyBundleRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_PreKeyBundleResponse: Sendable {
+public struct Sanchr_Keys_PreKeyBundleResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var identityPublicKey: Data = Data()
 
-  public var signedPreKey: Vync_Keys_SignedPreKey {
-    get {_signedPreKey ?? Vync_Keys_SignedPreKey()}
+  public var signedPreKey: Sanchr_Keys_SignedPreKey {
+    get {_signedPreKey ?? Sanchr_Keys_SignedPreKey()}
     set {_signedPreKey = newValue}
   }
   /// Returns true if `signedPreKey` has been explicitly set.
@@ -154,8 +154,8 @@ public struct Vync_Keys_PreKeyBundleResponse: Sendable {
   /// Clears the value of `signedPreKey`. Subsequent reads from it will return its default value.
   public mutating func clearSignedPreKey() {self._signedPreKey = nil}
 
-  public var oneTimePreKey: Vync_Keys_OneTimePreKey {
-    get {_oneTimePreKey ?? Vync_Keys_OneTimePreKey()}
+  public var oneTimePreKey: Sanchr_Keys_OneTimePreKey {
+    get {_oneTimePreKey ?? Sanchr_Keys_OneTimePreKey()}
     set {_oneTimePreKey = newValue}
   }
   /// Returns true if `oneTimePreKey` has been explicitly set.
@@ -167,8 +167,8 @@ public struct Vync_Keys_PreKeyBundleResponse: Sendable {
 
   public var registrationID: Int32 = 0
 
-  public var kyberPreKey: Vync_Keys_KyberPreKey {
-    get {_kyberPreKey ?? Vync_Keys_KyberPreKey()}
+  public var kyberPreKey: Sanchr_Keys_KyberPreKey {
+    get {_kyberPreKey ?? Sanchr_Keys_KyberPreKey()}
     set {_kyberPreKey = newValue}
   }
   /// Returns true if `kyberPreKey` has been explicitly set.
@@ -180,24 +180,24 @@ public struct Vync_Keys_PreKeyBundleResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _signedPreKey: Vync_Keys_SignedPreKey? = nil
-  fileprivate var _oneTimePreKey: Vync_Keys_OneTimePreKey? = nil
-  fileprivate var _kyberPreKey: Vync_Keys_KyberPreKey? = nil
+  fileprivate var _signedPreKey: Sanchr_Keys_SignedPreKey? = nil
+  fileprivate var _oneTimePreKey: Sanchr_Keys_OneTimePreKey? = nil
+  fileprivate var _kyberPreKey: Sanchr_Keys_KyberPreKey? = nil
 }
 
-public struct Vync_Keys_UploadOneTimePreKeysRequest: Sendable {
+public struct Sanchr_Keys_UploadOneTimePreKeysRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var keys: [Vync_Keys_OneTimePreKey] = []
+  public var keys: [Sanchr_Keys_OneTimePreKey] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Keys_PreKeyCountResponse: Sendable {
+public struct Sanchr_Keys_PreKeyCountResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -209,7 +209,7 @@ public struct Vync_Keys_PreKeyCountResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_GetPreKeyCountRequest: Sendable {
+public struct Sanchr_Keys_GetPreKeyCountRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -219,7 +219,7 @@ public struct Vync_Keys_GetPreKeyCountRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_GetUserDevicesRequest: Sendable {
+public struct Sanchr_Keys_GetUserDevicesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -231,19 +231,19 @@ public struct Vync_Keys_GetUserDevicesRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Keys_GetUserDevicesResponse: Sendable {
+public struct Sanchr_Keys_GetUserDevicesResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var devices: [Vync_Keys_DeviceInfo] = []
+  public var devices: [Sanchr_Keys_DeviceInfo] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Vync_Keys_DeviceInfo: Sendable {
+public struct Sanchr_Keys_DeviceInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -265,9 +265,9 @@ public struct Vync_Keys_DeviceInfo: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.keys"
+fileprivate let _protobuf_package = "sanchr.keys"
 
-extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SignedPreKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
 
@@ -302,7 +302,7 @@ extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_SignedPreKey, rhs: Vync_Keys_SignedPreKey) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_SignedPreKey, rhs: Sanchr_Keys_SignedPreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.signature != rhs.signature {return false}
@@ -312,7 +312,7 @@ extension Vync_Keys_SignedPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Vync_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OneTimePreKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0")
 
@@ -339,7 +339,7 @@ extension Vync_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_OneTimePreKey, rhs: Vync_Keys_OneTimePreKey) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_OneTimePreKey, rhs: Sanchr_Keys_OneTimePreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -347,7 +347,7 @@ extension Vync_Keys_OneTimePreKey: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Vync_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".KyberPreKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_id\0\u{3}public_key\0\u{1}signature\0\u{1}timestamp\0")
 
@@ -382,7 +382,7 @@ extension Vync_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_KyberPreKey, rhs: Vync_Keys_KyberPreKey) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_KyberPreKey, rhs: Sanchr_Keys_KyberPreKey) -> Bool {
     if lhs.keyID != rhs.keyID {return false}
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.signature != rhs.signature {return false}
@@ -392,7 +392,7 @@ extension Vync_Keys_KyberPreKey: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".KeyBundle"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_keys\0\u{3}registration_id\0\u{3}device_id\0\u{3}kyber_pre_key\0")
 
@@ -439,7 +439,7 @@ extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_KeyBundle, rhs: Vync_Keys_KeyBundle) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_KeyBundle, rhs: Sanchr_Keys_KeyBundle) -> Bool {
     if lhs.identityPublicKey != rhs.identityPublicKey {return false}
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs.oneTimePreKeys != rhs.oneTimePreKeys {return false}
@@ -451,7 +451,7 @@ extension Vync_Keys_KeyBundle: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Vync_Keys_UploadKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_UploadKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadKeyBundleResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -464,13 +464,13 @@ extension Vync_Keys_UploadKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_UploadKeyBundleResponse, rhs: Vync_Keys_UploadKeyBundleResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_UploadKeyBundleResponse, rhs: Sanchr_Keys_UploadKeyBundleResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPreKeyBundleRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}device_id\0")
 
@@ -497,7 +497,7 @@ extension Vync_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_GetPreKeyBundleRequest, rhs: Vync_Keys_GetPreKeyBundleRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_GetPreKeyBundleRequest, rhs: Sanchr_Keys_GetPreKeyBundleRequest) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -505,7 +505,7 @@ extension Vync_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PreKeyBundleResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}identity_public_key\0\u{3}signed_pre_key\0\u{3}one_time_pre_key\0\u{3}device_id\0\u{3}registration_id\0\u{3}kyber_pre_key\0")
 
@@ -552,7 +552,7 @@ extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_PreKeyBundleResponse, rhs: Vync_Keys_PreKeyBundleResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_PreKeyBundleResponse, rhs: Sanchr_Keys_PreKeyBundleResponse) -> Bool {
     if lhs.identityPublicKey != rhs.identityPublicKey {return false}
     if lhs._signedPreKey != rhs._signedPreKey {return false}
     if lhs._oneTimePreKey != rhs._oneTimePreKey {return false}
@@ -564,7 +564,7 @@ extension Vync_Keys_PreKeyBundleResponse: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Vync_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadOneTimePreKeysRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}keys\0")
 
@@ -587,14 +587,14 @@ extension Vync_Keys_UploadOneTimePreKeysRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_UploadOneTimePreKeysRequest, rhs: Vync_Keys_UploadOneTimePreKeysRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_UploadOneTimePreKeysRequest, rhs: Sanchr_Keys_UploadOneTimePreKeysRequest) -> Bool {
     if lhs.keys != rhs.keys {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PreKeyCountResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}count\0")
 
@@ -617,14 +617,14 @@ extension Vync_Keys_PreKeyCountResponse: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_PreKeyCountResponse, rhs: Vync_Keys_PreKeyCountResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_PreKeyCountResponse, rhs: Sanchr_Keys_PreKeyCountResponse) -> Bool {
     if lhs.count != rhs.count {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_GetPreKeyCountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_GetPreKeyCountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPreKeyCountRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -637,13 +637,13 @@ extension Vync_Keys_GetPreKeyCountRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_GetPreKeyCountRequest, rhs: Vync_Keys_GetPreKeyCountRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_GetPreKeyCountRequest, rhs: Sanchr_Keys_GetPreKeyCountRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetUserDevicesRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0")
 
@@ -666,14 +666,14 @@ extension Vync_Keys_GetUserDevicesRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_GetUserDevicesRequest, rhs: Vync_Keys_GetUserDevicesRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_GetUserDevicesRequest, rhs: Sanchr_Keys_GetUserDevicesRequest) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetUserDevicesResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
 
@@ -696,14 +696,14 @@ extension Vync_Keys_GetUserDevicesResponse: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_GetUserDevicesResponse, rhs: Vync_Keys_GetUserDevicesResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_GetUserDevicesResponse, rhs: Sanchr_Keys_GetUserDevicesResponse) -> Bool {
     if lhs.devices != rhs.devices {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{1}platform\0\u{3}supports_delivery_ack\0\u{3}key_capable\0\u{3}last_active_at\0")
 
@@ -742,7 +742,7 @@ extension Vync_Keys_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Keys_DeviceInfo, rhs: Vync_Keys_DeviceInfo) -> Bool {
+  public static func ==(lhs: Sanchr_Keys_DeviceInfo, rhs: Sanchr_Keys_DeviceInfo) -> Bool {
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.supportsDeliveryAck != rhs.supportsDeliveryAck {return false}

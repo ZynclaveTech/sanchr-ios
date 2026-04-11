@@ -11,40 +11,40 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Contacts_ContactServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Contacts_ContactServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Contacts_ContactServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Contacts_ContactServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? { get }
 
   func syncContacts(
-    _ request: Vync_Contacts_SyncContactsRequest,
+    _ request: Sanchr_Contacts_SyncContactsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse>
+  ) -> UnaryCall<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse>
 
   func getContacts(
-    _ request: Vync_Contacts_GetContactsRequest,
+    _ request: Sanchr_Contacts_GetContactsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse>
+  ) -> UnaryCall<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse>
 
   func blockContact(
-    _ request: Vync_Contacts_BlockContactRequest,
+    _ request: Sanchr_Contacts_BlockContactRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse>
+  ) -> UnaryCall<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse>
 
   func unblockContact(
-    _ request: Vync_Contacts_UnblockContactRequest,
+    _ request: Sanchr_Contacts_UnblockContactRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse>
+  ) -> UnaryCall<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse>
 
   func getBlockedList(
-    _ request: Vync_Contacts_GetBlockedListRequest,
+    _ request: Sanchr_Contacts_GetBlockedListRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse>
+  ) -> UnaryCall<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse>
 }
 
-extension Vync_Contacts_ContactServiceClientProtocol {
+extension Sanchr_Contacts_ContactServiceClientProtocol {
   public var serviceName: String {
-    return "vync.contacts.ContactService"
+    return "sanchr.contacts.ContactService"
   }
 
   /// Unary call to SyncContacts
@@ -54,11 +54,11 @@ extension Vync_Contacts_ContactServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func syncContacts(
-    _ request: Vync_Contacts_SyncContactsRequest,
+    _ request: Sanchr_Contacts_SyncContactsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse> {
+  ) -> UnaryCall<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse> {
     return self.makeUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSyncContactsInterceptors() ?? []
@@ -72,11 +72,11 @@ extension Vync_Contacts_ContactServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getContacts(
-    _ request: Vync_Contacts_GetContactsRequest,
+    _ request: Sanchr_Contacts_GetContactsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse> {
+  ) -> UnaryCall<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse> {
     return self.makeUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetContactsInterceptors() ?? []
@@ -90,11 +90,11 @@ extension Vync_Contacts_ContactServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func blockContact(
-    _ request: Vync_Contacts_BlockContactRequest,
+    _ request: Sanchr_Contacts_BlockContactRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse> {
+  ) -> UnaryCall<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse> {
     return self.makeUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeBlockContactInterceptors() ?? []
@@ -108,11 +108,11 @@ extension Vync_Contacts_ContactServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func unblockContact(
-    _ request: Vync_Contacts_UnblockContactRequest,
+    _ request: Sanchr_Contacts_UnblockContactRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse> {
+  ) -> UnaryCall<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse> {
     return self.makeUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUnblockContactInterceptors() ?? []
@@ -126,11 +126,11 @@ extension Vync_Contacts_ContactServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getBlockedList(
-    _ request: Vync_Contacts_GetBlockedListRequest,
+    _ request: Sanchr_Contacts_GetBlockedListRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse> {
+  ) -> UnaryCall<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse> {
     return self.makeUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBlockedListInterceptors() ?? []
@@ -139,24 +139,24 @@ extension Vync_Contacts_ContactServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Contacts_ContactServiceClient: @unchecked Sendable {}
+extension Sanchr_Contacts_ContactServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Contacts_ContactServiceNIOClient")
-public final class Vync_Contacts_ContactServiceClient: Vync_Contacts_ContactServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Contacts_ContactServiceNIOClient")
+public final class Sanchr_Contacts_ContactServiceClient: Sanchr_Contacts_ContactServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.contacts.ContactService service.
+  /// Creates a client for the sanchr.contacts.ContactService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -165,7 +165,7 @@ public final class Vync_Contacts_ContactServiceClient: Vync_Contacts_ContactServ
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -173,12 +173,12 @@ public final class Vync_Contacts_ContactServiceClient: Vync_Contacts_ContactServ
   }
 }
 
-public struct Vync_Contacts_ContactServiceNIOClient: Vync_Contacts_ContactServiceClientProtocol {
+public struct Sanchr_Contacts_ContactServiceNIOClient: Sanchr_Contacts_ContactServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.contacts.ContactService service.
+  /// Creates a client for the sanchr.contacts.ContactService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -187,7 +187,7 @@ public struct Vync_Contacts_ContactServiceNIOClient: Vync_Contacts_ContactServic
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -196,52 +196,52 @@ public struct Vync_Contacts_ContactServiceNIOClient: Vync_Contacts_ContactServic
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Contacts_ContactServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Contacts_ContactServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? { get }
 
   func makeSyncContactsCall(
-    _ request: Vync_Contacts_SyncContactsRequest,
+    _ request: Sanchr_Contacts_SyncContactsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse>
 
   func makeGetContactsCall(
-    _ request: Vync_Contacts_GetContactsRequest,
+    _ request: Sanchr_Contacts_GetContactsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse>
 
   func makeBlockContactCall(
-    _ request: Vync_Contacts_BlockContactRequest,
+    _ request: Sanchr_Contacts_BlockContactRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse>
 
   func makeUnblockContactCall(
-    _ request: Vync_Contacts_UnblockContactRequest,
+    _ request: Sanchr_Contacts_UnblockContactRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse>
 
   func makeGetBlockedListCall(
-    _ request: Vync_Contacts_GetBlockedListRequest,
+    _ request: Sanchr_Contacts_GetBlockedListRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Contacts_ContactServiceAsyncClientProtocol {
+extension Sanchr_Contacts_ContactServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Contacts_ContactServiceClientMetadata.serviceDescriptor
+    return Sanchr_Contacts_ContactServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeSyncContactsCall(
-    _ request: Vync_Contacts_SyncContactsRequest,
+    _ request: Sanchr_Contacts_SyncContactsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSyncContactsInterceptors() ?? []
@@ -249,11 +249,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func makeGetContactsCall(
-    _ request: Vync_Contacts_GetContactsRequest,
+    _ request: Sanchr_Contacts_GetContactsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetContactsInterceptors() ?? []
@@ -261,11 +261,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func makeBlockContactCall(
-    _ request: Vync_Contacts_BlockContactRequest,
+    _ request: Sanchr_Contacts_BlockContactRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeBlockContactInterceptors() ?? []
@@ -273,11 +273,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func makeUnblockContactCall(
-    _ request: Vync_Contacts_UnblockContactRequest,
+    _ request: Sanchr_Contacts_UnblockContactRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUnblockContactInterceptors() ?? []
@@ -285,11 +285,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func makeGetBlockedListCall(
-    _ request: Vync_Contacts_GetBlockedListRequest,
+    _ request: Sanchr_Contacts_GetBlockedListRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBlockedListInterceptors() ?? []
@@ -298,13 +298,13 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Contacts_ContactServiceAsyncClientProtocol {
+extension Sanchr_Contacts_ContactServiceAsyncClientProtocol {
   public func syncContacts(
-    _ request: Vync_Contacts_SyncContactsRequest,
+    _ request: Sanchr_Contacts_SyncContactsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Contacts_SyncContactsResponse {
+  ) async throws -> Sanchr_Contacts_SyncContactsResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.syncContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSyncContactsInterceptors() ?? []
@@ -312,11 +312,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func getContacts(
-    _ request: Vync_Contacts_GetContactsRequest,
+    _ request: Sanchr_Contacts_GetContactsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Contacts_GetContactsResponse {
+  ) async throws -> Sanchr_Contacts_GetContactsResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getContacts.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetContactsInterceptors() ?? []
@@ -324,11 +324,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func blockContact(
-    _ request: Vync_Contacts_BlockContactRequest,
+    _ request: Sanchr_Contacts_BlockContactRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Contacts_BlockContactResponse {
+  ) async throws -> Sanchr_Contacts_BlockContactResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.blockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeBlockContactInterceptors() ?? []
@@ -336,11 +336,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func unblockContact(
-    _ request: Vync_Contacts_UnblockContactRequest,
+    _ request: Sanchr_Contacts_UnblockContactRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Contacts_UnblockContactResponse {
+  ) async throws -> Sanchr_Contacts_UnblockContactResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.unblockContact.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUnblockContactInterceptors() ?? []
@@ -348,11 +348,11 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
   }
 
   public func getBlockedList(
-    _ request: Vync_Contacts_GetBlockedListRequest,
+    _ request: Sanchr_Contacts_GetBlockedListRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Contacts_GetBlockedListResponse {
+  ) async throws -> Sanchr_Contacts_GetBlockedListResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
+      path: Sanchr_Contacts_ContactServiceClientMetadata.Methods.getBlockedList.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetBlockedListInterceptors() ?? []
@@ -361,15 +361,15 @@ extension Vync_Contacts_ContactServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Contacts_ContactServiceAsyncClient: Vync_Contacts_ContactServiceAsyncClientProtocol {
+public struct Sanchr_Contacts_ContactServiceAsyncClient: Sanchr_Contacts_ContactServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -377,88 +377,88 @@ public struct Vync_Contacts_ContactServiceAsyncClient: Vync_Contacts_ContactServ
   }
 }
 
-public protocol Vync_Contacts_ContactServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Contacts_ContactServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'syncContacts'.
-  func makeSyncContactsInterceptors() -> [ClientInterceptor<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse>]
+  func makeSyncContactsInterceptors() -> [ClientInterceptor<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getContacts'.
-  func makeGetContactsInterceptors() -> [ClientInterceptor<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse>]
+  func makeGetContactsInterceptors() -> [ClientInterceptor<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse>]
 
   /// - Returns: Interceptors to use when invoking 'blockContact'.
-  func makeBlockContactInterceptors() -> [ClientInterceptor<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse>]
+  func makeBlockContactInterceptors() -> [ClientInterceptor<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse>]
 
   /// - Returns: Interceptors to use when invoking 'unblockContact'.
-  func makeUnblockContactInterceptors() -> [ClientInterceptor<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse>]
+  func makeUnblockContactInterceptors() -> [ClientInterceptor<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getBlockedList'.
-  func makeGetBlockedListInterceptors() -> [ClientInterceptor<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse>]
+  func makeGetBlockedListInterceptors() -> [ClientInterceptor<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse>]
 }
 
-public enum Vync_Contacts_ContactServiceClientMetadata {
+public enum Sanchr_Contacts_ContactServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "ContactService",
-    fullName: "vync.contacts.ContactService",
+    fullName: "sanchr.contacts.ContactService",
     methods: [
-      Vync_Contacts_ContactServiceClientMetadata.Methods.syncContacts,
-      Vync_Contacts_ContactServiceClientMetadata.Methods.getContacts,
-      Vync_Contacts_ContactServiceClientMetadata.Methods.blockContact,
-      Vync_Contacts_ContactServiceClientMetadata.Methods.unblockContact,
-      Vync_Contacts_ContactServiceClientMetadata.Methods.getBlockedList,
+      Sanchr_Contacts_ContactServiceClientMetadata.Methods.syncContacts,
+      Sanchr_Contacts_ContactServiceClientMetadata.Methods.getContacts,
+      Sanchr_Contacts_ContactServiceClientMetadata.Methods.blockContact,
+      Sanchr_Contacts_ContactServiceClientMetadata.Methods.unblockContact,
+      Sanchr_Contacts_ContactServiceClientMetadata.Methods.getBlockedList,
     ]
   )
 
   public enum Methods {
     public static let syncContacts = GRPCMethodDescriptor(
       name: "SyncContacts",
-      path: "/vync.contacts.ContactService/SyncContacts",
+      path: "/sanchr.contacts.ContactService/SyncContacts",
       type: GRPCCallType.unary
     )
 
     public static let getContacts = GRPCMethodDescriptor(
       name: "GetContacts",
-      path: "/vync.contacts.ContactService/GetContacts",
+      path: "/sanchr.contacts.ContactService/GetContacts",
       type: GRPCCallType.unary
     )
 
     public static let blockContact = GRPCMethodDescriptor(
       name: "BlockContact",
-      path: "/vync.contacts.ContactService/BlockContact",
+      path: "/sanchr.contacts.ContactService/BlockContact",
       type: GRPCCallType.unary
     )
 
     public static let unblockContact = GRPCMethodDescriptor(
       name: "UnblockContact",
-      path: "/vync.contacts.ContactService/UnblockContact",
+      path: "/sanchr.contacts.ContactService/UnblockContact",
       type: GRPCCallType.unary
     )
 
     public static let getBlockedList = GRPCMethodDescriptor(
       name: "GetBlockedList",
-      path: "/vync.contacts.ContactService/GetBlockedList",
+      path: "/sanchr.contacts.ContactService/GetBlockedList",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Contacts_ContactServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Contacts_ContactServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Contacts_ContactServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Contacts_ContactServiceServerInterceptorFactoryProtocol? { get }
 
-  func syncContacts(request: Vync_Contacts_SyncContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Contacts_SyncContactsResponse>
+  func syncContacts(request: Sanchr_Contacts_SyncContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Contacts_SyncContactsResponse>
 
-  func getContacts(request: Vync_Contacts_GetContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Contacts_GetContactsResponse>
+  func getContacts(request: Sanchr_Contacts_GetContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Contacts_GetContactsResponse>
 
-  func blockContact(request: Vync_Contacts_BlockContactRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Contacts_BlockContactResponse>
+  func blockContact(request: Sanchr_Contacts_BlockContactRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Contacts_BlockContactResponse>
 
-  func unblockContact(request: Vync_Contacts_UnblockContactRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Contacts_UnblockContactResponse>
+  func unblockContact(request: Sanchr_Contacts_UnblockContactRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Contacts_UnblockContactResponse>
 
-  func getBlockedList(request: Vync_Contacts_GetBlockedListRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Contacts_GetBlockedListResponse>
+  func getBlockedList(request: Sanchr_Contacts_GetBlockedListRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Contacts_GetBlockedListResponse>
 }
 
-extension Vync_Contacts_ContactServiceProvider {
+extension Sanchr_Contacts_ContactServiceProvider {
   public var serviceName: Substring {
-    return Vync_Contacts_ContactServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Contacts_ContactServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -471,8 +471,8 @@ extension Vync_Contacts_ContactServiceProvider {
     case "SyncContacts":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_SyncContactsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_SyncContactsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_SyncContactsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_SyncContactsResponse>(),
         interceptors: self.interceptors?.makeSyncContactsInterceptors() ?? [],
         userFunction: self.syncContacts(request:context:)
       )
@@ -480,8 +480,8 @@ extension Vync_Contacts_ContactServiceProvider {
     case "GetContacts":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_GetContactsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_GetContactsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_GetContactsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_GetContactsResponse>(),
         interceptors: self.interceptors?.makeGetContactsInterceptors() ?? [],
         userFunction: self.getContacts(request:context:)
       )
@@ -489,8 +489,8 @@ extension Vync_Contacts_ContactServiceProvider {
     case "BlockContact":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_BlockContactRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_BlockContactResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_BlockContactRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_BlockContactResponse>(),
         interceptors: self.interceptors?.makeBlockContactInterceptors() ?? [],
         userFunction: self.blockContact(request:context:)
       )
@@ -498,8 +498,8 @@ extension Vync_Contacts_ContactServiceProvider {
     case "UnblockContact":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_UnblockContactRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_UnblockContactResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_UnblockContactRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_UnblockContactResponse>(),
         interceptors: self.interceptors?.makeUnblockContactInterceptors() ?? [],
         userFunction: self.unblockContact(request:context:)
       )
@@ -507,8 +507,8 @@ extension Vync_Contacts_ContactServiceProvider {
     case "GetBlockedList":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_GetBlockedListRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_GetBlockedListResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_GetBlockedListRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_GetBlockedListResponse>(),
         interceptors: self.interceptors?.makeGetBlockedListInterceptors() ?? [],
         userFunction: self.getBlockedList(request:context:)
       )
@@ -521,47 +521,47 @@ extension Vync_Contacts_ContactServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Contacts_ContactServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Contacts_ContactServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Contacts_ContactServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Contacts_ContactServiceServerInterceptorFactoryProtocol? { get }
 
   func syncContacts(
-    request: Vync_Contacts_SyncContactsRequest,
+    request: Sanchr_Contacts_SyncContactsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Contacts_SyncContactsResponse
+  ) async throws -> Sanchr_Contacts_SyncContactsResponse
 
   func getContacts(
-    request: Vync_Contacts_GetContactsRequest,
+    request: Sanchr_Contacts_GetContactsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Contacts_GetContactsResponse
+  ) async throws -> Sanchr_Contacts_GetContactsResponse
 
   func blockContact(
-    request: Vync_Contacts_BlockContactRequest,
+    request: Sanchr_Contacts_BlockContactRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Contacts_BlockContactResponse
+  ) async throws -> Sanchr_Contacts_BlockContactResponse
 
   func unblockContact(
-    request: Vync_Contacts_UnblockContactRequest,
+    request: Sanchr_Contacts_UnblockContactRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Contacts_UnblockContactResponse
+  ) async throws -> Sanchr_Contacts_UnblockContactResponse
 
   func getBlockedList(
-    request: Vync_Contacts_GetBlockedListRequest,
+    request: Sanchr_Contacts_GetBlockedListRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Contacts_GetBlockedListResponse
+  ) async throws -> Sanchr_Contacts_GetBlockedListResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Contacts_ContactServiceAsyncProvider {
+extension Sanchr_Contacts_ContactServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Contacts_ContactServiceServerMetadata.serviceDescriptor
+    return Sanchr_Contacts_ContactServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Contacts_ContactServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Contacts_ContactServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Contacts_ContactServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Contacts_ContactServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -573,8 +573,8 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
     case "SyncContacts":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_SyncContactsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_SyncContactsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_SyncContactsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_SyncContactsResponse>(),
         interceptors: self.interceptors?.makeSyncContactsInterceptors() ?? [],
         wrapping: { try await self.syncContacts(request: $0, context: $1) }
       )
@@ -582,8 +582,8 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
     case "GetContacts":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_GetContactsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_GetContactsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_GetContactsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_GetContactsResponse>(),
         interceptors: self.interceptors?.makeGetContactsInterceptors() ?? [],
         wrapping: { try await self.getContacts(request: $0, context: $1) }
       )
@@ -591,8 +591,8 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
     case "BlockContact":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_BlockContactRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_BlockContactResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_BlockContactRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_BlockContactResponse>(),
         interceptors: self.interceptors?.makeBlockContactInterceptors() ?? [],
         wrapping: { try await self.blockContact(request: $0, context: $1) }
       )
@@ -600,8 +600,8 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
     case "UnblockContact":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_UnblockContactRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_UnblockContactResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_UnblockContactRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_UnblockContactResponse>(),
         interceptors: self.interceptors?.makeUnblockContactInterceptors() ?? [],
         wrapping: { try await self.unblockContact(request: $0, context: $1) }
       )
@@ -609,8 +609,8 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
     case "GetBlockedList":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Contacts_GetBlockedListRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Contacts_GetBlockedListResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Contacts_GetBlockedListRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Contacts_GetBlockedListResponse>(),
         interceptors: self.interceptors?.makeGetBlockedListInterceptors() ?? [],
         wrapping: { try await self.getBlockedList(request: $0, context: $1) }
       )
@@ -621,70 +621,70 @@ extension Vync_Contacts_ContactServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Contacts_ContactServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Contacts_ContactServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'syncContacts'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeSyncContactsInterceptors() -> [ServerInterceptor<Vync_Contacts_SyncContactsRequest, Vync_Contacts_SyncContactsResponse>]
+  func makeSyncContactsInterceptors() -> [ServerInterceptor<Sanchr_Contacts_SyncContactsRequest, Sanchr_Contacts_SyncContactsResponse>]
 
   /// - Returns: Interceptors to use when handling 'getContacts'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetContactsInterceptors() -> [ServerInterceptor<Vync_Contacts_GetContactsRequest, Vync_Contacts_GetContactsResponse>]
+  func makeGetContactsInterceptors() -> [ServerInterceptor<Sanchr_Contacts_GetContactsRequest, Sanchr_Contacts_GetContactsResponse>]
 
   /// - Returns: Interceptors to use when handling 'blockContact'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeBlockContactInterceptors() -> [ServerInterceptor<Vync_Contacts_BlockContactRequest, Vync_Contacts_BlockContactResponse>]
+  func makeBlockContactInterceptors() -> [ServerInterceptor<Sanchr_Contacts_BlockContactRequest, Sanchr_Contacts_BlockContactResponse>]
 
   /// - Returns: Interceptors to use when handling 'unblockContact'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUnblockContactInterceptors() -> [ServerInterceptor<Vync_Contacts_UnblockContactRequest, Vync_Contacts_UnblockContactResponse>]
+  func makeUnblockContactInterceptors() -> [ServerInterceptor<Sanchr_Contacts_UnblockContactRequest, Sanchr_Contacts_UnblockContactResponse>]
 
   /// - Returns: Interceptors to use when handling 'getBlockedList'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetBlockedListInterceptors() -> [ServerInterceptor<Vync_Contacts_GetBlockedListRequest, Vync_Contacts_GetBlockedListResponse>]
+  func makeGetBlockedListInterceptors() -> [ServerInterceptor<Sanchr_Contacts_GetBlockedListRequest, Sanchr_Contacts_GetBlockedListResponse>]
 }
 
-public enum Vync_Contacts_ContactServiceServerMetadata {
+public enum Sanchr_Contacts_ContactServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "ContactService",
-    fullName: "vync.contacts.ContactService",
+    fullName: "sanchr.contacts.ContactService",
     methods: [
-      Vync_Contacts_ContactServiceServerMetadata.Methods.syncContacts,
-      Vync_Contacts_ContactServiceServerMetadata.Methods.getContacts,
-      Vync_Contacts_ContactServiceServerMetadata.Methods.blockContact,
-      Vync_Contacts_ContactServiceServerMetadata.Methods.unblockContact,
-      Vync_Contacts_ContactServiceServerMetadata.Methods.getBlockedList,
+      Sanchr_Contacts_ContactServiceServerMetadata.Methods.syncContacts,
+      Sanchr_Contacts_ContactServiceServerMetadata.Methods.getContacts,
+      Sanchr_Contacts_ContactServiceServerMetadata.Methods.blockContact,
+      Sanchr_Contacts_ContactServiceServerMetadata.Methods.unblockContact,
+      Sanchr_Contacts_ContactServiceServerMetadata.Methods.getBlockedList,
     ]
   )
 
   public enum Methods {
     public static let syncContacts = GRPCMethodDescriptor(
       name: "SyncContacts",
-      path: "/vync.contacts.ContactService/SyncContacts",
+      path: "/sanchr.contacts.ContactService/SyncContacts",
       type: GRPCCallType.unary
     )
 
     public static let getContacts = GRPCMethodDescriptor(
       name: "GetContacts",
-      path: "/vync.contacts.ContactService/GetContacts",
+      path: "/sanchr.contacts.ContactService/GetContacts",
       type: GRPCCallType.unary
     )
 
     public static let blockContact = GRPCMethodDescriptor(
       name: "BlockContact",
-      path: "/vync.contacts.ContactService/BlockContact",
+      path: "/sanchr.contacts.ContactService/BlockContact",
       type: GRPCCallType.unary
     )
 
     public static let unblockContact = GRPCMethodDescriptor(
       name: "UnblockContact",
-      path: "/vync.contacts.ContactService/UnblockContact",
+      path: "/sanchr.contacts.ContactService/UnblockContact",
       type: GRPCCallType.unary
     )
 
     public static let getBlockedList = GRPCMethodDescriptor(
       name: "GetBlockedList",
-      path: "/vync.contacts.ContactService/GetBlockedList",
+      path: "/sanchr.contacts.ContactService/GetBlockedList",
       type: GRPCCallType.unary
     )
   }

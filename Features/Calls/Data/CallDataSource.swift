@@ -6,9 +6,9 @@ import SanchrShared
 /// Provides typed domain-level access to call signaling, history, and TURN credentials.
 final class CallDataSource: @unchecked Sendable {
 
-    private let callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
+    private let callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol
 
-    init(callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol) {
+    init(callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol) {
         self.callService = callService
     }
 
@@ -16,9 +16,9 @@ final class CallDataSource: @unchecked Sendable {
 
     /// Sends an SDP offer to initiate a call with the specified recipient.
     func initiateCall(recipientId: String, callType: String, sdpOffer: Data) async throws
-        -> Vync_Calling_CallResponse
+        -> Sanchr_Calling_CallResponse
     {
-        var request = Vync_Calling_CallOffer()
+        var request = Sanchr_Calling_CallOffer()
         request.recipientID = recipientId
         request.callType = callType
         request.sdpOffer = sdpOffer
@@ -26,15 +26,15 @@ final class CallDataSource: @unchecked Sendable {
     }
 
     /// Opens a bidirectional signaling stream for exchanging SDP, ICE candidates, and control messages.
-    func openCallStream(outbound: AsyncStream<Vync_Calling_CallSignal>) -> GRPCAsyncResponseStream<
-        Vync_Calling_CallSignal
+    func openCallStream(outbound: AsyncStream<Sanchr_Calling_CallSignal>) -> GRPCAsyncResponseStream<
+        Sanchr_Calling_CallSignal
     > {
         return callService.callStream(outbound)
     }
 
     /// Sends an end-call request to the server.
     func endCall(callId: String) async throws {
-        var request = Vync_Calling_EndCallRequest()
+        var request = Sanchr_Calling_EndCallRequest()
         request.callID = callId
         _ = try await callService.endCall(request)
     }
@@ -42,8 +42,8 @@ final class CallDataSource: @unchecked Sendable {
     // MARK: - Call History
 
     /// Fetches call history entries from the server.
-    func fetchCallHistory(limit: Int32 = 50) async throws -> [Vync_Calling_CallLogEntry] {
-        var request = Vync_Calling_GetCallHistoryRequest()
+    func fetchCallHistory(limit: Int32 = 50) async throws -> [Sanchr_Calling_CallLogEntry] {
+        var request = Sanchr_Calling_GetCallHistoryRequest()
         request.limit = limit
         let response = try await callService.getCallHistory(request)
         return response.entries
@@ -52,7 +52,7 @@ final class CallDataSource: @unchecked Sendable {
     // MARK: - TURN Credentials
 
     /// Fetches TURN server credentials for NAT traversal.
-    func fetchTurnCredentials() async throws -> Vync_Calling_TurnCredentials {
-        return try await callService.getTurnCredentials(Vync_Calling_GetTurnCredentialsRequest())
+    func fetchTurnCredentials() async throws -> Sanchr_Calling_TurnCredentials {
+        return try await callService.getTurnCredentials(Sanchr_Calling_GetTurnCredentialsRequest())
     }
 }

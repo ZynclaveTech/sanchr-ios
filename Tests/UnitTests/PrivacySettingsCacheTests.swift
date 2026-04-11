@@ -27,11 +27,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func testUpdateWithReadReceiptsOffBlocksReadReceipts() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = false
         settings.typingIndicator = true
         settings.onlineStatusVisible = true
-        settings.vyncModeEnabled = false
+        settings.sanchrModeEnabled = false
 
         cache.update(from: settings)
 
@@ -43,11 +43,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func testUpdateWithTypingOffBlocksTyping() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = true
         settings.typingIndicator = false
         settings.onlineStatusVisible = true
-        settings.vyncModeEnabled = false
+        settings.sanchrModeEnabled = false
 
         cache.update(from: settings)
 
@@ -59,11 +59,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func testUpdateWithOnlineStatusHiddenBlocksPresence() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = true
         settings.typingIndicator = true
         settings.onlineStatusVisible = false
-        settings.vyncModeEnabled = false
+        settings.sanchrModeEnabled = false
 
         cache.update(from: settings)
 
@@ -75,11 +75,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func testSanchrModeBlocksEverything() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = true
         settings.typingIndicator = true
         settings.onlineStatusVisible = true
-        settings.vyncModeEnabled = true
+        settings.sanchrModeEnabled = true
 
         cache.update(from: settings)
 
@@ -97,11 +97,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
 
         for i in 0..<50 {
             DispatchQueue.global().async {
-                var settings = Vync_Settings_UserSettings()
+                var settings = Sanchr_Settings_UserSettings()
                 settings.readReceipts = i.isMultiple(of: 2)
                 settings.typingIndicator = true
                 settings.onlineStatusVisible = true
-                settings.vyncModeEnabled = false
+                settings.sanchrModeEnabled = false
                 cache.update(from: settings)
                 // Reading is also under the lock, so this must not crash
                 _ = cache.canSendReadReceipts
@@ -115,11 +115,11 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func test_clear_resetsAllFields() {
         let cache = PrivacySettingsCache()
 
-        var populated = Vync_Settings_UserSettings()
+        var populated = Sanchr_Settings_UserSettings()
         populated.readReceipts = false
         populated.typingIndicator = false
         populated.onlineStatusVisible = false
-        populated.vyncModeEnabled = true
+        populated.sanchrModeEnabled = true
         populated.profilePhotoVisibility = "contacts"
         cache.update(from: populated)
         cache.update(blockList: ["u1", "u2"])
@@ -137,7 +137,7 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func test_updateFromSettings_populatesProfilePhotoVisibility() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.profilePhotoVisibility = "contacts"
         cache.update(from: settings)
 
@@ -147,7 +147,7 @@ final class PrivacySettingsCacheTests: XCTestCase {
     func test_updateFromSettings_emptyProfilePhotoVisibilityFallsBackToEveryone() {
         let cache = PrivacySettingsCache()
 
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.profilePhotoVisibility = ""
         cache.update(from: settings)
 

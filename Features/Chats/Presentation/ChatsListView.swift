@@ -52,7 +52,7 @@ struct ChatsListView: View {
         .onAppear {
             // Sync chip with current Sanchr Mode state each time the screen is visible
             // (catches changes made in Settings while ChatsListView was in the nav stack).
-            sanchrModeEnabled = container.privacySettings.vyncModeEnabled
+            sanchrModeEnabled = container.privacySettings.sanchrModeEnabled
         }
         .task {
             await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
@@ -344,9 +344,9 @@ struct ChatsListView: View {
                     }
                     Task {
                         do {
-                            let updated = try await settingsDataSource.toggleVyncMode(enabled: desired)
+                            let updated = try await settingsDataSource.toggleSanchrMode(enabled: desired)
                             container.privacySettings.update(from: updated)
-                            sanchrModeEnabled = updated.vyncModeEnabled
+                            sanchrModeEnabled = updated.sanchrModeEnabled
                         } catch {
                             // Revert on failure
                             withAnimation(.easeInOut(duration: 0.18)) {

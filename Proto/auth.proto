@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.auth;
+package sanchr.auth;
 
 service AuthService {
   rpc Register(RegisterRequest) returns (AuthResponse);
@@ -7,7 +7,6 @@ service AuthService {
   rpc Login(LoginRequest) returns (AuthResponse);
   rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
-  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
@@ -55,15 +54,10 @@ message AuthResponse {
 
 message LogoutResponse {}
 
-message ChangePasswordRequest {
-  string current_password = 1;
-  string new_password = 2;
-}
-
-message ChangePasswordResponse {}
-
 message DeleteAccountRequest {
-  reserved 1; // future: confirmation password / OTP
+  // Reserved for a future password/OTP confirmation field. Kept empty for
+  // now — authentication is enforced via the Bearer access token.
+  reserved 1;
 }
 
 message DeleteAccountResponse {

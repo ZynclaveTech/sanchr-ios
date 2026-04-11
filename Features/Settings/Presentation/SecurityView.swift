@@ -8,7 +8,6 @@ import SanchrShared
 struct SecurityView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
-    @State private var showChangePassword = false
     @State private var showDeleteAccount = false
 
     private var settingsDataSource: SettingsDataSource {
@@ -37,9 +36,6 @@ struct SecurityView: View {
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Security")
-        .sheet(isPresented: $showChangePassword) {
-            ChangePasswordSheet()
-        }
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountConfirmationSheet()
         }
@@ -68,12 +64,12 @@ struct SecurityView: View {
 
                 Spacer()
 
-                Toggle("", isOn: $viewModel.vyncModeEnabled)
+                Toggle("", isOn: $viewModel.sanchrModeEnabled)
                     .labelsHidden()
                     .tint(SanchrColors.accent)
-                    .onChange(of: viewModel.vyncModeEnabled) { _, newValue in
+                    .onChange(of: viewModel.sanchrModeEnabled) { _, newValue in
                         Task {
-                            await viewModel.setVyncMode(enabled: newValue, settingsDataSource: settingsDataSource)
+                            await viewModel.setSanchrMode(enabled: newValue, settingsDataSource: settingsDataSource)
                         }
                     }
             }
@@ -84,11 +80,11 @@ struct SecurityView: View {
 
             HStack(spacing: 8) {
                 Circle()
-                    .fill(viewModel.vyncModeEnabled ? Color(hex: 0x4ADE80) : Color.white.opacity(0.36))
+                    .fill(viewModel.sanchrModeEnabled ? Color(hex: 0x4ADE80) : Color.white.opacity(0.36))
                     .frame(width: 8, height: 8)
-                Text(viewModel.vyncModeEnabled ? "Currently enabled" : "Currently disabled")
+                Text(viewModel.sanchrModeEnabled ? "Currently enabled" : "Currently disabled")
                     .font(SanchrTypography.captionSmall)
-                    .foregroundColor(viewModel.vyncModeEnabled ? Color(hex: 0x4ADE80) : .white.opacity(0.7))
+                    .foregroundColor(viewModel.sanchrModeEnabled ? Color(hex: 0x4ADE80) : .white.opacity(0.7))
             }
         }
         .padding(20)
@@ -269,19 +265,6 @@ struct SecurityView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Account")
 
-            Button {
-                showChangePassword = true
-            } label: {
-                featureRow(
-                    icon: "key.fill",
-                    tint: Color(hex: 0xCA8A04),
-                    background: Color(hex: 0xFEF3C7),
-                    title: "Change Password",
-                    subtitle: "Update your account credentials"
-                )
-            }
-            .buttonStyle(.plain)
-
             featureRow(
                 icon: "desktopcomputer",
                 tint: Color(hex: 0x6B7280),
@@ -428,108 +411,6 @@ struct SecurityView: View {
             } catch {
                 viewModel.biometricLock = false
             }
-        }
-    }
-}
-
-struct ChangePasswordSheet: View {
-    @Environment(DependencyContainer.self) private var container
-    @Environment(\.dismiss) private var dismiss
-    @State private var currentPassword = ""
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var isProcessing = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 18) {
-                    field(title: "Current password", text: $currentPassword)
-                    field(title: "New password", text: $newPassword)
-                    field(title: "Confirm new password", text: $confirmPassword)
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(.sanchrError)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Button {
-                        Task { await changePassword() }
-                    } label: {
-                        if isProcessing {
-                            ProgressView()
-                                .tint(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 18)
-                                .background(
-                                    LinearGradient(
-                                        colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .clipShape(Capsule())
-                        } else {
-                            SanchrGradientButtonLabel(title: "Change Password", systemName: nil)
-                        }
-                    }
-                    .buttonStyle(SanchrPrimaryCTA())
-                    .disabled(isProcessing || newPassword.isEmpty || newPassword != confirmPassword)
-                    .opacity(isProcessing || newPassword.isEmpty || newPassword != confirmPassword ? 0.6 : 1)
-                }
-                .padding(SanchrExportMetrics.sectionHorizontal)
-                .padding(.top, 16)
-            }
-            .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-            .navigationTitle("Change Password")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func field(title: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(SanchrTypography.bodyBold)
-                .foregroundColor(SanchrExportColors.textPrimary)
-
-            SecureField(title, text: text)
-                .font(SanchrTypography.body)
-                .padding(.horizontal, 18)
-                .frame(height: 56)
-                .background(SanchrExportColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                }
-        }
-    }
-
-    private func changePassword() async {
-        guard newPassword == confirmPassword else {
-            errorMessage = "Passwords do not match."
-            return
-        }
-
-        isProcessing = true
-        defer { isProcessing = false }
-
-        do {
-            try await container.authService.changePassword(
-                currentPassword: currentPassword,
-                newPassword: newPassword
-            )
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }

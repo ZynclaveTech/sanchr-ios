@@ -11,40 +11,40 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Calling_CallSignalingServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Calling_CallSignalingServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Calling_CallSignalingServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Calling_CallSignalingServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? { get }
 
   func initiateCall(
-    _ request: Vync_Calling_CallOffer,
+    _ request: Sanchr_Calling_CallOffer,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Calling_CallOffer, Vync_Calling_CallResponse>
+  ) -> UnaryCall<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse>
 
   func callStream(
     callOptions: CallOptions?,
-    handler: @escaping (Vync_Calling_CallSignal) -> Void
-  ) -> BidirectionalStreamingCall<Vync_Calling_CallSignal, Vync_Calling_CallSignal>
+    handler: @escaping (Sanchr_Calling_CallSignal) -> Void
+  ) -> BidirectionalStreamingCall<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal>
 
   func endCall(
-    _ request: Vync_Calling_EndCallRequest,
+    _ request: Sanchr_Calling_EndCallRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse>
+  ) -> UnaryCall<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse>
 
   func getCallHistory(
-    _ request: Vync_Calling_GetCallHistoryRequest,
+    _ request: Sanchr_Calling_GetCallHistoryRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse>
+  ) -> UnaryCall<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse>
 
   func getTurnCredentials(
-    _ request: Vync_Calling_GetTurnCredentialsRequest,
+    _ request: Sanchr_Calling_GetTurnCredentialsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials>
+  ) -> UnaryCall<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials>
 }
 
-extension Vync_Calling_CallSignalingServiceClientProtocol {
+extension Sanchr_Calling_CallSignalingServiceClientProtocol {
   public var serviceName: String {
-    return "vync.calling.CallSignalingService"
+    return "sanchr.calling.CallSignalingService"
   }
 
   /// Unary call to InitiateCall
@@ -54,11 +54,11 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func initiateCall(
-    _ request: Vync_Calling_CallOffer,
+    _ request: Sanchr_Calling_CallOffer,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Calling_CallOffer, Vync_Calling_CallResponse> {
+  ) -> UnaryCall<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse> {
     return self.makeUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeInitiateCallInterceptors() ?? []
@@ -76,10 +76,10 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
   /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
   public func callStream(
     callOptions: CallOptions? = nil,
-    handler: @escaping (Vync_Calling_CallSignal) -> Void
-  ) -> BidirectionalStreamingCall<Vync_Calling_CallSignal, Vync_Calling_CallSignal> {
+    handler: @escaping (Sanchr_Calling_CallSignal) -> Void
+  ) -> BidirectionalStreamingCall<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal> {
     return self.makeBidirectionalStreamingCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCallStreamInterceptors() ?? [],
       handler: handler
@@ -93,11 +93,11 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func endCall(
-    _ request: Vync_Calling_EndCallRequest,
+    _ request: Sanchr_Calling_EndCallRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse> {
+  ) -> UnaryCall<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse> {
     return self.makeUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeEndCallInterceptors() ?? []
@@ -111,11 +111,11 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getCallHistory(
-    _ request: Vync_Calling_GetCallHistoryRequest,
+    _ request: Sanchr_Calling_GetCallHistoryRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse> {
+  ) -> UnaryCall<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse> {
     return self.makeUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetCallHistoryInterceptors() ?? []
@@ -129,11 +129,11 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getTurnCredentials(
-    _ request: Vync_Calling_GetTurnCredentialsRequest,
+    _ request: Sanchr_Calling_GetTurnCredentialsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials> {
+  ) -> UnaryCall<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials> {
     return self.makeUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTurnCredentialsInterceptors() ?? []
@@ -142,24 +142,24 @@ extension Vync_Calling_CallSignalingServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Calling_CallSignalingServiceClient: @unchecked Sendable {}
+extension Sanchr_Calling_CallSignalingServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Calling_CallSignalingServiceNIOClient")
-public final class Vync_Calling_CallSignalingServiceClient: Vync_Calling_CallSignalingServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Calling_CallSignalingServiceNIOClient")
+public final class Sanchr_Calling_CallSignalingServiceClient: Sanchr_Calling_CallSignalingServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.calling.CallSignalingService service.
+  /// Creates a client for the sanchr.calling.CallSignalingService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -168,7 +168,7 @@ public final class Vync_Calling_CallSignalingServiceClient: Vync_Calling_CallSig
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -176,12 +176,12 @@ public final class Vync_Calling_CallSignalingServiceClient: Vync_Calling_CallSig
   }
 }
 
-public struct Vync_Calling_CallSignalingServiceNIOClient: Vync_Calling_CallSignalingServiceClientProtocol {
+public struct Sanchr_Calling_CallSignalingServiceNIOClient: Sanchr_Calling_CallSignalingServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.calling.CallSignalingService service.
+  /// Creates a client for the sanchr.calling.CallSignalingService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -190,7 +190,7 @@ public struct Vync_Calling_CallSignalingServiceNIOClient: Vync_Calling_CallSigna
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -199,51 +199,51 @@ public struct Vync_Calling_CallSignalingServiceNIOClient: Vync_Calling_CallSigna
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Calling_CallSignalingServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Calling_CallSignalingServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? { get }
 
   func makeInitiateCallCall(
-    _ request: Vync_Calling_CallOffer,
+    _ request: Sanchr_Calling_CallOffer,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_CallOffer, Vync_Calling_CallResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse>
 
   func makeCallStreamCall(
     callOptions: CallOptions?
-  ) -> GRPCAsyncBidirectionalStreamingCall<Vync_Calling_CallSignal, Vync_Calling_CallSignal>
+  ) -> GRPCAsyncBidirectionalStreamingCall<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal>
 
   func makeEndCallCall(
-    _ request: Vync_Calling_EndCallRequest,
+    _ request: Sanchr_Calling_EndCallRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse>
 
   func makeGetCallHistoryCall(
-    _ request: Vync_Calling_GetCallHistoryRequest,
+    _ request: Sanchr_Calling_GetCallHistoryRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse>
 
   func makeGetTurnCredentialsCall(
-    _ request: Vync_Calling_GetTurnCredentialsRequest,
+    _ request: Sanchr_Calling_GetTurnCredentialsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
+extension Sanchr_Calling_CallSignalingServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Calling_CallSignalingServiceClientMetadata.serviceDescriptor
+    return Sanchr_Calling_CallSignalingServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeInitiateCallCall(
-    _ request: Vync_Calling_CallOffer,
+    _ request: Sanchr_Calling_CallOffer,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_CallOffer, Vync_Calling_CallResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeInitiateCallInterceptors() ?? []
@@ -252,20 +252,20 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
 
   public func makeCallStreamCall(
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncBidirectionalStreamingCall<Vync_Calling_CallSignal, Vync_Calling_CallSignal> {
+  ) -> GRPCAsyncBidirectionalStreamingCall<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal> {
     return self.makeAsyncBidirectionalStreamingCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCallStreamInterceptors() ?? []
     )
   }
 
   public func makeEndCallCall(
-    _ request: Vync_Calling_EndCallRequest,
+    _ request: Sanchr_Calling_EndCallRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeEndCallInterceptors() ?? []
@@ -273,11 +273,11 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   }
 
   public func makeGetCallHistoryCall(
-    _ request: Vync_Calling_GetCallHistoryRequest,
+    _ request: Sanchr_Calling_GetCallHistoryRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetCallHistoryInterceptors() ?? []
@@ -285,11 +285,11 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   }
 
   public func makeGetTurnCredentialsCall(
-    _ request: Vync_Calling_GetTurnCredentialsRequest,
+    _ request: Sanchr_Calling_GetTurnCredentialsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTurnCredentialsInterceptors() ?? []
@@ -298,13 +298,13 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
+extension Sanchr_Calling_CallSignalingServiceAsyncClientProtocol {
   public func initiateCall(
-    _ request: Vync_Calling_CallOffer,
+    _ request: Sanchr_Calling_CallOffer,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Calling_CallResponse {
+  ) async throws -> Sanchr_Calling_CallResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeInitiateCallInterceptors() ?? []
@@ -314,9 +314,9 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   public func callStream<RequestStream>(
     _ requests: RequestStream,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Vync_Calling_CallSignal> where RequestStream: Sequence, RequestStream.Element == Vync_Calling_CallSignal {
+  ) -> GRPCAsyncResponseStream<Sanchr_Calling_CallSignal> where RequestStream: Sequence, RequestStream.Element == Sanchr_Calling_CallSignal {
     return self.performAsyncBidirectionalStreamingCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
       requests: requests,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCallStreamInterceptors() ?? []
@@ -326,9 +326,9 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   public func callStream<RequestStream>(
     _ requests: RequestStream,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Vync_Calling_CallSignal> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Vync_Calling_CallSignal {
+  ) -> GRPCAsyncResponseStream<Sanchr_Calling_CallSignal> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Sanchr_Calling_CallSignal {
     return self.performAsyncBidirectionalStreamingCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
       requests: requests,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCallStreamInterceptors() ?? []
@@ -336,11 +336,11 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   }
 
   public func endCall(
-    _ request: Vync_Calling_EndCallRequest,
+    _ request: Sanchr_Calling_EndCallRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Calling_EndCallResponse {
+  ) async throws -> Sanchr_Calling_EndCallResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeEndCallInterceptors() ?? []
@@ -348,11 +348,11 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   }
 
   public func getCallHistory(
-    _ request: Vync_Calling_GetCallHistoryRequest,
+    _ request: Sanchr_Calling_GetCallHistoryRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Calling_GetCallHistoryResponse {
+  ) async throws -> Sanchr_Calling_GetCallHistoryResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetCallHistoryInterceptors() ?? []
@@ -360,11 +360,11 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
   }
 
   public func getTurnCredentials(
-    _ request: Vync_Calling_GetTurnCredentialsRequest,
+    _ request: Sanchr_Calling_GetTurnCredentialsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Calling_TurnCredentials {
+  ) async throws -> Sanchr_Calling_TurnCredentials {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
+      path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTurnCredentialsInterceptors() ?? []
@@ -373,15 +373,15 @@ extension Vync_Calling_CallSignalingServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Calling_CallSignalingServiceAsyncClient: Vync_Calling_CallSignalingServiceAsyncClientProtocol {
+public struct Sanchr_Calling_CallSignalingServiceAsyncClient: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -389,88 +389,88 @@ public struct Vync_Calling_CallSignalingServiceAsyncClient: Vync_Calling_CallSig
   }
 }
 
-public protocol Vync_Calling_CallSignalingServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Calling_CallSignalingServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'initiateCall'.
-  func makeInitiateCallInterceptors() -> [ClientInterceptor<Vync_Calling_CallOffer, Vync_Calling_CallResponse>]
+  func makeInitiateCallInterceptors() -> [ClientInterceptor<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse>]
 
   /// - Returns: Interceptors to use when invoking 'callStream'.
-  func makeCallStreamInterceptors() -> [ClientInterceptor<Vync_Calling_CallSignal, Vync_Calling_CallSignal>]
+  func makeCallStreamInterceptors() -> [ClientInterceptor<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal>]
 
   /// - Returns: Interceptors to use when invoking 'endCall'.
-  func makeEndCallInterceptors() -> [ClientInterceptor<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse>]
+  func makeEndCallInterceptors() -> [ClientInterceptor<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getCallHistory'.
-  func makeGetCallHistoryInterceptors() -> [ClientInterceptor<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse>]
+  func makeGetCallHistoryInterceptors() -> [ClientInterceptor<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getTurnCredentials'.
-  func makeGetTurnCredentialsInterceptors() -> [ClientInterceptor<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials>]
+  func makeGetTurnCredentialsInterceptors() -> [ClientInterceptor<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials>]
 }
 
-public enum Vync_Calling_CallSignalingServiceClientMetadata {
+public enum Sanchr_Calling_CallSignalingServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "CallSignalingService",
-    fullName: "vync.calling.CallSignalingService",
+    fullName: "sanchr.calling.CallSignalingService",
     methods: [
-      Vync_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall,
-      Vync_Calling_CallSignalingServiceClientMetadata.Methods.callStream,
-      Vync_Calling_CallSignalingServiceClientMetadata.Methods.endCall,
-      Vync_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory,
-      Vync_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials,
+      Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall,
+      Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream,
+      Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.endCall,
+      Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory,
+      Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials,
     ]
   )
 
   public enum Methods {
     public static let initiateCall = GRPCMethodDescriptor(
       name: "InitiateCall",
-      path: "/vync.calling.CallSignalingService/InitiateCall",
+      path: "/sanchr.calling.CallSignalingService/InitiateCall",
       type: GRPCCallType.unary
     )
 
     public static let callStream = GRPCMethodDescriptor(
       name: "CallStream",
-      path: "/vync.calling.CallSignalingService/CallStream",
+      path: "/sanchr.calling.CallSignalingService/CallStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
     public static let endCall = GRPCMethodDescriptor(
       name: "EndCall",
-      path: "/vync.calling.CallSignalingService/EndCall",
+      path: "/sanchr.calling.CallSignalingService/EndCall",
       type: GRPCCallType.unary
     )
 
     public static let getCallHistory = GRPCMethodDescriptor(
       name: "GetCallHistory",
-      path: "/vync.calling.CallSignalingService/GetCallHistory",
+      path: "/sanchr.calling.CallSignalingService/GetCallHistory",
       type: GRPCCallType.unary
     )
 
     public static let getTurnCredentials = GRPCMethodDescriptor(
       name: "GetTurnCredentials",
-      path: "/vync.calling.CallSignalingService/GetTurnCredentials",
+      path: "/sanchr.calling.CallSignalingService/GetTurnCredentials",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Calling_CallSignalingServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Calling_CallSignalingServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? { get }
 
-  func initiateCall(request: Vync_Calling_CallOffer, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Calling_CallResponse>
+  func initiateCall(request: Sanchr_Calling_CallOffer, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Calling_CallResponse>
 
-  func callStream(context: StreamingResponseCallContext<Vync_Calling_CallSignal>) -> EventLoopFuture<(StreamEvent<Vync_Calling_CallSignal>) -> Void>
+  func callStream(context: StreamingResponseCallContext<Sanchr_Calling_CallSignal>) -> EventLoopFuture<(StreamEvent<Sanchr_Calling_CallSignal>) -> Void>
 
-  func endCall(request: Vync_Calling_EndCallRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Calling_EndCallResponse>
+  func endCall(request: Sanchr_Calling_EndCallRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Calling_EndCallResponse>
 
-  func getCallHistory(request: Vync_Calling_GetCallHistoryRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Calling_GetCallHistoryResponse>
+  func getCallHistory(request: Sanchr_Calling_GetCallHistoryRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Calling_GetCallHistoryResponse>
 
-  func getTurnCredentials(request: Vync_Calling_GetTurnCredentialsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Calling_TurnCredentials>
+  func getTurnCredentials(request: Sanchr_Calling_GetTurnCredentialsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Calling_TurnCredentials>
 }
 
-extension Vync_Calling_CallSignalingServiceProvider {
+extension Sanchr_Calling_CallSignalingServiceProvider {
   public var serviceName: Substring {
-    return Vync_Calling_CallSignalingServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Calling_CallSignalingServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -483,8 +483,8 @@ extension Vync_Calling_CallSignalingServiceProvider {
     case "InitiateCall":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_CallOffer>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_CallResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_CallOffer>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_CallResponse>(),
         interceptors: self.interceptors?.makeInitiateCallInterceptors() ?? [],
         userFunction: self.initiateCall(request:context:)
       )
@@ -492,8 +492,8 @@ extension Vync_Calling_CallSignalingServiceProvider {
     case "CallStream":
       return BidirectionalStreamingServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_CallSignal>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_CallSignal>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_CallSignal>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_CallSignal>(),
         interceptors: self.interceptors?.makeCallStreamInterceptors() ?? [],
         observerFactory: self.callStream(context:)
       )
@@ -501,8 +501,8 @@ extension Vync_Calling_CallSignalingServiceProvider {
     case "EndCall":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_EndCallRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_EndCallResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_EndCallRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_EndCallResponse>(),
         interceptors: self.interceptors?.makeEndCallInterceptors() ?? [],
         userFunction: self.endCall(request:context:)
       )
@@ -510,8 +510,8 @@ extension Vync_Calling_CallSignalingServiceProvider {
     case "GetCallHistory":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_GetCallHistoryRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_GetCallHistoryResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_GetCallHistoryRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_GetCallHistoryResponse>(),
         interceptors: self.interceptors?.makeGetCallHistoryInterceptors() ?? [],
         userFunction: self.getCallHistory(request:context:)
       )
@@ -519,8 +519,8 @@ extension Vync_Calling_CallSignalingServiceProvider {
     case "GetTurnCredentials":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_GetTurnCredentialsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_TurnCredentials>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_GetTurnCredentialsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_TurnCredentials>(),
         interceptors: self.interceptors?.makeGetTurnCredentialsInterceptors() ?? [],
         userFunction: self.getTurnCredentials(request:context:)
       )
@@ -533,48 +533,48 @@ extension Vync_Calling_CallSignalingServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Calling_CallSignalingServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Calling_CallSignalingServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? { get }
 
   func initiateCall(
-    request: Vync_Calling_CallOffer,
+    request: Sanchr_Calling_CallOffer,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Calling_CallResponse
+  ) async throws -> Sanchr_Calling_CallResponse
 
   func callStream(
-    requestStream: GRPCAsyncRequestStream<Vync_Calling_CallSignal>,
-    responseStream: GRPCAsyncResponseStreamWriter<Vync_Calling_CallSignal>,
+    requestStream: GRPCAsyncRequestStream<Sanchr_Calling_CallSignal>,
+    responseStream: GRPCAsyncResponseStreamWriter<Sanchr_Calling_CallSignal>,
     context: GRPCAsyncServerCallContext
   ) async throws
 
   func endCall(
-    request: Vync_Calling_EndCallRequest,
+    request: Sanchr_Calling_EndCallRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Calling_EndCallResponse
+  ) async throws -> Sanchr_Calling_EndCallResponse
 
   func getCallHistory(
-    request: Vync_Calling_GetCallHistoryRequest,
+    request: Sanchr_Calling_GetCallHistoryRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Calling_GetCallHistoryResponse
+  ) async throws -> Sanchr_Calling_GetCallHistoryResponse
 
   func getTurnCredentials(
-    request: Vync_Calling_GetTurnCredentialsRequest,
+    request: Sanchr_Calling_GetTurnCredentialsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Calling_TurnCredentials
+  ) async throws -> Sanchr_Calling_TurnCredentials
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Calling_CallSignalingServiceAsyncProvider {
+extension Sanchr_Calling_CallSignalingServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Calling_CallSignalingServiceServerMetadata.serviceDescriptor
+    return Sanchr_Calling_CallSignalingServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Calling_CallSignalingServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Calling_CallSignalingServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Calling_CallSignalingServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -586,8 +586,8 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
     case "InitiateCall":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_CallOffer>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_CallResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_CallOffer>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_CallResponse>(),
         interceptors: self.interceptors?.makeInitiateCallInterceptors() ?? [],
         wrapping: { try await self.initiateCall(request: $0, context: $1) }
       )
@@ -595,8 +595,8 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
     case "CallStream":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_CallSignal>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_CallSignal>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_CallSignal>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_CallSignal>(),
         interceptors: self.interceptors?.makeCallStreamInterceptors() ?? [],
         wrapping: { try await self.callStream(requestStream: $0, responseStream: $1, context: $2) }
       )
@@ -604,8 +604,8 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
     case "EndCall":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_EndCallRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_EndCallResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_EndCallRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_EndCallResponse>(),
         interceptors: self.interceptors?.makeEndCallInterceptors() ?? [],
         wrapping: { try await self.endCall(request: $0, context: $1) }
       )
@@ -613,8 +613,8 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
     case "GetCallHistory":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_GetCallHistoryRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_GetCallHistoryResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_GetCallHistoryRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_GetCallHistoryResponse>(),
         interceptors: self.interceptors?.makeGetCallHistoryInterceptors() ?? [],
         wrapping: { try await self.getCallHistory(request: $0, context: $1) }
       )
@@ -622,8 +622,8 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
     case "GetTurnCredentials":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Calling_GetTurnCredentialsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Calling_TurnCredentials>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Calling_GetTurnCredentialsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Calling_TurnCredentials>(),
         interceptors: self.interceptors?.makeGetTurnCredentialsInterceptors() ?? [],
         wrapping: { try await self.getTurnCredentials(request: $0, context: $1) }
       )
@@ -634,70 +634,70 @@ extension Vync_Calling_CallSignalingServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Calling_CallSignalingServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Calling_CallSignalingServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'initiateCall'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeInitiateCallInterceptors() -> [ServerInterceptor<Vync_Calling_CallOffer, Vync_Calling_CallResponse>]
+  func makeInitiateCallInterceptors() -> [ServerInterceptor<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse>]
 
   /// - Returns: Interceptors to use when handling 'callStream'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeCallStreamInterceptors() -> [ServerInterceptor<Vync_Calling_CallSignal, Vync_Calling_CallSignal>]
+  func makeCallStreamInterceptors() -> [ServerInterceptor<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal>]
 
   /// - Returns: Interceptors to use when handling 'endCall'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeEndCallInterceptors() -> [ServerInterceptor<Vync_Calling_EndCallRequest, Vync_Calling_EndCallResponse>]
+  func makeEndCallInterceptors() -> [ServerInterceptor<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse>]
 
   /// - Returns: Interceptors to use when handling 'getCallHistory'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetCallHistoryInterceptors() -> [ServerInterceptor<Vync_Calling_GetCallHistoryRequest, Vync_Calling_GetCallHistoryResponse>]
+  func makeGetCallHistoryInterceptors() -> [ServerInterceptor<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse>]
 
   /// - Returns: Interceptors to use when handling 'getTurnCredentials'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetTurnCredentialsInterceptors() -> [ServerInterceptor<Vync_Calling_GetTurnCredentialsRequest, Vync_Calling_TurnCredentials>]
+  func makeGetTurnCredentialsInterceptors() -> [ServerInterceptor<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials>]
 }
 
-public enum Vync_Calling_CallSignalingServiceServerMetadata {
+public enum Sanchr_Calling_CallSignalingServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "CallSignalingService",
-    fullName: "vync.calling.CallSignalingService",
+    fullName: "sanchr.calling.CallSignalingService",
     methods: [
-      Vync_Calling_CallSignalingServiceServerMetadata.Methods.initiateCall,
-      Vync_Calling_CallSignalingServiceServerMetadata.Methods.callStream,
-      Vync_Calling_CallSignalingServiceServerMetadata.Methods.endCall,
-      Vync_Calling_CallSignalingServiceServerMetadata.Methods.getCallHistory,
-      Vync_Calling_CallSignalingServiceServerMetadata.Methods.getTurnCredentials,
+      Sanchr_Calling_CallSignalingServiceServerMetadata.Methods.initiateCall,
+      Sanchr_Calling_CallSignalingServiceServerMetadata.Methods.callStream,
+      Sanchr_Calling_CallSignalingServiceServerMetadata.Methods.endCall,
+      Sanchr_Calling_CallSignalingServiceServerMetadata.Methods.getCallHistory,
+      Sanchr_Calling_CallSignalingServiceServerMetadata.Methods.getTurnCredentials,
     ]
   )
 
   public enum Methods {
     public static let initiateCall = GRPCMethodDescriptor(
       name: "InitiateCall",
-      path: "/vync.calling.CallSignalingService/InitiateCall",
+      path: "/sanchr.calling.CallSignalingService/InitiateCall",
       type: GRPCCallType.unary
     )
 
     public static let callStream = GRPCMethodDescriptor(
       name: "CallStream",
-      path: "/vync.calling.CallSignalingService/CallStream",
+      path: "/sanchr.calling.CallSignalingService/CallStream",
       type: GRPCCallType.bidirectionalStreaming
     )
 
     public static let endCall = GRPCMethodDescriptor(
       name: "EndCall",
-      path: "/vync.calling.CallSignalingService/EndCall",
+      path: "/sanchr.calling.CallSignalingService/EndCall",
       type: GRPCCallType.unary
     )
 
     public static let getCallHistory = GRPCMethodDescriptor(
       name: "GetCallHistory",
-      path: "/vync.calling.CallSignalingService/GetCallHistory",
+      path: "/sanchr.calling.CallSignalingService/GetCallHistory",
       type: GRPCCallType.unary
     )
 
     public static let getTurnCredentials = GRPCMethodDescriptor(
       name: "GetTurnCredentials",
-      path: "/vync.calling.CallSignalingService/GetTurnCredentials",
+      path: "/sanchr.calling.CallSignalingService/GetTurnCredentials",
       type: GRPCCallType.unary
     )
   }

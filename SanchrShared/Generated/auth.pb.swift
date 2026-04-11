@@ -20,7 +20,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Auth_DeviceInfo: Sendable {
+public struct Sanchr_Auth_DeviceInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -38,7 +38,7 @@ public struct Vync_Auth_DeviceInfo: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_RegisterRequest: Sendable {
+public struct Sanchr_Auth_RegisterRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -51,8 +51,8 @@ public struct Vync_Auth_RegisterRequest: Sendable {
 
   public var email: String = String()
 
-  public var device: Vync_Auth_DeviceInfo {
-    get {_device ?? Vync_Auth_DeviceInfo()}
+  public var device: Sanchr_Auth_DeviceInfo {
+    get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
@@ -64,10 +64,10 @@ public struct Vync_Auth_RegisterRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _device: Vync_Auth_DeviceInfo? = nil
+  fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-public struct Vync_Auth_VerifyOTPRequest: Sendable {
+public struct Sanchr_Auth_VerifyOTPRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -76,8 +76,8 @@ public struct Vync_Auth_VerifyOTPRequest: Sendable {
 
   public var otpCode: String = String()
 
-  public var device: Vync_Auth_DeviceInfo {
-    get {_device ?? Vync_Auth_DeviceInfo()}
+  public var device: Sanchr_Auth_DeviceInfo {
+    get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
@@ -89,10 +89,10 @@ public struct Vync_Auth_VerifyOTPRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _device: Vync_Auth_DeviceInfo? = nil
+  fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-public struct Vync_Auth_LoginRequest: Sendable {
+public struct Sanchr_Auth_LoginRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -101,8 +101,8 @@ public struct Vync_Auth_LoginRequest: Sendable {
 
   public var password: String = String()
 
-  public var device: Vync_Auth_DeviceInfo {
-    get {_device ?? Vync_Auth_DeviceInfo()}
+  public var device: Sanchr_Auth_DeviceInfo {
+    get {_device ?? Sanchr_Auth_DeviceInfo()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
@@ -114,10 +114,10 @@ public struct Vync_Auth_LoginRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _device: Vync_Auth_DeviceInfo? = nil
+  fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
-public struct Vync_Auth_RefreshTokenRequest: Sendable {
+public struct Sanchr_Auth_RefreshTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -129,7 +129,7 @@ public struct Vync_Auth_RefreshTokenRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_LogoutRequest: Sendable {
+public struct Sanchr_Auth_LogoutRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -141,7 +141,7 @@ public struct Vync_Auth_LogoutRequest: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_AuthResponse: Sendable {
+public struct Sanchr_Auth_AuthResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -150,8 +150,8 @@ public struct Vync_Auth_AuthResponse: Sendable {
 
   public var refreshToken: String = String()
 
-  public var user: Vync_Auth_User {
-    get {_user ?? Vync_Auth_User()}
+  public var user: Sanchr_Auth_User {
+    get {_user ?? Sanchr_Auth_User()}
     set {_user = newValue}
   }
   /// Returns true if `user` has been explicitly set.
@@ -165,10 +165,10 @@ public struct Vync_Auth_AuthResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _user: Vync_Auth_User? = nil
+  fileprivate var _user: Sanchr_Auth_User? = nil
 }
 
-public struct Vync_Auth_LogoutResponse: Sendable {
+public struct Sanchr_Auth_LogoutResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -178,21 +178,7 @@ public struct Vync_Auth_LogoutResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_ChangePasswordRequest: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var currentPassword: String = String()
-
-  public var newPassword: String = String()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Vync_Auth_ChangePasswordResponse: Sendable {
+public struct Sanchr_Auth_DeleteAccountRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -202,17 +188,7 @@ public struct Vync_Auth_ChangePasswordResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_DeleteAccountRequest: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Vync_Auth_DeleteAccountResponse: Sendable {
+public struct Sanchr_Auth_DeleteAccountResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -224,7 +200,7 @@ public struct Vync_Auth_DeleteAccountResponse: Sendable {
   public init() {}
 }
 
-public struct Vync_Auth_User: Sendable {
+public struct Sanchr_Auth_User: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -250,9 +226,9 @@ public struct Vync_Auth_User: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.auth"
+fileprivate let _protobuf_package = "sanchr.auth"
 
-extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeviceInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_name\0\u{1}platform\0\u{3}installation_id\0\u{3}supports_delivery_ack\0")
 
@@ -287,7 +263,7 @@ extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_DeviceInfo, rhs: Vync_Auth_DeviceInfo) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeviceInfo, rhs: Sanchr_Auth_DeviceInfo) -> Bool {
     if lhs.deviceName != rhs.deviceName {return false}
     if lhs.platform != rhs.platform {return false}
     if lhs.installationID != rhs.installationID {return false}
@@ -297,7 +273,7 @@ extension Vync_Auth_DeviceInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Vync_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}display_name\0\u{1}password\0\u{1}email\0\u{1}device\0")
 
@@ -340,7 +316,7 @@ extension Vync_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_RegisterRequest, rhs: Vync_Auth_RegisterRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_RegisterRequest, rhs: Sanchr_Auth_RegisterRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs.password != rhs.password {return false}
@@ -351,7 +327,7 @@ extension Vync_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Vync_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VerifyOTPRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}otp_code\0\u{1}device\0")
 
@@ -386,7 +362,7 @@ extension Vync_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_VerifyOTPRequest, rhs: Vync_Auth_VerifyOTPRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_VerifyOTPRequest, rhs: Sanchr_Auth_VerifyOTPRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.otpCode != rhs.otpCode {return false}
     if lhs._device != rhs._device {return false}
@@ -395,7 +371,7 @@ extension Vync_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Vync_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoginRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}password\0\u{1}device\0")
 
@@ -430,7 +406,7 @@ extension Vync_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_LoginRequest, rhs: Vync_Auth_LoginRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LoginRequest, rhs: Sanchr_Auth_LoginRequest) -> Bool {
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.password != rhs.password {return false}
     if lhs._device != rhs._device {return false}
@@ -439,7 +415,7 @@ extension Vync_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Vync_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RefreshTokenRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
 
@@ -462,14 +438,14 @@ extension Vync_Auth_RefreshTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_RefreshTokenRequest, rhs: Vync_Auth_RefreshTokenRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_RefreshTokenRequest, rhs: Sanchr_Auth_RefreshTokenRequest) -> Bool {
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LogoutRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
 
@@ -492,14 +468,14 @@ extension Vync_Auth_LogoutRequest: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_LogoutRequest, rhs: Vync_Auth_LogoutRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LogoutRequest, rhs: Sanchr_Auth_LogoutRequest) -> Bool {
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AuthResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}access_token\0\u{3}refresh_token\0\u{1}user\0\u{3}device_id\0")
 
@@ -538,7 +514,7 @@ extension Vync_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_AuthResponse, rhs: Vync_Auth_AuthResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_AuthResponse, rhs: Sanchr_Auth_AuthResponse) -> Bool {
     if lhs.accessToken != rhs.accessToken {return false}
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs._user != rhs._user {return false}
@@ -548,7 +524,7 @@ extension Vync_Auth_AuthResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Vync_Auth_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LogoutResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -561,67 +537,13 @@ extension Vync_Auth_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_LogoutResponse, rhs: Vync_Auth_LogoutResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_LogoutResponse, rhs: Sanchr_Auth_LogoutResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Auth_ChangePasswordRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ChangePasswordRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_password\0\u{3}new_password\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.currentPassword) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.newPassword) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.currentPassword.isEmpty {
-      try visitor.visitSingularStringField(value: self.currentPassword, fieldNumber: 1)
-    }
-    if !self.newPassword.isEmpty {
-      try visitor.visitSingularStringField(value: self.newPassword, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Vync_Auth_ChangePasswordRequest, rhs: Vync_Auth_ChangePasswordRequest) -> Bool {
-    if lhs.currentPassword != rhs.currentPassword {return false}
-    if lhs.newPassword != rhs.newPassword {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Vync_Auth_ChangePasswordResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ChangePasswordResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Vync_Auth_ChangePasswordResponse, rhs: Vync_Auth_ChangePasswordResponse) -> Bool {
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Vync_Auth_DeleteAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_DeleteAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteAccountRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{c}\u{1}\u{1}")
 
@@ -634,13 +556,13 @@ extension Vync_Auth_DeleteAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_DeleteAccountRequest, rhs: Vync_Auth_DeleteAccountRequest) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeleteAccountRequest, rhs: Sanchr_Auth_DeleteAccountRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteAccountResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0")
 
@@ -663,14 +585,14 @@ extension Vync_Auth_DeleteAccountResponse: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_DeleteAccountResponse, rhs: Vync_Auth_DeleteAccountResponse) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_DeleteAccountResponse, rhs: Sanchr_Auth_DeleteAccountResponse) -> Bool {
     if lhs.success != rhs.success {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Vync_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".User"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}phone_number\0\u{3}display_name\0\u{1}email\0\u{3}avatar_url\0\u{3}status_text\0\u{3}created_at\0")
 
@@ -717,7 +639,7 @@ extension Vync_Auth_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Auth_User, rhs: Vync_Auth_User) -> Bool {
+  public static func ==(lhs: Sanchr_Auth_User, rhs: Sanchr_Auth_User) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.displayName != rhs.displayName {return false}

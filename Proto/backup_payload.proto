@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.backup_payload;
+package sanchr.backup_payload;
 
 message BackupInfo {
   int32 format_version = 1;

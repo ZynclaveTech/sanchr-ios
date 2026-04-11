@@ -106,7 +106,7 @@ public final class DefaultEncryptedMessageSendingClient: EncryptedMessageSending
         expiresAfterSecs: Int64
     ) async throws -> EncryptedMessageSendResult {
         // 1. Per-device encryption fan-out (matches ChatDataSource).
-        var allDeviceMessages: [Vync_Messaging_DeviceMessage] = []
+        var allDeviceMessages: [Sanchr_Messaging_DeviceMessage] = []
         for recipientId in recipientIds {
             let deviceMessages = try await signalManager.encryptForAllDevices(
                 plaintext: plaintext,
@@ -117,8 +117,8 @@ public final class DefaultEncryptedMessageSendingClient: EncryptedMessageSending
 
         // 2. Build the wire request. `let` so it can be captured by the
         //    `@Sendable` closure passed to `withAuthRetry`.
-        let request: Vync_Messaging_SendMessageRequest = {
-            var r = Vync_Messaging_SendMessageRequest()
+        let request: Sanchr_Messaging_SendMessageRequest = {
+            var r = Sanchr_Messaging_SendMessageRequest()
             r.conversationID = conversationId
             r.deviceMessages = allDeviceMessages
             r.contentType = contentType
@@ -220,14 +220,14 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         _ = try await sealedSenderManager.getSenderCertificate()
 
         // 3. Per-device encryption for each peer recipient.
-        var sealedDeviceMessages: [Vync_Messaging_SealedDeviceMessage] = []
+        var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
         for recipientId in recipientIds {
             let deviceMessages = try await signalManager.encryptForAllDevices(
                 plaintext: innerPayloadData,
                 recipientId: recipientId
             )
             for dm in deviceMessages {
-                var sealed = Vync_Messaging_SealedDeviceMessage()
+                var sealed = Sanchr_Messaging_SealedDeviceMessage()
                 sealed.recipientID = dm.recipientID
                 sealed.deviceID = dm.deviceID
                 sealed.sealedEnvelope = dm.ciphertext
@@ -249,7 +249,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
                 recipientId: senderId
             )
             for dm in selfDeviceMessages {
-                var sealed = Vync_Messaging_SealedDeviceMessage()
+                var sealed = Sanchr_Messaging_SealedDeviceMessage()
                 sealed.recipientID = dm.recipientID
                 sealed.deviceID = dm.deviceID
                 sealed.sealedEnvelope = dm.ciphertext
@@ -268,7 +268,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
         // 6. Build and dispatch the unauthenticated gRPC request.
-        var request = Vync_Messaging_SendSealedMessageRequest()
+        var request = Sanchr_Messaging_SendSealedMessageRequest()
         request.deliveryToken = deliveryToken
         request.deviceMessages = sealedDeviceMessages
 

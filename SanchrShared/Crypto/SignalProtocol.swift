@@ -23,13 +23,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
 
     /// Encrypts a message for all devices of a recipient.
     func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
-        -> [Vync_Messaging_DeviceMessage]
+        -> [Sanchr_Messaging_DeviceMessage]
 
     /// Decrypts an incoming ciphertext from a sender device.
     func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
 
     /// Decrypts an EncryptedEnvelope, auto-detecting message type.
-    func decryptEnvelope(_ envelope: Vync_Messaging_EncryptedEnvelope) async throws -> Data
+    func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data
 
     /// Trial-decrypts a sealed sender ciphertext (type-byte-prefixed Signal
     /// message) against all known sessions. Returns the plaintext and the
@@ -171,7 +171,7 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     }
 
     public func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
-        -> [Vync_Messaging_DeviceMessage]
+        -> [Sanchr_Messaging_DeviceMessage]
     {
         // Fetch all device IDs for this recipient from the server.
         let deviceIds: [Int32]
@@ -183,14 +183,14 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             throw error
         }
 
-        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
         deviceMessages.reserveCapacity(deviceIds.count)
 
         for deviceId in deviceIds {
             let ciphertext = try await encrypt(
                 plaintext: plaintext, for: recipientId, deviceId: deviceId)
 
-            var dm = Vync_Messaging_DeviceMessage()
+            var dm = Sanchr_Messaging_DeviceMessage()
             dm.recipientID = recipientId
             dm.deviceID = deviceId
             dm.ciphertext = ciphertext
@@ -248,7 +248,7 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         return plaintext
     }
 
-    public func decryptEnvelope(_ envelope: Vync_Messaging_EncryptedEnvelope) async throws -> Data {
+    public func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data {
         return try await decrypt(
             ciphertext: envelope.ciphertext,
             from: envelope.senderID,

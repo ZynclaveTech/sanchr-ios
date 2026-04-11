@@ -11,25 +11,25 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Vync_Notifications_NotificationServiceClient`, then call methods of this protocol to make API calls.
-public protocol Vync_Notifications_NotificationServiceClientProtocol: GRPCClient {
+/// Usage: instantiate `Sanchr_Notifications_NotificationServiceClient`, then call methods of this protocol to make API calls.
+public protocol Sanchr_Notifications_NotificationServiceClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? { get }
 
   func registerPushToken(
-    _ request: Vync_Notifications_RegisterPushTokenRequest,
+    _ request: Sanchr_Notifications_RegisterPushTokenRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse>
+  ) -> UnaryCall<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>
 
   func updateNotificationPrefs(
-    _ request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse>
+  ) -> UnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>
 }
 
-extension Vync_Notifications_NotificationServiceClientProtocol {
+extension Sanchr_Notifications_NotificationServiceClientProtocol {
   public var serviceName: String {
-    return "vync.notifications.NotificationService"
+    return "sanchr.notifications.NotificationService"
   }
 
   /// Unary call to RegisterPushToken
@@ -39,11 +39,11 @@ extension Vync_Notifications_NotificationServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func registerPushToken(
-    _ request: Vync_Notifications_RegisterPushTokenRequest,
+    _ request: Sanchr_Notifications_RegisterPushTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse> {
+  ) -> UnaryCall<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse> {
     return self.makeUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterPushTokenInterceptors() ?? []
@@ -57,11 +57,11 @@ extension Vync_Notifications_NotificationServiceClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func updateNotificationPrefs(
-    _ request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse> {
+  ) -> UnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse> {
     return self.makeUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
@@ -70,24 +70,24 @@ extension Vync_Notifications_NotificationServiceClientProtocol {
 }
 
 @available(*, deprecated)
-extension Vync_Notifications_NotificationServiceClient: @unchecked Sendable {}
+extension Sanchr_Notifications_NotificationServiceClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Vync_Notifications_NotificationServiceNIOClient")
-public final class Vync_Notifications_NotificationServiceClient: Vync_Notifications_NotificationServiceClientProtocol {
+@available(*, deprecated, renamed: "Sanchr_Notifications_NotificationServiceNIOClient")
+public final class Sanchr_Notifications_NotificationServiceClient: Sanchr_Notifications_NotificationServiceClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
+  private var _interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the vync.notifications.NotificationService service.
+  /// Creates a client for the sanchr.notifications.NotificationService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -96,7 +96,7 @@ public final class Vync_Notifications_NotificationServiceClient: Vync_Notificati
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -104,12 +104,12 @@ public final class Vync_Notifications_NotificationServiceClient: Vync_Notificati
   }
 }
 
-public struct Vync_Notifications_NotificationServiceNIOClient: Vync_Notifications_NotificationServiceClientProtocol {
+public struct Sanchr_Notifications_NotificationServiceNIOClient: Sanchr_Notifications_NotificationServiceClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the vync.notifications.NotificationService service.
+  /// Creates a client for the sanchr.notifications.NotificationService service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -118,7 +118,7 @@ public struct Vync_Notifications_NotificationServiceNIOClient: Vync_Notification
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -127,37 +127,37 @@ public struct Vync_Notifications_NotificationServiceNIOClient: Vync_Notification
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Notifications_NotificationServiceAsyncClientProtocol: GRPCClient {
+public protocol Sanchr_Notifications_NotificationServiceAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? { get }
 
   func makeRegisterPushTokenCall(
-    _ request: Vync_Notifications_RegisterPushTokenRequest,
+    _ request: Sanchr_Notifications_RegisterPushTokenRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>
 
   func makeUpdateNotificationPrefsCall(
-    _ request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse>
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
+extension Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Notifications_NotificationServiceClientMetadata.serviceDescriptor
+    return Sanchr_Notifications_NotificationServiceClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeRegisterPushTokenCall(
-    _ request: Vync_Notifications_RegisterPushTokenRequest,
+    _ request: Sanchr_Notifications_RegisterPushTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterPushTokenInterceptors() ?? []
@@ -165,11 +165,11 @@ extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
   }
 
   public func makeUpdateNotificationPrefsCall(
-    _ request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse> {
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse> {
     return self.makeAsyncUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
@@ -178,13 +178,13 @@ extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
+extension Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
   public func registerPushToken(
-    _ request: Vync_Notifications_RegisterPushTokenRequest,
+    _ request: Sanchr_Notifications_RegisterPushTokenRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Notifications_RegisterPushTokenResponse {
+  ) async throws -> Sanchr_Notifications_RegisterPushTokenResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterPushTokenInterceptors() ?? []
@@ -192,11 +192,11 @@ extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
   }
 
   public func updateNotificationPrefs(
-    _ request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Vync_Notifications_UpdateNotificationPrefsResponse {
+  ) async throws -> Sanchr_Notifications_UpdateNotificationPrefsResponse {
     return try await self.performAsyncUnaryCall(
-      path: Vync_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
@@ -205,15 +205,15 @@ extension Vync_Notifications_NotificationServiceAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Vync_Notifications_NotificationServiceAsyncClient: Vync_Notifications_NotificationServiceAsyncClientProtocol {
+public struct Sanchr_Notifications_NotificationServiceAsyncClient: Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
+  public var interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
+    interceptors: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -221,52 +221,52 @@ public struct Vync_Notifications_NotificationServiceAsyncClient: Vync_Notificati
   }
 }
 
-public protocol Vync_Notifications_NotificationServiceClientInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'registerPushToken'.
-  func makeRegisterPushTokenInterceptors() -> [ClientInterceptor<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse>]
+  func makeRegisterPushTokenInterceptors() -> [ClientInterceptor<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>]
 
   /// - Returns: Interceptors to use when invoking 'updateNotificationPrefs'.
-  func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse>]
+  func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>]
 }
 
-public enum Vync_Notifications_NotificationServiceClientMetadata {
+public enum Sanchr_Notifications_NotificationServiceClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "NotificationService",
-    fullName: "vync.notifications.NotificationService",
+    fullName: "sanchr.notifications.NotificationService",
     methods: [
-      Vync_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken,
-      Vync_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs,
+      Sanchr_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken,
+      Sanchr_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs,
     ]
   )
 
   public enum Methods {
     public static let registerPushToken = GRPCMethodDescriptor(
       name: "RegisterPushToken",
-      path: "/vync.notifications.NotificationService/RegisterPushToken",
+      path: "/sanchr.notifications.NotificationService/RegisterPushToken",
       type: GRPCCallType.unary
     )
 
     public static let updateNotificationPrefs = GRPCMethodDescriptor(
       name: "UpdateNotificationPrefs",
-      path: "/vync.notifications.NotificationService/UpdateNotificationPrefs",
+      path: "/sanchr.notifications.NotificationService/UpdateNotificationPrefs",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Vync_Notifications_NotificationServiceProvider: CallHandlerProvider {
-  var interceptors: Vync_Notifications_NotificationServiceServerInterceptorFactoryProtocol? { get }
+public protocol Sanchr_Notifications_NotificationServiceProvider: CallHandlerProvider {
+  var interceptors: Sanchr_Notifications_NotificationServiceServerInterceptorFactoryProtocol? { get }
 
-  func registerPushToken(request: Vync_Notifications_RegisterPushTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Notifications_RegisterPushTokenResponse>
+  func registerPushToken(request: Sanchr_Notifications_RegisterPushTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Notifications_RegisterPushTokenResponse>
 
-  func updateNotificationPrefs(request: Vync_Notifications_UpdateNotificationPrefsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Vync_Notifications_UpdateNotificationPrefsResponse>
+  func updateNotificationPrefs(request: Sanchr_Notifications_UpdateNotificationPrefsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Notifications_UpdateNotificationPrefsResponse>
 }
 
-extension Vync_Notifications_NotificationServiceProvider {
+extension Sanchr_Notifications_NotificationServiceProvider {
   public var serviceName: Substring {
-    return Vync_Notifications_NotificationServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Notifications_NotificationServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -279,8 +279,8 @@ extension Vync_Notifications_NotificationServiceProvider {
     case "RegisterPushToken":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Notifications_RegisterPushTokenRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Notifications_RegisterPushTokenResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_RegisterPushTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_RegisterPushTokenResponse>(),
         interceptors: self.interceptors?.makeRegisterPushTokenInterceptors() ?? [],
         userFunction: self.registerPushToken(request:context:)
       )
@@ -288,8 +288,8 @@ extension Vync_Notifications_NotificationServiceProvider {
     case "UpdateNotificationPrefs":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Notifications_UpdateNotificationPrefsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Notifications_UpdateNotificationPrefsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_UpdateNotificationPrefsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_UpdateNotificationPrefsResponse>(),
         interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? [],
         userFunction: self.updateNotificationPrefs(request:context:)
       )
@@ -302,32 +302,32 @@ extension Vync_Notifications_NotificationServiceProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Vync_Notifications_NotificationServiceAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Sanchr_Notifications_NotificationServiceAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Vync_Notifications_NotificationServiceServerInterceptorFactoryProtocol? { get }
+  var interceptors: Sanchr_Notifications_NotificationServiceServerInterceptorFactoryProtocol? { get }
 
   func registerPushToken(
-    request: Vync_Notifications_RegisterPushTokenRequest,
+    request: Sanchr_Notifications_RegisterPushTokenRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Notifications_RegisterPushTokenResponse
+  ) async throws -> Sanchr_Notifications_RegisterPushTokenResponse
 
   func updateNotificationPrefs(
-    request: Vync_Notifications_UpdateNotificationPrefsRequest,
+    request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Vync_Notifications_UpdateNotificationPrefsResponse
+  ) async throws -> Sanchr_Notifications_UpdateNotificationPrefsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Vync_Notifications_NotificationServiceAsyncProvider {
+extension Sanchr_Notifications_NotificationServiceAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Vync_Notifications_NotificationServiceServerMetadata.serviceDescriptor
+    return Sanchr_Notifications_NotificationServiceServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Vync_Notifications_NotificationServiceServerMetadata.serviceDescriptor.fullName[...]
+    return Sanchr_Notifications_NotificationServiceServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Vync_Notifications_NotificationServiceServerInterceptorFactoryProtocol? {
+  public var interceptors: Sanchr_Notifications_NotificationServiceServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -339,8 +339,8 @@ extension Vync_Notifications_NotificationServiceAsyncProvider {
     case "RegisterPushToken":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Notifications_RegisterPushTokenRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Notifications_RegisterPushTokenResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_RegisterPushTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_RegisterPushTokenResponse>(),
         interceptors: self.interceptors?.makeRegisterPushTokenInterceptors() ?? [],
         wrapping: { try await self.registerPushToken(request: $0, context: $1) }
       )
@@ -348,8 +348,8 @@ extension Vync_Notifications_NotificationServiceAsyncProvider {
     case "UpdateNotificationPrefs":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Vync_Notifications_UpdateNotificationPrefsRequest>(),
-        responseSerializer: ProtobufSerializer<Vync_Notifications_UpdateNotificationPrefsResponse>(),
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_UpdateNotificationPrefsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_UpdateNotificationPrefsResponse>(),
         interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? [],
         wrapping: { try await self.updateNotificationPrefs(request: $0, context: $1) }
       )
@@ -360,37 +360,37 @@ extension Vync_Notifications_NotificationServiceAsyncProvider {
   }
 }
 
-public protocol Vync_Notifications_NotificationServiceServerInterceptorFactoryProtocol: Sendable {
+public protocol Sanchr_Notifications_NotificationServiceServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'registerPushToken'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeRegisterPushTokenInterceptors() -> [ServerInterceptor<Vync_Notifications_RegisterPushTokenRequest, Vync_Notifications_RegisterPushTokenResponse>]
+  func makeRegisterPushTokenInterceptors() -> [ServerInterceptor<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>]
 
   /// - Returns: Interceptors to use when handling 'updateNotificationPrefs'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeUpdateNotificationPrefsInterceptors() -> [ServerInterceptor<Vync_Notifications_UpdateNotificationPrefsRequest, Vync_Notifications_UpdateNotificationPrefsResponse>]
+  func makeUpdateNotificationPrefsInterceptors() -> [ServerInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>]
 }
 
-public enum Vync_Notifications_NotificationServiceServerMetadata {
+public enum Sanchr_Notifications_NotificationServiceServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "NotificationService",
-    fullName: "vync.notifications.NotificationService",
+    fullName: "sanchr.notifications.NotificationService",
     methods: [
-      Vync_Notifications_NotificationServiceServerMetadata.Methods.registerPushToken,
-      Vync_Notifications_NotificationServiceServerMetadata.Methods.updateNotificationPrefs,
+      Sanchr_Notifications_NotificationServiceServerMetadata.Methods.registerPushToken,
+      Sanchr_Notifications_NotificationServiceServerMetadata.Methods.updateNotificationPrefs,
     ]
   )
 
   public enum Methods {
     public static let registerPushToken = GRPCMethodDescriptor(
       name: "RegisterPushToken",
-      path: "/vync.notifications.NotificationService/RegisterPushToken",
+      path: "/sanchr.notifications.NotificationService/RegisterPushToken",
       type: GRPCCallType.unary
     )
 
     public static let updateNotificationPrefs = GRPCMethodDescriptor(
       name: "UpdateNotificationPrefs",
-      path: "/vync.notifications.NotificationService/UpdateNotificationPrefs",
+      path: "/sanchr.notifications.NotificationService/UpdateNotificationPrefs",
       type: GRPCCallType.unary
     )
   }

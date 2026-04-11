@@ -18,7 +18,7 @@ enum ProfileUseCases {
             name: String,
             avatarURL: String,
             status: String
-        ) async throws -> Vync_Settings_ProfileResponse {
+        ) async throws -> Sanchr_Settings_ProfileResponse {
             try await profileDataSource.updateProfile(
                 name: name,
                 avatarURL: avatarURL,

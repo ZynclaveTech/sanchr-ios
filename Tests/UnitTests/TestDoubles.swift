@@ -222,8 +222,6 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
         logoutAccessTokens.append(accessToken)
     }
 
-    func changePassword(currentPassword: String, newPassword: String) async throws {}
-
     var deleteAccountCallCount = 0
     var deleteAccountError: Error?
     func deleteAccount() async throws {
@@ -239,8 +237,8 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     private(set) var openStreamCallCount = 0
     private(set) var flushPendingAcksCallCount = 0
     private(set) var closeStreamCallCount = 0
-    private(set) var presenceHeartbeats: [Vync_Messaging_DevicePresenceState] = []
-    var presenceSnapshot: [Vync_Messaging_PresenceUpdate] = []
+    private(set) var presenceHeartbeats: [Sanchr_Messaging_DevicePresenceState] = []
+    var presenceSnapshot: [Sanchr_Messaging_PresenceUpdate] = []
     var flushPendingAcksResult = 0
     private(set) var streamContinuation: AsyncStream<RealtimeEvent>.Continuation?
 
@@ -288,7 +286,7 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {}
 
     func sendPresenceHeartbeat(
-        deviceState: Vync_Messaging_DevicePresenceState,
+        deviceState: Sanchr_Messaging_DevicePresenceState,
         sentAtMs: Int64
     ) async throws {
         presenceHeartbeats.append(deviceState)
@@ -298,7 +296,7 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         Data()
     }
 
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate] {
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate] {
         presenceSnapshot.filter { userIds.contains($0.userID) }
     }
 
@@ -374,15 +372,15 @@ final class MockKeyManager: KeyManagerProtocol, @unchecked Sendable {
 }
 
 final class MockCallEventRouter: CallEventRouting, @unchecked Sendable {
-    private(set) var offers: [Vync_Messaging_CallOfferEvent] = []
-    private(set) var lifecycleEvents: [Vync_Messaging_CallLifecycleEvent] = []
+    private(set) var offers: [Sanchr_Messaging_CallOfferEvent] = []
+    private(set) var lifecycleEvents: [Sanchr_Messaging_CallLifecycleEvent] = []
     private(set) var resetCallCount = 0
 
-    func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent) {
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) {
         offers.append(offer)
     }
 
-    func handleCallLifecycleEvent(_ event: Vync_Messaging_CallLifecycleEvent) {
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) {
         lifecycleEvents.append(event)
     }
 

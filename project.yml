@@ -220,10 +220,10 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Sanchr.entitlements
         SWIFT_OBJC_BRIDGING_HEADER: "$(SRCROOT)/Sanchr-Bridging-Header.h"
         SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/LibSignal/Headers"
-        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers $(SRCROOT)/Platform/Crypto/VyncOPRF"
-        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device $(SRCROOT)/Vendor/VyncPSI/device"
-        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator $(SRCROOT)/Vendor/VyncPSI/simulator"
-        OTHER_LDFLAGS: "$(inherited) -lvync_psi -lc++"
+        HEADER_SEARCH_PATHS: "$(inherited) $(SRCROOT)/Vendor/LibSignal/Headers $(SRCROOT)/Platform/Crypto/SanchrOPRF"
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/device $(SRCROOT)/Vendor/SanchrPSI/device"
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: "$(inherited) $(SRCROOT)/Vendor/LibSignal/simulator $(SRCROOT)/Vendor/SanchrPSI/simulator"
+        OTHER_LDFLAGS: "$(inherited) -lsanchr_psi -lc++"
     preBuildScripts:
       - name: AttachmentPicker import hygiene
         script: '"${SRCROOT}/Scripts/check-attachment-picker-imports.sh"'

@@ -20,7 +20,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Vync_Ekf_EkfRotationNeeded: Sendable {
+public struct Sanchr_Ekf_EkfRotationNeeded: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -40,9 +40,9 @@ public struct Vync_Ekf_EkfRotationNeeded: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "vync.ekf"
+fileprivate let _protobuf_package = "sanchr.ekf"
 
-extension Vync_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Sanchr_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EkfRotationNeeded"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}key_class\0\u{3}expired_at\0\u{3}entry_id\0")
 
@@ -77,7 +77,7 @@ extension Vync_Ekf_EkfRotationNeeded: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Vync_Ekf_EkfRotationNeeded, rhs: Vync_Ekf_EkfRotationNeeded) -> Bool {
+  public static func ==(lhs: Sanchr_Ekf_EkfRotationNeeded, rhs: Sanchr_Ekf_EkfRotationNeeded) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.keyClass != rhs.keyClass {return false}
     if lhs.expiredAt != rhs.expiredAt {return false}

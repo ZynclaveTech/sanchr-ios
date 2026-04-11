@@ -6,8 +6,8 @@ import WebRTC
 import SanchrShared
 
 protocol CallEventRouting: AnyObject, Sendable {
-    func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent)
-    func handleCallLifecycleEvent(_ event: Vync_Messaging_CallLifecycleEvent)
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent)
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent)
     func resetState()
 }
 
@@ -67,7 +67,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Dependencies
 
     private let webRTCClient: WebRTCClient
-    private let callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
+    private let callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol
     private let provider: CXProvider
     private let callController: CXCallController
 
@@ -79,11 +79,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private var signalingTask: Task<Void, Never>?
 
     /// Continuation for sending signals through the bidirectional stream.
-    private var outboundContinuation: AsyncStream<Vync_Calling_CallSignal>.Continuation?
+    private var outboundContinuation: AsyncStream<Sanchr_Calling_CallSignal>.Continuation?
 
     // MARK: - Init
 
-    init(webRTCClient: WebRTCClient, callService: Vync_Calling_CallSignalingServiceAsyncClientProtocol) {
+    init(webRTCClient: WebRTCClient, callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol) {
         self.webRTCClient = webRTCClient
         self.callService = callService
 
@@ -123,7 +123,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         // 1. Fetch TURN credentials
         let turnCredentials = try await callService.getTurnCredentials(
-            Vync_Calling_GetTurnCredentialsRequest())
+            Sanchr_Calling_GetTurnCredentialsRequest())
         let iceServers = buildIceServers(from: turnCredentials)
 
         // 2. Configure WebRTC
@@ -139,7 +139,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let sdpData = offer.sdp.data(using: .utf8) ?? Data()
 
         // 5. Send the offer to the server
-        var callOffer = Vync_Calling_CallOffer()
+        var callOffer = Sanchr_Calling_CallOffer()
         callOffer.recipientID = recipientId
         callOffer.callType = isVideo ? "video" : "voice"
         callOffer.sdpOffer = sdpData
@@ -227,7 +227,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         // 1. Fetch TURN credentials
         let turnCredentials = try await callService.getTurnCredentials(
-            Vync_Calling_GetTurnCredentialsRequest())
+            Sanchr_Calling_GetTurnCredentialsRequest())
         let iceServers = buildIceServers(from: turnCredentials)
 
         // 2. Configure WebRTC
@@ -250,15 +250,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         openSignalingStream(callId: callId)
 
         let answerData = answer.sdp.data(using: .utf8) ?? Data()
-        var signal = Vync_Calling_CallSignal()
+        var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
         signal.sdpAnswer = answerData
         outboundContinuation?.yield(signal)
 
         // 7. Send accepted control
-        var controlSignal = Vync_Calling_CallSignal()
+        var controlSignal = Sanchr_Calling_CallSignal()
         controlSignal.callID = callId
-        var acceptedControl = Vync_Calling_CallControl()
+        var acceptedControl = Sanchr_Calling_CallControl()
         acceptedControl.action = "accepted"
         controlSignal.control = acceptedControl
         outboundContinuation?.yield(controlSignal)
@@ -277,9 +277,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         SanchrLogger.calls.info("Declining call \(callId)")
 
         // Send decline via signaling
-        var signal = Vync_Calling_CallSignal()
+        var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
-        var declinedControl = Vync_Calling_CallControl()
+        var declinedControl = Sanchr_Calling_CallControl()
         declinedControl.action = "declined"
         signal.control = declinedControl
         outboundContinuation?.yield(signal)
@@ -293,16 +293,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         SanchrLogger.calls.info("Ending call \(callId)")
 
         // Send ended control via signaling
-        var signal = Vync_Calling_CallSignal()
+        var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
-        var endedControl = Vync_Calling_CallControl()
+        var endedControl = Sanchr_Calling_CallControl()
         endedControl.action = "ended"
         signal.control = endedControl
         outboundContinuation?.yield(signal)
 
         // Also notify the server via the unary endCall RPC
         Task {
-            var request = Vync_Calling_EndCallRequest()
+            var request = Sanchr_Calling_EndCallRequest()
             request.callID = callId
             _ = try? await callService.endCall(request)
         }
@@ -361,7 +361,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     /// Opens the bidirectional gRPC stream for exchanging SDP answers, ICE candidates, and control messages.
     private func openSignalingStream(callId: String) {
-        let (outboundStream, continuation) = AsyncStream<Vync_Calling_CallSignal>.makeStream()
+        let (outboundStream, continuation) = AsyncStream<Sanchr_Calling_CallSignal>.makeStream()
         self.outboundContinuation = continuation
 
         signalingTask = Task { [weak self] in
@@ -378,7 +378,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     /// Processes incoming signaling messages from the bidirectional stream.
     private func handleSignalingStream(
-        _ stream: GRPCAsyncResponseStream<Vync_Calling_CallSignal>, callId: String
+        _ stream: GRPCAsyncResponseStream<Sanchr_Calling_CallSignal>, callId: String
     ) async {
         do {
             for try await signal in stream {
@@ -429,7 +429,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     /// Handles control messages: accepted, declined, busy, ended, ringing, missed.
     @MainActor
-    private func handleControlMessage(_ control: Vync_Calling_CallControl, callId: String) {
+    private func handleControlMessage(_ control: Sanchr_Calling_CallControl, callId: String) {
         SanchrLogger.calls.info("Control message: \(control.action) for call \(callId)")
 
         switch control.action {
@@ -525,7 +525,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
     }
 
-    func handleIncomingCallOffer(_ offer: Vync_Messaging_CallOfferEvent) {
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) {
         guard case .idle = callState else {
             SanchrLogger.calls.warning("Ignoring incoming call offer while another call is active")
             return
@@ -540,7 +540,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         )
     }
 
-    func handleCallLifecycleEvent(_ event: Vync_Messaging_CallLifecycleEvent) {
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) {
         if !event.peerID.isEmpty {
             peerId = event.peerID
             if peerName == nil || peerName?.isEmpty == true {
@@ -600,15 +600,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         peerName = nil
     }
 
-    private func controlMessage(action: String) -> Vync_Calling_CallControl {
-        var control = Vync_Calling_CallControl()
+    private func controlMessage(action: String) -> Sanchr_Calling_CallControl {
+        var control = Sanchr_Calling_CallControl()
         control.action = action
         return control
     }
 
     // MARK: - Helpers
 
-    private func buildIceServers(from credentials: Vync_Calling_TurnCredentials) -> [RTCIceServer] {
+    private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
         var servers: [RTCIceServer] = []
 
         // Add TURN servers with credentials
@@ -770,7 +770,7 @@ extension CallManager: WebRTCClientDelegate {
             return
         }
 
-        var signal = Vync_Calling_CallSignal()
+        var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
         signal.iceCandidate = candidateData
         outboundContinuation?.yield(signal)

@@ -98,7 +98,7 @@ enum ChatUseCases {
             }
 
             // 2. Encrypt for all recipient devices (establishes sessions as needed via X3DH)
-            let deviceMessages: [Vync_Messaging_DeviceMessage]
+            let deviceMessages: [Sanchr_Messaging_DeviceMessage]
             if let sessionManager = signalSessionManager as? SignalSessionManager {
                 deviceMessages = try await sessionManager.encryptForAllDevices(
                     plaintext: plaintext,

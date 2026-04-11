@@ -157,7 +157,7 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
             }
 
             // 3. Presigned download URL.
-            var downloadReq = Vync_Media_GetDownloadUrlRequest()
+            var downloadReq = Sanchr_Media_GetDownloadUrlRequest()
             downloadReq.mediaID = mediaId
             let presigned = try await self.grpcClient.mediaService.getDownloadUrl(downloadReq)
 
@@ -217,7 +217,7 @@ final class VaultRepositoryImpl: VaultRepositoryProtocol, @unchecked Sendable {
     /// the vault list (VaultView `.refreshable` -> `fetchItems`). Without this,
     /// browsing the vault without tapping individual items would eventually
     /// reap every key at the 30-day mark.
-    private func decryptToItem(_ proto: Vync_Vault_VaultItem) async throws -> VaultItem? {
+    private func decryptToItem(_ proto: Sanchr_Vault_VaultItem) async throws -> VaultItem? {
         let vaultItemId = proto.vaultItemID
 
         guard let accessKey = try await accessKeyStore.getAndTouch(mediaId: vaultItemId) else {

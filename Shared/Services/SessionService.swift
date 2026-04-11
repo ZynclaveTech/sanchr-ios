@@ -196,6 +196,14 @@ final class SessionService: @unchecked Sendable {
                     let tokens = try await authRepository.refreshToken(refreshToken: storedRefreshToken)
                     try await storeTokens(tokens)
                     return tokens.accessToken
+                } catch let appError as AppError where appError == .sessionExpired {
+                    SanchrLogger.auth.error(
+                        "Token refresh reported session expiration — clearing session"
+                    )
+                    try? secureStorage.deleteSessionData()
+                    await clearSessionState()
+                    await cleanup()
+                    throw appError
                 } catch let grpcError as GRPCStatus where grpcError.code == .unauthenticated {
                     // Server explicitly rejected the token — it is revoked or invalid.
                     // Logout immediately; no retry makes sense here.

@@ -29,7 +29,7 @@ final class NotificationRepositoryImpl: NotificationRepositoryProtocol, @uncheck
     func registerPushToken(_ token: String) async throws {
         SanchrLogger.network.info("Registering push token")
 
-        var request = Vync_Notifications_RegisterPushTokenRequest()
+        var request = Sanchr_Notifications_RegisterPushTokenRequest()
         request.token = token
         request.platform = "ios"
 
@@ -48,7 +48,7 @@ final class NotificationRepositoryImpl: NotificationRepositoryProtocol, @uncheck
     ) async throws {
         SanchrLogger.network.info("Updating notification preferences")
 
-        var request = Vync_Notifications_UpdateNotificationPrefsRequest()
+        var request = Sanchr_Notifications_UpdateNotificationPrefsRequest()
         request.messageNotifications = messageNotifications
         request.groupNotifications = groupNotifications
         request.callNotifications = callNotifications

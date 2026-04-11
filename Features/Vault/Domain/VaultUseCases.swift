@@ -55,7 +55,7 @@ enum VaultUseCases {
             return Result(items: items, nextCursor: response.nextCursor)
         }
 
-        private func decryptToItem(_ proto: Vync_Vault_VaultItem) async throws -> VaultItem? {
+        private func decryptToItem(_ proto: Sanchr_Vault_VaultItem) async throws -> VaultItem? {
             let vaultItemId = proto.vaultItemID
             // GetVaultItems runs on user-initiated vault browse paths
             // (VaultViewModel.loadItems); every successful list is an access

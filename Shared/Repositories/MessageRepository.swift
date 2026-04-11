@@ -47,7 +47,7 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 
     /// Sends a device presence heartbeat through the live realtime stream.
     func sendPresenceHeartbeat(
-        deviceState: Vync_Messaging_DevicePresenceState,
+        deviceState: Sanchr_Messaging_DevicePresenceState,
         sentAtMs: Int64
     ) async throws
 
@@ -55,7 +55,7 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     func fetchPreKeyBundle(userId: String) async throws -> Data
 
     /// Fetches current presence state for authorized peers.
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate]
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate]
 
     /// Drains pending messages from the server, decrypts, and saves locally.
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult
@@ -75,10 +75,10 @@ struct MessageSyncResult: Sendable {
 }
 
 private actor MessageStreamController {
-    private var continuation: AsyncStream<Vync_Messaging_ClientEvent>.Continuation?
-    private var pendingEvents: [Vync_Messaging_ClientEvent] = []
+    private var continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation?
+    private var pendingEvents: [Sanchr_Messaging_ClientEvent] = []
 
-    func begin() -> AsyncStream<Vync_Messaging_ClientEvent> {
+    func begin() -> AsyncStream<Sanchr_Messaging_ClientEvent> {
         continuation?.finish()
         return AsyncStream(bufferingPolicy: .bufferingNewest(64)) { continuation in
             Task {
@@ -87,7 +87,7 @@ private actor MessageStreamController {
         }
     }
 
-    func send(_ event: Vync_Messaging_ClientEvent) {
+    func send(_ event: Sanchr_Messaging_ClientEvent) {
         if let continuation {
             continuation.yield(event)
         } else {
@@ -101,7 +101,7 @@ private actor MessageStreamController {
         pendingEvents.removeAll(keepingCapacity: false)
     }
 
-    private func setContinuation(_ continuation: AsyncStream<Vync_Messaging_ClientEvent>.Continuation) {
+    private func setContinuation(_ continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation) {
         self.continuation = continuation
         pendingEvents.forEach { continuation.yield($0) }
         pendingEvents.removeAll(keepingCapacity: false)
@@ -194,7 +194,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         guard !peerIds.isEmpty else {
             throw AppError.sessionNotEstablished
         }
-        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
         for peerId in peerIds {
             let perPeer = try await signalProtocol.encryptForAllDevices(
                 plaintext: plaintext,
@@ -204,7 +204,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         }
 
         // 3. Send encrypted message via gRPC
-        var request = Vync_Messaging_SendMessageRequest()
+        var request = Sanchr_Messaging_SendMessageRequest()
         request.conversationID = message.conversationId
         request.deviceMessages = deviceMessages
         request.contentType = Self.contentTypeString(for: message.content)
@@ -253,7 +253,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     func fetchConversations() async throws -> [Conversation] {
         SanchrLogger.chat.info("Fetching conversations from server")
         do {
-            let request = Vync_Messaging_GetConversationsRequest()
+            let request = Sanchr_Messaging_GetConversationsRequest()
             let response = try await grpcClient.messagingService.getConversations(request)
             let cachedConversations = (try? await localDatabase.fetchConversations()) ?? []
             let cachedLookup = Dictionary(uniqueKeysWithValues: cachedConversations.map { ($0.id, $0) })
@@ -316,7 +316,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         SanchrLogger.chat.info("Marking messages as read in \(conversationId) up to \(upToMessageId)")
 
-        var request = Vync_Messaging_ReceiptRequest()
+        var request = Sanchr_Messaging_ReceiptRequest()
         request.conversationID = conversationId
         request.messageID = upToMessageId
         request.status = "read"
@@ -341,7 +341,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         SanchrLogger.chat.info("Deleting message \(id), forEveryone: \(forEveryone)")
 
         if forEveryone {
-            var request = Vync_Messaging_DeleteMessageRequest()
+            var request = Sanchr_Messaging_DeleteMessageRequest()
             request.messageID = id
 
             _ = try await grpcClient.messagingService.deleteMessage(request)
@@ -379,7 +379,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         // Best-effort server delete (fire-and-forget). Local file is
         // already gone so failure here is non-fatal.
-        var request = Vync_Messaging_DeleteMessageRequest()
+        var request = Sanchr_Messaging_DeleteMessageRequest()
         request.messageID = messageId
         request.conversationID = message.conversationId
         _ = try? await grpcClient.messagingService.deleteMessage(request)
@@ -408,7 +408,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             .filter { $0 != senderId }
         guard !peerIds.isEmpty else { return }
 
-        var deviceMessages: [Vync_Messaging_DeviceMessage] = []
+        var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
         for peerId in peerIds {
             let perPeer = try await signalProtocol.encryptForAllDevices(
                 plaintext: plaintext,
@@ -417,7 +417,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             deviceMessages.append(contentsOf: perPeer)
         }
 
-        var request = Vync_Messaging_SendMessageRequest()
+        var request = Sanchr_Messaging_SendMessageRequest()
         request.conversationID = conversationId
         request.deviceMessages = deviceMessages
         request.contentType = "system"
@@ -519,27 +519,27 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         SanchrLogger.chat.info("Sending typing indicator: \(isTyping) for \(conversationId)")
 
-        var typingIndicator = Vync_Messaging_TypingIndicator()
+        var typingIndicator = Sanchr_Messaging_TypingIndicator()
         typingIndicator.conversationID = conversationId
         typingIndicator.userID = currentUserIdProvider() ?? ""
         typingIndicator.isTyping = isTyping
 
-        var clientEvent = Vync_Messaging_ClientEvent()
+        var clientEvent = Sanchr_Messaging_ClientEvent()
         clientEvent.typing = typingIndicator
         await streamController.send(clientEvent)
     }
 
     func sendPresenceHeartbeat(
-        deviceState: Vync_Messaging_DevicePresenceState,
+        deviceState: Sanchr_Messaging_DevicePresenceState,
         sentAtMs: Int64
     ) async throws {
         guard privacyGate.decide(.presenceHeartbeat) == .allow else { return }
 
-        var heartbeat = Vync_Messaging_PresenceHeartbeat()
+        var heartbeat = Sanchr_Messaging_PresenceHeartbeat()
         heartbeat.deviceState = deviceState
         heartbeat.sentAtMs = sentAtMs
 
-        var clientEvent = Vync_Messaging_ClientEvent()
+        var clientEvent = Sanchr_Messaging_ClientEvent()
         clientEvent.heartbeat = heartbeat
         await streamController.send(clientEvent)
     }
@@ -547,7 +547,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     func fetchPreKeyBundle(userId: String) async throws -> Data {
         SanchrLogger.crypto.info("Fetching pre-key bundle for \(userId.prefix(8))...")
 
-        var request = Vync_Keys_GetPreKeyBundleRequest()
+        var request = Sanchr_Keys_GetPreKeyBundleRequest()
         request.userID = userId
         request.deviceID = 1 // Default device
 
@@ -557,10 +557,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return try response.serializedData()
     }
 
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Vync_Messaging_PresenceUpdate] {
+    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate] {
         guard !userIds.isEmpty else { return [] }
 
-        var request = Vync_Messaging_GetPresenceSnapshotRequest()
+        var request = Sanchr_Messaging_GetPresenceSnapshotRequest()
         request.userIds = userIds
 
         let response = try await grpcClient.messagingService.getPresenceSnapshot(request)
@@ -572,7 +572,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult {
         SanchrLogger.chat.info("Syncing pending messages from server")
 
-        var request = Vync_Messaging_SyncRequest()
+        var request = Sanchr_Messaging_SyncRequest()
         request.sinceTimestamp = sinceTimestamp
 
         let stream = grpcClient.messagingService.syncMessages(request)
@@ -599,9 +599,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let pendingAcks = try await localDatabase.fetchPendingMessageAcks(limit: Self.ackBatchSize)
         guard !pendingAcks.isEmpty else { return 0 }
 
-        var request = Vync_Messaging_AckMessagesRequest()
+        var request = Sanchr_Messaging_AckMessagesRequest()
         request.messages = pendingAcks.map { ack in
-            var ref = Vync_Messaging_AckedMessageRef()
+            var ref = Sanchr_Messaging_AckedMessageRef()
             ref.conversationID = ack.conversationId
             ref.messageID = ack.messageId
             return ref
@@ -615,7 +615,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     func startDirectConversation(peerUserId: String) async throws -> String {
-        var request = Vync_Messaging_StartDirectConversationRequest()
+        var request = Sanchr_Messaging_StartDirectConversationRequest()
         request.recipientID = peerUserId
         let response = try await grpcClient.messagingService.startDirectConversation(request)
         SanchrLogger.chat.info(
@@ -650,7 +650,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return "\(type(of: error)): \(error.localizedDescription)"
     }
 
-    private func decodeMessage(from envelope: Vync_Messaging_EncryptedEnvelope) async -> Message? {
+    private func decodeMessage(from envelope: Sanchr_Messaging_EncryptedEnvelope) async -> Message? {
         do {
             let plaintext = try await signalProtocol.decryptEnvelope(envelope)
             let serverTimestamp = Date(
@@ -708,7 +708,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// 3. If `isSync` is true, save as an outgoing message (multi-device sync).
     /// 4. Otherwise, save as an incoming message and queue a delivery ack.
     private func decodeSealedMessage(
-        from sealed: Vync_Messaging_SealedInboundMessage
+        from sealed: Sanchr_Messaging_SealedInboundMessage
     ) async -> Message? {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
@@ -960,7 +960,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     private func fetchRemoteConversation(id conversationId: String) async throws -> Conversation? {
-        let request = Vync_Messaging_GetConversationsRequest()
+        let request = Sanchr_Messaging_GetConversationsRequest()
         let response = try await grpcClient.messagingService.getConversations(request)
         guard let protoConversation = response.conversations.first(where: { $0.id == conversationId }) else {
             return nil

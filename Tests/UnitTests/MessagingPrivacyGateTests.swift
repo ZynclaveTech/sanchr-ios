@@ -122,11 +122,11 @@ final class MessagingPrivacyGateTests: XCTestCase {
         sanchrMode: Bool
     ) -> MessagingPrivacyGate {
         let cache = PrivacySettingsCache()
-        var settings = Vync_Settings_UserSettings()
+        var settings = Sanchr_Settings_UserSettings()
         settings.readReceipts = readReceipts
         settings.typingIndicator = typingIndicator
         settings.onlineStatusVisible = onlineStatusVisible
-        settings.vyncModeEnabled = sanchrMode
+        settings.sanchrModeEnabled = sanchrMode
         settings.profilePhotoVisibility = "everyone"
         cache.update(from: settings)
         return MessagingPrivacyGate(privacySettings: cache)

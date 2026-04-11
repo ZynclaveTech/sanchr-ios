@@ -170,7 +170,7 @@ public actor MediaUploadManager {
 
             let hashHex = SHA256.hash(data: encryptedData).map { String(format: "%02x", $0) }.joined()
 
-            var uploadReq = Vync_Media_GetUploadUrlRequest()
+            var uploadReq = Sanchr_Media_GetUploadUrlRequest()
             uploadReq.fileSize = Int64(encryptedData.count)
             uploadReq.contentType = task.mimeType
             uploadReq.sha256Hash = hashHex
@@ -236,7 +236,7 @@ public actor MediaUploadManager {
         SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirming upload...")
 
         do {
-            var confirmReq = Vync_Media_ConfirmUploadRequest()
+            var confirmReq = Sanchr_Media_ConfirmUploadRequest()
             confirmReq.mediaID = task.mediaId ?? ""
             confirmReq.fileSize = task.encryptedFileSize
             SanchrLogger.media.info("Upload \(taskId.prefix(8)): confirming with encryptedFileSize=\(task.encryptedFileSize)")

@@ -7,11 +7,11 @@ final class SessionServicePrivacyClearTests: XCTestCase {
 
     func test_clearSession_resetsCacheToDefaults() async throws {
         let cache = PrivacySettingsCache()
-        var populated = Vync_Settings_UserSettings()
+        var populated = Sanchr_Settings_UserSettings()
         populated.readReceipts = false
         populated.typingIndicator = false
         populated.onlineStatusVisible = false
-        populated.vyncModeEnabled = true
+        populated.sanchrModeEnabled = true
         populated.profilePhotoVisibility = "nobody"
         cache.update(from: populated)
         cache.update(blockList: ["u1"])

@@ -17,20 +17,20 @@ public protocol GRPCClientProtocol: Sendable {
 
     // MARK: - Core Service Clients
 
-    var authService: Vync_Auth_AuthServiceAsyncClientProtocol { get }
-    var messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol { get }
-    var contactService: Vync_Contacts_ContactServiceAsyncClientProtocol { get }
-    var keyService: Vync_Keys_KeyServiceAsyncClientProtocol { get }
-    var mediaService: Vync_Media_MediaServiceAsyncClientProtocol { get }
-    var settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol { get }
-    var notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol { get }
-    var vaultService: Vync_Vault_VaultServiceAsyncClientProtocol { get }
-    var backupService: Vync_Backup_BackupServiceAsyncClientProtocol { get }
-    var discoveryService: Vync_Discovery_DiscoveryServiceAsyncClientProtocol { get }
+    var authService: Sanchr_Auth_AuthServiceAsyncClientProtocol { get }
+    var messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol { get }
+    var contactService: Sanchr_Contacts_ContactServiceAsyncClientProtocol { get }
+    var keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol { get }
+    var mediaService: Sanchr_Media_MediaServiceAsyncClientProtocol { get }
+    var settingsService: Sanchr_Settings_SettingsServiceAsyncClientProtocol { get }
+    var notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol { get }
+    var vaultService: Sanchr_Vault_VaultServiceAsyncClientProtocol { get }
+    var backupService: Sanchr_Backup_BackupServiceAsyncClientProtocol { get }
+    var discoveryService: Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol { get }
 
     // MARK: - Call Service Client (separate channel)
 
-    var callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol { get }
+    var callSignalingService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol { get }
 }
 
 /// gRPC channel manager wrapping connection lifecycle and typed service stubs.
@@ -54,17 +54,17 @@ public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
 
     // MARK: - Service clients (created eagerly)
 
-    public let authService: Vync_Auth_AuthServiceAsyncClientProtocol
-    public let messagingService: Vync_Messaging_MessagingServiceAsyncClientProtocol
-    public let contactService: Vync_Contacts_ContactServiceAsyncClientProtocol
-    public let keyService: Vync_Keys_KeyServiceAsyncClientProtocol
-    public let mediaService: Vync_Media_MediaServiceAsyncClientProtocol
-    public let settingsService: Vync_Settings_SettingsServiceAsyncClientProtocol
-    public let notificationService: Vync_Notifications_NotificationServiceAsyncClientProtocol
-    public let vaultService: Vync_Vault_VaultServiceAsyncClientProtocol
-    public let backupService: Vync_Backup_BackupServiceAsyncClientProtocol
-    public let discoveryService: Vync_Discovery_DiscoveryServiceAsyncClientProtocol
-    public let callSignalingService: Vync_Calling_CallSignalingServiceAsyncClientProtocol
+    public let authService: Sanchr_Auth_AuthServiceAsyncClientProtocol
+    public let messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol
+    public let contactService: Sanchr_Contacts_ContactServiceAsyncClientProtocol
+    public let keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol
+    public let mediaService: Sanchr_Media_MediaServiceAsyncClientProtocol
+    public let settingsService: Sanchr_Settings_SettingsServiceAsyncClientProtocol
+    public let notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol
+    public let vaultService: Sanchr_Vault_VaultServiceAsyncClientProtocol
+    public let backupService: Sanchr_Backup_BackupServiceAsyncClientProtocol
+    public let discoveryService: Sanchr_Discovery_DiscoveryServiceAsyncClientProtocol
+    public let callSignalingService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol
 
     // MARK: - Init
 
@@ -95,39 +95,39 @@ public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
         self.callChannel = callConn
 
         // Core service clients
-        authService = Vync_Auth_AuthServiceAsyncClient(
+        authService = Sanchr_Auth_AuthServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        messagingService = Vync_Messaging_MessagingServiceAsyncClient(
+        messagingService = Sanchr_Messaging_MessagingServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        contactService = Vync_Contacts_ContactServiceAsyncClient(
+        contactService = Sanchr_Contacts_ContactServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        keyService = Vync_Keys_KeyServiceAsyncClient(
+        keyService = Sanchr_Keys_KeyServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        mediaService = Vync_Media_MediaServiceAsyncClient(
+        mediaService = Sanchr_Media_MediaServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        settingsService = Vync_Settings_SettingsServiceAsyncClient(
+        settingsService = Sanchr_Settings_SettingsServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        notificationService = Vync_Notifications_NotificationServiceAsyncClient(
+        notificationService = Sanchr_Notifications_NotificationServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        vaultService = Vync_Vault_VaultServiceAsyncClient(
+        vaultService = Sanchr_Vault_VaultServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        backupService = Vync_Backup_BackupServiceAsyncClient(
+        backupService = Sanchr_Backup_BackupServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
-        discoveryService = Vync_Discovery_DiscoveryServiceAsyncClient(
+        discoveryService = Sanchr_Discovery_DiscoveryServiceAsyncClient(
             channel: coreConn, interceptors: authInterceptors
         )
 
         // Call signaling on dedicated channel
-        callSignalingService = Vync_Calling_CallSignalingServiceAsyncClient(
+        callSignalingService = Sanchr_Calling_CallSignalingServiceAsyncClient(
             channel: callConn, interceptors: authInterceptors
         )
     }

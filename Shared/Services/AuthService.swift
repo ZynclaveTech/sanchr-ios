@@ -6,7 +6,6 @@ protocol AuthServiceProtocol: AnyObject, Sendable {
     func login(phoneNumber: String) async throws -> OTPRequestResult
     func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult
-    func changePassword(currentPassword: String, newPassword: String) async throws
     func logout() async throws
     func deleteAccount() async throws
 }
@@ -39,13 +38,6 @@ final class AuthServiceImpl: AuthServiceProtocol, @unchecked Sendable {
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult {
         SanchrLogger.auth.info("Starting staged registration")
         return try await repository.register(phoneNumber: phoneNumber, displayName: displayName)
-    }
-
-    func changePassword(currentPassword: String, newPassword: String) async throws {
-        try await repository.changePassword(
-            currentPassword: currentPassword,
-            newPassword: newPassword
-        )
     }
 
     func logout() async throws {

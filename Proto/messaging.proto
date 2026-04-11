@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.messaging;
+package sanchr.messaging;
 
 service MessagingService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);

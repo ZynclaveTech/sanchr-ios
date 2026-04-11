@@ -2,11 +2,11 @@ import Foundation
 import SanchrShared
 
 /// Data source for settings-related gRPC service calls.
-/// Translates between domain state and Vync_Settings protobuf messages.
+/// Translates between domain state and Sanchr_Settings protobuf messages.
 final class SettingsDataSource: @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
 
-    private var settingsClient: Vync_Settings_SettingsServiceAsyncClientProtocol {
+    private var settingsClient: Sanchr_Settings_SettingsServiceAsyncClientProtocol {
         grpcClient.settingsService
     }
 
@@ -17,8 +17,8 @@ final class SettingsDataSource: @unchecked Sendable {
     // MARK: - Get Settings
 
     /// Fetches the current user settings from the server.
-    func getSettings() async throws -> Vync_Settings_UserSettings {
-        let request = Vync_Settings_GetSettingsRequest()
+    func getSettings() async throws -> Sanchr_Settings_UserSettings {
+        let request = Sanchr_Settings_GetSettingsRequest()
 
         SanchrLogger.network.info("SettingsDataSource: getSettings")
         return try await settingsClient.getSettings(request)
@@ -27,10 +27,10 @@ final class SettingsDataSource: @unchecked Sendable {
     // MARK: - Update Settings
 
     /// Pushes updated settings to the server.
-    func updateSettings(settings: Vync_Settings_UserSettings) async throws
-        -> Vync_Settings_UserSettings
+    func updateSettings(settings: Sanchr_Settings_UserSettings) async throws
+        -> Sanchr_Settings_UserSettings
     {
-        var request = Vync_Settings_UpdateSettingsRequest()
+        var request = Sanchr_Settings_UpdateSettingsRequest()
         request.settings = settings
 
         SanchrLogger.network.info("SettingsDataSource: updateSettings")
@@ -44,8 +44,8 @@ final class SettingsDataSource: @unchecked Sendable {
         name: String,
         avatarURL: String,
         status: String
-    ) async throws -> Vync_Settings_ProfileResponse {
-        var request = Vync_Settings_UpdateProfileRequest()
+    ) async throws -> Sanchr_Settings_ProfileResponse {
+        var request = Sanchr_Settings_UpdateProfileRequest()
         request.displayName = name
         request.avatarURL = avatarURL
         request.statusText = status
@@ -54,22 +54,22 @@ final class SettingsDataSource: @unchecked Sendable {
         return try await settingsClient.updateProfile(request)
     }
 
-    // MARK: - Toggle Vync Mode
+    // MARK: - Toggle Sanchr Mode
 
-    /// Toggles the enhanced privacy mode (Vync Mode).
-    func toggleVyncMode(enabled: Bool) async throws -> Vync_Settings_UserSettings {
-        var request = Vync_Settings_ToggleVyncModeRequest()
+    /// Toggles the enhanced privacy mode (Sanchr Mode).
+    func toggleSanchrMode(enabled: Bool) async throws -> Sanchr_Settings_UserSettings {
+        var request = Sanchr_Settings_ToggleSanchrModeRequest()
         request.enabled = enabled
 
-        SanchrLogger.network.info("SettingsDataSource: toggleVyncMode enabled=\(enabled)")
-        return try await settingsClient.toggleVyncMode(request)
+        SanchrLogger.network.info("SettingsDataSource: toggleSanchrMode enabled=\(enabled)")
+        return try await settingsClient.toggleSanchrMode(request)
     }
 
     // MARK: - Get Storage Usage
 
     /// Retrieves storage usage breakdown by media type.
-    func getStorageUsage() async throws -> Vync_Settings_StorageUsageResponse {
-        let request = Vync_Settings_GetStorageUsageRequest()
+    func getStorageUsage() async throws -> Sanchr_Settings_StorageUsageResponse {
+        let request = Sanchr_Settings_GetStorageUsageRequest()
 
         SanchrLogger.network.info("SettingsDataSource: getStorageUsage")
         return try await settingsClient.getStorageUsage(request)

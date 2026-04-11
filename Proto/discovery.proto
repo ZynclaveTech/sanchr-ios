@@ -1,5 +1,5 @@
 syntax = "proto3";
-package vync.discovery;
+package sanchr.discovery;
 
 service DiscoveryService {
   rpc OprfDiscover(OprfDiscoverRequest) returns (OprfDiscoverResponse);

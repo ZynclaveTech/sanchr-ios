@@ -1,11 +1,11 @@
 syntax = "proto3";
-package vync.settings;
+package sanchr.settings;
 
 service SettingsService {
   rpc GetSettings(GetSettingsRequest) returns (UserSettings);
   rpc UpdateSettings(UpdateSettingsRequest) returns (UserSettings);
   rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
-  rpc ToggleVyncMode(ToggleVyncModeRequest) returns (UserSettings);
+  rpc ToggleSanchrMode(ToggleSanchrModeRequest) returns (UserSettings);
   rpc GetStorageUsage(GetStorageUsageRequest) returns (StorageUsageResponse);
 }
 
@@ -16,7 +16,7 @@ message UserSettings {
   bool online_status_visible = 2;
   bool typing_indicator = 3;
   string profile_photo_visibility = 4;
-  bool vync_mode_enabled = 5;
+  bool sanchr_mode_enabled = 5;
   bool screen_lock_enabled = 6;
   int32 screen_lock_timeout = 7;
   bool screenshot_protection = 8;
@@ -53,7 +53,7 @@ message ProfileResponse {
   string status_text = 4;
 }
 
-message ToggleVyncModeRequest {
+message ToggleSanchrModeRequest {
   bool enabled = 1;
 }
 

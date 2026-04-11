@@ -20,7 +20,7 @@ final class OPRFClient: OPRFClientProtocol, @unchecked Sendable {
             let result = blindingScalar.withUnsafeMutableBytes { scalarPtr in
                 blindedPoint.withUnsafeMutableBytes { pointPtr in
                     phone.withCString { phonePtr in
-                        vync_oprf_blind(
+                        sanchr_oprf_blind(
                             phonePtr,
                             scalarPtr.baseAddress!.assumingMemoryBound(to: UInt8.self),
                             pointPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
@@ -51,7 +51,7 @@ final class OPRFClient: OPRFClientProtocol, @unchecked Sendable {
             let result = response.withUnsafeBytes { respPtr in
                 factor.withUnsafeBytes { factorPtr in
                     unblindedPoint.withUnsafeMutableBytes { outPtr in
-                        vync_oprf_unblind(
+                        sanchr_oprf_unblind(
                             respPtr.baseAddress!.assumingMemoryBound(to: UInt8.self),
                             factorPtr.baseAddress!.assumingMemoryBound(to: UInt8.self),
                             outPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
