@@ -116,6 +116,8 @@ struct SanchrApp: App {
             // Check app lock
             lockManager.appDidBecomeActive()
             container.realtimeService.enterForeground()
+            // Rotate push token every 7 days to limit long-term token tracking.
+            container.pushManager.rotateTokenIfNeeded()
 
             // Trigger a foreground sync if needed (>5 min since last sync).
             let syncState = container.syncState
