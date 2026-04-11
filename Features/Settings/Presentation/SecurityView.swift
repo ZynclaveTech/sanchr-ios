@@ -51,22 +51,22 @@ struct SecurityView: View {
     private var sanchrModeCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 14) {
-                iconTile(systemName: "eye.slash.fill", tint: SanchrColors.accent, background: Color.white.opacity(0.12))
+                SettingsIconTile(systemName: "eye.slash", role: .accent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sanchr Mode")
                         .font(SanchrTypography.bodyBold)
-                        .foregroundColor(.white)
+                        .foregroundColor(SanchrExportColors.textPrimary)
                     Text("Maximum privacy")
                         .font(SanchrTypography.caption)
-                        .foregroundColor(.white.opacity(0.72))
+                        .foregroundColor(SanchrExportColors.textSecondary)
                 }
 
                 Spacer()
 
                 Toggle("", isOn: $viewModel.sanchrModeEnabled)
                     .labelsHidden()
-                    .tint(SanchrColors.accent)
+                    .tint(.sanchrPrimary)
                     .onChange(of: viewModel.sanchrModeEnabled) { _, newValue in
                         Task {
                             await viewModel.setSanchrMode(enabled: newValue, settingsDataSource: settingsDataSource)
@@ -76,26 +76,19 @@ struct SecurityView: View {
 
             Text("Hide previews, detect screenshots after capture, and shield content during screen recording or mirroring.")
                 .font(SanchrTypography.caption)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(SanchrExportColors.textSecondary)
 
             HStack(spacing: 8) {
                 Circle()
-                    .fill(viewModel.sanchrModeEnabled ? Color(hex: 0x4ADE80) : Color.white.opacity(0.36))
+                    .fill(viewModel.sanchrModeEnabled ? Color.sanchrSuccess : SanchrExportColors.textTertiary)
                     .frame(width: 8, height: 8)
                 Text(viewModel.sanchrModeEnabled ? "Currently enabled" : "Currently disabled")
                     .font(SanchrTypography.captionSmall)
-                    .foregroundColor(viewModel.sanchrModeEnabled ? Color(hex: 0x4ADE80) : .white.opacity(0.7))
+                    .foregroundColor(viewModel.sanchrModeEnabled ? .sanchrSuccess : SanchrExportColors.textSecondary)
             }
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: 0x0F172A), Color(hex: 0x4C1D95)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .settingsCard(cornerRadius: 26)
     }
 
     private var featureSection: some View {
@@ -106,9 +99,7 @@ struct SecurityView: View {
                 EncryptionKeysView()
             } label: {
                 featureRow(
-                    icon: "lock.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
+                    icon: "lock",
                     title: "End-to-End Encryption",
                     subtitle: "All messages secured",
                     showsStatusDot: true
@@ -121,8 +112,6 @@ struct SecurityView: View {
             } label: {
                 featureRow(
                     icon: "qrcode",
-                    tint: SanchrColors.accent,
-                    background: Color(hex: 0xECFEFF),
                     title: "Security Code Verification",
                     subtitle: "Verify contacts and device keys"
                 )
@@ -133,9 +122,7 @@ struct SecurityView: View {
                 VaultView()
             } label: {
                 featureRow(
-                    icon: "lock.doc.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
+                    icon: "lock.doc",
                     title: "Vault Messages",
                     subtitle: "Self-destructing media and secure storage"
                 )
@@ -145,8 +132,6 @@ struct SecurityView: View {
             VStack(spacing: 0) {
                 stackedToggleRow(
                     icon: "faceid",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
                     title: "Biometric Lock",
                     subtitle: viewModel.biometricLock ? "App lock enabled" : "Require Face ID or Touch ID",
                     isOn: $viewModel.biometricLock
@@ -163,7 +148,7 @@ struct SecurityView: View {
                     .padding(.leading, 56)
 
                 HStack(spacing: 14) {
-                    iconTile(systemName: "lock.rectangle.fill", tint: Color(hex: 0x2563EB), background: Color(hex: 0xDBEAFE))
+                    iconTile(systemName: "lock.rectangle")
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Screen Lock Timeout")
@@ -188,6 +173,7 @@ struct SecurityView: View {
                         }
                     } label: {
                         Image(systemName: "chevron.right")
+                            .symbolRenderingMode(.monochrome)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(SanchrExportColors.textTertiary)
                     }
@@ -196,12 +182,7 @@ struct SecurityView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
+            .settingsCard(cornerRadius: 24)
         }
     }
 
@@ -211,9 +192,7 @@ struct SecurityView: View {
 
             VStack(spacing: 0) {
                 stackedToggleRow(
-                    icon: "checkmark.message.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
+                    icon: "checkmark.message",
                     title: "Read Receipts",
                     subtitle: "Show when you've read messages",
                     isOn: $viewModel.readReceipts
@@ -226,8 +205,6 @@ struct SecurityView: View {
 
                 stackedToggleRow(
                     icon: "dot.radiowaves.left.and.right",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
                     title: "Online Status",
                     subtitle: "Let others see when you're active",
                     isOn: $viewModel.onlineStatusVisible
@@ -240,8 +217,6 @@ struct SecurityView: View {
 
                 stackedToggleRow(
                     icon: "camera.viewfinder",
-                    tint: Color(hex: 0xDC2626),
-                    background: Color(hex: 0xFEE2E2),
                     title: "Screenshot Protection",
                     subtitle: "Detect screenshots and hide content during screen recording or mirroring",
                     isOn: $viewModel.screenshotProtection
@@ -252,12 +227,7 @@ struct SecurityView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
+            .settingsCard(cornerRadius: 24)
         }
     }
 
@@ -267,8 +237,6 @@ struct SecurityView: View {
 
             featureRow(
                 icon: "desktopcomputer",
-                tint: Color(hex: 0x6B7280),
-                background: Color(hex: 0xF3F4F6),
                 title: "Active Sessions",
                 subtitle: "1 device connected"
             )
@@ -277,11 +245,10 @@ struct SecurityView: View {
                 showDeleteAccount = true
             } label: {
                 featureRow(
-                    icon: "trash.fill",
-                    tint: Color(hex: 0xDC2626),
-                    background: Color(hex: 0xFEE2E2),
+                    icon: "trash",
                     title: "Delete Account",
-                    subtitle: "Permanently erase your account and data"
+                    subtitle: "Permanently erase your account and data",
+                    role: .destructive
                 )
             }
             .buttonStyle(.plain)
@@ -289,22 +256,18 @@ struct SecurityView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 
     private func featureRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
-        showsStatusDot: Bool = false
+        showsStatusDot: Bool = false,
+        role: SettingsIconRole = .neutral
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon, role: role)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -320,35 +283,29 @@ struct SecurityView: View {
             HStack(spacing: 8) {
                 if showsStatusDot {
                     Circle()
-                        .fill(Color(hex: 0x22C55E))
+                        .fill(Color.sanchrSuccess)
                         .frame(width: 8, height: 8)
                 }
 
                 Image(systemName: "chevron.right")
+                    .symbolRenderingMode(.monochrome)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textTertiary)
             }
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-        }
+        .settingsCard()
     }
 
     private func stackedToggleRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         isOn: Binding<Bool>,
         onChange: @escaping (Bool) -> Void
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -371,15 +328,8 @@ struct SecurityView: View {
         .padding(.vertical, 12)
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
+    private func iconTile(systemName: String, role: SettingsIconRole = .neutral) -> some View {
+        SettingsIconTile(systemName: systemName, role: role)
     }
 
     private func timeoutLabel(_ timeout: Int32) -> String {

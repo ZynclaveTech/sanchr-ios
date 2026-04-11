@@ -21,25 +21,19 @@ struct NotificationsView: View {
                     title: "Messages",
                     rows: [
                         AnyView(toggleRow(
-                            icon: "message.fill",
-                            tint: SanchrColors.primary,
-                            background: Color(hex: 0xEEF2FF),
+                            icon: "message",
                             title: "Message notifications",
                             subtitle: "Receive alerts for new direct messages",
                             isOn: $viewModel.messageNotifications
                         )),
                         AnyView(toggleRow(
-                            icon: "text.bubble.fill",
-                            tint: SanchrColors.accent,
-                            background: Color(hex: 0xECFEFF),
+                            icon: "text.bubble",
                             title: "Show previews",
                             subtitle: "Display message content in notifications",
                             isOn: $viewModel.showPreviews
                         )),
                         AnyView(toggleRow(
-                            icon: "speaker.wave.2.fill",
-                            tint: Color(hex: 0x7C3AED),
-                            background: Color(hex: 0xF5F3FF),
+                            icon: "speaker.wave.2",
                             title: "Sound",
                             subtitle: "Play a sound when alerts arrive",
                             isOn: $viewModel.soundEnabled
@@ -51,25 +45,19 @@ struct NotificationsView: View {
                     title: "Calls & Groups",
                     rows: [
                         AnyView(toggleRow(
-                            icon: "phone.fill",
-                            tint: Color(hex: 0x16A34A),
-                            background: Color(hex: 0xF0FDF4),
+                            icon: "phone",
                             title: "Call notifications",
                             subtitle: "Ring for incoming voice and video calls",
                             isOn: $viewModel.callNotifications
                         )),
                         AnyView(toggleRow(
-                            icon: "person.3.fill",
-                            tint: Color(hex: 0xCA8A04),
-                            background: Color(hex: 0xFEFCE8),
+                            icon: "person.3",
                             title: "Group notifications",
                             subtitle: "Get updates from group conversations",
                             isOn: $viewModel.groupNotifications
                         )),
                         AnyView(toggleRow(
                             icon: "iphone.radiowaves.left.and.right",
-                            tint: Color(hex: 0xDC2626),
-                            background: Color(hex: 0xFEF2F2),
                             title: "Vibrate",
                             subtitle: "Use haptics for important alerts",
                             isOn: $viewModel.vibrateEnabled
@@ -78,10 +66,7 @@ struct NotificationsView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Delivery")
-                        .font(SanchrTypography.sectionLabel)
-                        .tracking(1.2)
-                        .foregroundColor(SanchrExportColors.textSecondary)
+                    SettingsSectionTitle(title: "Delivery")
 
                     NavigationLink {
                         NotificationSoundPicker(
@@ -92,11 +77,7 @@ struct NotificationsView: View {
                         )
                     } label: {
                         HStack(spacing: 14) {
-                            iconTile(
-                                systemName: "music.note",
-                                tint: Color(hex: 0x2563EB),
-                                background: Color(hex: 0xEFF6FF)
-                            )
+                            iconTile(systemName: "music.note")
 
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Notification tone")
@@ -110,16 +91,12 @@ struct NotificationsView: View {
                             Spacer()
 
                             Image(systemName: "chevron.right")
+                                .symbolRenderingMode(.monochrome)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(SanchrExportColors.textTertiary)
                         }
                         .padding(16)
-                        .background(SanchrExportColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                        }
+                        .settingsCard()
                     }
                     .buttonStyle(.plain)
                 }
@@ -144,11 +121,7 @@ struct NotificationsView: View {
 
     private var permissionBanner: some View {
         HStack(spacing: 14) {
-            iconTile(
-                systemName: "bell.slash.fill",
-                tint: .sanchrWarning,
-                background: Color(hex: 0xFEF3C7)
-            )
+            iconTile(systemName: "bell.slash", role: .warning)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Notifications Disabled")
@@ -168,20 +141,12 @@ struct NotificationsView: View {
             .foregroundColor(.sanchrPrimary)
         }
         .padding(18)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color(hex: 0xFDE68A), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 24)
     }
 
     private func settingsSection(title: String, rows: [AnyView]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(SanchrTypography.sectionLabel)
-                .tracking(1.2)
-                .foregroundColor(SanchrExportColors.textSecondary)
+            SettingsSectionTitle(title: title)
 
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
@@ -195,25 +160,18 @@ struct NotificationsView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-            }
+            .settingsCard(cornerRadius: 24)
         }
     }
 
     private func toggleRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         isOn: Binding<Bool>
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -236,15 +194,8 @@ struct NotificationsView: View {
         .padding(.vertical, 12)
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
+    private func iconTile(systemName: String, role: SettingsIconRole = .neutral) -> some View {
+        SettingsIconTile(systemName: systemName, role: role)
     }
 }
 
@@ -304,7 +255,7 @@ struct NotificationSoundPicker: View {
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                        .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
                 }
                 .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
                 .padding(.bottom, 28)

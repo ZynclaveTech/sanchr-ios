@@ -1,10 +1,6 @@
 import SwiftUI
 import SanchrShared
 
-/// Hero card at the top of the Privacy screen that toggles Sanchr Mode.
-/// The two pills below the toggle describe the behaviors Sanchr Mode
-/// enables (silent notifications, hidden previews). Gradient is
-/// intentionally dark in both light and dark themes.
 struct SanchrModeCard: View {
     @Binding var isOn: Bool
     var onToggleChanged: (Bool) async -> Void
@@ -12,60 +8,50 @@ struct SanchrModeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "eye.slash.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(SanchrColors.accent)
+                SettingsIconTile(systemName: "eye.slash", role: .accent)
 
-                        Text("Sanchr Mode")
-                            .font(SanchrTypography.cardTitle)
-                            .foregroundColor(.white)
-                    }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Sanchr Mode")
+                        .font(SanchrTypography.cardTitle)
+                        .foregroundColor(SanchrExportColors.textPrimary)
 
                     Text("Enhanced privacy with hidden previews and a more discreet interface.")
                         .font(SanchrTypography.caption)
-                        .foregroundColor(.white.opacity(0.72))
+                        .foregroundColor(SanchrExportColors.textSecondary)
                 }
 
                 Spacer()
 
                 Toggle("", isOn: $isOn)
                     .labelsHidden()
-                    .tint(SanchrColors.accent)
+                    .tint(.sanchrPrimary)
                     .onChange(of: isOn) { _, newValue in
                         Task { await onToggleChanged(newValue) }
                     }
             }
 
             HStack(spacing: 12) {
-                statPill(icon: "bell.slash.fill", title: "Silent Notifications")
-                statPill(icon: "eye.slash.fill", title: "Hidden Previews")
+                statPill(icon: "bell.slash", title: "Silent Notifications")
+                statPill(icon: "eye.slash", title: "Hidden Previews")
             }
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: 0x111827), Color(hex: 0x0F172A)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .settingsCard(cornerRadius: 26)
     }
 
     private func statPill(icon: String, title: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.white.opacity(0.72))
+                .foregroundColor(SanchrExportColors.textSecondary)
             Text(title)
                 .font(SanchrTypography.captionSmall)
-                .foregroundColor(.white)
+                .foregroundColor(SanchrExportColors.textPrimary)
         }
         .padding(.horizontal, 12)
         .frame(height: 42)
-        .background(Color.white.opacity(0.08))
+        .background(SanchrExportColors.surfaceMuted)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

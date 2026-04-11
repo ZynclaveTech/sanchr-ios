@@ -53,7 +53,7 @@ struct PrivacyView: View {
                 visibilityMenuSelection(for: $viewModel.profilePhotoVisibility, syncsToBackend: true)
             } label: {
                 cardRow(
-                    icon: "person.crop.circle.fill",
+                    icon: "person.crop.circle",
                     title: "Profile Photo",
                     subtitle: displayVisibility(viewModel.profilePhotoVisibility),
                     trailing: AnyView(chevron)
@@ -62,7 +62,7 @@ struct PrivacyView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 14) {
-                iconTile(systemName: "checkmark.message.fill")
+                iconTile(systemName: "checkmark.message")
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Read Receipts")
@@ -96,7 +96,7 @@ struct PrivacyView: View {
                 SecurityView()
             } label: {
                 cardRow(
-                    icon: "lock.fill",
+                    icon: "lock",
                     title: "App Lock",
                     subtitle: "Biometric and timeout controls",
                     trailing: AnyView(chevron)
@@ -108,7 +108,7 @@ struct PrivacyView: View {
                 VaultView()
             } label: {
                 cardRow(
-                    icon: "lock.doc.fill",
+                    icon: "lock.doc",
                     title: "Secret Vault",
                     subtitle: "Hide sensitive files and chats",
                     trailing: AnyView(chevron)
@@ -136,7 +136,7 @@ struct PrivacyView: View {
                     .padding(.leading, 56)
 
                 stackedToggleRow(
-                    icon: "keyboard.fill",
+                    icon: "keyboard",
                     title: "Typing Indicators",
                     subtitle: "Show when you're composing a message",
                     isOn: $viewModel.typingIndicator
@@ -159,7 +159,7 @@ struct PrivacyView: View {
                 BlockedContactsView()
             } label: {
                 cardRow(
-                    icon: "hand.raised.fill",
+                    icon: "hand.raised",
                     title: "Blocked contacts",
                     subtitle: "Review and unblock people at any time",
                     trailing: AnyView(chevron)
@@ -170,10 +170,7 @@ struct PrivacyView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 
     private func cardRow(
@@ -235,20 +232,11 @@ struct PrivacyView: View {
     }
 
     private func iconTile(systemName: String) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(SanchrExportColors.surfaceMuted)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.sanchrPrimary)
-            }
+        SettingsIconTile(systemName: systemName)
     }
 
     private var chevron: some View {
-        Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(SanchrExportColors.textTertiary)
+        SettingsChevron()
     }
 
     @ViewBuilder

@@ -19,41 +19,31 @@ struct SettingsView: View {
                     title: "Account",
                     rows: [
                         AnySettingsRow(
-                            icon: "key.fill",
-                            tint: SanchrColors.primary,
-                            background: Color(hex: 0xEEF2FF),
+                            icon: "key",
                             title: "Encryption Keys",
                             subtitle: "Manage & verify keys",
                             destination: AnyView(EncryptionKeysView())
                         ),
                         AnySettingsRow(
-                            icon: "shield.fill",
-                            tint: SanchrColors.accent,
-                            background: Color(hex: 0xECFEFF),
+                            icon: "shield",
                             title: "Security",
                             subtitle: "2FA, biometric & more",
                             destination: AnyView(SecurityView())
                         ),
                         AnySettingsRow(
-                            icon: "lock.fill",
-                            tint: Color(hex: 0x7C3AED),
-                            background: Color(hex: 0xF5F3FF),
+                            icon: "lock",
                             title: "Privacy",
                             subtitle: "Control who can see your info",
                             destination: AnyView(PrivacyView())
                         ),
                         AnySettingsRow(
-                            icon: "lock.doc.fill",
-                            tint: Color(hex: 0x2563EB),
-                            background: Color(hex: 0xEFF6FF),
+                            icon: "lock.doc",
                             title: "Vault",
                             subtitle: "Secure media storage",
                             destination: AnyView(VaultView())
                         ),
                         AnySettingsRow(
-                            icon: "icloud.and.arrow.up.fill",
-                            tint: SanchrColors.primary,
-                            background: Color(hex: 0xEEF2FF),
+                            icon: "icloud.and.arrow.up",
                             title: "Backup & Recovery",
                             subtitle: backupSubtitle,
                             destination: AnyView(BackupView())
@@ -64,33 +54,25 @@ struct SettingsView: View {
                     title: "Preferences",
                     rows: [
                         AnySettingsRow(
-                            icon: "bell.fill",
-                            tint: Color(hex: 0xCA8A04),
-                            background: Color(hex: 0xFEFCE8),
+                            icon: "bell",
                             title: "Notifications",
                             subtitle: "Activity & preferences",
                             destination: AnyView(NotificationsInboxView())
                         ),
                         AnySettingsRow(
-                            icon: "paintpalette.fill",
-                            tint: Color(hex: 0x4F46E5),
-                            background: Color(hex: 0xEEF2FF),
+                            icon: "paintpalette",
                             title: "Appearance",
                             subtitle: themeSubtitle,
                             destination: AnyView(AppearanceView())
                         ),
                         AnySettingsRow(
-                            icon: "bubble.left.fill",
-                            tint: Color(hex: 0x16A34A),
-                            background: Color(hex: 0xF0FDF4),
+                            icon: "bubble.left",
                             title: "Chats",
                             subtitle: "Chat style, backup & disappearing messages",
                             destination: AnyView(ChatSettingsView())
                         ),
                         AnySettingsRow(
-                            icon: "externaldrive.fill",
-                            tint: Color(hex: 0xDC2626),
-                            background: Color(hex: 0xFEF2F2),
+                            icon: "externaldrive",
                             title: "Storage & Data",
                             subtitle: storageSubtitle,
                             destination: AnyView(StorageView())
@@ -101,25 +83,19 @@ struct SettingsView: View {
                     title: "Support",
                     rows: [
                         AnySettingsRow(
-                            icon: "questionmark.circle.fill",
-                            tint: Color(hex: 0x6B7280),
-                            background: Color(hex: 0xF3F4F6),
+                            icon: "questionmark.circle",
                             title: "Help Center",
                             subtitle: "Guides, FAQs & security tips",
                             destination: AnyView(HelpCenterView())
                         ),
                         AnySettingsRow(
-                            icon: "envelope.fill",
-                            tint: Color(hex: 0x6B7280),
-                            background: Color(hex: 0xF3F4F6),
+                            icon: "envelope",
                             title: "Contact Us",
                             subtitle: "Reach the Sanchr team",
                             destination: AnyView(ContactUsView())
                         ),
                         AnySettingsRow(
-                            icon: "doc.text.fill",
-                            tint: Color(hex: 0x6B7280),
-                            background: Color(hex: 0xF3F4F6),
+                            icon: "doc.text",
                             title: "Terms & Privacy",
                             subtitle: "Policies and legal information",
                             destination: AnyView(PrivacyView())
@@ -184,6 +160,7 @@ struct SettingsView: View {
                     .frame(width: 40, height: 40)
                     .overlay {
                         Image(systemName: "qrcode")
+                            .symbolRenderingMode(.monochrome)
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.sanchrPrimary)
                     }
@@ -213,12 +190,13 @@ struct SettingsView: View {
             .clipShape(Circle())
 
             Circle()
-                .fill(SanchrColors.accent)
+                .fill(SanchrExportColors.surfaceMuted)
                 .frame(width: 20, height: 20)
                 .overlay {
-                    Image(systemName: "shield.fill")
+                    Image(systemName: "shield")
+                        .symbolRenderingMode(.monochrome)
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.sanchrPrimary)
                 }
                 .offset(x: 1, y: 1)
         }
@@ -236,20 +214,7 @@ struct SettingsView: View {
 
     private var sanchrModeCard: some View {
         HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SanchrColors.primaryDark, Color(hex: 0x0F172A)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 42, height: 42)
-                .overlay {
-                    Image(systemName: "eye.slash.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
+            SettingsIconTile(systemName: "eye.slash", role: .accent)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Sanchr Mode")
@@ -268,8 +233,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .settingsCard()
     }
 
     private var toggleBinding: Binding<Bool> {
@@ -294,28 +258,18 @@ struct SettingsView: View {
                 .foregroundColor(SanchrExportColors.textSecondary)
 
             HStack(spacing: 10) {
-                activatedPill(icon: "bell.slash.fill", title: "Hidden Notifications")
-                activatedPill(icon: "eye.slash.fill", title: "Reduced Presence")
+                activatedPill(icon: "bell.slash", title: "Hidden Notifications")
+                activatedPill(icon: "eye.slash", title: "Reduced Presence")
             }
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: 0xEEF2FF), Color(hex: 0xF5F3FF)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color(hex: 0xDDE6FF), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 24)
     }
 
     private func activatedPill(icon: String, title: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 12, weight: .semibold))
             Text(title)
                 .font(SanchrTypography.captionSmall)
@@ -323,16 +277,13 @@ struct SettingsView: View {
         .foregroundColor(SanchrExportColors.textPrimary)
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(SanchrExportColors.surface)
+        .background(SanchrExportColors.surfaceMuted)
         .clipShape(Capsule())
     }
 
     private func settingsGroup(title: String, rows: [AnySettingsRow]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title.uppercased())
-                .font(SanchrTypography.sectionLabel)
-                .tracking(1.2)
-                .foregroundColor(SanchrExportColors.textSecondary)
+            SettingsSectionTitle(title: title)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 8)
 
@@ -389,8 +340,6 @@ struct SettingsView: View {
 
 private struct AnySettingsRow: View {
     let icon: String
-    let tint: Color
-    let background: Color
     let title: String
     let subtitle: String
     let destination: AnyView
@@ -400,14 +349,7 @@ private struct AnySettingsRow: View {
             destination
         } label: {
             HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(background)
-                    .frame(width: 42, height: 42)
-                    .overlay {
-                        Image(systemName: icon)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(tint)
-                    }
+                SettingsIconTile(systemName: icon)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
@@ -420,9 +362,7 @@ private struct AnySettingsRow: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(SanchrExportColors.textTertiary)
+                SettingsChevron()
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)

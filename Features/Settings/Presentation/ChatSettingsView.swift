@@ -63,8 +63,6 @@ struct ChatSettingsView: View {
             VStack(spacing: 12) {
                 optionRow(
                     icon: "wifi",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
                     title: "When using Wi-Fi",
                     value: viewModel.autoDownloadWifi
                 ) { option in
@@ -74,8 +72,6 @@ struct ChatSettingsView: View {
 
                 optionRow(
                     icon: "antenna.radiowaves.left.and.right",
-                    tint: Color(hex: 0x2563EB),
-                    background: Color(hex: 0xDBEAFE),
                     title: "When using mobile data",
                     value: viewModel.autoDownloadMobile
                 ) { option in
@@ -85,8 +81,6 @@ struct ChatSettingsView: View {
 
                 optionRow(
                     icon: "airplane",
-                    tint: Color(hex: 0xEA580C),
-                    background: Color(hex: 0xFFEDD5),
                     title: "When roaming",
                     value: viewModel.autoDownloadRoaming
                 ) { option in
@@ -102,45 +96,26 @@ struct ChatSettingsView: View {
             sectionTitle("Encryption & Security")
 
             VStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.primary, Color(hex: 0x4C1D95)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 112)
-                    .overlay(alignment: .leading) {
-                        HStack(spacing: 14) {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.white.opacity(0.18))
-                                .frame(width: 44, height: 44)
-                                .overlay {
-                                    Image(systemName: "shield.fill")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
+                HStack(spacing: 14) {
+                    SettingsIconTile(systemName: "shield", role: .accent, size: 44, iconSize: 18)
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("End-to-End Encryption")
-                                    .font(SanchrTypography.bodyBold)
-                                    .foregroundColor(.white)
-                                Text("All your messages and calls are secured. Only you and the recipient can read them.")
-                                    .font(SanchrTypography.caption)
-                                    .foregroundColor(.white.opacity(0.86))
-                            }
-                        }
-                        .padding(.horizontal, 18)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("End-to-End Encryption")
+                            .font(SanchrTypography.bodyBold)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                        Text("All your messages and calls are secured. Only you and the recipient can read them.")
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(SanchrExportColors.textSecondary)
                     }
+                }
+                .padding(18)
+                .settingsCard()
 
                 NavigationLink {
                     EncryptionKeysView()
                 } label: {
                     chevronRow(
                         icon: "qrcode",
-                        tint: SanchrColors.accent,
-                        background: Color(hex: 0xECFEFF),
                         title: "Security Code",
                         subtitle: "Verify encryption keys"
                     )
@@ -156,9 +131,7 @@ struct ChatSettingsView: View {
 
             VStack(spacing: 0) {
                 toggleRow(
-                    icon: "paperplane.fill",
-                    tint: Color(hex: 0x7C3AED),
-                    background: Color(hex: 0xF3E8FF),
+                    icon: "paperplane",
                     title: "Enter Sends Message",
                     subtitle: "Press return to send instantly",
                     isOn: $enterSendsMessage
@@ -169,8 +142,6 @@ struct ChatSettingsView: View {
 
                 toggleRow(
                     icon: "link",
-                    tint: Color(hex: 0xCA8A04),
-                    background: Color(hex: 0xFEF3C7),
                     title: "Link Previews",
                     subtitle: "Preview URLs inside chats",
                     isOn: $linkPreviews
@@ -180,9 +151,7 @@ struct ChatSettingsView: View {
                     .padding(.leading, 56)
 
                 toggleRow(
-                    icon: "square.and.arrow.down.fill",
-                    tint: Color(hex: 0x16A34A),
-                    background: Color(hex: 0xDCFCE7),
+                    icon: "square.and.arrow.down",
                     title: "Auto-save Received Media",
                     subtitle: "Keep photos and videos offline",
                     isOn: $mediaAutoSave
@@ -201,9 +170,7 @@ struct ChatSettingsView: View {
 
             NavigationLink { BackupView() } label: {
                 chevronRow(
-                    icon: "icloud.and.arrow.up.fill",
-                    tint: SanchrColors.primary,
-                    background: Color(hex: 0xEEF2FF),
+                    icon: "icloud.and.arrow.up",
                     title: "Backup & Recovery",
                     subtitle: backupSubtitle
                 )
@@ -244,8 +211,6 @@ struct ChatSettingsView: View {
             } label: {
                 chevronRow(
                     icon: "timer",
-                    tint: Color(hex: 0xEA580C),
-                    background: Color(hex: 0xFFEDD5),
                     title: "Default Timer",
                     subtitle: disappearingTimerOptions.first(where: { $0.1 == defaultDisappearingTimer })?.0 ?? "Off"
                 )
@@ -255,23 +220,18 @@ struct ChatSettingsView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(SanchrTypography.sectionLabel)
-            .tracking(1.2)
-            .foregroundColor(SanchrExportColors.textSecondary)
+        SettingsSectionTitle(title: title)
     }
 
     private func toggleRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String,
         isOn: Binding<Bool>,
         onChange: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -296,8 +256,6 @@ struct ChatSettingsView: View {
 
     private func optionRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         value: String,
         onSelect: @escaping (String) -> Void
@@ -311,8 +269,6 @@ struct ChatSettingsView: View {
         } label: {
             chevronRow(
                 icon: icon,
-                tint: tint,
-                background: background,
                 title: title,
                 subtitle: autoDownloadOptions.first(where: { $0.1 == value })?.0 ?? "Default"
             )
@@ -322,13 +278,11 @@ struct ChatSettingsView: View {
 
     private func chevronRow(
         icon: String,
-        tint: Color,
-        background: Color,
         title: String,
         subtitle: String
     ) -> some View {
         HStack(spacing: 14) {
-            iconTile(systemName: icon, tint: tint, background: background)
+            iconTile(systemName: icon)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -342,23 +296,16 @@ struct ChatSettingsView: View {
             Spacer()
 
             Image(systemName: "chevron.right")
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(SanchrExportColors.textTertiary)
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .settingsCard()
     }
 
-    private func iconTile(systemName: String, tint: Color, background: Color) -> some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(background)
-            .frame(width: 42, height: 42)
-            .overlay {
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(tint)
-            }
+    private func iconTile(systemName: String) -> some View {
+        SettingsIconTile(systemName: systemName)
     }
 
 }
