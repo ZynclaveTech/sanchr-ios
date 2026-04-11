@@ -149,15 +149,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         try await webRTCClient.setLocalDescription(offer)
 
         // 5. Encrypt offer for E2EE
-        let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) ?? ""
-        let paddingUntil = Date().addingTimeInterval(CallDurationPaddingManager.buckets.last!)
+        guard let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) else {
+            throw AppError.callConnectionFailed
+        }
         let payload = SealedCallPayload(
             sdp: offer.sdp,
             dtlsFingerprint: fingerprint,
-            paddingUntil: paddingUntil.timeIntervalSince1970,
             timestamp: Date().timeIntervalSince1970
         )
         let payloadData = try JSONEncoder().encode(payload)
+        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
         let encryptedPayload = try await signalManager.encrypt(
             plaintext: payloadData, for: recipientId, deviceId: 1)
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
@@ -273,15 +274,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // 6. Open signaling stream and send encrypted answer
         openSignalingStream(callId: callId)
 
-        let answerFingerprint = WebRTCClient.extractDtlsFingerprint(from: answer) ?? ""
-        let answerPaddingUntil = Date().addingTimeInterval(CallDurationPaddingManager.buckets.last!)
+        guard let answerFingerprint = WebRTCClient.extractDtlsFingerprint(from: answer) else {
+            throw AppError.callConnectionFailed
+        }
         let answerPayload = SealedCallPayload(
             sdp: answer.sdp,
             dtlsFingerprint: answerFingerprint,
-            paddingUntil: answerPaddingUntil.timeIntervalSince1970,
             timestamp: Date().timeIntervalSince1970
         )
         let answerPayloadData = try JSONEncoder().encode(answerPayload)
+        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
         let encryptedAnswer = try await signalManager.encrypt(
             plaintext: answerPayloadData, for: callerId, deviceId: 1)
 
@@ -402,6 +404,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     /// Opens the bidirectional gRPC stream for exchanging SDP answers, ICE candidates, and control messages.
     private func openSignalingStream(callId: String) {
         let (outboundStream, continuation) = AsyncStream<Sanchr_Calling_CallSignal>.makeStream()
+        // Continuation set synchronously before the reading Task spawns so that yields
+        // issued immediately after this call returns are guaranteed to reach the stream.
         self.outboundContinuation = continuation
 
         signalingTask = Task { [weak self] in
@@ -429,6 +433,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     SanchrLogger.calls.info("Received encrypted SDP answer for call \(callId)")
                     guard let senderId = self.peerId else { continue }
                     do {
+                        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
                         let plaintext = try await self.signalManager.decrypt(
                             ciphertext: ciphertext, from: senderId, senderDevice: 1)
                         let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
@@ -604,9 +609,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         Task {
             do {
-                let ciphertext = offer.encryptedSdpPayload.isEmpty ? offer.sdpOffer : offer.encryptedSdpPayload
+                guard !offer.encryptedSdpPayload.isEmpty else {
+                    SanchrLogger.calls.error("Rejecting unencrypted call offer from \(offer.callerID) — E2EE required")
+                    return
+                }
+                // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
                 let plaintext = try await signalManager.decrypt(
-                    ciphertext: ciphertext,
+                    ciphertext: offer.encryptedSdpPayload,
                     from: offer.callerID,
                     senderDevice: 1
                 )
