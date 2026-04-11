@@ -10,6 +10,9 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
     public var isVerified: Bool
     public var lastSeen: Date?
     public var identityKeyFingerprint: String?
+    /// The sender's 32-byte Profile Key, present when the server has provided it.
+    /// `nil` means the profile has not yet been received with encrypted fields.
+    public var profileKey: Data? = nil
 
     /// Online presence status.
     public enum Status: String, Codable, Sendable {
@@ -52,7 +55,8 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
         lastSeen: Date? = nil,
         identityKeyFingerprint: String? = nil,
         status: Status,
-        isLocalUser: Bool = false
+        isLocalUser: Bool = false,
+        profileKey: Data? = nil
     ) {
         self.id = id
         self.phoneNumber = phoneNumber
@@ -64,6 +68,7 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
         self.identityKeyFingerprint = identityKeyFingerprint
         self.status = status
         self.isLocalUser = isLocalUser
+        self.profileKey = profileKey
     }
 
     // MARK: - Factory

@@ -220,6 +220,13 @@ public enum DatabaseSchema {
             )
         }
 
+        migrator.registerMigration("v8_user_profile_key") { db in
+            try db.alter(table: "user") { t in
+                // Nullable blob; nil until the server sends the field for this contact.
+                t.add(column: "profileKey", .blob)
+            }
+        }
+
         return migrator
     }
 }

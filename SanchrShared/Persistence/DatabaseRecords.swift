@@ -16,6 +16,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
     public var identityKeyFingerprint: String?
     public var status: String
     public var isLocalUser: Bool
+    public var profileKey: Data?
 
     // MARK: - Domain Conversion
 
@@ -30,6 +31,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         self.identityKeyFingerprint = user.identityKeyFingerprint
         self.status = user.status.rawValue
         self.isLocalUser = user.isLocalUser
+        self.profileKey = user.profileKey
     }
 
     public init(
@@ -42,7 +44,8 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         lastSeen: Date?,
         identityKeyFingerprint: String?,
         status: String,
-        isLocalUser: Bool
+        isLocalUser: Bool,
+        profileKey: Data? = nil
     ) {
         self.id = id
         self.phoneNumber = phoneNumber
@@ -54,6 +57,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         self.identityKeyFingerprint = identityKeyFingerprint
         self.status = status
         self.isLocalUser = isLocalUser
+        self.profileKey = profileKey
     }
 
     public func toDomain() -> User {
@@ -67,7 +71,8 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
             lastSeen: lastSeen,
             identityKeyFingerprint: identityKeyFingerprint,
             status: User.Status(rawValue: status) ?? .offline,
-            isLocalUser: isLocalUser
+            isLocalUser: isLocalUser,
+            profileKey: profileKey
         )
     }
 }
