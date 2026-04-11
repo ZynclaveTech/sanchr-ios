@@ -527,6 +527,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 self.callType = "voice"
                 self.peerId = nil
                 self.peerName = nil
+                self.currentVideoFilter = .none
             }
         }
     }
@@ -604,6 +605,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         callType = "voice"
         peerId = nil
         peerName = nil
+        currentVideoFilter = .none
     }
 
     private func controlMessage(action: String) -> Sanchr_Calling_CallControl {
