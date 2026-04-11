@@ -64,6 +64,14 @@ public struct Sanchr_Contacts_MatchedContact: Sendable {
 
   public var phoneNumber: String = String()
 
+  public var profileKey: Data = Data()
+
+  public var encryptedDisplayName: Data = Data()
+
+  public var encryptedBio: Data = Data()
+
+  public var encryptedAvatarURL: Data = Data()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -109,6 +117,14 @@ public struct Sanchr_Contacts_Contact: Sendable {
   public var isFavorite: Bool = false
 
   public var phoneNumber: String = String()
+
+  public var profileKey: Data = Data()
+
+  public var encryptedDisplayName: Data = Data()
+
+  public var encryptedBio: Data = Data()
+
+  public var encryptedAvatarURL: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -247,7 +263,17 @@ extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProt
 
 extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MatchedContact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "user_id"),
+    2: .standard(proto: "display_name"),
+    3: .standard(proto: "avatar_url"),
+    4: .standard(proto: "status_text"),
+    5: .standard(proto: "phone_number"),
+    6: .standard(proto: "profile_key"),
+    7: .standard(proto: "encrypted_display_name"),
+    8: .standard(proto: "encrypted_bio"),
+    9: .standard(proto: "encrypted_avatar_url"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -260,6 +286,10 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
       case 3: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
+      case 6: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
+      case 7: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
+      case 8: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
+      case 9: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
       default: break
       }
     }
@@ -281,6 +311,18 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.phoneNumber.isEmpty {
       try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 5)
     }
+    if !self.profileKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 6)
+    }
+    if !self.encryptedDisplayName.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 7)
+    }
+    if !self.encryptedBio.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedBio, fieldNumber: 8)
+    }
+    if !self.encryptedAvatarURL.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedAvatarURL, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -290,6 +332,10 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
+    if lhs.profileKey != rhs.profileKey {return false}
+    if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
+    if lhs.encryptedBio != rhs.encryptedBio {return false}
+    if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -346,7 +392,19 @@ extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProto
 
 extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Contact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "user_id"),
+    2: .standard(proto: "display_name"),
+    3: .standard(proto: "avatar_url"),
+    4: .standard(proto: "status_text"),
+    5: .standard(proto: "is_blocked"),
+    6: .standard(proto: "is_favorite"),
+    7: .standard(proto: "phone_number"),
+    8: .standard(proto: "profile_key"),
+    9: .standard(proto: "encrypted_display_name"),
+    10: .standard(proto: "encrypted_bio"),
+    11: .standard(proto: "encrypted_avatar_url"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -361,6 +419,10 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isBlocked) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isFavorite) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
+      case 8: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
+      case 9: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
+      case 10: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
+      case 11: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
       default: break
       }
     }
@@ -388,6 +450,18 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     if !self.phoneNumber.isEmpty {
       try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 7)
     }
+    if !self.profileKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 8)
+    }
+    if !self.encryptedDisplayName.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 9)
+    }
+    if !self.encryptedBio.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedBio, fieldNumber: 10)
+    }
+    if !self.encryptedAvatarURL.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedAvatarURL, fieldNumber: 11)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -399,6 +473,10 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs.isBlocked != rhs.isBlocked {return false}
     if lhs.isFavorite != rhs.isFavorite {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
+    if lhs.profileKey != rhs.profileKey {return false}
+    if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
+    if lhs.encryptedBio != rhs.encryptedBio {return false}
+    if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

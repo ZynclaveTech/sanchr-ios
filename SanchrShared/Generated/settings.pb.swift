@@ -8,6 +8,11 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -184,6 +189,14 @@ public struct Sanchr_Settings_UpdateProfileRequest: Sendable {
 
   public var statusText: String = String()
 
+  public var profileKey: Data = Data()
+
+  public var encryptedDisplayName: Data = Data()
+
+  public var encryptedBio: Data = Data()
+
+  public var encryptedAvatarURL: Data = Data()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -201,6 +214,14 @@ public struct Sanchr_Settings_ProfileResponse: Sendable {
   public var avatarURL: String = String()
 
   public var statusText: String = String()
+
+  public var profileKey: Data = Data()
+
+  public var encryptedDisplayName: Data = Data()
+
+  public var encryptedBio: Data = Data()
+
+  public var encryptedAvatarURL: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -525,7 +546,15 @@ extension Sanchr_Settings_UpdateSettingsRequest: SwiftProtobuf.Message, SwiftPro
 
 extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateProfileRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "display_name"),
+    2: .standard(proto: "avatar_url"),
+    3: .standard(proto: "status_text"),
+    4: .standard(proto: "profile_key"),
+    5: .standard(proto: "encrypted_display_name"),
+    6: .standard(proto: "encrypted_bio"),
+    7: .standard(proto: "encrypted_avatar_url"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -536,6 +565,10 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
+      case 5: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
+      case 6: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
+      case 7: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
       default: break
       }
     }
@@ -551,6 +584,18 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
     if !self.statusText.isEmpty {
       try visitor.visitSingularStringField(value: self.statusText, fieldNumber: 3)
     }
+    if !self.profileKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 4)
+    }
+    if !self.encryptedDisplayName.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 5)
+    }
+    if !self.encryptedBio.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedBio, fieldNumber: 6)
+    }
+    if !self.encryptedAvatarURL.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedAvatarURL, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -558,6 +603,10 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
+    if lhs.profileKey != rhs.profileKey {return false}
+    if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
+    if lhs.encryptedBio != rhs.encryptedBio {return false}
+    if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -565,7 +614,16 @@ extension Sanchr_Settings_UpdateProfileRequest: SwiftProtobuf.Message, SwiftProt
 
 extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ProfileResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0")
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "id"),
+    2: .standard(proto: "display_name"),
+    3: .standard(proto: "avatar_url"),
+    4: .standard(proto: "status_text"),
+    5: .standard(proto: "profile_key"),
+    6: .standard(proto: "encrypted_display_name"),
+    7: .standard(proto: "encrypted_bio"),
+    8: .standard(proto: "encrypted_avatar_url"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -577,6 +635,10 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
       case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
+      case 5: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
+      case 6: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
+      case 7: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
+      case 8: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
       default: break
       }
     }
@@ -595,6 +657,18 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.statusText.isEmpty {
       try visitor.visitSingularStringField(value: self.statusText, fieldNumber: 4)
     }
+    if !self.profileKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 5)
+    }
+    if !self.encryptedDisplayName.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 6)
+    }
+    if !self.encryptedBio.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedBio, fieldNumber: 7)
+    }
+    if !self.encryptedAvatarURL.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedAvatarURL, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -603,6 +677,10 @@ extension Sanchr_Settings_ProfileResponse: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.displayName != rhs.displayName {return false}
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
+    if lhs.profileKey != rhs.profileKey {return false}
+    if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
+    if lhs.encryptedBio != rhs.encryptedBio {return false}
+    if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
