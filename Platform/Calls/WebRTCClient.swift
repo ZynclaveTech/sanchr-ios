@@ -326,6 +326,21 @@ final class WebRTCClient: NSObject {
         }
     }
 
+    // MARK: - DTLS Fingerprint
+
+    /// Extracts the DTLS fingerprint from an SDP description.
+    /// Returns a string like "sha-256 AA:BB:CC:..." or nil if the line is missing.
+    static func extractDtlsFingerprint(from sdp: RTCSessionDescription) -> String? {
+        let prefix = "a=fingerprint:"
+        for line in sdp.sdp.components(separatedBy: CharacterSet.newlines) {
+            if line.hasPrefix(prefix) {
+                return String(line.dropFirst(prefix.count))
+                    .trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
+    }
+
     // MARK: - Video Rendering
 
     /// Attaches a renderer (e.g. RTCMTLVideoView) to the local video track.
