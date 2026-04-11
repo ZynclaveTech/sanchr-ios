@@ -55,7 +55,7 @@ final class CallDurationPaddingManagerTests: XCTestCase {
         let mgr = CallDurationPaddingManager()
         let target = Date(timeIntervalSinceNow: 10)  // 10 seconds in the future
 
-        var completionCalled = false
+        nonisolated(unsafe) var completionCalled = false
         mgr.padThenComplete(target: target) { completionCalled = true }
         mgr.cancel()
 

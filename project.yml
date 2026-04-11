@@ -279,6 +279,10 @@ targets:
         product: GRPC
       - package: swift-protobuf
         product: SwiftProtobuf
+      - package: swift-log
+        product: Logging
+      - package: swift-nio
+        product: NIOEmbedded
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
