@@ -72,6 +72,13 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// UserDefaults key for persisting the last uploaded token to avoid redundant uploads.
     private static let lastUploadedTokenKey = "io.sanchr.push.lastUploadedToken"
 
+    /// UserDefaults key for the timestamp of the last successful token rotation.
+    private static let lastRotatedAtKey = "io.sanchr.push.lastRotatedAt"
+
+    /// How often (seconds) to rotate the APNs token. 7 days limits the
+    /// window in which a static token can be used to track a user.
+    private static let rotationIntervalSeconds: TimeInterval = 7 * 24 * 3600
+
     // MARK: - Init
 
     init(notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol) {
@@ -136,6 +143,21 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Conforms to `PushManagerProtocol` -- delegates to `didRegisterForRemoteNotifications`.
     func registerDeviceToken(_ token: Data) async throws {
         didRegisterForRemoteNotifications(deviceToken: token)
+    }
+
+    /// Requests a fresh APNs token from the OS if the rotation interval has
+    /// elapsed. APNs decides whether to issue a new token; calling
+    /// `registerForRemoteNotifications()` surfaces any pending rotation.
+    /// Call this on each app foreground to enforce the 7-day rotation window.
+    @MainActor
+    func rotateTokenIfNeeded() {
+        let defaults = UserDefaults.standard
+        let lastRotated = defaults.object(forKey: Self.lastRotatedAtKey) as? Date
+        let elapsed = lastRotated.map { Date().timeIntervalSince($0) } ?? .infinity
+        guard elapsed >= Self.rotationIntervalSeconds else { return }
+        SanchrLogger.push.info("Push token rotation due — requesting new APNs token")
+        UIApplication.shared.registerForRemoteNotifications()
+        defaults.set(Date(), forKey: Self.lastRotatedAtKey)
     }
 
     /// Uploads the current device token to the backend via the NotificationService gRPC endpoint.

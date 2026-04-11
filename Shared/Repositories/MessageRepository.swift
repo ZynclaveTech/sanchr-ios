@@ -337,17 +337,24 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         SanchrLogger.chat.info("Marking messages as read in \(conversationId) up to \(upToMessageId)")
 
-        var request = Sanchr_Messaging_ReceiptRequest()
-        request.conversationID = conversationId
-        request.messageID = upToMessageId
-        request.status = "read"
-
-        _ = try await grpcClient.messagingService.sendReceipt(request)
-
+        // Update local DB immediately so the UI reflects read state without delay.
         try await localDatabase.markConversationAsRead(
             conversationId: conversationId,
             upToMessageId: upToMessageId
         )
+
+        // Dispatch the read receipt as a sealed-sender envelope so the server
+        // cannot read its contents or correlate the timestamp with our identity.
+        // A random 0-30 s jitter masks exact read-timing from metadata analysis.
+        Task { [weak self] in
+            guard let self else { return }
+            let delaySeconds = Double.random(in: 0...30)
+            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+            await self.sendSealedReceipt(
+                conversationId: conversationId,
+                messageId: upToMessageId
+            )
+        }
     }
 
     func markAsReadLocally(conversationId: String, upToMessageId: String) async throws {
@@ -356,6 +363,65 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             upToMessageId: upToMessageId
         )
         SanchrLogger.chat.info("Marked conversation \(conversationId.prefix(8)) as read locally (no receipt sent)")
+    }
+
+    /// Sends a read receipt as a sealed-sender envelope (contentType "receipt/v1")
+    /// directly to the peer. The server routes it as opaque ciphertext and cannot
+    /// read the conversation ID, message ID, or timestamp.
+    private func sendSealedReceipt(conversationId: String, messageId: String) async {
+        guard let myUserId = currentUserIdProvider() else { return }
+        // Look up peer from local conversation cache.
+        guard let conversation = try? await localDatabase.fetchConversation(id: conversationId),
+              let peerUserId = conversation.participants.first(where: { $0.id != myUserId })?.id,
+              !peerUserId.isEmpty
+        else {
+            SanchrLogger.chat.warning("sendSealedReceipt: cannot resolve peer for \(conversationId.prefix(8))")
+            return
+        }
+
+        do {
+            var receiptUpdate = Sanchr_Messaging_ReceiptUpdate()
+            receiptUpdate.conversationID = conversationId
+            receiptUpdate.messageID = messageId
+            receiptUpdate.recipientID = myUserId
+            receiptUpdate.status = "read"
+            receiptUpdate.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+
+            let content = try receiptUpdate.serializedData()
+            let innerPayload = try sealedSenderManager.encodeInnerPayload(
+                conversationId: "",
+                contentType: "receipt/v1",
+                content: content,
+                isSync: false
+            )
+            let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+            let encrypted = try await signalProtocol.encryptForAllDevices(
+                plaintext: innerPayload,
+                recipientId: peerUserId
+            )
+            guard !encrypted.isEmpty else { return }
+
+            let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
+                var sdm = Sanchr_Messaging_SealedDeviceMessage()
+                sdm.recipientID = dm.recipientID
+                sdm.deviceID = dm.deviceID
+                sdm.sealedEnvelope = dm.ciphertext
+                return sdm
+            }
+
+            var request = Sanchr_Messaging_SendSealedMessageRequest()
+            request.deliveryToken = deliveryToken
+            request.deviceMessages = deviceMessages
+            _ = try await grpcClient.messagingService.sendSealedMessage(request)
+
+            Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
+            SanchrLogger.chat.debug(
+                "Sealed receipt sent to \(peerUserId.prefix(8)) for msg \(messageId.prefix(8))"
+            )
+        } catch {
+            SanchrLogger.chat.warning("sendSealedReceipt failed: \(error.localizedDescription)")
+        }
     }
 
     func deleteMessage(id: String, forEveryone: Bool) async throws {
@@ -742,7 +808,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// 4. Otherwise, save as an incoming message and queue a delivery ack.
     /// Decrypts a sealed inbound envelope and returns a `RealtimeEvent`.
     ///
-    /// Returns `.presence` for P2P presence envelopes (contentType "presence/v1")
+    /// Returns `.presence` for P2P presence envelopes (contentType "presence/v1"),
+    /// `.receipt` for sealed read receipts (contentType "receipt/v1"),
     /// or `.message` for regular chat envelopes. Returns `nil` on decryption failure.
     private func decodeSealedMessage(
         from sealed: Sanchr_Messaging_SealedInboundMessage
@@ -771,6 +838,28 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     "P2P presence from \(result.senderUserId.prefix(8)) status=\(presenceUpdate.status)"
                 )
                 return .presence(presenceUpdate)
+            }
+
+            // 4. Sealed read receipt: update local message status, no DB write for new row.
+            if innerPayload.contentType == "receipt/v1" {
+                let receiptUpdate = try Sanchr_Messaging_ReceiptUpdate(
+                    serializedBytes: innerPayload.content
+                )
+                if let status = Message.DeliveryStatus(rawValue: receiptUpdate.status) {
+                    try? await localDatabase.updateMessageStatus(
+                        id: receiptUpdate.messageID,
+                        status: status
+                    )
+                    try? await localDatabase.updateConversationLastMessageStatusIfMatches(
+                        conversationId: receiptUpdate.conversationID,
+                        messageId: receiptUpdate.messageID,
+                        status: status
+                    )
+                }
+                SanchrLogger.chat.debug(
+                    "Sealed receipt from \(result.senderUserId.prefix(8)) msg=\(receiptUpdate.messageID.prefix(8))"
+                )
+                return .receipt(receiptUpdate)
             }
 
             let serverTimestamp = Date(
