@@ -5,26 +5,38 @@ import CoreImage
 /// Drop-in replacement for `RTCCameraVideoCapturer` that applies a `VideoFilter`
 /// to each camera frame before handing it to `RTCVideoSource`.
 ///
-/// Thread safety: `currentFilter` is written from the main thread and read from
-/// the capture queue, guarded by `NSLock`.
+/// ## Thread safety
+/// - `currentFilter` (and its backing `_currentFilter`/`_cachedCIFilter`) are guarded by `NSLock`.
+///   Written from the main thread via `setVideoFilter(_:)`, read from `captureQueue`.
+/// - `captureSession`, `ciContext`, `pixelBufferPool`, `poolWidth`, `poolHeight` are
+///   accessed exclusively from `captureQueue` (serial). No additional synchronisation needed.
+/// - These constraints justify `@unchecked Sendable`.
 final class FilteredVideoCapturer: RTCVideoCapturer, @unchecked Sendable {
 
-    var currentFilter: VideoFilter = .none {
-        didSet {
-            lock.lock()
-            _currentFilter = currentFilter
-            lock.unlock()
+    private let lock = NSLock()
+    private var _currentFilter: VideoFilter = .none
+    private var _cachedCIFilter: CIFilter? = nil
+
+    var currentFilter: VideoFilter {
+        get { lock.withLock { _currentFilter } }
+        set {
+            lock.withLock {
+                _currentFilter = newValue
+                _cachedCIFilter = newValue.makeCIFilter()
+            }
         }
     }
 
     private let captureSession = AVCaptureSession()
     private let captureQueue = DispatchQueue(label: "io.sanchr.filteredCapture", qos: .userInitiated)
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+    // Accessed only from captureQueue
     private var pixelBufferPool: CVPixelBufferPool?
+    // Accessed only from captureQueue
     private var poolWidth = 0
+    // Accessed only from captureQueue
     private var poolHeight = 0
-    private let lock = NSLock()
-    private var _currentFilter: VideoFilter = .none
 
     init(delegate videoSource: RTCVideoSource) {
         super.init(delegate: videoSource)
@@ -55,6 +67,17 @@ final class FilteredVideoCapturer: RTCVideoCapturer, @unchecked Sendable {
         }
         if captureSession.canAddInput(input) { captureSession.addInput(input) }
 
+        // Apply the format the caller selected
+        if device.activeFormat != format {
+            do {
+                try device.lockForConfiguration()
+                device.activeFormat = format
+                device.unlockForConfiguration()
+            } catch {
+                // Continue with device's current format if lock fails
+            }
+        }
+
         let output = AVCaptureVideoDataOutput()
         output.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
@@ -66,13 +89,18 @@ final class FilteredVideoCapturer: RTCVideoCapturer, @unchecked Sendable {
         captureSession.commitConfiguration()
 
         // Set frame rate on the device after committing session config
-        let frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
-        try? device.lockForConfiguration()
-        device.activeVideoMinFrameDuration = frameDuration
-        device.activeVideoMaxFrameDuration = frameDuration
-        device.unlockForConfiguration()
+        do {
+            let frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
+            try device.lockForConfiguration()
+            device.activeVideoMinFrameDuration = frameDuration
+            device.activeVideoMaxFrameDuration = frameDuration
+            device.unlockForConfiguration()
+        } catch {
+            // Frame rate stays at device default; capture continues
+        }
     }
 
+    // Must be called from captureQueue
     private func ensurePixelBufferPool(width: Int, height: Int) {
         guard width != poolWidth || height != poolHeight else { return }
         let attrs: [String: Any] = [
@@ -103,10 +131,11 @@ extension FilteredVideoCapturer: AVCaptureVideoDataOutputSampleBufferDelegate {
 
         lock.lock()
         let activeFilter = _currentFilter
+        let ciFilter = _cachedCIFilter
         lock.unlock()
 
         // Fast path — no filter, no allocation
-        guard let ciFilter = activeFilter.makeCIFilter() else {
+        guard let ciFilter else {
             let frame = RTCVideoFrame(
                 buffer: RTCCVPixelBuffer(pixelBuffer: pixelBuffer),
                 rotation: ._0,
