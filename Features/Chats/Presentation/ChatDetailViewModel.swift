@@ -59,6 +59,7 @@ final class ChatDetailViewModel {
 
     private var lastPaginationAnchor: Date?
     private var typingIdleTask: Task<Void, Never>?
+    private var peerTypingClearTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var typingIndicatorIsActive = false
 
@@ -441,6 +442,81 @@ final class ChatDetailViewModel {
             uploadProgress.removeValue(forKey: optimisticId)
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Forward Message
+
+    /// Forwards `message` to `targetConversationId` by re-encrypting and
+    /// sending its content as a new message in the target conversation.
+    ///
+    /// - Text: forwarded verbatim via `messageSender.sendText`.
+    /// - Media: forwarded only if the attachment URL is a local file.
+    ///   Remote-only attachments (not yet downloaded) are rejected with a
+    ///   user-visible error — the user should download the media first.
+    /// - Other content types (location, contact, system) are not forwardable.
+    func forwardMessage(
+        _ message: Message,
+        toConversationId targetConversationId: String,
+        sessionService: SessionService,
+        messageSender: MessageSender
+    ) async {
+        let senderId = sessionService.currentUserId ?? "unknown"
+
+        switch message.content {
+        case .text(let text):
+            let optimistic = Message(
+                id: UUID().uuidString,
+                conversationId: targetConversationId,
+                senderId: senderId,
+                timestamp: Date(),
+                content: .text(text),
+                status: .sending,
+                isOutgoing: true
+            )
+            // Only append to transcript if we're already viewing the target conversation.
+            // The check is intentionally omitted here — the target conversation's view
+            // model will receive the server push and render it independently.
+            do {
+                let receipt = try await messageSender.sendText(text, to: targetConversationId)
+                SanchrLogger.chat.info(
+                    "Forwarded message \(message.id.prefix(8)) → \(receipt.messageId.prefix(8))")
+            } catch {
+                errorMessage = error.localizedDescription
+                SanchrLogger.chat.error("Forward failed: \(error.localizedDescription)")
+            }
+
+        case .image(let a), .video(let a), .audio(let a), .document(let a):
+            guard a.url.isFileURL else {
+                errorMessage = "Download the media first to forward it."
+                return
+            }
+            let optimisticId = UUID().uuidString
+            uploadStatusLabel[optimisticId] = "Forwarding..."
+            uploadProgress[optimisticId] = 0.0
+            do {
+                let receipt = try await messageSender.sendMedia(
+                    attachment: a,
+                    caption: a.caption,
+                    to: targetConversationId
+                ) { [weak self] fraction in
+                    Task { @MainActor [weak self] in
+                        self?.uploadProgress[optimisticId] = fraction
+                    }
+                }
+                uploadProgress.removeValue(forKey: optimisticId)
+                uploadStatusLabel.removeValue(forKey: optimisticId)
+                SanchrLogger.chat.info(
+                    "Forwarded media \(message.id.prefix(8)) → \(receipt.messageId.prefix(8))")
+            } catch {
+                uploadStatusLabel.removeValue(forKey: optimisticId)
+                uploadProgress.removeValue(forKey: optimisticId)
+                errorMessage = error.localizedDescription
+                SanchrLogger.chat.error("Forward media failed: \(error.localizedDescription)")
+            }
+
+        default:
+            errorMessage = "This message type can't be forwarded."
         }
     }
 
@@ -910,6 +986,9 @@ final class ChatDetailViewModel {
     }
 
     func handleTypingIndicator(_ indicator: Sanchr_Messaging_TypingIndicator) {
+        peerTypingClearTask?.cancel()
+        peerTypingClearTask = nil
+
         guard showsTypingIndicators else {
             peerIsTyping = false
             peerTypingName = ""
@@ -918,6 +997,19 @@ final class ChatDetailViewModel {
 
         peerIsTyping = indicator.isTyping
         peerTypingName = indicator.userID
+
+        guard indicator.isTyping else { return }
+
+        let userID = indicator.userID
+        peerTypingClearTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self, self.peerTypingName == userID else { return }
+                self.peerIsTyping = false
+                self.peerTypingName = ""
+            }
+        }
     }
 
     func handlePresenceUpdate(_ update: Sanchr_Messaging_PresenceUpdate, participantId: String?) {

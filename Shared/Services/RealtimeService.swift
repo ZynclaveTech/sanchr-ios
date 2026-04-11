@@ -43,9 +43,12 @@ final class RealtimeService: @unchecked Sendable {
     private var heartbeatTask: Task<Void, Never>?
     private(set) var isRunning = false
     private(set) var presenceCache: [String: Sanchr_Messaging_PresenceUpdate] = [:]
-    private var trackedPeerIds: Set<String> = []
+    private var trackedPeerRefCounts: [String: Int] = [:]
+    private var presenceExpiryTasks: [String: Task<Void, Never>] = [:]
     private var reconnectAttempt: Int = 0
+    private let presenceExpiryNanoseconds: UInt64
     @ObservationIgnored private var networkCancellable: AnyCancellable?
+    @ObservationIgnored private var privacyCancellable: AnyCancellable?
 
     init(
         messageRepository: MessageRepositoryProtocol,
@@ -53,7 +56,8 @@ final class RealtimeService: @unchecked Sendable {
         sessionService: SessionService,
         callManager: CallEventRouting,
         privacySettings: PrivacySettingsCache,
-        networkMonitor: NetworkMonitorProtocol
+        networkMonitor: NetworkMonitorProtocol,
+        presenceExpiryNanoseconds: UInt64 = 75_000_000_000
     ) {
         self.messageRepository = messageRepository
         self.signalKeyManager = signalKeyManager
@@ -61,7 +65,9 @@ final class RealtimeService: @unchecked Sendable {
         self.callManager = callManager
         self.privacySettings = privacySettings
         self.networkMonitor = networkMonitor
+        self.presenceExpiryNanoseconds = presenceExpiryNanoseconds
         observeNetworkChanges()
+        observePrivacyChanges()
     }
 
     /// Exponential backoff with 30% jitter and a 30s cap.
@@ -110,6 +116,31 @@ final class RealtimeService: @unchecked Sendable {
                     self.streamTask = nil
                 }
             }
+    }
+
+    private func observePrivacyChanges() {
+        privacyCancellable = NotificationCenter.default.publisher(for: .sanchrPrivacySettingsDidChange)
+            .sink { [weak self] _ in
+                self?.handlePrivacySettingsChanged()
+            }
+    }
+
+    private func handlePrivacySettingsChanged() {
+        guard sessionService.isAuthenticated else { return }
+
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+
+        if privacySettings.sanchrModeEnabled {
+            return
+        }
+
+        if privacySettings.onlineStatusVisible {
+            sendP2PPresenceToTracked(status: .online)
+            startP2PPresenceLoop()
+        } else {
+            sendP2PPresenceToTracked(status: .hidden)
+        }
     }
 
     func start() {
@@ -171,6 +202,8 @@ final class RealtimeService: @unchecked Sendable {
         streamTask = nil
         heartbeatTask?.cancel()
         heartbeatTask = nil
+        presenceExpiryTasks.values.forEach { $0.cancel() }
+        presenceExpiryTasks.removeAll()
         Task { @MainActor in
             self.isRunning = false
         }
@@ -182,8 +215,8 @@ final class RealtimeService: @unchecked Sendable {
     func enterForeground() {
         guard sessionService.isAuthenticated else { return }
         start()
-        startP2PPresenceLoop()
         sendP2PPresenceToTracked(status: .online)
+        startP2PPresenceLoop()
     }
 
     func enterBackground() {
@@ -202,19 +235,21 @@ final class RealtimeService: @unchecked Sendable {
 
     func trackPresencePeer(_ userId: String) {
         guard !userId.isEmpty else { return }
-        trackedPeerIds.insert(userId)
+        let previousCount = trackedPeerRefCounts[userId] ?? 0
+        trackedPeerRefCounts[userId] = previousCount + 1
+        guard previousCount == 0 else { return }
+
         // Immediately announce our presence to the newly tracked peer
-        Task {
-            try? await messageRepository.sendP2PPresence(
-                recipientUserId: userId,
-                statusCode: .online,
-                lastSeenMs: Int64(Date().timeIntervalSince1970 * 1000)
-            )
-        }
+        sendP2PPresence(to: userId, status: .online)
     }
 
     func untrackPresencePeer(_ userId: String) {
-        trackedPeerIds.remove(userId)
+        guard let count = trackedPeerRefCounts[userId] else { return }
+        if count > 1 {
+            trackedPeerRefCounts[userId] = count - 1
+        } else {
+            trackedPeerRefCounts.removeValue(forKey: userId)
+        }
     }
 
     func cachedPresence(for userId: String) -> Sanchr_Messaging_PresenceUpdate? {
@@ -294,12 +329,7 @@ final class RealtimeService: @unchecked Sendable {
 
         case .presence(let presence):
             await MainActor.run {
-                self.presenceCache[presence.userID] = presence
-                NotificationCenter.default.post(
-                    name: .sanchrRealtimePresenceUpdated,
-                    object: nil,
-                    userInfo: [RealtimeNotificationKey.presence: presence]
-                )
+                self.applyPresenceUpdate(presence)
             }
 
         case .preKeyCountLow:
@@ -336,17 +366,10 @@ final class RealtimeService: @unchecked Sendable {
 
     /// Sends a sealed-sender P2P presence update to all currently tracked peers.
     private func sendP2PPresenceToTracked(status: Sanchr_Messaging_PresenceStatus) {
-        let peers = Array(trackedPeerIds)
+        let peers = Array(trackedPeerRefCounts.keys)
         guard !peers.isEmpty else { return }
-        let lastSeenMs = Int64(Date().timeIntervalSince1970 * 1000)
         for peerId in peers {
-            Task {
-                try? await messageRepository.sendP2PPresence(
-                    recipientUserId: peerId,
-                    statusCode: status,
-                    lastSeenMs: lastSeenMs
-                )
-            }
+            sendP2PPresence(to: peerId, status: status)
         }
     }
 
@@ -354,6 +377,13 @@ final class RealtimeService: @unchecked Sendable {
     /// (replaces the old server-heartbeat loop).
     private func startP2PPresenceLoop() {
         heartbeatTask?.cancel()
+        guard !privacySettings.sanchrModeEnabled,
+              privacySettings.onlineStatusVisible
+        else {
+            heartbeatTask = nil
+            return
+        }
+
         heartbeatTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
@@ -362,6 +392,83 @@ final class RealtimeService: @unchecked Sendable {
                 sendP2PPresenceToTracked(status: .online)
             }
         }
+    }
+
+    private func sendP2PPresence(
+        to peerId: String,
+        status requestedStatus: Sanchr_Messaging_PresenceStatus
+    ) {
+        guard let status = effectivePresenceStatus(for: requestedStatus) else { return }
+        let lastSeenMs = Int64(Date().timeIntervalSince1970 * 1000)
+        Task {
+            try? await messageRepository.sendP2PPresence(
+                recipientUserId: peerId,
+                statusCode: status,
+                lastSeenMs: lastSeenMs
+            )
+        }
+    }
+
+    private func effectivePresenceStatus(
+        for requestedStatus: Sanchr_Messaging_PresenceStatus
+    ) -> Sanchr_Messaging_PresenceStatus? {
+        if privacySettings.sanchrModeEnabled {
+            return nil
+        }
+
+        if !privacySettings.onlineStatusVisible {
+            return .hidden
+        }
+
+        return requestedStatus
+    }
+
+    @MainActor
+    private func applyPresenceUpdate(_ presence: Sanchr_Messaging_PresenceUpdate) {
+        presenceCache[presence.userID] = presence
+        NotificationCenter.default.post(
+            name: .sanchrRealtimePresenceUpdated,
+            object: nil,
+            userInfo: [RealtimeNotificationKey.presence: presence]
+        )
+
+        if presence.statusCode == .online {
+            schedulePresenceExpiry(for: presence.userID)
+        } else {
+            presenceExpiryTasks[presence.userID]?.cancel()
+            presenceExpiryTasks[presence.userID] = nil
+        }
+    }
+
+    @MainActor
+    private func schedulePresenceExpiry(for userId: String) {
+        presenceExpiryTasks[userId]?.cancel()
+        presenceExpiryTasks[userId] = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: self.presenceExpiryNanoseconds)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self.expireOnlinePresenceIfStillCurrent(userId: userId)
+            }
+        }
+    }
+
+    @MainActor
+    private func expireOnlinePresenceIfStillCurrent(userId: String) {
+        guard var presence = presenceCache[userId],
+              presence.statusCode == .online
+        else { return }
+
+        presence.statusCode = .offline
+        presence.status = "offline"
+        presence.lastSeen = Int64(Date().timeIntervalSince1970 * 1000)
+        presenceCache[userId] = presence
+        presenceExpiryTasks[userId] = nil
+        NotificationCenter.default.post(
+            name: .sanchrRealtimePresenceUpdated,
+            object: nil,
+            userInfo: [RealtimeNotificationKey.presence: presence]
+        )
     }
 
     private static func detailedError(_ error: Error) -> String {

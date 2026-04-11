@@ -8,6 +8,7 @@ service MessagingService {
   rpc SyncMessages(SyncRequest) returns (stream EncryptedEnvelope);
   rpc AckMessages(AckMessagesRequest) returns (AckMessagesResponse);
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
   rpc SendReceipt(ReceiptRequest) returns (ReceiptResponse);
   rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
   rpc SendReaction(Reaction) returns (Reaction);
@@ -57,6 +58,7 @@ message ServerEvent {
     CallLifecycleEvent call_lifecycle = 7;
     Reaction reaction = 8;
     SealedInboundMessage sealed_message = 9;
+    MessageEdited message_edited = 10;
   }
 }
 
@@ -160,6 +162,32 @@ message DeleteMessageRequest {
 }
 
 message DeleteMessageResponse {}
+
+message EditMessageRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+  // Re-encrypted ciphertext for each recipient device.  Same semantics as
+  // SendMessageRequest.device_messages — one entry per target device.
+  repeated DeviceMessage device_messages = 3;
+}
+
+message EditMessageResponse {
+  // Milliseconds since Unix epoch when the edit was recorded server-side.
+  int64 edited_at = 1;
+}
+
+// Broadcast to all conversation participants (except the editor) when a
+// message is edited.  Each recipient gets the ciphertext encrypted for their
+// specific device.
+message MessageEdited {
+  string conversation_id = 1;
+  string message_id = 2;
+  string sender_id = 3;
+  // Per-device ciphertext — each ServerEvent carrying this message targets a
+  // single device and contains that device's ciphertext.
+  bytes ciphertext = 4;
+  int64 edited_at = 5;
+}
 
 message GetConversationsRequest {}
 

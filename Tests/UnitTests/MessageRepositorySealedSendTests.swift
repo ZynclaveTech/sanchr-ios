@@ -110,6 +110,13 @@ private final class SpyMessagingService: Sanchr_Messaging_MessagingServiceAsyncC
         fatalError("SpyMessagingService: \(#function) must not be called in this test")
     }
 
+    func makeEditMessageCall(
+        _ request: Sanchr_Messaging_EditMessageRequest,
+        callOptions: CallOptions?
+    ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse> {
+        fatalError("SpyMessagingService: \(#function) must not be called in this test")
+    }
+
     func makeSendReceiptCall(
         _ request: Sanchr_Messaging_ReceiptRequest,
         callOptions: CallOptions?
@@ -121,13 +128,6 @@ private final class SpyMessagingService: Sanchr_Messaging_MessagingServiceAsyncC
         _ request: Sanchr_Messaging_GetConversationsRequest,
         callOptions: CallOptions?
     ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse> {
-        fatalError("SpyMessagingService: \(#function) must not be called in this test")
-    }
-
-    func makeGetPresenceSnapshotCall(
-        _ request: Sanchr_Messaging_GetPresenceSnapshotRequest,
-        callOptions: CallOptions?
-    ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse> {
         fatalError("SpyMessagingService: \(#function) must not be called in this test")
     }
 

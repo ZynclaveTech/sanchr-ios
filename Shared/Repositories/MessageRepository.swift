@@ -76,7 +76,6 @@ struct MessageSyncResult: Sendable {
 
 private actor MessageStreamController {
     private var continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation?
-    private var pendingEvents: [Sanchr_Messaging_ClientEvent] = []
 
     func begin() -> AsyncStream<Sanchr_Messaging_ClientEvent> {
         continuation?.finish()
@@ -90,21 +89,16 @@ private actor MessageStreamController {
     func send(_ event: Sanchr_Messaging_ClientEvent) {
         if let continuation {
             continuation.yield(event)
-        } else {
-            pendingEvents.append(event)
         }
     }
 
     func finish() {
         continuation?.finish()
         continuation = nil
-        pendingEvents.removeAll(keepingCapacity: false)
     }
 
     private func setContinuation(_ continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation) {
         self.continuation = continuation
-        pendingEvents.forEach { continuation.yield($0) }
-        pendingEvents.removeAll(keepingCapacity: false)
     }
 }
 
@@ -123,6 +117,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
     private let privacyGate: MessagingPrivacyGate
+    private let receiptDelayNanoseconds: @Sendable () -> UInt64
 
     init(
         grpcClient: GRPCClientProtocol,
@@ -133,7 +128,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         vaultRepository: VaultRepositoryProtocol,
         mediaDownloadManager: MediaDownloadManager,
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
-        privacySettings: PrivacySettingsCache
+        privacySettings: PrivacySettingsCache,
+        receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
+            UInt64(Double.random(in: 0...30) * 1_000_000_000)
+        }
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
@@ -144,6 +142,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.mediaDownloadManager = mediaDownloadManager
         self.currentUserIdProvider = currentUserIdProvider
         self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
+        self.receiptDelayNanoseconds = receiptDelayNanoseconds
     }
 
     /// Returns true if the message content is something we route into
@@ -343,16 +342,22 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             upToMessageId: upToMessageId
         )
 
+        guard let peerUserId = try? await oneToOneReceiptPeerId(
+            conversationId: conversationId
+        ) else {
+            return
+        }
+
         // Dispatch the read receipt as a sealed-sender envelope so the server
         // cannot read its contents or correlate the timestamp with our identity.
         // A random 0-30 s jitter masks exact read-timing from metadata analysis.
         Task { [weak self] in
             guard let self else { return }
-            let delaySeconds = Double.random(in: 0...30)
-            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: self.receiptDelayNanoseconds())
             await self.sendSealedReceipt(
                 conversationId: conversationId,
-                messageId: upToMessageId
+                messageId: upToMessageId,
+                peerUserId: peerUserId
             )
         }
     }
@@ -368,14 +373,22 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// Sends a read receipt as a sealed-sender envelope (contentType "receipt/v1")
     /// directly to the peer. The server routes it as opaque ciphertext and cannot
     /// read the conversation ID, message ID, or timestamp.
-    private func sendSealedReceipt(conversationId: String, messageId: String) async {
-        guard let myUserId = currentUserIdProvider() else { return }
-        // Look up peer from local conversation cache.
-        guard let conversation = try? await localDatabase.fetchConversation(id: conversationId),
-              let peerUserId = conversation.participants.first(where: { $0.id != myUserId })?.id,
-              !peerUserId.isEmpty
-        else {
-            SanchrLogger.chat.warning("sendSealedReceipt: cannot resolve peer for \(conversationId.prefix(8))")
+    private func oneToOneReceiptPeerId(conversationId: String) async throws -> String? {
+        guard let myUserId = currentUserIdProvider() else { return nil }
+        guard let conversation = try await localDatabase.fetchConversation(id: conversationId),
+              conversation.type == .oneToOne
+        else { return nil }
+
+        return conversation.participants.first { $0.id != myUserId && !$0.id.isEmpty }?.id
+    }
+
+    private func sendSealedReceipt(
+        conversationId: String,
+        messageId: String,
+        peerUserId: String
+    ) async {
+        guard let myUserId = currentUserIdProvider(), !myUserId.isEmpty else {
+            SanchrLogger.chat.warning("sendSealedReceipt: missing current user id")
             return
         }
 
@@ -529,6 +542,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                 _ = try? await self.flushPendingAcks()
                                 continuation.yield(.message(message))
                             }
+                        case .messageEdited:
+                            break
                         case .typing(let indicator):
                             continuation.yield(.typing(indicator))
                         case .receipt(let receipt):
@@ -549,11 +564,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                     )
                             }
                             continuation.yield(.receipt(receipt))
-                        case .presence:
-                            // Server no longer pushes presence — presence
-                            // now arrives as sealed P2P envelopes and is
-                            // routed inside the .sealedMessage arm below.
-                            break
                         case .preKeyCountLow(let preKeyCountLow):
                             continuation.yield(.preKeyCountLow(preKeyCountLow))
                         case .callOffer(let offer):
@@ -613,14 +623,25 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         statusCode: Sanchr_Messaging_PresenceStatus,
         lastSeenMs: Int64
     ) async throws {
-        guard privacyGate.decide(.presenceHeartbeat) == .allow else { return }
+        let effectiveStatus: Sanchr_Messaging_PresenceStatus
+        switch privacyGate.decidePresenceStatus(requested: statusCode) {
+        case .allow(let status):
+            effectiveStatus = status
+        case .suppress:
+            return
+        }
+
+        guard let currentUserId = currentUserIdProvider(), !currentUserId.isEmpty else {
+            SanchrLogger.chat.warning("sendP2PPresence: missing current user id")
+            return
+        }
         guard !recipientUserId.isEmpty else { return }
 
         var presenceUpdate = Sanchr_Messaging_PresenceUpdate()
-        presenceUpdate.userID = currentUserIdProvider() ?? ""
-        presenceUpdate.statusCode = statusCode
-        presenceUpdate.status = statusCode == .online ? "online" : "offline"
-        presenceUpdate.lastSeen = statusCode == .online ? 0 : lastSeenMs
+        presenceUpdate.userID = currentUserId
+        presenceUpdate.statusCode = effectiveStatus
+        presenceUpdate.status = Self.presenceStatusString(effectiveStatus)
+        presenceUpdate.lastSeen = effectiveStatus == .online ? 0 : lastSeenMs
 
         let content = try presenceUpdate.serializedData()
         let innerPayload = try sealedSenderManager.encodeInnerPayload(
@@ -823,9 +844,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
             // 3. P2P Presence: route without touching message storage.
             if innerPayload.contentType == "presence/v1" {
-                let presenceUpdate = try Sanchr_Messaging_PresenceUpdate(
+                var presenceUpdate = try Sanchr_Messaging_PresenceUpdate(
                     serializedBytes: innerPayload.content
                 )
+                presenceUpdate.userID = result.senderUserId
                 let mappedLastSeen: Date? = presenceUpdate.lastSeen > 0
                     ? Date(timeIntervalSince1970: TimeInterval(presenceUpdate.lastSeen) / 1000.0)
                     : nil
@@ -1147,6 +1169,17 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return content
             }
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        }
+    }
+
+    private static func presenceStatusString(_ status: Sanchr_Messaging_PresenceStatus) -> String {
+        switch status {
+        case .online:
+            return "online"
+        case .hidden:
+            return "hidden"
+        case .offline, .unspecified, .UNRECOGNIZED:
+            return "offline"
         }
     }
 }

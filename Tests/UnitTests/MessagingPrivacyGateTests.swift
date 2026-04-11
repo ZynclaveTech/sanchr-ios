@@ -78,9 +78,9 @@ final class MessagingPrivacyGateTests: XCTestCase {
         XCTAssertEqual(gate.decide(.typingIndicator), .suppress)
     }
 
-    // MARK: - presenceHeartbeat
+    // MARK: - presence
 
-    func test_presenceHeartbeat_defaults_allow() {
+    func test_presence_defaults_allow() {
         let gate = makeGate(
             readReceipts: true,
             typingIndicator: true,
@@ -88,10 +88,11 @@ final class MessagingPrivacyGateTests: XCTestCase {
             sanchrMode: false
         )
 
-        XCTAssertEqual(gate.decide(.presenceHeartbeat), .allow)
+        XCTAssertEqual(gate.decide(.presence), .allow)
+        XCTAssertEqual(gate.decidePresenceStatus(requested: .online), .allow(.online))
     }
 
-    func test_presenceHeartbeat_onlineStatusOff_suppress() {
+    func test_presence_onlineStatusOff_suppress() {
         let gate = makeGate(
             readReceipts: true,
             typingIndicator: true,
@@ -99,10 +100,11 @@ final class MessagingPrivacyGateTests: XCTestCase {
             sanchrMode: false
         )
 
-        XCTAssertEqual(gate.decide(.presenceHeartbeat), .suppress)
+        XCTAssertEqual(gate.decide(.presence), .suppress)
+        XCTAssertEqual(gate.decidePresenceStatus(requested: .online), .allow(.hidden))
     }
 
-    func test_presenceHeartbeat_sanchrModeOn_suppress() {
+    func test_presence_sanchrModeOn_suppress() {
         let gate = makeGate(
             readReceipts: true,
             typingIndicator: true,
@@ -110,7 +112,8 @@ final class MessagingPrivacyGateTests: XCTestCase {
             sanchrMode: true
         )
 
-        XCTAssertEqual(gate.decide(.presenceHeartbeat), .suppress)
+        XCTAssertEqual(gate.decide(.presence), .suppress)
+        XCTAssertEqual(gate.decidePresenceStatus(requested: .online), .suppress)
     }
 
     // MARK: - Helper

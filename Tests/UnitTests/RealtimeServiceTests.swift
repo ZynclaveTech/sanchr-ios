@@ -119,6 +119,70 @@ final class RealtimeServiceTests: XCTestCase {
         messageRepository.finishStream()
     }
 
+    func testPresenceTrackingSendsHiddenWhenOnlineStatusDisabled() async throws {
+        let sessionService = try await makeAuthenticatedSessionService()
+        let messageRepository = MockMessageRepository()
+        let privacySettings = PrivacySettingsCache()
+        let service = RealtimeService(
+            messageRepository: messageRepository,
+            signalKeyManager: MockKeyManager(),
+            sessionService: sessionService,
+            callManager: MockCallEventRouter(),
+            privacySettings: privacySettings,
+            networkMonitor: MockNetworkMonitor()
+        )
+
+        service.trackPresencePeer("peer-1")
+        try await waitUntil { messageRepository.p2pPresenceSends.count == 1 }
+
+        var settings = Sanchr_Settings_UserSettings()
+        settings.readReceipts = true
+        settings.typingIndicator = true
+        settings.onlineStatusVisible = false
+        settings.sanchrModeEnabled = false
+        settings.profilePhotoVisibility = "everyone"
+        privacySettings.update(from: settings)
+
+        try await waitUntil { messageRepository.p2pPresenceSends.count == 2 }
+        XCTAssertEqual(messageRepository.p2pPresenceSends.map(\.statusCode), [.online, .hidden])
+
+        service.stop()
+    }
+
+    func testOnlinePresenceExpiresToOfflineLocally() async throws {
+        let sessionService = try await makeAuthenticatedSessionService()
+        let messageRepository = MockMessageRepository()
+        let service = RealtimeService(
+            messageRepository: messageRepository,
+            signalKeyManager: MockKeyManager(),
+            sessionService: sessionService,
+            callManager: MockCallEventRouter(),
+            privacySettings: PrivacySettingsCache(),
+            networkMonitor: MockNetworkMonitor(),
+            presenceExpiryNanoseconds: 100_000_000
+        )
+
+        service.start()
+        try await waitUntil { messageRepository.openStreamCallCount == 1 }
+        try await waitUntil { messageRepository.streamContinuation != nil }
+
+        var presence = Sanchr_Messaging_PresenceUpdate()
+        presence.userID = "peer-1"
+        presence.status = "online"
+        presence.statusCode = .online
+        messageRepository.emit(.presence(presence))
+
+        try await waitUntil {
+            service.cachedPresence(for: "peer-1")?.statusCode == .online
+        }
+        try await waitUntil(timeoutNanoseconds: 300_000_000) {
+            service.cachedPresence(for: "peer-1")?.statusCode == .offline
+        }
+
+        service.stop()
+        messageRepository.finishStream()
+    }
+
     private func makeAuthenticatedSessionService() async throws -> SessionService {
         let storage = MockSecureStorage()
         let service = SessionService(

@@ -222,13 +222,46 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws {
         try await dbPool.write { db in
+            guard let target = try MessageRecord.fetchOne(db, key: upToMessageId),
+                  target.conversationId == conversationId
+            else { return }
+
             try db.execute(
-                sql: "UPDATE message SET status = ? WHERE id = ?",
-                arguments: [Message.DeliveryStatus.read.rawValue, upToMessageId]
+                sql: """
+                    UPDATE message
+                    SET status = ?
+                    WHERE conversationId = ?
+                      AND isOutgoing = 0
+                      AND timestamp <= ?
+                    """,
+                arguments: [
+                    Message.DeliveryStatus.read.rawValue,
+                    conversationId,
+                    target.timestamp,
+                ]
             )
             try db.execute(
-                sql: "UPDATE conversation SET unreadCount = 0 WHERE id = ?",
-                arguments: [conversationId]
+                sql: """
+                    UPDATE conversation
+                    SET
+                        unreadCount = 0,
+                        lastMessageStatus = CASE
+                            WHEN lastMessageId IN (
+                                SELECT id FROM message
+                                WHERE conversationId = ?
+                                  AND isOutgoing = 0
+                                  AND timestamp <= ?
+                            ) THEN ?
+                            ELSE lastMessageStatus
+                        END
+                    WHERE id = ?
+                    """,
+                arguments: [
+                    conversationId,
+                    target.timestamp,
+                    Message.DeliveryStatus.read.rawValue,
+                    conversationId,
+                ]
             )
         }
     }

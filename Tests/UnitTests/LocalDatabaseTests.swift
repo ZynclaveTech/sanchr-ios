@@ -77,6 +77,64 @@ final class LocalDatabaseTests: XCTestCase {
         }
     }
 
+    func testMarkConversationAsReadMarksOnlyIncomingMessagesUpToTarget() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+        let baseDate = Date(timeIntervalSince1970: 1_750_000_000)
+        let conversation = makeConversation(id: "conversation-read-range", unreadCount: 2)
+
+        try await database.saveConversation(conversation)
+
+        let olderIncoming = makeMessage(
+            id: "older-incoming",
+            conversationId: conversation.id,
+            timestamp: baseDate,
+            senderId: "remote-user",
+            status: .delivered,
+            isOutgoing: false
+        )
+        let outgoing = makeMessage(
+            id: "outgoing-middle",
+            conversationId: conversation.id,
+            timestamp: baseDate.addingTimeInterval(30),
+            senderId: "local-user",
+            status: .sent,
+            isOutgoing: true
+        )
+        let latestIncoming = makeMessage(
+            id: "latest-incoming",
+            conversationId: conversation.id,
+            timestamp: baseDate.addingTimeInterval(60),
+            senderId: "remote-user",
+            status: .delivered,
+            isOutgoing: false
+        )
+
+        try await database.saveMessage(olderIncoming)
+        try await database.saveMessage(outgoing)
+        try await database.saveMessage(latestIncoming)
+
+        try await database.markConversationAsRead(
+            conversationId: conversation.id,
+            upToMessageId: latestIncoming.id
+        )
+
+        let messages = try await database.fetchMessages(
+            conversationId: conversation.id,
+            before: nil,
+            limit: 10
+        )
+        let statusById = Dictionary(uniqueKeysWithValues: messages.map { ($0.id, $0.status) })
+        XCTAssertEqual(statusById[olderIncoming.id], .read)
+        XCTAssertEqual(statusById[outgoing.id], .sent)
+        XCTAssertEqual(statusById[latestIncoming.id], .read)
+
+        let fetched = try await database.fetchConversation(id: conversation.id)
+        XCTAssertEqual(fetched?.unreadCount, 0)
+        XCTAssertEqual(fetched?.lastMessage?.id, latestIncoming.id)
+        XCTAssertEqual(fetched?.lastMessage?.status, .read)
+    }
+
     func testPlaintextDatabaseMigratesToEncryptedDatabase() async throws {
         let path = makeTemporaryDatabasePath()
         let conversation = makeConversation(id: "conversation-3")
@@ -387,7 +445,7 @@ final class LocalDatabaseTests: XCTestCase {
         return directory.appendingPathComponent("sanchr-tests.sqlite").path
     }
 
-    private func makeConversation(id: String) -> Conversation {
+    private func makeConversation(id: String, unreadCount: Int = 0) -> Conversation {
         Conversation(
             id: id,
             participants: [
@@ -417,7 +475,7 @@ final class LocalDatabaseTests: XCTestCase {
                 ),
             ],
             lastMessage: nil,
-            unreadCount: 0,
+            unreadCount: unreadCount,
             isPinned: false,
             isMuted: false,
             isArchived: false,
@@ -428,15 +486,22 @@ final class LocalDatabaseTests: XCTestCase {
         )
     }
 
-    private func makeMessage(id: String, conversationId: String, timestamp: Date) -> Message {
+    private func makeMessage(
+        id: String,
+        conversationId: String,
+        timestamp: Date,
+        senderId: String = "local-user",
+        status: Message.DeliveryStatus = .sent,
+        isOutgoing: Bool = true
+    ) -> Message {
         Message(
             id: id,
             conversationId: conversationId,
-            senderId: "local-user",
+            senderId: senderId,
             timestamp: timestamp,
             content: .text("hello \(id)"),
-            status: .sent,
-            isOutgoing: true,
+            status: status,
+            isOutgoing: isOutgoing,
             replyToMessageId: nil,
             expiresAt: nil
         )

@@ -237,8 +237,7 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     private(set) var openStreamCallCount = 0
     private(set) var flushPendingAcksCallCount = 0
     private(set) var closeStreamCallCount = 0
-    private(set) var presenceHeartbeats: [Sanchr_Messaging_DevicePresenceState] = []
-    var presenceSnapshot: [Sanchr_Messaging_PresenceUpdate] = []
+    private(set) var p2pPresenceSends: [(recipientUserId: String, statusCode: Sanchr_Messaging_PresenceStatus)] = []
     var flushPendingAcksResult = 0
     private(set) var streamContinuation: AsyncStream<RealtimeEvent>.Continuation?
 
@@ -285,19 +284,16 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
 
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {}
 
-    func sendPresenceHeartbeat(
-        deviceState: Sanchr_Messaging_DevicePresenceState,
-        sentAtMs: Int64
+    func sendP2PPresence(
+        recipientUserId: String,
+        statusCode: Sanchr_Messaging_PresenceStatus,
+        lastSeenMs: Int64
     ) async throws {
-        presenceHeartbeats.append(deviceState)
+        p2pPresenceSends.append((recipientUserId: recipientUserId, statusCode: statusCode))
     }
 
     func fetchPreKeyBundle(userId: String) async throws -> Data {
         Data()
-    }
-
-    func fetchPresenceSnapshot(userIds: [String]) async throws -> [Sanchr_Messaging_PresenceUpdate] {
-        presenceSnapshot.filter { userIds.contains($0.userID) }
     }
 
     func syncPendingMessages(sinceTimestamp: Int64) async throws -> MessageSyncResult {

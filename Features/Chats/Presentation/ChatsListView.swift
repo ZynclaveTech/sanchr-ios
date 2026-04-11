@@ -15,6 +15,7 @@ struct ChatsListView: View {
     }
     @State private var pendingConversationRefreshIDs: Set<String> = []
     @State private var scheduledRefreshTask: Task<Void, Never>?
+    @State private var trackedPresencePeerIds: Set<String> = []
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -56,7 +57,9 @@ struct ChatsListView: View {
         }
         .task {
             await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
+            updatePresenceTrackingForVisibleConversations()
             await viewModel.loadConversations(messageRepository: container.messageRepository)
+            updatePresenceTrackingForVisibleConversations()
             await openPendingConversationIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
@@ -89,6 +92,7 @@ struct ChatsListView: View {
         .onDisappear {
             scheduledRefreshTask?.cancel()
             scheduledRefreshTask = nil
+            untrackAllVisiblePresencePeers()
         }
     }
 
@@ -519,8 +523,38 @@ struct ChatsListView: View {
                 }
             }
 
+            updatePresenceTrackingForVisibleConversations()
             await openPendingConversationIfNeeded()
         }
+    }
+
+    private func updatePresenceTrackingForVisibleConversations() {
+        let peerIds = Set(
+            viewModel.conversations.compactMap { conversation -> String? in
+                guard conversation.type == .oneToOne,
+                      let peer = conversation.participants.first(where: { !$0.isLocalUser }),
+                      !peer.id.isEmpty
+                else { return nil }
+                return peer.id
+            }
+        )
+
+        for peerId in trackedPresencePeerIds.subtracting(peerIds) {
+            container.realtimeService.untrackPresencePeer(peerId)
+        }
+
+        for peerId in peerIds.subtracting(trackedPresencePeerIds) {
+            container.realtimeService.trackPresencePeer(peerId)
+        }
+
+        trackedPresencePeerIds = peerIds
+    }
+
+    private func untrackAllVisiblePresencePeers() {
+        for peerId in trackedPresencePeerIds {
+            container.realtimeService.untrackPresencePeer(peerId)
+        }
+        trackedPresencePeerIds.removeAll()
     }
 }
 

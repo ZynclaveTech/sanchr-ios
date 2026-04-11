@@ -162,6 +162,7 @@ final class MessageCollectionViewController: UIViewController {
 
     var onReplyToMessage: ((Message) -> Void)?
     var onReactToMessage: ((String, String) -> Void)?
+    var onForwardMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
@@ -815,7 +816,9 @@ final class MessageCollectionViewController: UIViewController {
             self?.onReplyToMessage?(message)
         })
 
-        actions.append(UIAction(title: "Forward", image: UIImage(systemName: "arrowshape.turn.up.right")) { _ in })
+        actions.append(UIAction(title: "Forward", image: UIImage(systemName: "arrowshape.turn.up.right")) { [weak self] _ in
+            self?.onForwardMessage?(message)
+        })
 
         let quickEmojis = ["\u{2764}\u{FE0F}", "\u{1F44D}", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"]
         let reactionActions = quickEmojis.map { emoji in

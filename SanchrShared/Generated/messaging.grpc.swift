@@ -47,6 +47,11 @@ public protocol Sanchr_Messaging_MessagingServiceClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>
 
+  func editMessage(
+    _ request: Sanchr_Messaging_EditMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse>
+
   func sendReceipt(
     _ request: Sanchr_Messaging_ReceiptRequest,
     callOptions: CallOptions?
@@ -194,6 +199,24 @@ extension Sanchr_Messaging_MessagingServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to EditMessage
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to EditMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func editMessage(
+    _ request: Sanchr_Messaging_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
     )
   }
 
@@ -397,6 +420,11 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>
 
+  func makeEditMessageCall(
+    _ request: Sanchr_Messaging_EditMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse>
+
   func makeSendReceiptCall(
     _ request: Sanchr_Messaging_ReceiptRequest,
     callOptions: CallOptions?
@@ -505,6 +533,18 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
+    )
+  }
+
+  public func makeEditMessageCall(
+    _ request: Sanchr_Messaging_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
     )
   }
 
@@ -667,6 +707,18 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
     )
   }
 
+  public func editMessage(
+    _ request: Sanchr_Messaging_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Messaging_EditMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
+    )
+  }
+
   public func sendReceipt(
     _ request: Sanchr_Messaging_ReceiptRequest,
     callOptions: CallOptions? = nil
@@ -777,6 +829,9 @@ public protocol Sanchr_Messaging_MessagingServiceClientInterceptorFactoryProtoco
   /// - Returns: Interceptors to use when invoking 'deleteMessage'.
   func makeDeleteMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'editMessage'.
+  func makeEditMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse>]
+
   /// - Returns: Interceptors to use when invoking 'sendReceipt'.
   func makeSendReceiptInterceptors() -> [ClientInterceptor<Sanchr_Messaging_ReceiptRequest, Sanchr_Messaging_ReceiptResponse>]
 
@@ -807,6 +862,7 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.syncMessages,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.ackMessages,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteMessage,
+      Sanchr_Messaging_MessagingServiceClientMetadata.Methods.editMessage,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendReceipt,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getConversations,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendReaction,
@@ -850,6 +906,12 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
     public static let deleteMessage = GRPCMethodDescriptor(
       name: "DeleteMessage",
       path: "/sanchr.messaging.MessagingService/DeleteMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let editMessage = GRPCMethodDescriptor(
+      name: "EditMessage",
+      path: "/sanchr.messaging.MessagingService/EditMessage",
       type: GRPCCallType.unary
     )
 
@@ -906,6 +968,8 @@ public protocol Sanchr_Messaging_MessagingServiceProvider: CallHandlerProvider {
   func ackMessages(request: Sanchr_Messaging_AckMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_AckMessagesResponse>
 
   func deleteMessage(request: Sanchr_Messaging_DeleteMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_DeleteMessageResponse>
+
+  func editMessage(request: Sanchr_Messaging_EditMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_EditMessageResponse>
 
   func sendReceipt(request: Sanchr_Messaging_ReceiptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_ReceiptResponse>
 
@@ -984,6 +1048,15 @@ extension Sanchr_Messaging_MessagingServiceProvider {
         responseSerializer: ProtobufSerializer<Sanchr_Messaging_DeleteMessageResponse>(),
         interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? [],
         userFunction: self.deleteMessage(request:context:)
+      )
+
+    case "EditMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_EditMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Messaging_EditMessageResponse>(),
+        interceptors: self.interceptors?.makeEditMessageInterceptors() ?? [],
+        userFunction: self.editMessage(request:context:)
       )
 
     case "SendReceipt":
@@ -1083,6 +1156,11 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncProvider: CallHandlerProvi
     request: Sanchr_Messaging_DeleteMessageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Messaging_DeleteMessageResponse
+
+  func editMessage(
+    request: Sanchr_Messaging_EditMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Messaging_EditMessageResponse
 
   func sendReceipt(
     request: Sanchr_Messaging_ReceiptRequest,
@@ -1188,6 +1266,15 @@ extension Sanchr_Messaging_MessagingServiceAsyncProvider {
         wrapping: { try await self.deleteMessage(request: $0, context: $1) }
       )
 
+    case "EditMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_EditMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Messaging_EditMessageResponse>(),
+        interceptors: self.interceptors?.makeEditMessageInterceptors() ?? [],
+        wrapping: { try await self.editMessage(request: $0, context: $1) }
+      )
+
     case "SendReceipt":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1274,6 +1361,10 @@ public protocol Sanchr_Messaging_MessagingServiceServerInterceptorFactoryProtoco
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeDeleteMessageInterceptors() -> [ServerInterceptor<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>]
 
+  /// - Returns: Interceptors to use when handling 'editMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeEditMessageInterceptors() -> [ServerInterceptor<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse>]
+
   /// - Returns: Interceptors to use when handling 'sendReceipt'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSendReceiptInterceptors() -> [ServerInterceptor<Sanchr_Messaging_ReceiptRequest, Sanchr_Messaging_ReceiptResponse>]
@@ -1310,6 +1401,7 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.syncMessages,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.ackMessages,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.deleteMessage,
+      Sanchr_Messaging_MessagingServiceServerMetadata.Methods.editMessage,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.sendReceipt,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getConversations,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.sendReaction,
@@ -1353,6 +1445,12 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
     public static let deleteMessage = GRPCMethodDescriptor(
       name: "DeleteMessage",
       path: "/sanchr.messaging.MessagingService/DeleteMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let editMessage = GRPCMethodDescriptor(
+      name: "EditMessage",
+      path: "/sanchr.messaging.MessagingService/EditMessage",
       type: GRPCCallType.unary
     )
 

@@ -119,9 +119,9 @@ extension AuthInterceptorFactory: Sanchr_Messaging_MessagingServiceClientInterce
     public func makeSyncMessagesInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SyncRequest, Sanchr_Messaging_EncryptedEnvelope>] { makeInterceptors() }
     public func makeAckMessagesInterceptors() -> [ClientInterceptor<Sanchr_Messaging_AckMessagesRequest, Sanchr_Messaging_AckMessagesResponse>] { makeInterceptors() }
     public func makeDeleteMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse>] { makeInterceptors() }
+    public func makeEditMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse>] { makeInterceptors() }
     public func makeSendReceiptInterceptors() -> [ClientInterceptor<Sanchr_Messaging_ReceiptRequest, Sanchr_Messaging_ReceiptResponse>] { makeInterceptors() }
     public func makeGetConversationsInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetConversationsRequest, Sanchr_Messaging_GetConversationsResponse>] { makeInterceptors() }
-    public func makeGetPresenceSnapshotInterceptors() -> [ClientInterceptor<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse>] { makeInterceptors() }
     public func makeSendReactionInterceptors() -> [ClientInterceptor<Sanchr_Messaging_Reaction, Sanchr_Messaging_Reaction>] { makeInterceptors() }
     public func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SenderCertificateRequest, Sanchr_Messaging_SenderCertificateResponse>] { makeInterceptors() }
     public func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeliveryTokenRequest, Sanchr_Messaging_DeliveryTokenResponse>] { makeInterceptors() }

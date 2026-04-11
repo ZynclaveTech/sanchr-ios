@@ -13,12 +13,14 @@ import SanchrShared
 private final class CapturingSealedSenderManager: SealedSenderManagerProtocol, @unchecked Sendable {
     var capturedContentType: String?
     var capturedConversationId: String?
+    var capturedContent: Data?
 
     func acquireDeliveryToken() async throws -> Data { Data("tok".utf8) }
     func getSenderCertificate() async throws -> Data { Data() }
     func encodeInnerPayload(conversationId: String, contentType: String, content: Data, isSync: Bool) throws -> Data {
         capturedContentType = contentType
         capturedConversationId = conversationId
+        capturedContent = content
         return content
     }
     func decodeInnerPayload(_ data: Data) throws -> InnerPayload {
@@ -200,6 +202,10 @@ private final class PresenceSpyMessagingService: Sanchr_Messaging_MessagingServi
         -> GRPCAsyncUnaryCall<Sanchr_Messaging_DeleteMessageRequest, Sanchr_Messaging_DeleteMessageResponse> {
         fatalError("makeDeleteMessageCall must not be called")
     }
+    func makeEditMessageCall(_ request: Sanchr_Messaging_EditMessageRequest, callOptions: CallOptions?)
+        -> GRPCAsyncUnaryCall<Sanchr_Messaging_EditMessageRequest, Sanchr_Messaging_EditMessageResponse> {
+        fatalError("makeEditMessageCall must not be called")
+    }
     func makeSendReceiptCall(_ request: Sanchr_Messaging_ReceiptRequest, callOptions: CallOptions?)
         -> GRPCAsyncUnaryCall<Sanchr_Messaging_ReceiptRequest, Sanchr_Messaging_ReceiptResponse> {
         fatalError("makeSendReceiptCall must not be called")
@@ -220,10 +226,6 @@ private final class PresenceSpyMessagingService: Sanchr_Messaging_MessagingServi
         -> GRPCAsyncUnaryCall<Sanchr_Messaging_DeliveryTokenRequest, Sanchr_Messaging_DeliveryTokenResponse> {
         fatalError("makeGetDeliveryTokensCall must not be called")
     }
-    func makeGetPresenceSnapshotCall(_ request: Sanchr_Messaging_GetPresenceSnapshotRequest, callOptions: CallOptions?)
-        -> GRPCAsyncUnaryCall<Sanchr_Messaging_GetPresenceSnapshotRequest, Sanchr_Messaging_GetPresenceSnapshotResponse> {
-        fatalError("makeGetPresenceSnapshotCall must not be called")
-    }
 }
 
 // MARK: - Factory
@@ -232,7 +234,8 @@ private final class PresenceSpyMessagingService: Sanchr_Messaging_MessagingServi
 private func makePresenceRepo(
     spy: PresenceSpyMessagingService,
     sealedManager: SealedSenderManagerProtocol,
-    privacySettings: PrivacySettingsCache = PrivacySettingsCache()
+    privacySettings: PrivacySettingsCache = PrivacySettingsCache(),
+    currentUserId: @escaping @Sendable () -> String? = { "alice" }
 ) -> MessageRepositoryImpl {
     let grpcClient = PresenceGRPCClient(messagingService: spy)
     let stubAccess = StubAccessKeyStoreForPresence()
@@ -250,7 +253,7 @@ private func makePresenceRepo(
         chatVaultPolicyMirror: ChatVaultPolicyMirror(),
         vaultRepository: StubVaultRepositoryForPresence(),
         mediaDownloadManager: mediaDownload,
-        currentUserIdProvider: { "alice" },
+        currentUserIdProvider: currentUserId,
         privacySettings: privacySettings
     )
 }
@@ -343,9 +346,10 @@ final class P2PPresenceTests: XCTestCase {
         )
     }
 
-    /// When `online_status_visible` is off, `sendP2PPresence` must be a no-op
-    /// — the sealed RPC must not be called, leaving the fake response unconsumed.
-    func test_sendP2PPresence_suppressedWhenOnlineStatusHidden() async throws {
+    /// When `online_status_visible` is off, presence is still sent to tracked
+    /// peers, but the payload is HIDDEN instead of ONLINE so recipients can
+    /// clear stale online state without learning foreground/background state.
+    func test_sendP2PPresence_sendsHiddenWhenOnlineStatusHidden() async throws {
         let spy = PresenceSpyMessagingService()
         spy.registerSealedResponse()
 
@@ -368,13 +372,65 @@ final class P2PPresenceTests: XCTestCase {
         )
 
         let sealedPath = Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path
+        XCTAssertFalse(
+            spy.fakeChannel.hasFakeResponseEnqueued(forPath: sealedPath),
+            "sendSealedMessage must be called once to publish the HIDDEN state"
+        )
+        let payload = try XCTUnwrap(capturing.capturedContent)
+        let update = try Sanchr_Messaging_PresenceUpdate(serializedBytes: payload)
+        XCTAssertEqual(update.userID, "alice")
+        XCTAssertEqual(update.statusCode, .hidden)
+    }
+
+    func test_sendP2PPresence_suppressedWhenSanchrModeEnabled() async throws {
+        let spy = PresenceSpyMessagingService()
+        spy.registerSealedResponse()
+
+        let privacySettings = PrivacySettingsCache()
+        var settings = Sanchr_Settings_UserSettings()
+        settings.onlineStatusVisible = true
+        settings.readReceipts = true
+        settings.typingIndicator = true
+        settings.sanchrModeEnabled = true
+        settings.profilePhotoVisibility = "everyone"
+        privacySettings.update(from: settings)
+
+        let capturing = CapturingSealedSenderManager()
+        let repo = makePresenceRepo(spy: spy, sealedManager: capturing, privacySettings: privacySettings)
+
+        try await repo.sendP2PPresence(
+            recipientUserId: "bob",
+            statusCode: .online,
+            lastSeenMs: 0
+        )
+
+        let sealedPath = Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path
         XCTAssertTrue(
             spy.fakeChannel.hasFakeResponseEnqueued(forPath: sealedPath),
-            "sendSealedMessage must NOT be called when online status is hidden"
+            "sendSealedMessage must not be called while Sanchr Mode suppresses presence"
         )
-        XCTAssertNil(
-            capturing.capturedContentType,
-            "encodeInnerPayload must not be called when presence is suppressed"
+        XCTAssertNil(capturing.capturedContentType)
+    }
+
+    func test_sendP2PPresence_requiresCurrentUserId() async throws {
+        let spy = PresenceSpyMessagingService()
+        spy.registerSealedResponse()
+
+        let capturing = CapturingSealedSenderManager()
+        let repo = makePresenceRepo(
+            spy: spy,
+            sealedManager: capturing,
+            currentUserId: { nil }
         )
+
+        try await repo.sendP2PPresence(
+            recipientUserId: "bob",
+            statusCode: .online,
+            lastSeenMs: 0
+        )
+
+        let sealedPath = Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage.path
+        XCTAssertTrue(spy.fakeChannel.hasFakeResponseEnqueued(forPath: sealedPath))
+        XCTAssertNil(capturing.capturedContentType)
     }
 }

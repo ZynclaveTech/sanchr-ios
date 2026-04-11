@@ -58,6 +58,7 @@ struct ChatDetailView: View {
     )
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
+    @State private var messageToForward: Message?
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
 
@@ -92,6 +93,9 @@ struct ChatDetailView: View {
             }
             .onAppear {
                 viewModel.configurePeer(recipient)
+                if conversation.type == .oneToOne, let recipient {
+                    container.realtimeService.trackPresencePeer(recipient.id)
+                }
                 viewModel.onConversationAppear(
                     conversationId: conversation.id,
                     pushManager: container.pushManager
@@ -400,6 +404,23 @@ struct ChatDetailView: View {
         }
         .sheet(item: $invitePayload) { payload in
             ChatShareActivityView(items: ["Join me on Sanchr — \(payload.url)"])
+        }
+        .sheet(item: $messageToForward) { message in
+            MessageForwardDestinationPicker(
+                localDatabase: container.localDatabase,
+                onConversationPicked: { targetId, _ in
+                    messageToForward = nil
+                    Task {
+                        await viewModel.forwardMessage(
+                            message,
+                            toConversationId: targetId,
+                            sessionService: container.sessionService,
+                            messageSender: container.messageSender
+                        )
+                    }
+                },
+                onCancel: { messageToForward = nil }
+            )
         }
         .fullScreenCover(item: $locationCoordinator.presentation) { presentation in
             LocationPreviewView(
@@ -748,6 +769,9 @@ struct ChatDetailView: View {
             },
             onReply: { message in
                 viewModel.setReply(to: message)
+            },
+            onForward: { message in
+                messageToForward = message
             },
             onReact: { emoji, messageId in
                 let userId = container.signalProtocol.localUserId
@@ -1188,10 +1212,6 @@ struct ChatDetailView: View {
         hasScheduledDeferredEntryTasks = true
 
         Task {
-            if let recipient {
-                container.realtimeService.trackPresencePeer(recipient.id)
-            }
-
             async let preferencesLoad: Void = loadHeaderPreferences()
             async let readMark: Void = markConversationAsReadIfNeeded()
             _ = await (preferencesLoad, readMark)
@@ -1199,13 +1219,22 @@ struct ChatDetailView: View {
     }
 
     private func markConversationAsReadIfNeeded() async {
-        guard let lastMessageId = viewModel.messages.last?.id else { return }
+        guard let lastIncomingUnreadMessage = viewModel.messages.last(where: {
+            !$0.isOutgoing && $0.status != .read
+        }) else { return }
 
         // Repo gates receipts internally — falls through to local-only when disabled.
-        try? await container.messageRepository.markAsRead(
-            conversationId: conversation.id,
-            upToMessageId: lastMessageId
-        )
+        if conversation.type == .oneToOne {
+            try? await container.messageRepository.markAsRead(
+                conversationId: conversation.id,
+                upToMessageId: lastIncomingUnreadMessage.id
+            )
+        } else {
+            try? await container.messageRepository.markAsReadLocally(
+                conversationId: conversation.id,
+                upToMessageId: lastIncomingUnreadMessage.id
+            )
+        }
 
         NotificationCenter.default.postConversationStateDidChange(
             conversationId: conversation.id
@@ -1333,10 +1362,17 @@ struct ChatDetailView: View {
         viewModel.handleRealtimeMessage(message)
         // Auto-mark incoming messages as read — repo gates receipts internally.
         Task {
-            try? await container.messageRepository.markAsRead(
-                conversationId: conversation.id,
-                upToMessageId: message.id
-            )
+            if conversation.type == .oneToOne {
+                try? await container.messageRepository.markAsRead(
+                    conversationId: conversation.id,
+                    upToMessageId: message.id
+                )
+            } else {
+                try? await container.messageRepository.markAsReadLocally(
+                    conversationId: conversation.id,
+                    upToMessageId: message.id
+                )
+            }
             NotificationCenter.default.postConversationStateDidChange(
                 conversationId: conversation.id
             )

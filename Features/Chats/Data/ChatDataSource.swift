@@ -116,20 +116,6 @@ final class ChatDataSource: @unchecked Sendable {
         _ = try await messagingClient.deleteMessage(request)
     }
 
-    // MARK: - Send Receipt
-
-    /// Sends a delivery/read receipt for a message.
-    func sendReceipt(conversationID: String, messageID: String, status: String) async throws {
-        var request = Sanchr_Messaging_ReceiptRequest()
-        request.conversationID = conversationID
-        request.messageID = messageID
-        request.status = status
-
-        SanchrLogger.chat.info(
-            "ChatDataSource: sendReceipt \(status) for \(messageID.prefix(8))...")
-        _ = try await messagingClient.sendReceipt(request)
-    }
-
     // MARK: - Sync Messages
 
     /// Syncs messages from the server since a given timestamp.

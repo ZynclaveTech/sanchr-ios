@@ -2,6 +2,10 @@ import Foundation
 import OSLog
 import SanchrShared
 
+extension Notification.Name {
+    static let sanchrPrivacySettingsDidChange = Notification.Name("io.sanchr.privacy.settingsDidChange")
+}
+
 /// Thread-safe cached copy of user privacy settings.
 /// Readable from any context. Updated after settings fetch/change.
 /// Cleared on logout via `SessionService.clearSessionState()`.
@@ -18,6 +22,12 @@ final class PrivacySettingsCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _sanchrModeEnabled
+    }
+
+    var onlineStatusVisible: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _onlineStatusVisible
     }
 
     var canSendReadReceipts: Bool {
@@ -70,6 +80,7 @@ final class PrivacySettingsCache: @unchecked Sendable {
         SanchrLogger.settings.info(
             "Privacy cache updated: rr=\(settings.readReceipts), ti=\(settings.typingIndicator), os=\(settings.onlineStatusVisible), vm=\(settings.sanchrModeEnabled), pp=\(settings.profilePhotoVisibility)"
         )
+        NotificationCenter.default.post(name: .sanchrPrivacySettingsDidChange, object: self)
     }
 
     /// Updates the blocked-user set. Called after fetching the blocked list
@@ -97,5 +108,6 @@ final class PrivacySettingsCache: @unchecked Sendable {
         _blockedUserIds = []
         lock.unlock()
         SanchrLogger.settings.info("Privacy cache cleared")
+        NotificationCenter.default.post(name: .sanchrPrivacySettingsDidChange, object: self)
     }
 }

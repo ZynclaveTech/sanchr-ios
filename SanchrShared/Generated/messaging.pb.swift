@@ -270,6 +270,14 @@ public struct Sanchr_Messaging_ServerEvent: Sendable {
     set {event = .sealedMessage(newValue)}
   }
 
+  public var messageEdited: Sanchr_Messaging_MessageEdited {
+    get {
+      if case .messageEdited(let v)? = event {return v}
+      return Sanchr_Messaging_MessageEdited()
+    }
+    set {event = .messageEdited(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Event: Equatable, Sendable {
@@ -282,6 +290,7 @@ public struct Sanchr_Messaging_ServerEvent: Sendable {
     case callLifecycle(Sanchr_Messaging_CallLifecycleEvent)
     case reaction(Sanchr_Messaging_Reaction)
     case sealedMessage(Sanchr_Messaging_SealedInboundMessage)
+    case messageEdited(Sanchr_Messaging_MessageEdited)
 
   }
 
@@ -527,6 +536,62 @@ public struct Sanchr_Messaging_DeleteMessageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_EditMessageRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var conversationID: String = String()
+
+  public var messageID: String = String()
+
+  /// Re-encrypted ciphertext for each recipient device.  Same semantics as
+  /// SendMessageRequest.device_messages — one entry per target device.
+  public var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_EditMessageResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Milliseconds since Unix epoch when the edit was recorded server-side.
+  public var editedAt: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Broadcast to all conversation participants (except the editor) when a
+/// message is edited.  Each recipient gets the ciphertext encrypted for their
+/// specific device.
+public struct Sanchr_Messaging_MessageEdited: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var conversationID: String = String()
+
+  public var messageID: String = String()
+
+  public var senderID: String = String()
+
+  /// Per-device ciphertext — each ServerEvent carrying this message targets a
+  /// single device and contains that device's ciphertext.
+  public var ciphertext: Data = Data()
+
+  public var editedAt: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -929,7 +994,7 @@ extension Sanchr_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Sanchr_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{4}\u{2}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0\u{3}sealed_message\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}typing\0\u{1}receipt\0\u{4}\u{2}pre_key_count_low\0\u{3}call_offer\0\u{3}call_lifecycle\0\u{1}reaction\0\u{3}sealed_message\0\u{3}message_edited\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1041,6 +1106,19 @@ extension Sanchr_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
           self.event = .sealedMessage(v)
         }
       }()
+      case 10: try {
+        var v: Sanchr_Messaging_MessageEdited?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .messageEdited(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .messageEdited(v)
+        }
+      }()
       default: break
       }
     }
@@ -1083,6 +1161,10 @@ extension Sanchr_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
     case .sealedMessage?: try {
       guard case .sealedMessage(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
+    case .messageEdited?: try {
+      guard case .messageEdited(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
     case nil: break
     }
@@ -1683,6 +1765,126 @@ extension Sanchr_Messaging_DeleteMessageResponse: SwiftProtobuf.Message, SwiftPr
   }
 
   public static func ==(lhs: Sanchr_Messaging_DeleteMessageResponse, rhs: Sanchr_Messaging_DeleteMessageResponse) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_EditMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EditMessageRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0\u{3}device_messages\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.messageID) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.deviceMessages) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.conversationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 1)
+    }
+    if !self.messageID.isEmpty {
+      try visitor.visitSingularStringField(value: self.messageID, fieldNumber: 2)
+    }
+    if !self.deviceMessages.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.deviceMessages, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_EditMessageRequest, rhs: Sanchr_Messaging_EditMessageRequest) -> Bool {
+    if lhs.conversationID != rhs.conversationID {return false}
+    if lhs.messageID != rhs.messageID {return false}
+    if lhs.deviceMessages != rhs.deviceMessages {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_EditMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EditMessageResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}edited_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt64Field(value: &self.editedAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.editedAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.editedAt, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_EditMessageResponse, rhs: Sanchr_Messaging_EditMessageResponse) -> Bool {
+    if lhs.editedAt != rhs.editedAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_MessageEdited: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MessageEdited"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0\u{3}message_id\0\u{3}sender_id\0\u{1}ciphertext\0\u{3}edited_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.messageID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.senderID) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.ciphertext) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.editedAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.conversationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 1)
+    }
+    if !self.messageID.isEmpty {
+      try visitor.visitSingularStringField(value: self.messageID, fieldNumber: 2)
+    }
+    if !self.senderID.isEmpty {
+      try visitor.visitSingularStringField(value: self.senderID, fieldNumber: 3)
+    }
+    if !self.ciphertext.isEmpty {
+      try visitor.visitSingularBytesField(value: self.ciphertext, fieldNumber: 4)
+    }
+    if self.editedAt != 0 {
+      try visitor.visitSingularInt64Field(value: self.editedAt, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_MessageEdited, rhs: Sanchr_Messaging_MessageEdited) -> Bool {
+    if lhs.conversationID != rhs.conversationID {return false}
+    if lhs.messageID != rhs.messageID {return false}
+    if lhs.senderID != rhs.senderID {return false}
+    if lhs.ciphertext != rhs.ciphertext {return false}
+    if lhs.editedAt != rhs.editedAt {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

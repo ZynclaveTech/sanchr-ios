@@ -6,6 +6,13 @@ private struct SendableNotificationPayload: @unchecked Sendable {
     let userInfo: [AnyHashable: Any]
 }
 
+private extension ProcessInfo {
+    var sanchrIsRunningUnitTests: Bool {
+        environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+    }
+}
+
 /// Main entry point for the Sanchr encrypted messaging application.
 /// Configures the app environment, dependency injection, APNs delegate,
 /// background sync registration, and root scene.
@@ -20,43 +27,47 @@ struct SanchrApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(container)
-                .environment(appRouter)
-                .environment(container.syncState)
-                .environment(\.sanchrTheme, sanchrTheme)
-                // Drive preferredColorScheme directly from @AppStorage
-                // because EnvironmentKey-based injections do NOT track
-                // @Observable mutations on a class — only identity
-                // changes to the environment value re-trigger the
-                // modifier. AppearanceView writes to the same AppStorage
-                // key on every theme pick, so this bridge actually fires.
-                .preferredColorScheme(SanchrTheme.Mode(rawValue: storedThemeMode)?.colorScheme)
-                .onAppear {
-                    configureFonts()
-                    configureAppearance()
-                    if container.localDataIssue == nil {
-                        configureBackgroundSync()
+            if ProcessInfo.processInfo.sanchrIsRunningUnitTests {
+                Color.clear
+            } else {
+                RootView()
+                    .environment(container)
+                    .environment(appRouter)
+                    .environment(container.syncState)
+                    .environment(\.sanchrTheme, sanchrTheme)
+                    // Drive preferredColorScheme directly from @AppStorage
+                    // because EnvironmentKey-based injections do NOT track
+                    // @Observable mutations on a class — only identity
+                    // changes to the environment value re-trigger the
+                    // modifier. AppearanceView writes to the same AppStorage
+                    // key on every theme pick, so this bridge actually fires.
+                    .preferredColorScheme(SanchrTheme.Mode(rawValue: storedThemeMode)?.colorScheme)
+                    .onAppear {
+                        configureFonts()
+                        configureAppearance()
+                        if container.localDataIssue == nil {
+                            configureBackgroundSync()
+                        }
                     }
-                }
-                .task {
-                    container.sharedTheme = sanchrTheme
-                    if let saved = SanchrTheme.Mode(rawValue: storedThemeMode) {
-                        sanchrTheme.mode = saved
+                    .task {
+                        container.sharedTheme = sanchrTheme
+                        if let saved = SanchrTheme.Mode(rawValue: storedThemeMode) {
+                            sanchrTheme.mode = saved
+                        }
+                        do {
+                            try await container.connectGRPC()
+                        } catch {
+                            SanchrLogger.network.error("Failed to connect gRPC channels: \(error.localizedDescription)")
+                        }
+                        // Wire PushManager after gRPC is connected (it needs notificationService)
+                        await MainActor.run {
+                            configurePushManager()
+                        }
                     }
-                    do {
-                        try await container.connectGRPC()
-                    } catch {
-                        SanchrLogger.network.error("Failed to connect gRPC channels: \(error.localizedDescription)")
+                    .onChange(of: scenePhase) { oldPhase, newPhase in
+                        handleScenePhaseChange(from: oldPhase, to: newPhase)
                     }
-                    // Wire PushManager after gRPC is connected (it needs notificationService)
-                    await MainActor.run {
-                        configurePushManager()
-                    }
-                }
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    handleScenePhaseChange(from: oldPhase, to: newPhase)
-                }
+            }
         }
     }
 
@@ -165,10 +176,14 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
         // have to copy it over first or the user will see an empty install.
         // `runIfNeeded()` is idempotent, non-throwing, and a no-op on clean
         // installs, so it is safe to call unconditionally on every launch.
-        AppGroupMigration.runIfNeeded()
+        if !ProcessInfo.processInfo.sanchrIsRunningUnitTests {
+            AppGroupMigration.runIfNeeded()
+        }
 
         // Register background task identifiers early (before app finishes launching).
-        SyncOrchestrator.registerBackgroundTasks()
+        if !ProcessInfo.processInfo.sanchrIsRunningUnitTests {
+            SyncOrchestrator.registerBackgroundTasks()
+        }
 
         // Check if launched from a notification
         if let remoteNotification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
