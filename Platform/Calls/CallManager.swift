@@ -71,11 +71,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol
     private let provider: CXProvider
     private let callController: CXCallController
+    private let signalManager: SignalProtocolManagerProtocol
+    private let sealedSenderManager: SealedSenderManagerProtocol
 
     // MARK: - Internal State
 
     private var callUUID: UUID?
     private var pendingSdpOffer: Data?
+    private var paddingManager = CallDurationPaddingManager()
+    private var callStartTime: Date?
     private var durationTimer: Timer?
     private var signalingTask: Task<Void, Never>?
 
@@ -84,9 +88,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     // MARK: - Init
 
-    init(webRTCClient: WebRTCClient, callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol) {
+    init(
+        webRTCClient: WebRTCClient,
+        callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
+        signalManager: SignalProtocolManagerProtocol,
+        sealedSenderManager: SealedSenderManagerProtocol
+    ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
+        self.signalManager = signalManager
+        self.sealedSenderManager = sealedSenderManager
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -137,14 +148,26 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let offer = try await webRTCClient.createOffer()
         try await webRTCClient.setLocalDescription(offer)
 
-        let sdpData = offer.sdp.data(using: .utf8) ?? Data()
+        // 5. Encrypt offer for E2EE
+        let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) ?? ""
+        let paddingUntil = Date().addingTimeInterval(CallDurationPaddingManager.buckets.last!)
+        let payload = SealedCallPayload(
+            sdp: offer.sdp,
+            dtlsFingerprint: fingerprint,
+            paddingUntil: paddingUntil.timeIntervalSince1970,
+            timestamp: Date().timeIntervalSince1970
+        )
+        let payloadData = try JSONEncoder().encode(payload)
+        let encryptedPayload = try await signalManager.encrypt(
+            plaintext: payloadData, for: recipientId, deviceId: 1)
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
-        // 5. Send the offer to the server
+        // 6. Send the encrypted offer to the server
         var callOffer = Sanchr_Calling_CallOffer()
         callOffer.recipientID = recipientId
         callOffer.callType = isVideo ? "video" : "voice"
-        callOffer.sdpOffer = sdpData
-        callOffer.srtpKeyParams = Data()
+        callOffer.deliveryToken = deliveryToken
+        callOffer.encryptedSdpPayload = encryptedPayload
 
         let response = try await callService.initiateCall(callOffer)
         let callId = response.callID
@@ -247,13 +270,24 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let answer = try await webRTCClient.createAnswer()
         try await webRTCClient.setLocalDescription(answer)
 
-        // 6. Open signaling stream and send answer
+        // 6. Open signaling stream and send encrypted answer
         openSignalingStream(callId: callId)
 
-        let answerData = answer.sdp.data(using: .utf8) ?? Data()
+        let answerFingerprint = WebRTCClient.extractDtlsFingerprint(from: answer) ?? ""
+        let answerPaddingUntil = Date().addingTimeInterval(CallDurationPaddingManager.buckets.last!)
+        let answerPayload = SealedCallPayload(
+            sdp: answer.sdp,
+            dtlsFingerprint: answerFingerprint,
+            paddingUntil: answerPaddingUntil.timeIntervalSince1970,
+            timestamp: Date().timeIntervalSince1970
+        )
+        let answerPayloadData = try JSONEncoder().encode(answerPayload)
+        let encryptedAnswer = try await signalManager.encrypt(
+            plaintext: answerPayloadData, for: callerId, deviceId: 1)
+
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
-        signal.sdpAnswer = answerData
+        signal.encryptedSdpAnswer = encryptedAnswer
         outboundContinuation?.yield(signal)
 
         // 7. Send accepted control
@@ -265,11 +299,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         outboundContinuation?.yield(controlSignal)
 
         let startTime = Date()
+        self.callStartTime = startTime
         callState = .active(callId: callId, startTime: startTime)
         startDurationTimer(from: startTime)
 
         pendingSdpOffer = nil
-        _ = callerId  // suppress unused warning
     }
 
     /// Declines an incoming call.
@@ -391,16 +425,18 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 guard !Task.isCancelled else { break }
 
                 switch signal.signal {
-                case .sdpAnswer(let sdpData):
-                    guard let sdpString = String(data: sdpData, encoding: .utf8)
-                    else { continue }
-                    SanchrLogger.calls.info("Received SDP answer for call \(callId)")
-                    let remoteDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
+                case .encryptedSdpAnswer(let ciphertext):
+                    SanchrLogger.calls.info("Received encrypted SDP answer for call \(callId)")
+                    guard let senderId = self.peerId else { continue }
                     do {
-                        try await webRTCClient.setRemoteDescription(remoteDesc)
+                        let plaintext = try await self.signalManager.decrypt(
+                            ciphertext: ciphertext, from: senderId, senderDevice: 1)
+                        let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+                        let remoteDesc = RTCSessionDescription(type: .answer, sdp: sealedPayload.sdp)
+                        try await self.webRTCClient.setRemoteDescription(remoteDesc)
+                        SanchrLogger.calls.info("E2EE answer: peer fingerprint = \(sealedPayload.dtlsFingerprint)")
                     } catch {
-                        SanchrLogger.calls.error(
-                            "Failed to set remote answer: \(error.localizedDescription)")
+                        SanchrLogger.calls.error("Failed to decrypt SDP answer: \(error.localizedDescription)")
                     }
 
                 case .iceCandidate(let candidateData):
@@ -447,6 +483,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         case "accepted":
             let startTime = Date()
+            self.callStartTime = startTime
             callState = .active(callId: callId, startTime: startTime)
             startDurationTimer(from: startTime)
             if let uuid = callUUID {
@@ -496,12 +533,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         outboundContinuation = nil
         pendingSdpOffer = nil
 
-        webRTCClient.stopLocalMedia()
-        webRTCClient.close()
-
         callState = .ended(callId: callId, reason: reason)
 
-        // End CallKit call
         if let uuid = callUUID {
             let cxReason: CXCallEndedReason
             switch reason {
@@ -516,18 +549,28 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             callUUID = nil
         }
 
-        // Reset to idle after a brief delay so the UI can show the ended state
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if case .ended = self.callState {
-                self.callState = .idle
-                self.isMuted = false
-                self.isSpeakerOn = false
-                self.isVideoEnabled = false
-                self.callType = "voice"
-                self.peerId = nil
-                self.peerName = nil
-                self.currentVideoFilter = .none
+        // Padding: keep peer connection alive until next time bucket, then tear down
+        let start = callStartTime ?? Date()
+        let paddingTarget = CallDurationPaddingManager.paddingEnd(callStart: start, callEnd: Date())
+        callStartTime = nil
+
+        paddingManager.padThenComplete(target: paddingTarget) { [weak self] in
+            guard let self else { return }
+            self.webRTCClient.stopLocalMedia()
+            self.webRTCClient.close()
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                if case .ended = self.callState {
+                    self.callState = .idle
+                    self.isMuted = false
+                    self.isSpeakerOn = false
+                    self.isVideoEnabled = false
+                    self.callType = "voice"
+                    self.peerId = nil
+                    self.peerName = nil
+                    self.currentVideoFilter = .none
+                }
             }
         }
     }
@@ -538,13 +581,33 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             return
         }
 
-        handleIncomingCall(
-            callId: offer.callID,
-            callerId: offer.callerID,
-            callerName: offer.callerID,
-            sdpOffer: offer.sdpOffer,
-            isVideo: offer.callType == "video"
-        )
+        Task {
+            do {
+                let ciphertext = offer.encryptedSdpPayload.isEmpty ? offer.sdpOffer : offer.encryptedSdpPayload
+                let plaintext = try await signalManager.decrypt(
+                    ciphertext: ciphertext,
+                    from: offer.callerID,
+                    senderDevice: 1
+                )
+                let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+
+                SanchrLogger.calls.info(
+                    "E2EE offer decrypted from \(offer.callerID); fingerprint = \(sealedPayload.dtlsFingerprint)")
+
+                await MainActor.run {
+                    self.handleIncomingCall(
+                        callId: offer.callID,
+                        callerId: offer.callerID,
+                        callerName: offer.callerID,
+                        sdpOffer: Data(sealedPayload.sdp.utf8),
+                        isVideo: offer.callType == "video"
+                    )
+                }
+            } catch {
+                SanchrLogger.calls.error(
+                    "Failed to decrypt incoming call offer: \(error.localizedDescription)")
+            }
+        }
     }
 
     func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) {
@@ -594,7 +657,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         outboundContinuation?.finish()
         outboundContinuation = nil
         pendingSdpOffer = nil
+        callStartTime = nil
         callUUID = nil
+        paddingManager.cancel()
         webRTCClient.stopLocalMedia()
         webRTCClient.close()
         callState = .idle

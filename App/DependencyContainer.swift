@@ -398,7 +398,9 @@ final class DependencyContainer: @unchecked Sendable {
     /// CallKit + signaling orchestrator for voice/video calls.
     @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
-        callService: grpcClient.callSignalingService
+        callService: grpcClient.callSignalingService,
+        signalManager: signalProtocol,
+        sealedSenderManager: sealedSenderManager
     )
 
     @ObservationIgnored lazy var realtimeService: RealtimeService = RealtimeService(
