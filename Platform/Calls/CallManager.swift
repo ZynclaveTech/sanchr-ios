@@ -432,9 +432,20 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                         let plaintext = try await self.signalManager.decrypt(
                             ciphertext: ciphertext, from: senderId, senderDevice: 1)
                         let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+                        let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
+                        guard age <= 30 else {
+                            SanchrLogger.calls.error("Rejecting stale SDP payload (age=\(Int(age))s)")
+                            continue
+                        }
+                        // Verify DTLS fingerprint in SDP matches what was committed in the sealed payload
                         let remoteDesc = RTCSessionDescription(type: .answer, sdp: sealedPayload.sdp)
+                        if let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: remoteDesc),
+                           sdpFingerprint != sealedPayload.dtlsFingerprint {
+                            SanchrLogger.calls.error("DTLS fingerprint mismatch — rejecting answer to prevent MITM")
+                            continue
+                        }
                         try await self.webRTCClient.setRemoteDescription(remoteDesc)
-                        SanchrLogger.calls.info("E2EE answer: peer fingerprint = \(sealedPayload.dtlsFingerprint)")
+                        SanchrLogger.calls.info("E2EE answer: DTLS fingerprint verified = \(sealedPayload.dtlsFingerprint)")
                     } catch {
                         SanchrLogger.calls.error("Failed to decrypt SDP answer: \(error.localizedDescription)")
                     }
@@ -522,6 +533,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Internal Cleanup
 
     private func endCallInternal(callId: String, reason: CallState.EndReason) {
+        // Guard: skip if this call has already been cleaned up
+        switch callState {
+        case .idle, .ended: return
+        default: break
+        }
         SanchrLogger.calls.info("Call ended: \(callId) reason=\(String(describing: reason))")
 
         durationTimer?.invalidate()
@@ -550,6 +566,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
 
         // Padding: keep peer connection alive until next time bucket, then tear down
+        // For calls that never became active (e.g., busy/declined), use now as start
+        // so that teardown is still padded to the first bucket (60 s), hiding whether
+        // the call was answered from traffic analysis.
         let start = callStartTime ?? Date()
         let paddingTarget = CallDurationPaddingManager.paddingEnd(callStart: start, callEnd: Date())
         callStartTime = nil
@@ -590,9 +609,19 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     senderDevice: 1
                 )
                 let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
-
+                let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
+                guard age <= 30 else {
+                    SanchrLogger.calls.error("Rejecting stale incoming call offer (age=\(Int(age))s)")
+                    return
+                }
+                let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
+                if let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
+                   sdpFingerprint != sealedPayload.dtlsFingerprint {
+                    SanchrLogger.calls.error("DTLS fingerprint mismatch — rejecting incoming offer to prevent MITM")
+                    return
+                }
                 SanchrLogger.calls.info(
-                    "E2EE offer decrypted from \(offer.callerID); fingerprint = \(sealedPayload.dtlsFingerprint)")
+                    "E2EE offer verified from \(offer.callerID); fingerprint = \(sealedPayload.dtlsFingerprint)")
 
                 await MainActor.run {
                     self.handleIncomingCall(
@@ -606,6 +635,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             } catch {
                 SanchrLogger.calls.error(
                     "Failed to decrypt incoming call offer: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.openSignalingStream(callId: offer.callID)
+                    var signal = Sanchr_Calling_CallSignal()
+                    signal.callID = offer.callID
+                    var ctrl = Sanchr_Calling_CallControl()
+                    ctrl.action = "declined"
+                    signal.control = ctrl
+                    self.outboundContinuation?.yield(signal)
+                }
             }
         }
     }

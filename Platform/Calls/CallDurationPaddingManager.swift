@@ -21,6 +21,7 @@ final class CallDurationPaddingManager: @unchecked Sendable {
     /// Delays `onComplete` until `target`. If `target` is in the past, calls immediately.
     /// The caller keeps the peer connection alive until `onComplete` fires.
     func padThenComplete(target: Date, onComplete: @escaping @Sendable () -> Void) {
+        paddingTask?.cancel()
         let remaining = target.timeIntervalSinceNow
         guard remaining > 0 else {
             onComplete()
