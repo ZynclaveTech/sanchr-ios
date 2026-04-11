@@ -20,6 +20,14 @@ private struct PendingMediaSend: Identifiable {
     let contentType: Message.MessageContent
 }
 
+/// Carries the original image through the editor flow.
+/// Conforms to `Identifiable` so it can drive a `.fullScreenCover(item:)`.
+private struct PendingImageEdit: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let blurHash: String?
+}
+
 struct ChatDetailView: View {
     let conversation: Conversation
 
@@ -44,6 +52,7 @@ struct ChatDetailView: View {
     @State private var voicePlayback = VoicePlaybackController()
     @State private var appearanceTick: UInt64 = 0
     @State private var pendingMediaSend: PendingMediaSend? = nil
+    @State private var pendingImageEdit: PendingImageEdit? = nil
     @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
     @StateObject private var contactCoordinator = ContactActionCoordinator(
         contactRepository: BootstrapContactRepository(),
@@ -440,6 +449,14 @@ struct ChatDetailView: View {
                 commitPendingMediaSend(payload, caption: caption)
             } onCancel: {
                 pendingMediaSend = nil
+            }
+        }
+        .fullScreenCover(item: $pendingImageEdit) { pending in
+            ImageEditorView(sourceImage: pending.image) { editedImage in
+                pendingImageEdit = nil
+                Task { await commitImageEdit(editedImage, blurHash: pending.blurHash) }
+            } onCancel: {
+                pendingImageEdit = nil
             }
         }
         .overlay {
@@ -1461,28 +1478,40 @@ struct ChatDetailView: View {
                 contentType: .video(attachment)
             )
         } else {
-            guard let imageData = try? await item.loadTransferable(type: Data.self) else { return }
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
-            try? imageData.write(to: tempURL)
+            guard let imageData = try? await item.loadTransferable(type: Data.self),
+                  let sourceImage = UIImage(data: imageData) else { return }
 
+            // Pre-compute blur hash on the original image so it survives editing.
             let imageBlurHash: String? = await Task.detached(priority: .utility) {
-                UIImage(data: imageData).flatMap { BlurHash.encode($0) }
+                BlurHash.encode(sourceImage)
             }.value
 
-            var attachment = Message.MediaAttachment(
-                url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
-                mimeType: "image/jpeg", sizeBytes: Int64(imageData.count), thumbnailURL: nil
-            )
-            attachment.blurHash = imageBlurHash
-
-            // Show caption screen before sending — user can optionally add a caption.
-            pendingMediaSend = PendingMediaSend(
-                preview: .image(imageData),
-                localFileURL: tempURL,
-                mimeType: "image/jpeg",
-                contentType: .image(attachment)
-            )
+            // Open the image editor before showing the caption screen.
+            pendingImageEdit = PendingImageEdit(image: sourceImage, blurHash: imageBlurHash)
         }
+    }
+
+    /// Called by the `ImageEditorView` completion handler with the edited `UIImage`.
+    /// JPEG-encodes the result, writes it to a temp file, then routes it to
+    /// the standard caption / send flow via `pendingMediaSend`.
+    @MainActor
+    private func commitImageEdit(_ editedImage: UIImage, blurHash: String?) async {
+        guard let imageData = editedImage.jpegData(compressionQuality: 0.92) else { return }
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
+        try? imageData.write(to: tempURL)
+
+        var attachment = Message.MediaAttachment(
+            url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
+            mimeType: "image/jpeg", sizeBytes: Int64(imageData.count), thumbnailURL: nil
+        )
+        attachment.blurHash = blurHash
+
+        pendingMediaSend = PendingMediaSend(
+            preview: .image(imageData),
+            localFileURL: tempURL,
+            mimeType: "image/jpeg",
+            contentType: .image(attachment)
+        )
     }
 }
 
