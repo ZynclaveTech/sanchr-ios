@@ -10,6 +10,7 @@ import SanchrShared
 
 private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
     let localUserId: String = "test-local-user"
+    // Intentionally unsynchronised — MockSignalManager is only used from sequential XCTest flows.
     var encryptCallCount: Int = 0
 
     func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data {
@@ -135,58 +136,34 @@ private final class MockCallSignalingService: Sanchr_Calling_CallSignalingServic
         _ request: Sanchr_Calling_CallOffer,
         callOptions: CallOptions?
     ) -> GRPCAsyncUnaryCall<Sanchr_Calling_CallOffer, Sanchr_Calling_CallResponse> {
-        self.makeAsyncUnaryCall(
-            path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.initiateCall.path,
-            request: request,
-            callOptions: callOptions ?? defaultCallOptions,
-            interceptors: []
-        )
+        fatalError("MockCallSignalingService: \(#function) must not be called in tests — shadow the async method instead")
     }
 
     func makeCallStreamCall(
         callOptions: CallOptions?
     ) -> GRPCAsyncBidirectionalStreamingCall<Sanchr_Calling_CallSignal, Sanchr_Calling_CallSignal> {
-        self.makeAsyncBidirectionalStreamingCall(
-            path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.callStream.path,
-            callOptions: callOptions ?? defaultCallOptions,
-            interceptors: []
-        )
+        fatalError("MockCallSignalingService: \(#function) must not be called in tests — shadow the async method instead")
     }
 
     func makeEndCallCall(
         _ request: Sanchr_Calling_EndCallRequest,
         callOptions: CallOptions?
     ) -> GRPCAsyncUnaryCall<Sanchr_Calling_EndCallRequest, Sanchr_Calling_EndCallResponse> {
-        self.makeAsyncUnaryCall(
-            path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.endCall.path,
-            request: request,
-            callOptions: callOptions ?? defaultCallOptions,
-            interceptors: []
-        )
+        fatalError("MockCallSignalingService: \(#function) must not be called in tests — shadow the async method instead")
     }
 
     func makeGetCallHistoryCall(
         _ request: Sanchr_Calling_GetCallHistoryRequest,
         callOptions: CallOptions?
     ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetCallHistoryRequest, Sanchr_Calling_GetCallHistoryResponse> {
-        self.makeAsyncUnaryCall(
-            path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getCallHistory.path,
-            request: request,
-            callOptions: callOptions ?? defaultCallOptions,
-            interceptors: []
-        )
+        fatalError("MockCallSignalingService: \(#function) must not be called in tests — shadow the async method instead")
     }
 
     func makeGetTurnCredentialsCall(
         _ request: Sanchr_Calling_GetTurnCredentialsRequest,
         callOptions: CallOptions?
     ) -> GRPCAsyncUnaryCall<Sanchr_Calling_GetTurnCredentialsRequest, Sanchr_Calling_TurnCredentials> {
-        self.makeAsyncUnaryCall(
-            path: Sanchr_Calling_CallSignalingServiceClientMetadata.Methods.getTurnCredentials.path,
-            request: request,
-            callOptions: callOptions ?? defaultCallOptions,
-            interceptors: []
-        )
+        fatalError("MockCallSignalingService: \(#function) must not be called in tests — shadow the async method instead")
     }
 }
 
@@ -196,7 +173,6 @@ private final class MockCallSignalingService: Sanchr_Calling_CallSignalingServic
 /// line in the SDP so the DTLS guard passes or fails predictably.
 private func makeSealedPayload(
     ageDelta: TimeInterval = 0,
-    sdpFingerprint: String = "",
     payloadFingerprint: String = "",
     sdpBody: String = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\n"
 ) throws -> Data {
@@ -258,25 +234,7 @@ final class CallManagerE2EETests: XCTestCase {
                 XCTFail("Expected .outgoing after startCall, got \(callManager.callState)")
             }
         } catch {
-            // WebRTC or CallKit is unavailable in this test environment (no audio hardware
-            // or CallKit daemon in the simulator under test). Verify the E2EE path itself
-            // was reached by confirming encrypt was called — we do this by testing the
-            // payload encoding in isolation below rather than failing the whole test.
-            //
-            // If the error is before the encrypt step (e.g. RTCPeerConnection failure),
-            // the cipher path was never exercised. Validate the round-trip directly.
-            let rawPayload = SealedCallPayload(
-                sdp: "v=0\r\n",
-                dtlsFingerprint: "",
-                paddingUntil: Date().timeIntervalSince1970 + 60,
-                timestamp: Date().timeIntervalSince1970
-            )
-            let encoded = try JSONEncoder().encode(rawPayload)
-            let encrypted = try await signalManager.encrypt(plaintext: encoded, for: "bob", deviceId: 1)
-            let decrypted = try await signalManager.decrypt(ciphertext: encrypted, from: "bob", senderDevice: 1)
-            let decoded = try JSONDecoder().decode(SealedCallPayload.self, from: decrypted)
-            XCTAssertEqual(decoded.sdp, rawPayload.sdp,
-                "Identity cipher round-trip must preserve SDP — E2EE pipe is wired correctly")
+            throw XCTSkip("WebRTC/CallKit unavailable — skipping outgoing call E2EE smoke test: \(error.localizedDescription)")
         }
     }
 
@@ -290,12 +248,21 @@ final class CallManagerE2EETests: XCTestCase {
         // Build SDP with a real fingerprint line and matching payload field.
         let fp = "sha-256 AA:BB:CC:DD:EE:FF"
         let sdp = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\na=fingerprint:\(fp)\r\n"
-        let payloadData = try makeSealedPayload(sdpFingerprint: fp, payloadFingerprint: fp, sdpBody: sdp)
+        let payloadData = try makeSealedPayload(payloadFingerprint: fp, sdpBody: sdp)
         let offer = makeOfferEvent(payload: payloadData)
 
         callManager.handleIncomingCallOffer(offer)
 
-        try await Task.sleep(for: .milliseconds(150))
+        // Poll until state transitions away from .idle (or for up to 2 s on a loaded CI runner)
+        let presented = XCTNSPredicateExpectation(
+            predicate: NSPredicate { [weak callManager] _, _ in
+                guard let cm = callManager else { return false }
+                if case .idle = cm.callState { return false }
+                return true
+            },
+            object: nil
+        )
+        await fulfillment(of: [presented], timeout: 2.0)
 
         // Accept .incoming (CallKit available) or .ended(_, .failed) (CallKit unavailable in CI).
         // Both prove the E2EE validation passed — only .idle would mean decryption/validation rejected the call.
@@ -321,12 +288,12 @@ final class CallManagerE2EETests: XCTestCase {
         let fp = "sha-256 AA:BB:CC:DD:EE:FF"
         let sdp = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\na=fingerprint:\(fp)\r\n"
         // 60 seconds in the past — well past the 30 s staleness window
-        let payloadData = try makeSealedPayload(ageDelta: -60, sdpFingerprint: fp, payloadFingerprint: fp, sdpBody: sdp)
+        let payloadData = try makeSealedPayload(ageDelta: -60, payloadFingerprint: fp, sdpBody: sdp)
         let offer = makeOfferEvent(payload: payloadData)
 
         callManager.handleIncomingCallOffer(offer)
 
-        try await Task.sleep(for: .milliseconds(150))
+        try await Task.sleep(for: .milliseconds(500))
 
         XCTAssertEqual(callManager.callState, .idle,
             "Stale offer (60 s old) must be rejected — replay protection must hold")
@@ -346,7 +313,7 @@ final class CallManagerE2EETests: XCTestCase {
 
         callManager.handleIncomingCallOffer(offer)
 
-        try await Task.sleep(for: .milliseconds(150))
+        try await Task.sleep(for: .milliseconds(500))
 
         XCTAssertEqual(callManager.callState, .idle,
             "DTLS fingerprint mismatch must be rejected to prevent MITM — call must not be presented")
@@ -360,7 +327,7 @@ final class CallManagerE2EETests: XCTestCase {
     func test_endCall_setsStateToEnded() async throws {
         let callManager = makeCallManager()
 
-        // Directly set outgoing state — isolates the teardown path from WebRTC.
+        // Inject outgoing state directly — bypasses WebRTC/CallKit to isolate the teardown path.
         callManager.callState = .outgoing(callId: "teardown-test-id", recipientId: "bob")
 
         callManager.endCall()
