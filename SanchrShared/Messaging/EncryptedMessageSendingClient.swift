@@ -187,15 +187,21 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
     private let grpcClient: GRPCClientProtocol
     private let signalManager: SignalProtocolManagerProtocol
     private let sealedSenderManager: SealedSenderManagerProtocol
+    /// The device ID of this installation. Self-sync envelopes for this device
+    /// are filtered out so the server does not echo the message back to the
+    /// sending device — which would cause a duplicate row in the transcript.
+    private let localDeviceId: Int32
 
     public init(
         grpcClient: GRPCClientProtocol,
         signalManager: SignalProtocolManagerProtocol,
-        sealedSenderManager: SealedSenderManagerProtocol
+        sealedSenderManager: SealedSenderManagerProtocol,
+        localDeviceId: Int32
     ) {
         self.grpcClient = grpcClient
         self.signalManager = signalManager
         self.sealedSenderManager = sealedSenderManager
+        self.localDeviceId = localDeviceId
     }
 
     public func sendSealedMessage(
@@ -236,7 +242,10 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         }
 
         // 4. Self-sync: build InnerPayload with isSync=true and encrypt for
-        //    the sender's own other devices so multi-device stays in sync.
+        //    the sender's own OTHER devices so multi-device stays in sync.
+        //    The current sending device is explicitly excluded — routing a
+        //    self-sync envelope back to ourselves would produce a duplicate
+        //    transcript row (the local optimistic message already covers it).
         let syncPayloadData = try sealedSenderManager.encodeInnerPayload(
             conversationId: conversationId,
             contentType: contentType,
@@ -248,7 +257,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
                 plaintext: syncPayloadData,
                 recipientId: senderId
             )
-            for dm in selfDeviceMessages {
+            for dm in selfDeviceMessages where dm.deviceID != localDeviceId {
                 var sealed = Sanchr_Messaging_SealedDeviceMessage()
                 sealed.recipientID = dm.recipientID
                 sealed.deviceID = dm.deviceID

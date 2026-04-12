@@ -87,10 +87,41 @@ struct SanchrApp: App {
 
     /// Wire the PushManager as the UNUserNotificationCenter delegate
     /// and share it with the AppDelegate for token forwarding.
+    ///
+    /// Also registers `onSilentWakeup` so that sealed-sender background pushes
+    /// (which carry no custom payload) trigger a gRPC sync and schedule a
+    /// local `UNNotificationRequest` to surface new messages to the user.
     private func configurePushManager() {
         let pushManager = container.pushManager
         UNUserNotificationCenter.current().delegate = pushManager
         appDelegate.pushManager = pushManager
+
+        // Capture the realtime service as a let so the Sendable closure can
+        // reference it without retaining `self` (which is a SwiftUI struct).
+        let realtimeService = container.realtimeService
+        pushManager.onSilentWakeup = { @Sendable in
+            let newCount = await realtimeService.syncNow()
+            guard newCount > 0 else { return .noData }
+
+            // Schedule a local notification to alert the user. Message content
+            // is E2EE so we show a generic placeholder — a future
+            // NotificationServiceExtension can decrypt and enrich this.
+            let content = UNMutableNotificationContent()
+            content.title = "Sanchr"
+            content.body = newCount == 1 ? "New message" : "\(newCount) new messages"
+            content.sound = .default
+            content.categoryIdentifier = SanchrNotificationCategory.message
+
+            let request = UNNotificationRequest(
+                identifier: "sanchr.bg.message-\(UUID().uuidString)",
+                content: content,
+                trigger: nil  // deliver immediately
+            )
+            try? await UNUserNotificationCenter.current().add(request)
+            SanchrLogger.push.info(
+                "Scheduled local notification for \(newCount) new message(s) from silent push")
+            return .newData
+        }
 
         SanchrLogger.push.info("PushManager wired as UNUserNotificationCenter delegate")
     }

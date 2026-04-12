@@ -187,12 +187,20 @@ final class DependencyContainer: @unchecked Sendable {
 
     /// Sealed sender send client. Wraps plaintext in InnerPayload, Signal-encrypts
     /// per device, acquires a delivery token, and dispatches via unauthenticated RPC.
-    @ObservationIgnored lazy var sealedMessageSendingClient: SealedMessageSendingClient =
-        DefaultSealedMessageSendingClient(
+    @ObservationIgnored lazy var sealedMessageSendingClient: SealedMessageSendingClient = {
+        // Parse the local device ID (stored as a String in the keychain).
+        // Default to 1 if unreadable — the filter is best-effort; a wrong
+        // value simply means this device may receive a self-sync echo for
+        // multi-device setups, which is harmless (dedup handles it).
+        let deviceIdString = try? secureStorage.readDeviceId()
+        let localDeviceId = Int32(deviceIdString ?? "") ?? 1
+        return DefaultSealedMessageSendingClient(
             grpcClient: grpcClient,
             signalManager: signalProtocol,
-            sealedSenderManager: sealedSenderManager
+            sealedSenderManager: sealedSenderManager,
+            localDeviceId: localDeviceId
         )
+    }()
 
     /// SOLE outgoing-message send pipeline. `ChatDetailViewModel` and the
     /// share-extension `ShareSendCoordinator` both call into this actor — no
@@ -542,10 +550,12 @@ final class DependencyContainer: @unchecked Sendable {
             signalManager: signalSessionManager,
             authRetrier: authRetryingAdapter
         )
+        let deviceIdStr = try? secureStorage.readDeviceId()
         self.sealedMessageSendingClient = DefaultSealedMessageSendingClient(
             grpcClient: grpcClient,
             signalManager: signalSessionManager,
-            sealedSenderManager: sealedSenderManager
+            sealedSenderManager: sealedSenderManager,
+            localDeviceId: Int32(deviceIdStr ?? "") ?? 1
         )
         self.messageSender = MessageSender(
             db: localDatabase,

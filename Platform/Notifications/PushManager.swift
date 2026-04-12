@@ -60,8 +60,15 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Conversation currently visible in the UI, used to suppress duplicate banners.
     private var activeConversationId: String?
 
-    /// Optional app-provided sync handler used for silent pushes.
+    /// Optional app-provided sync handler used for silent pushes that carry a
+    /// structured `SanchrPushPayload` (e.g. non-sealed-sender message pushes).
     var silentPushHandler: (@Sendable (SanchrPushPayload) async -> UIBackgroundFetchResult)?
+
+    /// Called unconditionally on every silent/background push that has **no**
+    /// structured payload — i.e. sealed-sender `content-available: 1` wakes.
+    /// The handler is responsible for syncing pending messages and scheduling
+    /// any local notification to surface new content to the user.
+    var onSilentWakeup: (@Sendable () async -> UIBackgroundFetchResult)?
 
     // MARK: - Dependencies
 
@@ -373,22 +380,33 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Handle silent push for background data sync.
     /// Returns the appropriate `UIBackgroundFetchResult`.
     func handleSilentPush(userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
-        guard let payload = SanchrNotificationService.processPayload(userInfo) else {
-            return .noData
+        let payload = SanchrNotificationService.processPayload(userInfo)
+
+        if let payload {
+            SanchrLogger.push.info("Handling silent push: type=\(payload.type.rawValue)")
+
+            // Update badge if provided.
+            if let badge = payload.badge {
+                await SanchrNotificationService.updateBadgeCount(badge)
+            }
+
+            if let silentPushHandler {
+                return await silentPushHandler(payload)
+            }
+
+            return payload.badge == nil ? .noData : .newData
         }
 
-        SanchrLogger.push.info("Handling silent push: type=\(payload.type.rawValue)")
-
-        // Update badge if provided
-        if let badge = payload.badge {
-            await SanchrNotificationService.updateBadgeCount(badge)
+        // No structured payload — this is a sealed-sender `content-available`
+        // wake with zero custom data. Hand off to the unconditional sync
+        // handler so pending messages are fetched and a local notification
+        // is scheduled for the user.
+        SanchrLogger.push.info("Silent push: no structured payload, triggering background sync")
+        if let onSilentWakeup {
+            return await onSilentWakeup()
         }
 
-        if let silentPushHandler {
-            return await silentPushHandler(payload)
-        }
-
-        return payload.badge == nil ? .noData : .newData
+        return .noData
     }
 
     // MARK: - Active Conversation Tracking

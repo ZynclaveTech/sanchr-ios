@@ -69,6 +69,7 @@ struct ChatDetailView: View {
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @State private var messageToForward: Message?
+    @State private var callErrorMessage: String?
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
 
@@ -529,6 +530,14 @@ struct ChatDetailView: View {
         } message: {
             Text(documentCoordinator.resolveError ?? "")
         }
+        .alert("Call Failed", isPresented: Binding(
+            get: { callErrorMessage != nil },
+            set: { if !$0 { callErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(callErrorMessage ?? "")
+        }
         .task(id: "bubble-viewers-reconfigure") {
             contactCoordinator.reconfigure(
                 contactRepository: container.contactRepository,
@@ -594,21 +603,29 @@ struct ChatDetailView: View {
                         if let recipient {
                             headerActionButton(icon: "video.fill") {
                                 Task {
-                                    try? await container.startCallUseCase.execute(
-                                        recipientId: recipient.id,
-                                        recipientName: recipient.displayName,
-                                        isVideo: true
-                                    )
+                                    do {
+                                        try await container.startCallUseCase.execute(
+                                            recipientId: recipient.id,
+                                            recipientName: recipient.displayName,
+                                            isVideo: true
+                                        )
+                                    } catch {
+                                        callErrorMessage = error.localizedDescription
+                                    }
                                 }
                             }
 
                             headerActionButton(icon: "phone.fill") {
                                 Task {
-                                    try? await container.startCallUseCase.execute(
-                                        recipientId: recipient.id,
-                                        recipientName: recipient.displayName,
-                                        isVideo: false
-                                    )
+                                    do {
+                                        try await container.startCallUseCase.execute(
+                                            recipientId: recipient.id,
+                                            recipientName: recipient.displayName,
+                                            isVideo: false
+                                        )
+                                    } catch {
+                                        callErrorMessage = error.localizedDescription
+                                    }
                                 }
                             }
                         }
