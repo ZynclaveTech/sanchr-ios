@@ -38,6 +38,7 @@ struct ChatDetailView: View {
     @State private var showAttachmentPicker = false
     @State private var showCameraCapture = false
     @State private var showEmojiPicker = false
+    @State private var showStickerPicker = false
     @State private var showPhotosPicker = false
     @State private var showFileImporter = false
     @State private var showContactPicker = false
@@ -162,11 +163,12 @@ struct ChatDetailView: View {
                         )
                     }
                 } else {
-                    // Keyboard appeared — mutually exclusive with attachment & emoji trays
-                    if showAttachmentPicker || showEmojiPicker {
+                    // Keyboard appeared — mutually exclusive with attachment, emoji & sticker trays
+                    if showAttachmentPicker || showEmojiPicker || showStickerPicker {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             showAttachmentPicker = false
                             showEmojiPicker = false
+                            showStickerPicker = false
                         }
                     }
                 }
@@ -254,6 +256,15 @@ struct ChatDetailView: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showContactPicker = true
                             }
+                        case .gif:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    showStickerPicker = true
+                                }
+                            }
                         case .location:
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 showAttachmentPicker = false
@@ -283,6 +294,32 @@ struct ChatDetailView: View {
                 EmojiPickerSheet { emoji in
                     viewModel.inputText.append(emoji)
                 }
+                .frame(height: 280)
+                .background(SanchrExportColors.background)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if showStickerPicker {
+                StickerPickerSheet(
+                    onStickerSelected: { data in
+                        let ctx = makeAttachmentSendContext()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showStickerPicker = false
+                        }
+                        Task { @MainActor in
+                            await viewModel.send(intent: .sticker(data), context: ctx)
+                        }
+                    },
+                    onGIFSelected: { url in
+                        let ctx = makeAttachmentSendContext()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showStickerPicker = false
+                        }
+                        Task { @MainActor in
+                            await viewModel.send(intent: .gif(url), context: ctx)
+                        }
+                    }
+                )
                 .frame(height: 280)
                 .background(SanchrExportColors.background)
                 .transition(.move(edge: .bottom).combined(with: .opacity))

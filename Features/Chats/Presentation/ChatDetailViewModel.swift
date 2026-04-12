@@ -656,6 +656,66 @@ final class ChatDetailViewModel {
                 sessionService: context.sessionService,
                 messageSender: context.messageSender
             )
+
+        case .sticker(let pngData):
+            // Write the PNG to a temp file and send through the image pipeline.
+            // Stickers skip the caption screen — they send immediately.
+            let tmpURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("sticker-\(UUID().uuidString).png")
+            do {
+                try pngData.write(to: tmpURL)
+            } catch {
+                SanchrLogger.chat.error("sticker: failed to write temp PNG: \(error.localizedDescription)")
+                return
+            }
+            let attachment = Message.MediaAttachment(
+                url: tmpURL,
+                encryptionKey: Data(),
+                encryptionIV: Data(),
+                mimeType: "image/png",
+                sizeBytes: Int64(pngData.count),
+                thumbnailURL: nil,
+                caption: nil
+            )
+            await sendMediaMessage(
+                localFileURL: tmpURL,
+                mimeType: "image/png",
+                contentType: .image(attachment),
+                conversationId: context.conversationId,
+                caption: nil,
+                sessionService: context.sessionService,
+                messageSender: context.messageSender
+            )
+
+        case .gif(let remoteURL):
+            // Download the GIF from Tenor and send through the image pipeline.
+            // GIFs skip the caption screen — they send immediately.
+            do {
+                let (data, _) = try await URLSession.shared.data(from: remoteURL)
+                let tmpURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("gif-\(UUID().uuidString).gif")
+                try data.write(to: tmpURL)
+                let attachment = Message.MediaAttachment(
+                    url: tmpURL,
+                    encryptionKey: Data(),
+                    encryptionIV: Data(),
+                    mimeType: "image/gif",
+                    sizeBytes: Int64(data.count),
+                    thumbnailURL: nil,
+                    caption: nil
+                )
+                await sendMediaMessage(
+                    localFileURL: tmpURL,
+                    mimeType: "image/gif",
+                    contentType: .image(attachment),
+                    conversationId: context.conversationId,
+                    caption: nil,
+                    sessionService: context.sessionService,
+                    messageSender: context.messageSender
+                )
+            } catch {
+                SanchrLogger.chat.error("gif: download failed: \(error.localizedDescription)")
+            }
         }
     }
 

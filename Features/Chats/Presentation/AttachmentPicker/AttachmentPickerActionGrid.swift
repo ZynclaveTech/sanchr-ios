@@ -2,7 +2,7 @@ import UIKit
 import SanchrShared
 
 enum AttachmentPillItem: String, CaseIterable {
-    case camera, photos, file, contact, location
+    case camera, photos, gif, file, contact, location
 }
 
 @MainActor
@@ -119,6 +119,7 @@ final class AttachmentPillButton: UIControl {
         switch item {
         case .camera: return "camera.fill"
         case .photos: return "photo.on.rectangle.angled"
+        case .gif: return "sparkles"
         case .file: return "doc.fill"
         case .contact: return "person.crop.circle.fill"
         case .location: return "location.fill"
@@ -128,6 +129,7 @@ final class AttachmentPillButton: UIControl {
         switch item {
         case .camera: return "Camera"
         case .photos: return "Photos"
+        case .gif: return "GIF"
         case .file: return "File"
         case .contact: return "Contact"
         case .location: return "Location"

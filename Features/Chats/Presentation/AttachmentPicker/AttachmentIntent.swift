@@ -9,6 +9,8 @@ enum AttachmentIntent: Sendable {
     case contact(StrippedContact)
     case location(LocationPayload)
     case voice(VoiceClip)
+    case sticker(Data)                 // PNG rendered from an emoji sticker
+    case gif(URL)                      // remote GIF URL (Tenor) — downloaded at send time
 }
 
 struct PickedMedia: Sendable, Identifiable, Equatable {
