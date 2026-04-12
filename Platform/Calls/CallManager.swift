@@ -278,8 +278,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 // no phantom entry lingers in the CallKit call list.
                 // (Apple explicitly endorses this pattern in the PushKit documentation.)
                 let throwawayUUID = UUID()
-                provider.reportNewIncomingCall(with: throwawayUUID, update: update) { [weak self] _ in
-                    self?.provider.reportCall(with: throwawayUUID, endedAt: Date(), reason: .failed)
+                let capturedProvider = provider
+                capturedProvider.reportNewIncomingCall(with: throwawayUUID, update: update) { _ in
+                    capturedProvider.reportCall(with: throwawayUUID, endedAt: Date(), reason: .unanswered)
                 }
                 SanchrLogger.calls.warning(
                     "VoIP push: satisfied PushKit via throwaway UUID — state mismatch for call \(callId)")
