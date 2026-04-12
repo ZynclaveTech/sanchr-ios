@@ -59,6 +59,7 @@ private final class MinimalSignalProtocol: SignalProtocolManagerProtocol, @unche
     func isIdentityVerified(userId: String) -> Bool { false }
     func localIdentityKeyData() throws -> Data { Data() }
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
+    var localUserId: String { "" }
 }
 
 /// Minimal local database stub (only `updateUserPresence` is used in these tests).
