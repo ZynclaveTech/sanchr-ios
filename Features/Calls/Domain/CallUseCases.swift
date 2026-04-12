@@ -11,10 +11,21 @@ enum CallUseCases {
     struct StartCall: Sendable {
         private let callManager: CallManager
         private let networkMonitor: NetworkMonitorProtocol
+        /// Called right before the gRPC call to sanchr-call to ensure the access
+        /// token is fresh. sanchr-call validates the session on every unary RPC
+        /// (unlike sanchr-core's streaming API which authenticates once at stream
+        /// open), so a stale token after the app resumes from background would
+        /// cause GetTurnCredentials/InitiateCall to fail with UNAUTHENTICATED.
+        private let tokenRefresher: @Sendable () async throws -> Void
 
-        init(callManager: CallManager, networkMonitor: NetworkMonitorProtocol) {
+        init(
+            callManager: CallManager,
+            networkMonitor: NetworkMonitorProtocol,
+            tokenRefresher: @escaping @Sendable () async throws -> Void = {}
+        ) {
             self.callManager = callManager
             self.networkMonitor = networkMonitor
+            self.tokenRefresher = tokenRefresher
         }
 
         func execute(recipientId: String, recipientName: String, isVideo: Bool) async throws {
@@ -23,11 +34,30 @@ enum CallUseCases {
                 throw AppError.networkUnavailable
             }
 
-            // Check microphone permission
+            // Request microphone permission if not yet determined; deny → throw.
             let audioStatus = AVAudioApplication.shared.recordPermission
-            guard audioStatus == .granted else {
-                throw AppError.callPermissionDenied
+            if audioStatus == .undetermined {
+                let granted = await AVAudioApplication.requestRecordPermission()
+                guard granted else { throw AppError.callPermissionDenied }
+            } else {
+                guard audioStatus == .granted else { throw AppError.callPermissionDenied }
             }
+
+            // For video calls, also request camera permission if needed.
+            if isVideo {
+                let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
+                if cameraStatus == .notDetermined {
+                    let granted = await AVCaptureDevice.requestAccess(for: .video)
+                    guard granted else { throw AppError.callPermissionDenied }
+                } else {
+                    guard cameraStatus == .authorized else { throw AppError.callPermissionDenied }
+                }
+            }
+
+            // Proactively refresh the access token so sanchr-call's per-request
+            // session validation never sees a stale JWT. forceRefreshToken() is
+            // a no-op if a refresh is already in flight (coalesces via activeRefreshTask).
+            try await tokenRefresher()
 
             try await callManager.startCall(
                 recipientId: recipientId,

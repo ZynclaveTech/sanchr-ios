@@ -41,19 +41,6 @@ private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
 
-// MARK: - MockSealedSenderManager
-
-private final class MockSealedSenderManager: SealedSenderManagerProtocol, @unchecked Sendable {
-    func getSenderCertificate() async throws -> Data { Data() }
-    func acquireDeliveryToken() async throws -> Data { Data("mock-token".utf8) }
-    func encodeInnerPayload(conversationId: String, contentType: String, content: Data, isSync: Bool) throws -> Data { Data() }
-    func decodeInnerPayload(_ data: Data) throws -> InnerPayload {
-        InnerPayload(conversationId: "", contentType: "", content: Data(), isSync: false)
-    }
-    static func isInnerPayload(_ data: Data) -> Bool { false }
-    func replenishIfNeeded() async {}
-}
-
 // MARK: - MockCallSignalingService
 
 // Uses FakeChannel so GRPCClient conformance is satisfied. Unary methods are shadowed
@@ -211,14 +198,12 @@ final class CallManagerE2EETests: XCTestCase {
     /// and before the asynchronous signaling stream task is scheduled.
     func test_startCall_encryptsAndSendsPayload() async throws {
         let signalManager = MockSignalManager()
-        let sealedSenderManager = MockSealedSenderManager()
         let callService = MockCallSignalingService()
         let webRTCClient = WebRTCClient()
         let callManager = CallManager(
             webRTCClient: webRTCClient,
             callService: callService,
-            signalManager: signalManager,
-            sealedSenderManager: sealedSenderManager
+            signalManager: signalManager
         )
 
         do {
@@ -346,8 +331,7 @@ final class CallManagerE2EETests: XCTestCase {
         CallManager(
             webRTCClient: WebRTCClient(),
             callService: MockCallSignalingService(),
-            signalManager: MockSignalManager(),
-            sealedSenderManager: MockSealedSenderManager()
+            signalManager: MockSignalManager()
         )
     }
 }

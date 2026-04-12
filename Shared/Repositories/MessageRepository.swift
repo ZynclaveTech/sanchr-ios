@@ -705,7 +705,21 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         var latestTimestamp = sinceTimestamp
 
         for try await envelope in stream {
-            if let message = await decodeMessage(from: envelope) {
+            // Sealed messages (content_type == "sealed") are stored in the
+            // device outbox with sentinel sender_id = nil UUID and sender_device = 0
+            // by queue_sealed_outbox(). Passing those sentinel values to Signal's
+            // ProtocolAddress constructor throws invalidProtocolAddress. Route
+            // sealed envelopes through the sealed-sender decryption path instead.
+            if envelope.contentType == "sealed" {
+                var sealedMsg = Sanchr_Messaging_SealedInboundMessage()
+                sealedMsg.sealedEnvelope = envelope.ciphertext
+                if let event = await decodeSealedMessage(from: sealedMsg) {
+                    if case .message(let message) = event {
+                        count += 1
+                        latestTimestamp = max(latestTimestamp, Int64(message.timestamp.timeIntervalSince1970 * 1000))
+                    }
+                }
+            } else if let message = await decodeMessage(from: envelope) {
                 count += 1
                 latestTimestamp = max(latestTimestamp, Int64(message.timestamp.timeIntervalSince1970 * 1000))
             }

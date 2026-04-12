@@ -30,6 +30,8 @@ public struct Sanchr_Notifications_RegisterPushTokenRequest: Sendable {
   /// "ios" or "android"
   public var platform: String = String()
 
+  public var voipToken: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -83,7 +85,7 @@ fileprivate let _protobuf_package = "sanchr.notifications"
 
 extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterPushTokenRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}platform\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}platform\0\u{3}voip_token\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -93,6 +95,7 @@ extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, 
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.token) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.platform) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.voipToken) }()
       default: break
       }
     }
@@ -105,12 +108,16 @@ extension Sanchr_Notifications_RegisterPushTokenRequest: SwiftProtobuf.Message, 
     if !self.platform.isEmpty {
       try visitor.visitSingularStringField(value: self.platform, fieldNumber: 2)
     }
+    if !self.voipToken.isEmpty {
+      try visitor.visitSingularStringField(value: self.voipToken, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Sanchr_Notifications_RegisterPushTokenRequest, rhs: Sanchr_Notifications_RegisterPushTokenRequest) -> Bool {
     if lhs.token != rhs.token {return false}
     if lhs.platform != rhs.platform {return false}
+    if lhs.voipToken != rhs.voipToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

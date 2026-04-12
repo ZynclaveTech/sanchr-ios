@@ -123,6 +123,10 @@ struct SanchrApp: App {
             return .newData
         }
 
+        // Register with PushKit for VoIP pushes. The incomingVoIPCallHandler closure
+        // is already wired in DependencyContainer.pushManager lazy var.
+        pushManager.setupVoIPRegistration()
+
         SanchrLogger.push.info("PushManager wired as UNUserNotificationCenter delegate")
     }
 

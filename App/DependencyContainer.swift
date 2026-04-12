@@ -385,6 +385,18 @@ final class DependencyContainer: @unchecked Sendable {
 
             return syncedCount > 0 ? .newData : (payload.badge == nil ? .noData : .newData)
         }
+        manager.incomingVoIPCallHandler = { callId, callerId, callType, encryptedSdpPayload in
+            guard let container = weakSelf else { return }
+            // handleVoIPPushIncomingCall must be called synchronously in the PushKit callback.
+            // Since this closure is invoked directly from pushRegistry(_:didReceiveIncomingPushWith:),
+            // we are already on the main queue (PKPushRegistry was set up on .main).
+            container.callManager.handleVoIPPushIncomingCall(
+                callId: callId,
+                callerId: callerId,
+                callType: callType,
+                encryptedSdpPayload: encryptedSdpPayload
+            )
+        }
         return manager
     }()
 
@@ -414,8 +426,7 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
         callService: grpcClient.callSignalingService,
-        signalManager: signalProtocol,
-        sealedSenderManager: sealedSenderManager
+        signalManager: signalProtocol
     )
 
     @ObservationIgnored lazy var realtimeService: RealtimeService = RealtimeService(
@@ -439,10 +450,16 @@ final class DependencyContainer: @unchecked Sendable {
         )
 
     /// Use case: validate and start an outgoing call.
-    @ObservationIgnored lazy var startCallUseCase: CallUseCases.StartCall = CallUseCases.StartCall(
-        callManager: callManager,
-        networkMonitor: networkMonitor
-    )
+    @ObservationIgnored lazy var startCallUseCase: CallUseCases.StartCall = {
+        nonisolated(unsafe) weak var weakSelf = self
+        return CallUseCases.StartCall(
+            callManager: callManager,
+            networkMonitor: networkMonitor,
+            tokenRefresher: {
+                _ = try await weakSelf?.sessionService.forceRefreshToken()
+            }
+        )
+    }()
 
     /// Use case: fetch TURN credentials.
     @ObservationIgnored lazy var getTurnCredentialsUseCase: CallUseCases.GetTurnCredentials =

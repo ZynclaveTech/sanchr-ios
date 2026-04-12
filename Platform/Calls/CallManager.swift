@@ -72,7 +72,6 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let provider: CXProvider
     private let callController: CXCallController
     private let signalManager: SignalProtocolManagerProtocol
-    private let sealedSenderManager: SealedSenderManagerProtocol
 
     // MARK: - Internal State
 
@@ -91,13 +90,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     init(
         webRTCClient: WebRTCClient,
         callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
-        signalManager: SignalProtocolManagerProtocol,
-        sealedSenderManager: SealedSenderManagerProtocol
+        signalManager: SignalProtocolManagerProtocol
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
         self.signalManager = signalManager
-        self.sealedSenderManager = sealedSenderManager
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -161,13 +158,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
         let encryptedPayload = try await signalManager.encrypt(
             plaintext: payloadData, for: recipientId, deviceId: 1)
-        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+        // NOTE: delivery_token (sealed-sender call routing) is not yet implemented on the server.
+        // sanchr-call routes via recipient_id and ignores the token field. Do not acquire a token
+        // here — the acquisition is a blocking gRPC round-trip that fails and kills the call setup.
 
         // 6. Send the encrypted offer to the server
         var callOffer = Sanchr_Calling_CallOffer()
         callOffer.recipientID = recipientId
         callOffer.callType = isVideo ? "video" : "voice"
-        callOffer.deliveryToken = deliveryToken
         callOffer.encryptedSdpPayload = encryptedPayload
 
         let response = try await callService.initiateCall(callOffer)
@@ -239,13 +237,126 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
     }
 
+    /// Called from the PushKit delegate when a VoIP push is received for an incoming call.
+    ///
+    /// PushKit requires `CXProvider.reportNewIncomingCall` to be called synchronously within
+    /// this callback (before the function returns).  SDP decryption is deferred to a background
+    /// Task and the `pendingSdpOffer` is populated asynchronously; `answerCall()` waits for it.
+    ///
+    /// - Parameters:
+    ///   - callId: The call identifier from the push payload.
+    ///   - callerId: The caller's user ID (used as display name placeholder until contacts sync).
+    ///   - callType: "voice" or "video".
+    ///   - encryptedSdpPayload: Raw bytes of the Signal-encrypted SDP offer.
+    func handleVoIPPushIncomingCall(
+        callId: String,
+        callerId: String,
+        callType: String,
+        encryptedSdpPayload: Data
+    ) {
+        guard case .idle = callState else {
+            SanchrLogger.calls.warning(
+                "VoIP push: ignoring incoming call \(callId) while in state \(callState)")
+            return
+        }
+
+        SanchrLogger.calls.info("VoIP push: incoming \(callType) call \(callId) from \(callerId)")
+
+        self.callType = callType
+        self.isVideoEnabled = callType == "video"
+        self.peerId = callerId
+        self.peerName = callerId  // placeholder; updated when contacts load
+
+        let uuid = UUID()
+        self.callUUID = uuid
+        callState = .incoming(callId: callId, callerId: callerId, callerName: callerId)
+
+        let update = CXCallUpdate()
+        update.localizedCallerName = callerId
+        update.hasVideo = callType == "video"
+        update.supportsGrouping = false
+        update.supportsHolding = true
+        update.supportsUngrouping = false
+        update.supportsDTMF = false
+        update.remoteHandle = CXHandle(type: .generic, value: callerId)
+
+        // MUST be called synchronously within the PushKit callback.
+        provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+            if let error {
+                SanchrLogger.calls.error(
+                    "VoIP push: failed to report call \(callId) to CallKit: \(error.localizedDescription)")
+                Task { @MainActor in
+                    self?.endCallInternal(callId: callId, reason: .failed)
+                }
+            }
+        }
+
+        // Decrypt the SDP offer asynchronously. answerCall() will wait for this to
+        // complete (max 5 seconds) before proceeding.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                // FIXME: senderDevice hard-coded to 1 — multi-device accounts not handled.
+                let plaintext = try await self.signalManager.decrypt(
+                    ciphertext: encryptedSdpPayload,
+                    from: callerId,
+                    senderDevice: 1
+                )
+                let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+
+                // VoIP pushes can be delayed by APNs; allow a 120-second window.
+                let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
+                guard age <= 120 else {
+                    SanchrLogger.calls.error(
+                        "VoIP push: rejecting stale SDP for call \(callId) (age=\(Int(age))s)")
+                    endCallInternal(callId: callId, reason: .failed)
+                    return
+                }
+
+                let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
+                guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
+                      sdpFingerprint == sealedPayload.dtlsFingerprint
+                else {
+                    SanchrLogger.calls.error(
+                        "VoIP push: DTLS fingerprint mismatch for call \(callId)")
+                    endCallInternal(callId: callId, reason: .failed)
+                    return
+                }
+
+                self.pendingSdpOffer = Data(sealedPayload.sdp.utf8)
+                SanchrLogger.calls.info(
+                    "VoIP push: SDP decrypted and stored for call \(callId)")
+            } catch {
+                SanchrLogger.calls.error(
+                    "VoIP push: SDP decryption failed for call \(callId): \(error.localizedDescription)")
+                // Don't end the call — give the user a chance to answer.
+                // answerCall() will fail gracefully if SDP is still nil.
+            }
+        }
+    }
+
     /// Answers an incoming call. Called from CallKit delegate or directly.
     func answerCall() async throws {
-        guard case .incoming(let callId, let callerId, _) = callState,
-            let sdpData = pendingSdpOffer
-        else {
-            SanchrLogger.calls.error("answerCall called in invalid state")
+        guard case .incoming(let callId, let callerId, _) = callState else {
+            SanchrLogger.calls.error("answerCall: not in incoming state")
             return
+        }
+
+        // For VoIP push calls the SDP is decrypted asynchronously; wait up to 5s.
+        var sdpData: Data? = pendingSdpOffer
+        if sdpData == nil {
+            SanchrLogger.calls.info("answerCall: waiting for VoIP push SDP decryption...")
+            for _ in 0..<10 {
+                try await Task.sleep(for: .milliseconds(500))
+                if let offer = pendingSdpOffer {
+                    sdpData = offer
+                    break
+                }
+            }
+        }
+        guard let sdpData else {
+            SanchrLogger.calls.error("answerCall: SDP offer unavailable after 5s wait")
+            throw AppError.callConnectionFailed
         }
 
         SanchrLogger.calls.info("Answering call \(callId)")
@@ -410,7 +521,19 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         signalingTask = Task { [weak self] in
             guard let self else { return }
+            // Check cancellation before opening the gRPC stream — endCall() may have
+            // already cancelled this task between openSignalingStream() returning and
+            // this Task body executing on the cooperative thread pool.
+            guard !Task.isCancelled else {
+                SanchrLogger.calls.debug("Signaling task cancelled before stream open for call \(callId)")
+                return
+            }
             let inboundStream = self.callService.callStream(outboundStream)
+            // Second check: endCall() may cancel during the synchronous stream setup above.
+            guard !Task.isCancelled else {
+                SanchrLogger.calls.debug("Signaling task cancelled after stream setup for call \(callId)")
+                return
+            }
             await self.handleSignalingStream(inboundStream, callId: callId)
             if !Task.isCancelled, self.callState.callId == callId {
                 await MainActor.run {

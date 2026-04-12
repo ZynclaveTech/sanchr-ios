@@ -78,8 +78,16 @@ struct ActiveCallView: View {
         .preferredColorScheme(.dark)
         .statusBarHidden(callManager.isVideoEnabled && isActive(callManager.callState))
         .onChange(of: callManager.callState) { _, newState in
-            if case .idle = newState {
+            switch newState {
+            case .idle:
                 dismiss()
+            case .ended:
+                Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    dismiss()
+                }
+            default:
+                break
             }
         }
     }
