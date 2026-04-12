@@ -255,8 +255,35 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         encryptedSdpPayload: Data
     ) {
         guard case .idle = callState else {
-            SanchrLogger.calls.warning(
-                "VoIP push: ignoring incoming call \(callId) while in state \(callState)")
+            // PushKit REQUIRES reportNewIncomingCall to be called synchronously on EVERY
+            // return path — including state mismatches.  Returning without calling it causes
+            // iOS to kill the app immediately with no grace period.
+            let update = CXCallUpdate()
+            update.remoteHandle = CXHandle(type: .generic, value: callerId)
+            update.localizedCallerName = callerId
+            update.hasVideo = callType == "video"
+
+            if case .incoming(let existingId, _, _) = callState,
+               existingId == callId,
+               let existingUUID = callUUID
+            {
+                // Same call already reported via MessageStream.  Re-report with the same
+                // UUID so CallKit updates the existing entry instead of creating a duplicate.
+                provider.reportNewIncomingCall(with: existingUUID, update: update) { _ in }
+                SanchrLogger.calls.info(
+                    "VoIP push: refreshed CallKit for call \(callId) (stream arrived first)")
+            } else {
+                // Busy / active / ended / different callId.  PushKit still requires
+                // reportNewIncomingCall.  Use a throwaway UUID and immediately end it so
+                // no phantom entry lingers in the CallKit call list.
+                // (Apple explicitly endorses this pattern in the PushKit documentation.)
+                let throwawayUUID = UUID()
+                provider.reportNewIncomingCall(with: throwawayUUID, update: update) { [weak self] _ in
+                    self?.provider.reportCall(with: throwawayUUID, endedAt: Date(), reason: .failed)
+                }
+                SanchrLogger.calls.warning(
+                    "VoIP push: satisfied PushKit via throwaway UUID — state mismatch for call \(callId)")
+            }
             return
         }
 
@@ -293,6 +320,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         // Decrypt the SDP offer asynchronously. answerCall() will wait for this to
         // complete (max 5 seconds) before proceeding.
+        // If the SDP was absent from the push (payload too large for APNs), skip decryption
+        // here — the SDP will arrive via MessageStream replay and handleIncomingCallOffer
+        // will populate pendingSdpOffer when it sees we're already in incoming state.
+        guard !encryptedSdpPayload.isEmpty else {
+            SanchrLogger.calls.info(
+                "VoIP push: no SDP in payload for call \(callId) — waiting for stream delivery")
+            return
+        }
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -613,6 +648,23 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     /// Handles control messages: accepted, declined, busy, ended, ringing, missed.
     @MainActor
     private func handleControlMessage(_ control: Sanchr_Calling_CallControl, callId: String) {
+        // Guard: ignore lifecycle/control events that belong to a different call.
+        // Stale "ended" events from previous failed calls are queued in Redis and
+        // replayed on stream reconnect — without this check they kill the new call.
+        let currentCallId: String?
+        switch callState {
+        case .outgoing(let id, _), .ringing(let id), .incoming(let id, _, _),
+             .active(let id, _), .reconnecting(let id), .ended(let id, _):
+            currentCallId = id
+        case .idle:
+            currentCallId = nil
+        }
+        if let currentCallId, currentCallId != callId {
+            SanchrLogger.calls.info(
+                "Ignoring '\(control.action)' for stale call \(callId) (current: \(currentCallId))")
+            return
+        }
+
         SanchrLogger.calls.info("Control message: \(control.action) for call \(callId)")
 
         switch control.action {
@@ -725,6 +777,45 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) {
+        // If a VoIP push already set us to incoming for this exact call but the SDP
+        // was absent from the push (payload too large), grab it from the stream replay.
+        if case .incoming(let existingCallId, _, _) = callState,
+           existingCallId == offer.callID,
+           pendingSdpOffer == nil
+        {
+            SanchrLogger.calls.info(
+                "Stream: received SDP for pending VoIP call \(offer.callID) — decrypting")
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    guard !offer.encryptedSdpPayload.isEmpty else {
+                        SanchrLogger.calls.error("Stream: SDP payload empty for pending call \(offer.callID)")
+                        return
+                    }
+                    // FIXME: senderDevice hard-coded to 1
+                    let plaintext = try await self.signalManager.decrypt(
+                        ciphertext: offer.encryptedSdpPayload,
+                        from: offer.callerID,
+                        senderDevice: 1
+                    )
+                    let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+                    let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
+                    guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
+                          sdpFingerprint == sealedPayload.dtlsFingerprint
+                    else {
+                        SanchrLogger.calls.error("Stream: DTLS fingerprint mismatch for pending call \(offer.callID)")
+                        return
+                    }
+                    self.pendingSdpOffer = Data(sealedPayload.sdp.utf8)
+                    SanchrLogger.calls.info("Stream: SDP stored for pending VoIP call \(offer.callID)")
+                } catch {
+                    SanchrLogger.calls.error(
+                        "Stream: SDP decryption failed for pending call \(offer.callID): \(error.localizedDescription)")
+                }
+            }
+            return
+        }
+
         guard case .idle = callState else {
             SanchrLogger.calls.warning("Ignoring incoming call offer while another call is active")
             return
@@ -769,15 +860,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             } catch {
                 SanchrLogger.calls.error(
                     "Failed to decrypt incoming call offer: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.openSignalingStream(callId: offer.callID)
-                    var signal = Sanchr_Calling_CallSignal()
-                    signal.callID = offer.callID
-                    var ctrl = Sanchr_Calling_CallControl()
-                    ctrl.action = "declined"
-                    signal.control = ctrl
-                    self.outboundContinuation?.yield(signal)
-                }
+                // Do NOT open a signaling stream or send "declined" here.
+                // We never reported this call to CallKit, so there is nothing to decline.
+                // Opening an orphaned stream and sending "declined" would incorrectly tell
+                // the caller the call was rejected, and leave stale signaling state.
+                // The call will timeout on the caller's side naturally.
             }
         }
     }
