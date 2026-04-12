@@ -135,6 +135,12 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
     /// Whether the token pool has been loaded from Keychain in this session.
     private var tokenPoolLoaded = false
 
+    /// Whether a `fetchAndStoreTokens` call is already in-flight.
+    /// Prevents concurrent token-fetch RPCs when multiple callers (e.g.
+    /// a jittered read receipt and a P2P presence send) race to refill
+    /// an empty pool at the same moment.
+    private var isFetchingTokens = false
+
     // MARK: - Init
 
     public init(
@@ -187,7 +193,7 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
             return result.token
         }
 
-        // Pool empty -- fetch a fresh batch.
+        // Pool empty — fetch a fresh batch, deduplicating concurrent callers.
         try await fetchAndStoreTokens()
 
         guard let result = popToken() else {
@@ -205,6 +211,12 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
 
         let count = poolCount()
         guard count < Self.tokenLowWaterMark else { return }
+
+        // Skip if another caller is already fetching.
+        guard !isFetchingTokensFlag() else {
+            SanchrLogger.crypto.debug("Skipping replenish — fetch already in-flight")
+            return
+        }
 
         SanchrLogger.crypto.info(
             "Delivery token pool low (\(count)), replenishing...")
@@ -334,28 +346,82 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
     }
 
     /// Fetches a batch of delivery tokens from the server and appends to the pool.
+    ///
+    /// Concurrent calls are collapsed: if a fetch is already in-flight the second
+    /// caller waits (via a short back-off poll) and returns without making a second
+    /// RPC.  A single retry is attempted on transient failure before propagating.
     private func fetchAndStoreTokens() async throws {
+        // Deduplication: if another fetch is in-flight, wait for it to finish
+        // rather than issuing a redundant RPC.
+        if !beginFetch() {
+            SanchrLogger.crypto.debug("Token fetch already in-flight, waiting...")
+            // Poll until the in-flight fetch finishes (max ~3 s).
+            for _ in 0..<30 {
+                try await Task.sleep(nanoseconds: 100_000_000) // 100 ms
+                if !isFetchingTokensFlag() { return }
+            }
+            // Timed out waiting; attempt our own fetch below.
+        }
+        defer { endFetch() }
+
         var request = Sanchr_Messaging_DeliveryTokenRequest()
         request.count = Self.tokenBatchSize
 
-        let response: Sanchr_Messaging_DeliveryTokenResponse
-        do {
-            response = try await messagingService.getDeliveryTokens(request)
-        } catch {
-            SanchrLogger.crypto.error(
-                "GetDeliveryTokens RPC failed: \(error.localizedDescription)")
-            throw SealedSenderError.deliveryTokenFetchFailed(underlying: error)
+        // Attempt with one retry on failure.
+        var lastError: Error?
+        for attempt in 1...2 {
+            do {
+                let response = try await messagingService.getDeliveryTokens(request)
+                let newTokens = response.tokens
+                guard !newTokens.isEmpty else {
+                    SanchrLogger.crypto.warning("Server returned zero delivery tokens")
+                    return
+                }
+                let total = appendToPool(newTokens)
+                persistPoolToKeychain()
+                SanchrLogger.crypto.info(
+                    "Fetched \(newTokens.count) delivery tokens (attempt \(attempt)), pool now has \(total)")
+                return
+            } catch {
+                // Log the actual GRPCStatus if available for diagnostics.
+                if let grpcStatus = error as? GRPCStatus {
+                    SanchrLogger.crypto.error(
+                        "GetDeliveryTokens RPC failed (attempt \(attempt)): code=\(grpcStatus.code) message=\(grpcStatus.message ?? "<none>")")
+                } else {
+                    SanchrLogger.crypto.error(
+                        "GetDeliveryTokens RPC failed (attempt \(attempt)): \(error)")
+                }
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 s back-off
+                }
+            }
         }
 
-        let newTokens = response.tokens
-        guard !newTokens.isEmpty else {
-            SanchrLogger.crypto.warning("Server returned zero delivery tokens")
-            return
-        }
+        throw SealedSenderError.deliveryTokenFetchFailed(underlying: lastError!)
+    }
 
-        let total = appendToPool(newTokens)
-        persistPoolToKeychain()
-        SanchrLogger.crypto.info(
-            "Fetched \(newTokens.count) delivery tokens, pool now has \(total)")
+    // MARK: - Inflight fetch flag helpers (called under lock)
+
+    /// Atomically sets `isFetchingTokens` to `true` if it was `false`.
+    /// Returns `true` if this caller "won" the right to perform the fetch.
+    private func beginFetch() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isFetchingTokens else { return false }
+        isFetchingTokens = true
+        return true
+    }
+
+    private func endFetch() {
+        lock.lock()
+        defer { lock.unlock() }
+        isFetchingTokens = false
+    }
+
+    private func isFetchingTokensFlag() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isFetchingTokens
     }
 }

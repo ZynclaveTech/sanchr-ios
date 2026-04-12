@@ -1377,6 +1377,10 @@ struct ChatDetailView: View {
             )
         } catch {
             SanchrLogger.chat.error("Failed to load chat header preferences: \(error.localizedDescription)")
+            // Server default for typing_indicator is true. Rather than silently
+            // suppressing typing indicators for the entire session on a transient
+            // network error, apply the safe default so the UI stays functional.
+            viewModel.configurePeer(recipient, showsPresence: true, showsTypingIndicators: true)
         }
     }
 

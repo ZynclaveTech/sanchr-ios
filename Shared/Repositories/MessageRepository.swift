@@ -295,7 +295,12 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         localUserId: currentUserId
                     ).participants,
                     lastMessage: nil,
-                    unreadCount: Int(conv.unreadCount),
+                    // Prefer local unread count: it's updated incrementally by
+                    // saveIncomingMessageAndQueueAck (increment) and markConversationAsRead
+                    // (zero). The server count lags behind because read receipts are
+                    // processed asynchronously, so using it would overwrite the local
+                    // mark-as-read and bring the badge back.
+                    unreadCount: cachedConversation?.unreadCount ?? Int(conv.unreadCount),
                     isPinned: cachedConversation?.isPinned ?? false,
                     isMuted: cachedConversation?.isMuted ?? false,
                     isArchived: cachedConversation?.isArchived ?? false,

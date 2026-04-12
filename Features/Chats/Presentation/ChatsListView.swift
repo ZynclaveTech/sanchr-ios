@@ -54,6 +54,9 @@ struct ChatsListView: View {
             // Sync chip with current Sanchr Mode state each time the screen is visible
             // (catches changes made in Settings while ChatsListView was in the nav stack).
             sanchrModeEnabled = container.privacySettings.sanchrModeEnabled
+            // Reload cached conversations so unread counts reflect any DB changes made
+            // while this view was off-screen (e.g. ChatDetailView marking messages as read).
+            Task { await viewModel.loadCachedConversations(localDatabase: container.localDatabase) }
         }
         .task {
             await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
@@ -263,7 +266,7 @@ struct ChatsListView: View {
 
             if conversation.unreadCount > 0 {
                 Button {
-                    Task { await viewModel.markAsRead(conversation) }
+                    Task { await viewModel.markAsRead(conversation, messageRepository: container.messageRepository) }
                 } label: {
                     Label("Mark as Read", systemImage: "envelope.open")
                 }
@@ -499,6 +502,14 @@ struct ChatsListView: View {
     }
 
     private func openConversation(_ conversation: Conversation) {
+        // Clear the unread badge immediately on navigation so the tab badge reflects
+        // reality without waiting for the async ChatDetailView mark-as-read round-trip.
+        // Direct router update is required because onChange(of: totalUnreadCount) may
+        // not fire once ChatsListView is pushed off-screen by the navigation.
+        if conversation.unreadCount > 0 {
+            Task { await viewModel.markAsRead(conversation, messageRepository: container.messageRepository) }
+            router.chatUnreadCount = max(0, router.chatUnreadCount - conversation.unreadCount)
+        }
         router.chatsPath.append(conversation)
     }
 

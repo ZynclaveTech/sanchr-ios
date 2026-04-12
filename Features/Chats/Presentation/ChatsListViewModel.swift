@@ -266,15 +266,21 @@ final class ChatsListViewModel {
         // TODO: Persist archive state via repository/server
     }
 
-    /// Marks a conversation as read (resets unread count).
-    func markAsRead(_ conversation: Conversation) async {
+    /// Marks a conversation as read: resets the in-memory unread count and sends a
+    /// read receipt to the peer via the repository (which respects the privacy gate).
+    func markAsRead(_ conversation: Conversation, messageRepository: MessageRepositoryProtocol) async {
         guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
             return
         }
         conversations[index].unreadCount = 0
         rebuildVisibleConversations()
         SanchrLogger.chat.info("Marked conversation \(conversation.id.prefix(8)) as read")
-        // TODO: Send read receipts via repository/server
+
+        guard let lastMessageId = conversation.lastMessage?.id else { return }
+        try? await messageRepository.markAsRead(
+            conversationId: conversation.id,
+            upToMessageId: lastMessageId
+        )
     }
 
     // MARK: - Dismiss Banner
