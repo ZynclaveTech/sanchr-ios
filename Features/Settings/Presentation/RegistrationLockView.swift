@@ -132,7 +132,7 @@ struct RegistrationLockView: View {
                 Circle()
                     .fill(viewModel.registrationLockEnabled
                           ? SanchrColors.primary.opacity(0.15)
-                          : SanchrExportColors.surfaceCard)
+                          : SanchrExportColors.surface)
                     .frame(width: 52, height: 52)
                 Image(systemName: viewModel.registrationLockEnabled ? "lock.fill" : "lock.open")
                     .font(.system(size: 22, weight: .medium))

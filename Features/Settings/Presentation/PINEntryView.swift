@@ -45,7 +45,7 @@ struct PINEntryView: View {
                 // Title + subtitle
                 VStack(spacing: 8) {
                     Text(title)
-                        .font(SanchrTypography.title2)
+                        .font(SanchrTypography.sectionHeader)
                         .fontWeight(.bold)
                         .foregroundColor(SanchrExportColors.textPrimary)
                         .multilineTextAlignment(.center)
@@ -102,31 +102,30 @@ struct PINEntryView: View {
         }
     }
 
+    @ViewBuilder
     private func keyButton(_ key: String) -> some View {
-        Group {
-            if key == "" {
-                Color.clear
+        if key == "" {
+            Color.clear
+                .frame(width: keySize, height: keySize)
+        } else if key == "⌫" {
+            Button {
+                deleteLastDigit()
+            } label: {
+                Image(systemName: "delete.left")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(width: keySize, height: keySize)
-            } else if key == "⌫" {
-                Button {
-                    deleteLastDigit()
-                } label: {
-                    Image(systemName: "delete.left")
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textPrimary)
-                        .frame(width: keySize, height: keySize)
-                        .background(SanchrExportColors.surfaceCard, in: Circle())
-                }
-            } else {
-                Button {
-                    appendDigit(Int(key)!)
-                } label: {
-                    Text(key)
-                        .font(.system(size: 28, weight: .regular, design: .rounded))
-                        .foregroundColor(SanchrExportColors.textPrimary)
-                        .frame(width: keySize, height: keySize)
-                        .background(SanchrExportColors.surfaceCard, in: Circle())
-                }
+                    .background(SanchrExportColors.surface, in: Circle())
+            }
+        } else {
+            Button {
+                appendDigit(Int(key)!)
+            } label: {
+                Text(key)
+                    .font(.system(size: 28, weight: .regular, design: .rounded))
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .frame(width: keySize, height: keySize)
+                    .background(SanchrExportColors.surface, in: Circle())
             }
         }
     }

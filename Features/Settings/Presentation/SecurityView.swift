@@ -129,6 +129,18 @@ struct SecurityView: View {
             }
             .buttonStyle(.plain)
 
+            NavigationLink {
+                RegistrationLockView()
+            } label: {
+                featureRow(
+                    icon: "lock.shield",
+                    title: "Registration Lock",
+                    subtitle: viewModel.registrationLockEnabled ? "PIN protection enabled" : "Protect account re-registration",
+                    showsStatusDot: viewModel.registrationLockEnabled
+                )
+            }
+            .buttonStyle(.plain)
+
             VStack(spacing: 0) {
                 stackedToggleRow(
                     icon: "faceid",
