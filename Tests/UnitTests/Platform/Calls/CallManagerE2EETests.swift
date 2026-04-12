@@ -325,6 +325,79 @@ final class CallManagerE2EETests: XCTestCase {
         }
     }
 
+    // MARK: - Test 6: VoIP push in non-idle state satisfies PushKit without changing callState
+
+    /// When the app is already in `.outgoing` state (caller side) and a delayed VoIP push
+    /// arrives, `handleVoIPPushIncomingCall` must not crash and must not corrupt callState.
+    /// PushKit satisfaction (reportNewIncomingCall) is verified indirectly — the test
+    /// confirms state is not stomped; CallKit is unavailable in CI so we cannot assert
+    /// on CXProvider calls directly.
+    func test_handleVoIPPushIncomingCall_whileOutgoing_doesNotMutateState() {
+        let callManager = makeCallManager()
+        callManager.callState = .outgoing(callId: "outgoing-call", recipientId: "bob")
+
+        // Should not crash, should not change state
+        callManager.handleVoIPPushIncomingCall(
+            callId: "different-incoming-call",
+            callerId: "carol",
+            callType: "voice",
+            encryptedSdpPayload: Data()
+        )
+
+        if case .outgoing(let id, _) = callManager.callState {
+            XCTAssertEqual(id, "outgoing-call",
+                "callState must not be overwritten by a VoIP push arriving during an outgoing call")
+        } else {
+            XCTFail("callState was mutated by handleVoIPPushIncomingCall — expected .outgoing, got \(callManager.callState)")
+        }
+    }
+
+    /// When the app is in `.ended` state (2-second cooldown) and a delayed VoIP push arrives,
+    /// `handleVoIPPushIncomingCall` must not resurrect the ended call or crash.
+    func test_handleVoIPPushIncomingCall_whileEnded_doesNotMutateState() {
+        let callManager = makeCallManager()
+        callManager.callState = .ended(callId: "ended-call", reason: .normal)
+
+        callManager.handleVoIPPushIncomingCall(
+            callId: "new-incoming-call",
+            callerId: "dave",
+            callType: "voice",
+            encryptedSdpPayload: Data()
+        )
+
+        if case .ended(let id, let reason) = callManager.callState {
+            XCTAssertEqual(id, "ended-call",
+                "callState must remain .ended — a VoIP push must not resurrect an ended call")
+            XCTAssertEqual(reason, .normal)
+        } else {
+            XCTFail("callState was mutated — expected .ended, got \(callManager.callState)")
+        }
+    }
+
+    /// When the app is already `.incoming` for one call and a delayed VoIP push arrives
+    /// for a DIFFERENT call, the existing incoming call must not be disrupted.
+    func test_handleVoIPPushIncomingCall_whileIncomingDifferentCallId_doesNotMutateState() {
+        let callManager = makeCallManager()
+        // Simulate stream-first delivery for call-A
+        callManager.callState = .incoming(callId: "call-A", callerId: "alice", callerName: "Alice")
+
+        // Delayed push for a different call-B — should NOT take over
+        callManager.handleVoIPPushIncomingCall(
+            callId: "call-B",
+            callerId: "bob",
+            callType: "voice",
+            encryptedSdpPayload: Data()
+        )
+
+        if case .incoming(let id, let callerId, _) = callManager.callState {
+            XCTAssertEqual(id, "call-A",
+                "Existing incoming call-A must not be replaced by a push for call-B")
+            XCTAssertEqual(callerId, "alice")
+        } else {
+            XCTFail("callState was mutated — expected .incoming(call-A), got \(callManager.callState)")
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func makeCallManager() -> CallManager {
