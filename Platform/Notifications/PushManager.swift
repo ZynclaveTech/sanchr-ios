@@ -65,10 +65,6 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Wired in DependencyContainer to forward to CallManager.
     var incomingVoIPCallHandler: ((_ callId: String, _ callerId: String, _ callType: String, _ encryptedSdpPayload: Data) -> Void)?
 
-    /// Retained reference to the VoIP PKPushRegistry.
-    /// Must be kept alive for the OS to deliver VoIP push callbacks.
-    private var voipPushRegistry: PKPushRegistry?
-
     /// Optional app-provided sync handler used for silent pushes that carry a
     /// structured `SanchrPushPayload` (e.g. non-sealed-sender message pushes).
     var silentPushHandler: (@Sendable (SanchrPushPayload) async -> UIBackgroundFetchResult)?
@@ -165,20 +161,6 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Conforms to `PushManagerProtocol` -- delegates to `didRegisterForRemoteNotifications`.
     func registerDeviceToken(_ token: Data) async throws {
         didRegisterForRemoteNotifications(deviceToken: token)
-    }
-
-    /// Register with PushKit for VoIP push notifications.
-    ///
-    /// Must be called once at app launch after `incomingVoIPCallHandler` is wired.
-    /// The OS calls `pushRegistry(_:didUpdatePushCredentials:for:)` with the VoIP
-    /// token, which is immediately uploaded to the server.
-    @MainActor
-    func setupVoIPRegistration() {
-        let registry = PKPushRegistry(queue: .main)
-        registry.delegate = self
-        registry.desiredPushTypes = [.voIP]
-        voipPushRegistry = registry  // Keep alive — delegate won't fire if this is released
-        SanchrLogger.push.info("VoIP push registry set up")
     }
 
     /// Requests a fresh APNs token from the OS if the rotation interval has
@@ -518,11 +500,11 @@ extension PushManager: PKPushRegistryDelegate {
     /// Upload it to the server so the call bridge can wake this device.
     public func pushRegistry(
         _ registry: PKPushRegistry,
-        didUpdatePushCredentials credentials: PKPushCredentials,
+        didUpdate pushCredentials: PKPushCredentials,
         for type: PKPushType
     ) {
         guard type == .voIP else { return }
-        let tokenString = credentials.token.map { String(format: "%02.2hhx", $0) }.joined()
+        let tokenString = pushCredentials.token.map { String(format: "%02.2hhx", $0) }.joined()
         SanchrLogger.push.info("VoIP push token received: \(tokenString.prefix(8))...")
 
         Task {
@@ -562,15 +544,12 @@ extension PushManager: PKPushRegistryDelegate {
 
         let callType = (dict["call_type"] as? String) ?? "voice"
         let encSdpB64 = (dict["encrypted_sdp_payload"] as? String) ?? ""
-
-        guard let encSdpData = Data(base64Encoded: encSdpB64), !encSdpData.isEmpty else {
-            SanchrLogger.push.error(
-                "VoIP push: missing or invalid encrypted_sdp_payload for call \(callId)")
-            return
-        }
+        // SDP may be absent if the push payload was too large for APNs's 4096-byte limit.
+        // Pass empty Data — CallManager will wait for the SDP via MessageStream replay.
+        let encSdpData = Data(base64Encoded: encSdpB64) ?? Data()
 
         SanchrLogger.push.info(
-            "VoIP push: incoming \(callType) call \(callId) from \(callerId)")
+            "VoIP push: incoming \(callType) call \(callId) from \(callerId) sdp_in_push=\(!encSdpData.isEmpty)")
 
         // Forward to CallManager — this MUST call reportNewIncomingCall synchronously.
         incomingVoIPCallHandler?(callId, callerId, callType, encSdpData)
@@ -656,80 +635,3 @@ extension PushManager {
     }
 }
 
-// MARK: - PKPushRegistryDelegate
-
-extension PushManager: PKPushRegistryDelegate {
-
-    /// Called by the OS when the VoIP push token is issued or rotated.
-    /// Upload it so the server can wake this device for incoming calls.
-    public func pushRegistry(
-        _ registry: PKPushRegistry,
-        didUpdatePushCredentials credentials: PKPushCredentials,
-        for type: PKPushType
-    ) {
-        guard type == .voIP else { return }
-        let tokenString = credentials.token.map { String(format: "%02.2hhx", $0) }.joined()
-        SanchrLogger.push.info("VoIP push token received: \(tokenString.prefix(8))...")
-
-        Task {
-            do {
-                var request = Sanchr_Notifications_RegisterPushTokenRequest()
-                request.voipToken = tokenString
-                request.platform = "ios"
-                _ = try await notificationService.registerPushToken(request)
-                SanchrLogger.push.info("VoIP push token uploaded to server")
-            } catch {
-                SanchrLogger.push.error(
-                    "VoIP token upload failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    /// Called when a VoIP push arrives.
-    ///
-    /// iOS mandates that `CXProvider.reportNewIncomingCall` is invoked before
-    /// this method returns; failure to do so causes the app to be terminated.
-    /// We delegate synchronously to `incomingVoIPCallHandler` which calls
-    /// `CallManager.handleVoIPPushIncomingCall`, satisfying the requirement.
-    public func pushRegistry(
-        _ registry: PKPushRegistry,
-        didReceiveIncomingPushWith payload: PKPushPayload,
-        for type: PKPushType,
-        completion: @escaping () -> Void
-    ) {
-        defer { completion() }
-        guard type == .voIP else { return }
-
-        let dict = payload.dictionaryPayload
-        guard
-            let callId = dict["call_id"] as? String, !callId.isEmpty,
-            let callerId = dict["caller_id"] as? String, !callerId.isEmpty
-        else {
-            SanchrLogger.push.error("VoIP push: missing required fields (call_id, caller_id)")
-            return
-        }
-
-        let callType = (dict["call_type"] as? String) ?? "voice"
-        let encSdpB64 = (dict["encrypted_sdp_payload"] as? String) ?? ""
-
-        guard let encSdpData = Data(base64Encoded: encSdpB64), !encSdpData.isEmpty else {
-            SanchrLogger.push.error(
-                "VoIP push: missing or invalid encrypted_sdp_payload for call \(callId)")
-            return
-        }
-
-        SanchrLogger.push.info(
-            "VoIP push: incoming \(callType) call \(callId) from \(callerId)")
-
-        // Forward to CallManager — this MUST call reportNewIncomingCall synchronously.
-        incomingVoIPCallHandler?(callId, callerId, callType, encSdpData)
-    }
-
-    public func pushRegistry(
-        _ registry: PKPushRegistry,
-        didInvalidatePushTokenFor type: PKPushType
-    ) {
-        guard type == .voIP else { return }
-        SanchrLogger.push.warning("VoIP push token invalidated — will be re-issued on next launch")
-    }
-}

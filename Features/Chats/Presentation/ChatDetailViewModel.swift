@@ -481,7 +481,7 @@ final class ChatDetailViewModel {
 
         switch message.content {
         case .text(let text):
-            let optimistic = Message(
+            let _ = Message(
                 id: UUID().uuidString,
                 conversationId: targetConversationId,
                 senderId: senderId,

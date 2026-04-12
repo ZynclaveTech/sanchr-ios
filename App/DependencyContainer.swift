@@ -396,6 +396,10 @@ final class DependencyContainer: @unchecked Sendable {
                 callType: callType,
                 encryptedSdpPayload: encryptedSdpPayload
             )
+            // Open the MessageStream so the queued CallOfferEvent (with encrypted SDP) is
+            // delivered from Redis and handleIncomingCallOffer can set pendingSdpOffer.
+            // start() is idempotent — if the stream is already running this is a no-op.
+            container.realtimeService.start()
         }
         return manager
     }()
