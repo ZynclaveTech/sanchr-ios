@@ -344,9 +344,11 @@ final class CallManagerE2EETests: XCTestCase {
             encryptedSdpPayload: Data()
         )
 
-        if case .outgoing(let id, _) = callManager.callState {
+        if case .outgoing(let id, let recipientId) = callManager.callState {
             XCTAssertEqual(id, "outgoing-call",
                 "callState must not be overwritten by a VoIP push arriving during an outgoing call")
+            XCTAssertEqual(recipientId, "bob",
+                "recipientId must not be mutated by a VoIP push arriving during an outgoing call")
         } else {
             XCTFail("callState was mutated by handleVoIPPushIncomingCall — expected .outgoing, got \(callManager.callState)")
         }
@@ -389,10 +391,12 @@ final class CallManagerE2EETests: XCTestCase {
             encryptedSdpPayload: Data()
         )
 
-        if case .incoming(let id, let callerId, _) = callManager.callState {
+        if case .incoming(let id, let callerId, let callerName) = callManager.callState {
             XCTAssertEqual(id, "call-A",
                 "Existing incoming call-A must not be replaced by a push for call-B")
             XCTAssertEqual(callerId, "alice")
+            XCTAssertEqual(callerName, "Alice",
+                "callerName must not be mutated by a VoIP push for a different call")
         } else {
             XCTFail("callState was mutated — expected .incoming(call-A), got \(callManager.callState)")
         }
