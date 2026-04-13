@@ -46,10 +46,13 @@ public final class MediaKeyDerivation: MediaKeyDerivationProtocol, @unchecked Se
     }
 
     public func deriveAccessKey(mediaKey: Data, mediaId: String, deviceSecret: Data) -> Data {
-        let ikm = SymmetricKey(data: mediaKey)
+        // Paper: AccessK_i = HKDF(MediaK_n, dls, "access-v1-<id>")
+        // Canonical form: IKM = mediaKey || deviceSecret, salt = empty, info = label-<mediaId>
+        let concatenatedIKM = mediaKey + deviceSecret
+        let ikm = SymmetricKey(data: concatenatedIKM)
         let info = "\(Labels.accessKey)-\(mediaId)"
         let derived = HKDF<SHA256>.deriveKey(
-            inputKeyMaterial: ikm, salt: deviceSecret,
+            inputKeyMaterial: ikm, salt: Data(),
             info: Data(info.utf8), outputByteCount: 32)
         return derived.withUnsafeBytes { Data($0) }
     }

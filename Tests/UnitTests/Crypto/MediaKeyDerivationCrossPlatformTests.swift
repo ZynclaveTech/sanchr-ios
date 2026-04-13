@@ -37,4 +37,37 @@ final class MediaKeyDerivationCrossPlatformTests: XCTestCase {
             deriver.deriveMediaKey(chainKey: chainKey, fileHash: hashB)
         )
     }
+
+    func testAccessKeyDerivationUsesCorrectHKDFStructure() {
+        let mediaKey = Data(repeating: 0x42, count: 32)
+        let deviceSecret = Data(repeating: 0x01, count: 32)
+        let mediaId = "test-media-123"
+
+        let deriver = MediaKeyDerivation()
+        let accessKey = deriver.deriveAccessKey(mediaKey: mediaKey, mediaId: mediaId, deviceSecret: deviceSecret)
+
+        // Correct: IKM = mediaKey || deviceSecret, salt = empty, info = "sanchr-access-v1-<mediaId>"
+        let concatenatedIKM = mediaKey + deviceSecret
+        let expected = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: SymmetricKey(data: concatenatedIKM),
+            salt: Data(),
+            info: Data("sanchr-access-v1-\(mediaId)".utf8),
+            outputByteCount: 32
+        )
+        let expectedData = expected.withUnsafeBytes { Data($0) }
+
+        XCTAssertEqual(accessKey, expectedData, "iOS AccessK must use concatenation-as-IKM pattern")
+    }
+
+    func testAccessKeyDeviceIsolation() {
+        let mediaKey = Data(repeating: 0x42, count: 32)
+        let deviceA = Data(repeating: 0x01, count: 32)
+        let deviceB = Data(repeating: 0x02, count: 32)
+
+        let deriver = MediaKeyDerivation()
+        let keyA = deriver.deriveAccessKey(mediaKey: mediaKey, mediaId: "m1", deviceSecret: deviceA)
+        let keyB = deriver.deriveAccessKey(mediaKey: mediaKey, mediaId: "m1", deviceSecret: deviceB)
+
+        XCTAssertNotEqual(keyA, keyB, "Different device secrets must produce different AccessK")
+    }
 }
