@@ -168,7 +168,8 @@ final actor ShareSendCoordinator: ShareSendDriving {
             encryptedSender: encryptedSender,
             coordinator: lock,
             currentUser: currentUser,
-            vaultPolicyResolver: NoopVaultPolicyResolver()
+            vaultPolicyResolver: NoopVaultPolicyResolver(),
+            networkMonitor: NetworkMonitor()
         )
 
         return Dependencies(messageSender: sender)

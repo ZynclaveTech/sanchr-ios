@@ -214,7 +214,8 @@ final class DependencyContainer: @unchecked Sendable {
         currentUser: currentUserProvider,
         vaultPolicyResolver: MainAppVaultPolicyResolver(
             serviceProvider: { [unowned self] in self.chatVaultPolicy }
-        )
+        ),
+        networkMonitor: networkMonitor
     )
 
     // MARK: - Protocol Extensions (OPRF-PSI, Media Key Derivation, EKF)
@@ -374,6 +375,10 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var pushManager: PushManager = {
         nonisolated(unsafe) weak var weakSelf = self
         let manager = PushManager(notificationService: grpcClient.notificationService)
+        manager.isConversationMuted = { conversationId in
+            guard let container = weakSelf else { return false }
+            return (try? await container.localDatabase.fetchConversation(id: conversationId)?.isMuted) ?? false
+        }
         manager.silentPushHandler = { payload in
             guard let container = weakSelf else { return .noData }
 
@@ -436,8 +441,8 @@ final class DependencyContainer: @unchecked Sendable {
             tokenRefresher: { [weak self] in
                 _ = try await self?.sessionService.refreshTokenIfExpiringSoon()
             },
-            peerDisplayNameResolver: { userId in
-                await Self.resolveCallPeerDisplayName(
+            peerProfileResolver: { userId in
+                await Self.resolveCallPeerProfile(
                     userId: userId,
                     localDatabase: localDatabase
                 )
@@ -517,15 +522,15 @@ final class DependencyContainer: @unchecked Sendable {
         }
     }
 
-    private static func resolveCallPeerDisplayName(
+    static func resolveCallPeerProfile(
         userId: String,
         localDatabase: LocalDatabaseProtocol
-    ) async -> String? {
+    ) async -> CallPeerProfile? {
         if let contacts = try? await localDatabase.fetchContacts(),
            let contact = contacts.first(where: { $0.id == userId }),
-           let displayName = callDisplayName(for: contact, userId: userId)
+           let profile = callPeerProfile(for: contact, userId: userId)
         {
-            return displayName
+            return profile
         }
 
         guard let conversations = try? await localDatabase.fetchConversations() else {
@@ -534,13 +539,21 @@ final class DependencyContainer: @unchecked Sendable {
 
         for conversation in conversations {
             if let participant = conversation.participants.first(where: { $0.id == userId }),
-               let displayName = callDisplayName(for: participant, userId: userId)
+               let profile = callPeerProfile(for: participant, userId: userId)
             {
-                return displayName
+                return profile
             }
         }
 
         return nil
+    }
+
+    private static func callPeerProfile(for user: User, userId: String) -> CallPeerProfile? {
+        let displayName = callDisplayName(for: user, userId: userId)
+        guard displayName != nil || user.avatarURL != nil else {
+            return nil
+        }
+        return CallPeerProfile(displayName: displayName, avatarURL: user.avatarURL)
     }
 
     private static func callDisplayName(for user: User, userId: String) -> String? {
@@ -638,8 +651,9 @@ final class DependencyContainer: @unchecked Sendable {
             coordinator: fileCoordinatorLock,
             currentUser: currentUserProvider,
             vaultPolicyResolver: MainAppVaultPolicyResolver(
-            serviceProvider: { [unowned self] in self.chatVaultPolicy }
-        )
+                serviceProvider: { [unowned self] in self.chatVaultPolicy }
+            ),
+            networkMonitor: networkMonitor
         )
         self.realtimeService = RealtimeService(
             messageRepository: messageRepository,

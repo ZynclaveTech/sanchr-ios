@@ -253,7 +253,8 @@ final class MessageSenderTests: XCTestCase {
             encryptedSender: sender,
             coordinator: makeLock(),
             currentUser: user,
-            vaultPolicyResolver: NoopVaultPolicyResolver()
+            vaultPolicyResolver: NoopVaultPolicyResolver(),
+            networkMonitor: MockNetworkMonitor()
         )
         return (ms, db, uploader, sender, user)
     }

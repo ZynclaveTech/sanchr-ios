@@ -165,6 +165,7 @@ public actor MessageSender {
     private let coordinator: FileCoordinatorLock
     private let currentUser: CurrentUserProviding
     private let vaultPolicyResolver: VaultPolicyResolving
+    private let networkMonitor: NetworkMonitorProtocol
     private let logger: MessageSenderLogging
 
     // MARK: Init
@@ -177,6 +178,7 @@ public actor MessageSender {
         coordinator: FileCoordinatorLock,
         currentUser: CurrentUserProviding,
         vaultPolicyResolver: VaultPolicyResolving,
+        networkMonitor: NetworkMonitorProtocol,
         logger: MessageSenderLogging = NoopMessageSenderLogger()
     ) {
         self.db = db
@@ -186,6 +188,7 @@ public actor MessageSender {
         self.coordinator = coordinator
         self.currentUser = currentUser
         self.vaultPolicyResolver = vaultPolicyResolver
+        self.networkMonitor = networkMonitor
         self.logger = logger
     }
 
@@ -209,6 +212,16 @@ public actor MessageSender {
             authorId: senderId,
             timestamp: timestamp
         )
+
+        // ── Offline queue: skip gRPC if no network ─────────────────────
+        if !networkMonitor.isConnected {
+            logger.info("MessageSender.sendText queued offline chat=\(chatId) local=\(localId)")
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: localId,
+                serverTimestampMs: Int64(timestamp.timeIntervalSince1970 * 1000)
+            )
+        }
 
         do {
             let recipientIds = try await resolveRecipientIds(
@@ -308,6 +321,16 @@ public actor MessageSender {
             authorId: senderId,
             timestamp: timestamp
         )
+
+        // ── Offline queue: skip upload + gRPC if no network ────────────
+        if !networkMonitor.isConnected {
+            logger.info("MessageSender.sendMedia queued offline chat=\(chatId) local=\(localId)")
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: localId,
+                serverTimestampMs: Int64(timestamp.timeIntervalSince1970 * 1000)
+            )
+        }
 
         do {
             let recipientIds = try await resolveRecipientIds(
@@ -447,6 +470,64 @@ public actor MessageSender {
         }
     }
 
+    // MARK: Offline Queue Flush
+
+    /// Retries all pending (`.sending`) outgoing messages in timestamp order.
+    /// Called when network connectivity is restored.
+    public func retrySendingMessages() async {
+        let pending: [Message]
+        do {
+            pending = try await db.fetchPendingMessages()
+        } catch {
+            logger.error("Failed to fetch pending messages: \(error.localizedDescription)")
+            return
+        }
+
+        guard !pending.isEmpty else { return }
+        logger.info("Offline queue flush: \(pending.count) pending message(s)")
+
+        let staleThreshold = Date().addingTimeInterval(-24 * 60 * 60)
+
+        for message in pending {
+            if message.timestamp < staleThreshold {
+                logger.warning("Marking stale pending message \(message.id) as failed (>24h old)")
+                await markMessageAsFailed(localMessageId: message.id, error: NSError(domain: "sanchr", code: -1, userInfo: [NSLocalizedDescriptionKey: "Message too old to retry"]))
+                continue
+            }
+
+            do {
+                switch message.content {
+                case .text(let text):
+                    // Delete old pending row, sendText creates a new one
+                    try? await db.deleteMessage(id: message.id)
+                    _ = try await sendText(text, to: message.conversationId)
+
+                case .image(let att), .video(let att), .audio(let att), .document(let att):
+                    guard att.url.isFileURL,
+                          FileManager.default.fileExists(atPath: att.url.path) else {
+                        logger.error("Offline retry: local file missing for \(message.id)")
+                        await markMessageAsFailed(localMessageId: message.id, error: NSError(domain: "sanchr", code: -2, userInfo: [NSLocalizedDescriptionKey: "Local file no longer available"]))
+                        continue
+                    }
+                    try? await db.deleteMessage(id: message.id)
+                    _ = try await sendMedia(
+                        attachment: att,
+                        caption: att.caption,
+                        to: message.conversationId,
+                        progress: { _ in }
+                    )
+
+                default:
+                    logger.warning("Offline retry: unsupported content type for \(message.id)")
+                    await markMessageAsFailed(localMessageId: message.id, error: NSError(domain: "sanchr", code: -3, userInfo: [NSLocalizedDescriptionKey: "Content type not retryable"]))
+                }
+            } catch {
+                logger.error("Offline retry failed for \(message.id): \(error.localizedDescription)")
+                // markMessageAsFailed already called inside sendText/sendMedia on failure
+            }
+        }
+    }
+
     // MARK: Recipient resolution
 
     /// Resolves the set of recipient user IDs for an outgoing message by
@@ -513,6 +594,7 @@ public actor MessageSender {
                     plaintext: plaintext,
                     contentType: contentType,
                     conversationId: conversationId,
+                    messageId: localMessageId,
                     recipientIds: recipientIds,
                     senderId: senderId
                 )
