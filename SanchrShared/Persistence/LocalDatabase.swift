@@ -15,11 +15,19 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws
     func searchMessages(conversationId: String, query: String) async throws -> [Message]
 
+    /// Fetch all outgoing messages stuck in `.sending` status, ordered by timestamp ASC.
+    func fetchPendingMessages() async throws -> [Message]
+
     // MARK: - Conversations
 
     func saveConversation(_ conversation: Conversation) async throws
     func fetchConversation(id: String) async throws -> Conversation?
     func fetchConversations() async throws -> [Conversation]
+    func fetchAllConversationsIncludingHidden() async throws -> [Conversation]
+    func fetchShareChatSummaries() async throws -> [ShareChatSummary]
+    func fetchArchivedChatSummaries() async throws -> [ShareChatSummary]
+    func fetchHiddenChatSummaries() async throws -> [ShareChatSummary]
+    func setConversationHidden(id: String, isHidden: Bool) async throws
     func deleteConversation(id: String) async throws
 
     // MARK: - Contacts
@@ -214,6 +222,17 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
+    public func fetchPendingMessages() async throws -> [Message] {
+        try await dbPool.read { db in
+            let records = try MessageRecord
+                .filter(Column("status") == Message.DeliveryStatus.sending.rawValue)
+                .filter(Column("isOutgoing") == true)
+                .order(Column("timestamp").asc)
+                .fetchAll(db)
+            return records.map { $0.toDomain() }
+        }
+    }
+
     public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
@@ -403,8 +422,28 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     }
 
     public func fetchConversations() async throws -> [Conversation] {
+        try await fetchConversationRecords(includeHidden: false)
+    }
+
+    public func fetchAllConversationsIncludingHidden() async throws -> [Conversation] {
+        try await fetchConversationRecords(includeHidden: true)
+    }
+
+    public func setConversationHidden(id: String, isHidden: Bool) async throws {
+        try await dbPool.write { db in
+            _ = try ConversationRecord
+                .filter(Column("id") == id)
+                .updateAll(db, Column("isHidden").set(to: isHidden))
+        }
+    }
+
+    private func fetchConversationRecords(includeHidden: Bool) async throws -> [Conversation] {
         try await dbPool.read { db in
-            let conversationRecords = try ConversationRecord
+            var request = ConversationRecord.all()
+            if !includeHidden {
+                request = request.filter(Column("isHidden") == false)
+            }
+            let conversationRecords = try request
                 .order(
                     Column("isPinned").desc,
                     SQL("COALESCE(lastMessageTimestamp, updatedAt) DESC").sqlExpression
@@ -462,6 +501,63 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                     avatarURL: convo.avatarURL
                 )
             }
+    }
+
+    public func fetchArchivedChatSummaries() async throws -> [ShareChatSummary] {
+        let conversations = try await fetchConversations()
+        return conversations
+            .filter(\.isArchived)
+            .map { convo in
+                ShareChatSummary(
+                    id: convo.id,
+                    title: convo.displayName,
+                    isGroup: convo.type == .group,
+                    lastMessagePreview: Self.previewText(for: convo.lastMessage),
+                    lastActivityMs: Int64(convo.lastActivityAt.timeIntervalSince1970 * 1000),
+                    isPinned: convo.isPinned,
+                    avatarURL: convo.avatarURL
+                )
+            }
+    }
+
+    public func fetchHiddenChatSummaries() async throws -> [ShareChatSummary] {
+        try await dbPool.read { db in
+            let records = try ConversationRecord
+                .filter(Column("isHidden") == true)
+                .order(
+                    Column("isPinned").desc,
+                    SQL("COALESCE(lastMessageTimestamp, updatedAt) DESC").sqlExpression
+                )
+                .fetchAll(db)
+
+            return try records.map { record in
+                let participantIds = try ConversationParticipantRecord
+                    .filter(Column("conversationId") == record.id)
+                    .fetchAll(db)
+                    .map(\.userId)
+
+                let users: [User]
+                if participantIds.isEmpty {
+                    users = []
+                } else {
+                    users = try UserRecord
+                        .filter(participantIds.contains(Column("id")))
+                        .fetchAll(db)
+                        .map { $0.toDomain() }
+                }
+
+                let conversation = record.toDomain(participants: users)
+                return ShareChatSummary(
+                    id: conversation.id,
+                    title: conversation.displayName,
+                    isGroup: conversation.type == .group,
+                    lastMessagePreview: Self.previewText(for: conversation.lastMessage),
+                    lastActivityMs: Int64(conversation.lastActivityAt.timeIntervalSince1970 * 1000),
+                    isPinned: conversation.isPinned,
+                    avatarURL: conversation.avatarURL
+                )
+            }
+        }
     }
 
     private static func previewText(for message: Message?) -> String? {
@@ -1094,6 +1190,7 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     ) -> ConversationRecord {
         var merged = incoming
         merged.createdAt = min(existing.createdAt, incoming.createdAt)
+        merged.isHidden = existing.isHidden || incoming.isHidden
 
         let shouldPreserveExistingPreview: Bool = {
             guard let existingTimestamp = existing.lastMessageTimestamp else { return false }
@@ -1350,6 +1447,11 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func saveConversation(_ conversation: Conversation) async throws { throw error }
     public func fetchConversation(id: String) async throws -> Conversation? { throw error }
     public func fetchConversations() async throws -> [Conversation] { throw error }
+    public func fetchAllConversationsIncludingHidden() async throws -> [Conversation] { throw error }
+    public func fetchShareChatSummaries() async throws -> [ShareChatSummary] { throw error }
+    public func fetchArchivedChatSummaries() async throws -> [ShareChatSummary] { throw error }
+    public func fetchHiddenChatSummaries() async throws -> [ShareChatSummary] { throw error }
+    public func setConversationHidden(id: String, isHidden: Bool) async throws { throw error }
     public func deleteConversation(id: String) async throws { throw error }
     public func saveContact(_ user: User) async throws { throw error }
     public func fetchContacts() async throws -> [User] { throw error }
@@ -1359,6 +1461,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func fetchAllVaultItems() async throws -> [VaultItem] { throw error }
     public func deleteVaultItem(id: String) async throws { throw error }
     public func searchMessages(conversationId: String, query: String) async throws -> [Message] { throw error }
+    public func fetchPendingMessages() async throws -> [Message] { throw error }
     public func saveAccessKeyEntry(_ entry: AccessKeyEntry) async throws { throw error }
     public func fetchAccessKeyEntry(mediaId: String) async throws -> AccessKeyEntry? { throw error }
     public func updateAccessKeyEntryLastAccessed(mediaId: String, lastAccessedAt: Date) async throws { throw error }

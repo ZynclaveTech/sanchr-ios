@@ -22,10 +22,16 @@ extension LocalDatabaseProtocol {
     public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { FakeDBUnused.crash() }
     public func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws { FakeDBUnused.crash() }
     public func searchMessages(conversationId: String, query: String) async throws -> [Message] { FakeDBUnused.crash() }
+    public func fetchPendingMessages() async throws -> [Message] { FakeDBUnused.crash() }
     // Conversations
     public func saveConversation(_ conversation: Conversation) async throws { FakeDBUnused.crash() }
     public func fetchConversation(id: String) async throws -> Conversation? { FakeDBUnused.crash() }
     public func fetchConversations() async throws -> [Conversation] { FakeDBUnused.crash() }
+    public func fetchAllConversationsIncludingHidden() async throws -> [Conversation] { FakeDBUnused.crash() }
+    public func fetchShareChatSummaries() async throws -> [ShareChatSummary] { FakeDBUnused.crash() }
+    public func fetchArchivedChatSummaries() async throws -> [ShareChatSummary] { FakeDBUnused.crash() }
+    public func fetchHiddenChatSummaries() async throws -> [ShareChatSummary] { FakeDBUnused.crash() }
+    public func setConversationHidden(id: String, isHidden: Bool) async throws { FakeDBUnused.crash() }
     public func deleteConversation(id: String) async throws { FakeDBUnused.crash() }
     // Contacts
     public func saveContact(_ user: User) async throws { FakeDBUnused.crash() }
