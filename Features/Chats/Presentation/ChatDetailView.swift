@@ -70,8 +70,15 @@ struct ChatDetailView: View {
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @State private var messageToForward: Message?
     @State private var callErrorMessage: String?
+    @State private var conversationActionErrorMessage: String?
+    @State private var isConversationArchived: Bool
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
+
+    init(conversation: Conversation) {
+        self.conversation = conversation
+        _isConversationArchived = State(initialValue: conversation.isArchived)
+    }
 
     private var recipient: User? {
         conversation.participants.first(where: { !$0.isLocalUser })
@@ -108,6 +115,8 @@ struct ChatDetailView: View {
                         to: .message(id: firstUnreadId, sequence: nextTranscriptScrollSequence())
                     )
                 }
+                await refreshConversationState()
+                await consumePendingChatAttachmentIfNeeded()
             }
             .onAppear {
                 viewModel.configurePeer(recipient)
@@ -538,6 +547,14 @@ struct ChatDetailView: View {
         } message: {
             Text(callErrorMessage ?? "")
         }
+        .alert("Couldn't update conversation", isPresented: Binding(
+            get: { conversationActionErrorMessage != nil },
+            set: { if !$0 { conversationActionErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(conversationActionErrorMessage ?? "")
+        }
         .task(id: "bubble-viewers-reconfigure") {
             contactCoordinator.reconfigure(
                 contactRepository: container.contactRepository,
@@ -639,8 +656,29 @@ struct ChatDetailView: View {
                             }
                         }
 
-                        headerActionButton(icon: "ellipsis") {
-                            showConversationInfo = true
+                        Menu {
+                            Button {
+                                showConversationInfo = true
+                            } label: {
+                                Label("Conversation Info", systemImage: "info.circle")
+                            }
+
+                            Button {
+                                Task { await toggleArchivedState() }
+                            } label: {
+                                Label(
+                                    isConversationArchived ? "Unarchive" : "Archive",
+                                    systemImage: isConversationArchived ? "tray.and.arrow.up" : "archivebox"
+                                )
+                            }
+
+                            Button(role: .destructive) {
+                                Task { await hideConversationFromDevice() }
+                            } label: {
+                                Label("Hide from This Device", systemImage: "eye.slash")
+                            }
+                        } label: {
+                            headerMenuButton(icon: "ellipsis")
                         }
                     }
                 }
@@ -732,6 +770,61 @@ struct ChatDetailView: View {
             size: SanchrSpacing.chatHeaderActionSize
         ) {
             action()
+        }
+    }
+
+    private func headerMenuButton(icon: String) -> some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+                    .sanchrGlass(role: .toolbarButton, interactive: true)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .frame(width: SanchrSpacing.chatHeaderActionSize, height: SanchrSpacing.chatHeaderActionSize)
+                    .background(SanchrExportColors.surface)
+                    .clipShape(Circle())
+            }
+        }
+    }
+
+    @MainActor
+    private func toggleArchivedState() async {
+        do {
+            let nextValue = !isConversationArchived
+            try await container.messageRepository.setConversationArchived(
+                conversationId: conversation.id,
+                isArchived: nextValue
+            )
+            isConversationArchived = nextValue
+            if nextValue {
+                dismiss()
+            }
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func hideConversationFromDevice() async {
+        do {
+            try await container.messageRepository.hideConversationLocally(conversationId: conversation.id)
+            dismiss()
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func refreshConversationState() async {
+        if let storedConversation = try? await container.localDatabase.fetchConversation(id: conversation.id) {
+            isConversationArchived = storedConversation.isArchived
+        } else {
+            isConversationArchived = conversation.isArchived
         }
     }
 
@@ -860,6 +953,15 @@ struct ChatDetailView: View {
             onForward: { message in
                 messageToForward = message
             },
+            onRetry: { message in
+                Task {
+                    await viewModel.retryMessage(
+                        message,
+                        sessionService: container.sessionService,
+                        messageSender: container.messageSender
+                    )
+                }
+            },
             onLoadMore: {
                 Task {
                     await viewModel.loadMore(
@@ -897,6 +999,8 @@ struct ChatDetailView: View {
         .overlay {
             if !hasPresentedInitialTranscript {
                 transcriptLoadingPlaceholder
+            } else if viewModel.messageSections.isEmpty {
+                transcriptEmptyState
             }
         }
         .environment(container)
@@ -915,6 +1019,21 @@ struct ChatDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(SanchrExportColors.surfaceSoft.opacity(0.96))
+        .allowsHitTesting(false)
+    }
+
+    private var transcriptEmptyState: some View {
+        VStack(spacing: 8) {
+            Text("No messages yet")
+                .font(SanchrTypography.bodyBold)
+                .foregroundColor(SanchrExportColors.textPrimary)
+            Text("Send a message to start the conversation.")
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 28)
         .allowsHitTesting(false)
     }
 
@@ -1415,6 +1534,13 @@ struct ChatDetailView: View {
         )
     }
 
+    @MainActor
+    private func consumePendingChatAttachmentIfNeeded() async {
+        guard let intent = router.consumePendingChatAttachment(for: conversation.id) else { return }
+        let ctx = makeAttachmentSendContext()
+        await viewModel.send(intent: intent, context: ctx)
+    }
+
     // MARK: - Notification handlers (extracted to reduce body type-check complexity)
 
     private func handleConversationStateDidChange(_ note: Notification) {
@@ -1744,14 +1870,28 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
-            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
+            MediaBubbleImage(
+                attachment: attachment,
+                messageId: message.id,
+                conversationId: message.conversationId,
+                isOutgoing: message.isOutgoing,
+                uploadProgress: uploadProgress,
+                uploadLabel: uploadLabel
+            )
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
 
         case .video(let attachment):
-            MediaBubbleImage(attachment: attachment, messageId: message.id, isOutgoing: message.isOutgoing, uploadProgress: uploadProgress, uploadLabel: uploadLabel)
+            MediaBubbleImage(
+                attachment: attachment,
+                messageId: message.id,
+                conversationId: message.conversationId,
+                isOutgoing: message.isOutgoing,
+                uploadProgress: uploadProgress,
+                uploadLabel: uploadLabel
+            )
                 .overlay {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 44))
@@ -1969,6 +2109,7 @@ struct MessageBubble: View {
 private struct MediaBubbleImage: View {
     let attachment: Message.MediaAttachment
     let messageId: String
+    let conversationId: String
     let isOutgoing: Bool
     var uploadProgress: Double?
     var uploadLabel: String?
@@ -2016,6 +2157,12 @@ private struct MediaBubbleImage: View {
 
     private var displaySize: CGSize {
         BubbleMediaLayout.displaySize(for: attachment)
+    }
+
+    private var shouldAutoSaveToPhotos: Bool {
+        mediaAutoSave
+            && ChatMediaVisibilityStore.isVisibleInGallery(conversationId: conversationId)
+            && !isOutgoing
     }
 
     private var mediaLoadKey: String {
@@ -2126,7 +2273,7 @@ private struct MediaBubbleImage: View {
                 attachment: attachment
             )
             // Auto-save newly downloaded incoming images/videos to the system Photos library.
-            if mediaAutoSave, !isOutgoing {
+            if shouldAutoSaveToPhotos {
                 let kind: SaveToPhotos.MediaKind = attachment.mimeType.hasPrefix("video/") ? .video : .image
                 try? await SaveToPhotos.save(fileURL: url, kind: kind)
             }
@@ -2165,7 +2312,7 @@ private struct MediaBubbleImage: View {
                     attachment: attachment
                 )
                 // Auto-save newly downloaded incoming video to the system Photos library.
-                if mediaAutoSave, !isOutgoing, let videoURL = cachedVideoURL {
+                if shouldAutoSaveToPhotos, let videoURL = cachedVideoURL {
                     try? await SaveToPhotos.save(fileURL: videoURL, kind: .video)
                 }
             } catch {

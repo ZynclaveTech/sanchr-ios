@@ -30,6 +30,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onReply: (Message) -> Void
     let onReact: (String, String) -> Void
     let onForward: (Message) -> Void
+    let onRetry: (Message) -> Void
     let onLoadMore: () -> Void
     let onBubbleTap: (MessageInteraction) -> Void
     @Binding var isScrolledToBottom: Bool
@@ -47,6 +48,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onForwardMessage = { message in
             onForward(message)
+        }
+
+        vc.onRetryMessage = { message in
+            onRetry(message)
         }
 
         vc.onInitialContentPresented = {
@@ -94,6 +99,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onForwardMessage = { message in
             onForward(message)
+        }
+
+        vc.onRetryMessage = { message in
+            onRetry(message)
         }
 
         vc.onInitialContentPresented = {

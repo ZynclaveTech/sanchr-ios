@@ -203,6 +203,7 @@ final class MessageCollectionViewController: UIViewController {
     var onReplyToMessage: ((Message) -> Void)?
     var onReactToMessage: ((String, String) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
+    var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
@@ -889,6 +890,15 @@ final class MessageCollectionViewController: UIViewController {
             }
         }
         actions.append(UIMenu(title: "React", image: UIImage(systemName: "face.smiling"), children: reactionActions))
+
+        if message.status == .failed {
+            actions.append(UIAction(
+                title: "Retry",
+                image: UIImage(systemName: "arrow.clockwise")
+            ) { [weak self] _ in
+                self?.onRetryMessage?(message)
+            })
+        }
 
         if message.isOutgoing {
             actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in })
