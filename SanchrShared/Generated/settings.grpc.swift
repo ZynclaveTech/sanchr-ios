@@ -142,6 +142,12 @@ extension Sanchr_Settings_SettingsServiceClientProtocol {
     )
   }
 
+  /// Unary call to SetRegistrationLock
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SetRegistrationLock.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func setRegistrationLock(
     _ request: Sanchr_Settings_SetRegistrationLockRequest,
     callOptions: CallOptions? = nil

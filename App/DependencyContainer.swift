@@ -427,14 +427,23 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var webRTCClient: WebRTCClient = WebRTCClient()
 
     /// CallKit + signaling orchestrator for voice/video calls.
-    @ObservationIgnored lazy var callManager: CallManager = CallManager(
-        webRTCClient: webRTCClient,
-        callService: grpcClient.callSignalingService,
-        signalManager: signalProtocol,
-        tokenRefresher: { [weak self] in
-            _ = try await self?.sessionService.refreshTokenIfExpiringSoon()
-        }
-    )
+    @ObservationIgnored lazy var callManager: CallManager = {
+        let localDatabase = self.localDatabase
+        return CallManager(
+            webRTCClient: self.webRTCClient,
+            callService: self.grpcClient.callSignalingService,
+            signalManager: self.signalProtocol,
+            tokenRefresher: { [weak self] in
+                _ = try await self?.sessionService.refreshTokenIfExpiringSoon()
+            },
+            peerDisplayNameResolver: { userId in
+                await Self.resolveCallPeerDisplayName(
+                    userId: userId,
+                    localDatabase: localDatabase
+                )
+            }
+        )
+    }()
 
     @ObservationIgnored lazy var realtimeService: RealtimeService = RealtimeService(
         messageRepository: messageRepository,
@@ -506,6 +515,46 @@ final class DependencyContainer: @unchecked Sendable {
             localDataIssue = wrapped
             return UnavailableLocalDatabase(error: wrapped)
         }
+    }
+
+    private static func resolveCallPeerDisplayName(
+        userId: String,
+        localDatabase: LocalDatabaseProtocol
+    ) async -> String? {
+        if let contacts = try? await localDatabase.fetchContacts(),
+           let contact = contacts.first(where: { $0.id == userId }),
+           let displayName = callDisplayName(for: contact, userId: userId)
+        {
+            return displayName
+        }
+
+        guard let conversations = try? await localDatabase.fetchConversations() else {
+            return nil
+        }
+
+        for conversation in conversations {
+            if let participant = conversation.participants.first(where: { $0.id == userId }),
+               let displayName = callDisplayName(for: participant, userId: userId)
+            {
+                return displayName
+            }
+        }
+
+        return nil
+    }
+
+    private static func callDisplayName(for user: User, userId: String) -> String? {
+        let displayName = user.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !displayName.isEmpty, displayName != userId, UUID(uuidString: displayName) == nil {
+            return displayName
+        }
+
+        let phoneNumber = user.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !phoneNumber.isEmpty, phoneNumber != userId {
+            return phoneNumber
+        }
+
+        return nil
     }
 
     // MARK: - gRPC Connection

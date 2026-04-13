@@ -43,11 +43,12 @@ final class WebRTCClient: NSObject {
     private var videoCapturer: FilteredVideoCapturer?
     private var localVideoSource: RTCVideoSource?
     private var pendingRemoteIceCandidates: [RTCIceCandidate] = []
+    private var remoteRenderers: [RTCVideoRenderer] = []
 
     private var isMuted: Bool = false
     private var isSpeakerOn: Bool = false
     private var isUsingFrontCamera: Bool = true
-    private var isVideoEnabled: Bool = true
+    private var isVideoEnabled: Bool = false
 
     private let rtcQueue = DispatchQueue(label: "io.sanchr.webrtc", qos: .userInitiated)
 
@@ -119,24 +120,9 @@ final class WebRTCClient: NSObject {
 
         // Video track
         if isVideo {
-            let videoSource = Self.factory.videoSource()
-            self.localVideoSource = videoSource
-
-            #if targetEnvironment(simulator)
-                // Simulator does not support camera capture
-                SanchrLogger.calls.warning("Simulator detected: video capture unavailable")
-            #else
-                let capturer = FilteredVideoCapturer(delegate: videoSource)
-                self.videoCapturer = capturer
-                startCameraCapture(capturer: capturer)
-            #endif
-
-            let videoTrack = Self.factory.videoTrack(with: videoSource, trackId: "sanchr-video-0")
-            videoTrack.isEnabled = true
-            self.localVideoTrack = videoTrack
-            self.isVideoEnabled = true
-            pc.add(videoTrack, streamIds: ["sanchr-stream-0"])
-            SanchrLogger.calls.info("Local video track added")
+            _ = setVideoEnabled(true)
+        } else {
+            self.isVideoEnabled = false
         }
 
         configureAudioSession()
@@ -153,27 +139,36 @@ final class WebRTCClient: NSObject {
     /// Toggles the mute state of the local audio track. Returns the new muted state.
     @discardableResult
     func toggleMute() -> Bool {
-        isMuted.toggle()
-        localAudioTrack?.isEnabled = !isMuted
-        SanchrLogger.calls.info("Mute toggled: \(self.isMuted)")
+        setMuted(!isMuted)
+    }
+
+    /// Sets the mute state of the local audio track. Returns the applied muted state.
+    @discardableResult
+    func setMuted(_ muted: Bool) -> Bool {
+        isMuted = muted
+        localAudioTrack?.isEnabled = !muted
+        SanchrLogger.calls.info("Mute set: \(self.isMuted)")
         return isMuted
     }
 
     /// Toggles the speaker output. Returns the new speaker-on state.
     @discardableResult
     func toggleSpeaker() -> Bool {
-        isSpeakerOn.toggle()
+        setSpeakerEnabled(!isSpeakerOn)
+    }
+
+    /// Sets the audio route. `true` forces speaker; `false` returns to the receiver/earpiece route.
+    @discardableResult
+    func setSpeakerEnabled(_ enabled: Bool) -> Bool {
         let session = AVAudioSession.sharedInstance()
         do {
-            if isSpeakerOn {
-                try session.overrideOutputAudioPort(.speaker)
-            } else {
-                try session.overrideOutputAudioPort(.none)
-            }
+            try session.overrideOutputAudioPort(enabled ? .speaker : .none)
+            isSpeakerOn = enabled
+            SanchrLogger.calls.info("Speaker set: \(self.isSpeakerOn)")
         } catch {
-            SanchrLogger.calls.error("Failed to toggle speaker: \(error.localizedDescription)")
+            SanchrLogger.calls.error(
+                "Failed to set speaker=\(enabled): \(error.localizedDescription)")
         }
-        SanchrLogger.calls.info("Speaker toggled: \(self.isSpeakerOn)")
         return isSpeakerOn
     }
 
@@ -191,14 +186,32 @@ final class WebRTCClient: NSObject {
     /// Enables or disables the local video track. Returns the new video-enabled state.
     @discardableResult
     func toggleVideo() -> Bool {
-        isVideoEnabled.toggle()
-        localVideoTrack?.isEnabled = isVideoEnabled
-        if !isVideoEnabled {
-            videoCapturer?.stopCapture()
-        } else if let capturer = videoCapturer {
-            startCameraCapture(capturer: capturer)
+        setVideoEnabled(!isVideoEnabled)
+    }
+
+    /// Enables or disables the local video track. If no video track exists yet, one is added.
+    @discardableResult
+    func setVideoEnabled(_ enabled: Bool) -> Bool {
+        if enabled, isVideoEnabled, localVideoTrack != nil {
+            return true
         }
-        SanchrLogger.calls.info("Video toggled: \(self.isVideoEnabled)")
+
+        if enabled {
+            guard ensureLocalVideoTrack() else {
+                isVideoEnabled = false
+                return false
+            }
+            localVideoTrack?.isEnabled = true
+            if let capturer = videoCapturer {
+                startCameraCapture(capturer: capturer)
+            }
+            isVideoEnabled = true
+        } else {
+            localVideoTrack?.isEnabled = false
+            videoCapturer?.stopCapture()
+            isVideoEnabled = false
+        }
+        SanchrLogger.calls.info("Video set: \(self.isVideoEnabled)")
         return isVideoEnabled
     }
 
@@ -383,12 +396,16 @@ final class WebRTCClient: NSObject {
 
     /// Attaches a renderer to the remote video track.
     func attachRemoteRenderer(_ renderer: RTCVideoRenderer) {
+        if !remoteRenderers.contains(where: { ($0 as AnyObject) === (renderer as AnyObject) }) {
+            remoteRenderers.append(renderer)
+        }
         remoteVideoTrack?.add(renderer)
     }
 
     /// Detaches a renderer from the remote video track.
     func detachRemoteRenderer(_ renderer: RTCVideoRenderer) {
         remoteVideoTrack?.remove(renderer)
+        remoteRenderers.removeAll { ($0 as AnyObject) === (renderer as AnyObject) }
     }
 
     // MARK: - Cleanup
@@ -403,15 +420,47 @@ final class WebRTCClient: NSObject {
         remoteVideoTrack = nil
         localVideoSource = nil
         pendingRemoteIceCandidates.removeAll()
+        remoteRenderers.removeAll()
         peerConnection?.close()
         peerConnection = nil
         isMuted = false
         isSpeakerOn = false
+        try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
         isUsingFrontCamera = true
-        isVideoEnabled = true
+        isVideoEnabled = false
     }
 
     // MARK: - Private Helpers
+
+    private func ensureLocalVideoTrack() -> Bool {
+        if localVideoTrack != nil {
+            return true
+        }
+
+        guard let pc = peerConnection else {
+            SanchrLogger.calls.error("setVideoEnabled called without peer connection")
+            return false
+        }
+
+        let videoSource = Self.factory.videoSource()
+        self.localVideoSource = videoSource
+
+        #if targetEnvironment(simulator)
+            // Simulator does not support camera capture, but the track is still useful
+            // for SDP negotiation and renderer plumbing.
+            SanchrLogger.calls.warning("Simulator detected: video capture unavailable")
+        #else
+            let capturer = FilteredVideoCapturer(delegate: videoSource)
+            self.videoCapturer = capturer
+        #endif
+
+        let videoTrack = Self.factory.videoTrack(with: videoSource, trackId: "sanchr-video-0")
+        videoTrack.isEnabled = true
+        self.localVideoTrack = videoTrack
+        pc.add(videoTrack, streamIds: ["sanchr-stream-0"])
+        SanchrLogger.calls.info("Local video track added")
+        return true
+    }
 
     private func startCameraCapture(capturer: FilteredVideoCapturer) {
         let position: AVCaptureDevice.Position = isUsingFrontCamera ? .front : .back
@@ -442,13 +491,14 @@ final class WebRTCClient: NSObject {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(
-                .playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
+                .playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP])
             try session.setActive(true)
             SanchrLogger.calls.info("Audio session configured for voice chat")
         } catch {
             SanchrLogger.calls.error(
                 "Failed to configure audio session: \(error.localizedDescription)")
         }
+        _ = setSpeakerEnabled(isSpeakerOn)
     }
 }
 
@@ -468,6 +518,9 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
             "Remote stream added with \(stream.videoTracks.count) video track(s)")
         if let videoTrack = stream.videoTracks.first {
             self.remoteVideoTrack = videoTrack
+            for renderer in remoteRenderers {
+                videoTrack.add(renderer)
+            }
             delegate?.webRTCClient(self, didReceiveRemoteVideoTrack: videoTrack)
         }
     }
@@ -480,6 +533,9 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
         guard let videoTrack = rtpReceiver.track as? RTCVideoTrack else { return }
         SanchrLogger.calls.info("Remote video track added via RTP receiver")
         self.remoteVideoTrack = videoTrack
+        for renderer in remoteRenderers {
+            videoTrack.add(renderer)
+        }
         delegate?.webRTCClient(self, didReceiveRemoteVideoTrack: videoTrack)
     }
 

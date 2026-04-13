@@ -109,6 +109,7 @@ private actor MessageStreamController {
 
 final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendable {
     private static let ackBatchSize = 100
+    private static let nilUUIDString = "00000000-0000-0000-0000-000000000000"
 
     private let grpcClient: GRPCClientProtocol
     private let localDatabase: LocalDatabaseProtocol
@@ -546,7 +547,18 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
                         switch event {
                         case .message(let envelope):
-                            if let message = await self.decodeMessage(from: envelope) {
+                            if Self.shouldDecodeAsSealed(envelope) {
+                                if let event = await self.decodeSealedEnvelope(envelope) {
+                                    await self.ackDeliveredEnvelope(
+                                        messageId: envelope.messageID,
+                                        conversationId: envelope.conversationID
+                                    )
+                                    if case .message = event {
+                                        _ = try? await self.flushPendingAcks()
+                                    }
+                                    continuation.yield(event)
+                                }
+                            } else if let message = await self.decodeMessage(from: envelope) {
                                 _ = try? await self.flushPendingAcks()
                                 continuation.yield(.message(message))
                             }
@@ -582,6 +594,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                             continuation.yield(.reaction(reaction))
                         case .sealedMessage(let sealed):
                             if let event = await self.decodeSealedMessage(from: sealed) {
+                                await self.ackDeliveredEnvelope(
+                                    messageId: sealed.messageID,
+                                    conversationId: Self.nilUUIDString
+                                )
                                 if case .message = event {
                                     _ = try? await self.flushPendingAcks()
                                 }
@@ -719,23 +735,26 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         var latestTimestamp = sinceTimestamp
 
         for try await envelope in stream {
-            // Sealed messages (content_type == "sealed") are stored in the
-            // device outbox with sentinel sender_id = nil UUID and sender_device = 0
-            // by queue_sealed_outbox(). Passing those sentinel values to Signal's
-            // ProtocolAddress constructor throws invalidProtocolAddress. Route
-            // sealed envelopes through the sealed-sender decryption path instead.
-            if envelope.contentType == "sealed" {
-                var sealedMsg = Sanchr_Messaging_SealedInboundMessage()
-                sealedMsg.sealedEnvelope = envelope.ciphertext
-                if let event = await decodeSealedMessage(from: sealedMsg) {
+            if Self.shouldDecodeAsSealed(envelope) {
+                if let event = await decodeSealedEnvelope(envelope) {
+                    await ackDeliveredEnvelope(
+                        messageId: envelope.messageID,
+                        conversationId: envelope.conversationID
+                    )
                     if case .message(let message) = event {
                         count += 1
-                        latestTimestamp = max(latestTimestamp, Int64(message.timestamp.timeIntervalSince1970 * 1000))
+                        latestTimestamp = max(
+                            latestTimestamp,
+                            Int64(message.timestamp.timeIntervalSince1970 * 1000)
+                        )
                     }
                 }
             } else if let message = await decodeMessage(from: envelope) {
                 count += 1
-                latestTimestamp = max(latestTimestamp, Int64(message.timestamp.timeIntervalSince1970 * 1000))
+                latestTimestamp = max(
+                    latestTimestamp,
+                    Int64(message.timestamp.timeIntervalSince1970 * 1000)
+                )
             }
         }
 
@@ -803,7 +822,72 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return "\(type(of: error)): \(error.localizedDescription)"
     }
 
+    private static func shouldDecodeAsSealed(_ envelope: Sanchr_Messaging_EncryptedEnvelope) -> Bool {
+        envelope.contentType == "sealed" || isNilSenderSentinel(envelope)
+    }
+
+    private static func isNilSenderSentinel(_ envelope: Sanchr_Messaging_EncryptedEnvelope) -> Bool {
+        envelope.senderID == nilUUIDString && envelope.senderDevice == 0
+    }
+
+    private static func hasValidNormalSignalAddress(
+        _ envelope: Sanchr_Messaging_EncryptedEnvelope
+    ) -> Bool {
+        !envelope.senderID.isEmpty
+            && envelope.senderID != nilUUIDString
+            && envelope.senderDevice > 0
+    }
+
+    private static func sealedInboundMessage(
+        from envelope: Sanchr_Messaging_EncryptedEnvelope
+    ) -> Sanchr_Messaging_SealedInboundMessage {
+        var sealed = Sanchr_Messaging_SealedInboundMessage()
+        sealed.sealedEnvelope = envelope.ciphertext
+        sealed.serverTimestamp = envelope.serverTimestamp
+        sealed.messageID = envelope.messageID
+        return sealed
+    }
+
+    private func decodeSealedEnvelope(
+        _ envelope: Sanchr_Messaging_EncryptedEnvelope
+    ) async -> RealtimeEvent? {
+        if Self.isNilSenderSentinel(envelope), envelope.contentType != "sealed" {
+            SanchrLogger.chat.warning(
+                "Routing nil-sender envelope through sealed decrypt msg=\(envelope.messageID.prefix(8)) contentType=\(envelope.contentType)"
+            )
+        }
+
+        return await decodeSealedMessage(from: Self.sealedInboundMessage(from: envelope))
+    }
+
+    private func ackDeliveredEnvelope(messageId: String, conversationId: String) async {
+        guard !messageId.isEmpty else { return }
+
+        var ref = Sanchr_Messaging_AckedMessageRef()
+        ref.conversationID = conversationId.isEmpty ? Self.nilUUIDString : conversationId
+        ref.messageID = messageId
+
+        var request = Sanchr_Messaging_AckMessagesRequest()
+        request.messages = [ref]
+
+        do {
+            _ = try await grpcClient.messagingService.ackMessages(request)
+            SanchrLogger.chat.debug("Acked delivered envelope \(messageId.prefix(8))")
+        } catch {
+            SanchrLogger.chat.warning(
+                "Failed to ack delivered envelope \(messageId.prefix(8)): \(error.localizedDescription)"
+            )
+        }
+    }
+
     private func decodeMessage(from envelope: Sanchr_Messaging_EncryptedEnvelope) async -> Message? {
+        guard Self.hasValidNormalSignalAddress(envelope) else {
+            SanchrLogger.chat.warning(
+                "Skipping envelope with invalid Signal sender address msg=\(envelope.messageID.prefix(8)) sender=\(envelope.senderID.prefix(8)) device=\(envelope.senderDevice) contentType=\(envelope.contentType)"
+            )
+            return nil
+        }
+
         do {
             let plaintext = try await signalProtocol.decryptEnvelope(envelope)
             let serverTimestamp = Date(

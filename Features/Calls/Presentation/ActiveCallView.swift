@@ -24,7 +24,7 @@ struct ActiveCallView: View {
             callBackground(callManager: callManager)
 
             // MARK: - Remote Video (full screen behind controls)
-            if callManager.isVideoEnabled, case .active = callManager.callState {
+            if isVideoCall(callManager), case .active = callManager.callState {
                 RemoteVideoView(callManager: callManager)
                     .ignoresSafeArea()
             }
@@ -37,7 +37,7 @@ struct ActiveCallView: View {
                 Spacer()
 
                 // Contact info + status (hidden when remote video is active)
-                if !callManager.isVideoEnabled || !isActive(callManager.callState) {
+                if !isVideoCall(callManager) || !isActive(callManager.callState) {
                     contactInfoSection(callManager: callManager)
                     Spacer()
                 }
@@ -76,7 +76,22 @@ struct ActiveCallView: View {
             .padding(.bottom, SanchrSpacing.xxxxl)
         }
         .preferredColorScheme(.dark)
-        .statusBarHidden(callManager.isVideoEnabled && isActive(callManager.callState))
+        .statusBarHidden(isVideoCall(callManager) && isActive(callManager.callState))
+        .alert(
+            "Join video call?",
+            isPresented: videoUpgradeRequestBinding(callManager: callManager)
+        ) {
+            Button("Not now", role: .cancel) {
+                callManager.declineVideoUpgradeRequest()
+            }
+            Button("Join") {
+                Task {
+                    await callManager.acceptVideoUpgradeRequest()
+                }
+            }
+        } message: {
+            Text("\(contactName) wants to switch this call to video.")
+        }
         .onChange(of: callManager.callState) { _, newState in
             switch newState {
             case .idle:
@@ -96,7 +111,7 @@ struct ActiveCallView: View {
 
     @ViewBuilder
     private func callBackground(callManager: CallManager) -> some View {
-        if callManager.isVideoEnabled, case .active = callManager.callState {
+        if isVideoCall(callManager), case .active = callManager.callState {
             Color.black.ignoresSafeArea()
         } else {
             LinearGradient(
@@ -162,13 +177,48 @@ struct ActiveCallView: View {
                 .monospacedDigit()
                 .contentTransition(.numericText())
                 .animation(.default, value: callManager.callDuration)
+
+            peerStatusBadges(callManager: callManager)
         }
+    }
+
+    @ViewBuilder
+    private func peerStatusBadges(callManager: CallManager) -> some View {
+        if callManager.peerIsMuted || callManager.peerBatteryIsLow {
+            HStack(spacing: SanchrSpacing.xs) {
+                if callManager.peerIsMuted {
+                    peerStatusBadge(icon: "mic.slash.fill", text: "Muted")
+                }
+                if callManager.peerBatteryIsLow {
+                    peerStatusBadge(icon: "battery.25", text: "Low battery")
+                }
+            }
+        }
+    }
+
+    private func peerStatusBadge(icon: String, text: String) -> some View {
+        HStack(spacing: SanchrSpacing.xxs) {
+            Image(systemName: icon)
+                .font(SanchrTypography.captionSmall)
+            Text(text)
+                .font(SanchrTypography.captionSmall)
+        }
+        .foregroundColor(.white.opacity(0.9))
+        .padding(.horizontal, SanchrSpacing.sm)
+        .padding(.vertical, SanchrSpacing.xxs)
+        .background(Color.white.opacity(0.14))
+        .clipShape(Capsule())
     }
 
     // MARK: - In-Call Controls
 
     private func callControls(callManager: CallManager) -> some View {
-        SanchrGlassCluster(spacing: 14) {
+        let videoUpgradeDisabled = callManager.outgoingVideoUpgradePending
+        let videoButtonLabel = callManager.outgoingVideoUpgradePending
+            ? "Waiting"
+            : (callManager.callType == "video" && callManager.isVideoEnabled ? "Camera off" : "Video")
+
+        return SanchrGlassCluster(spacing: 14) {
             HStack(spacing: SanchrSpacing.xxxl) {
                 // Mute
                 CallControlButton(
@@ -182,7 +232,7 @@ struct ActiveCallView: View {
                 // Speaker
                 CallControlButton(
                     icon: callManager.isSpeakerOn ? "speaker.wave.3.fill" : "speaker.fill",
-                    label: "Speaker",
+                    label: callManager.isSpeakerOn ? "Earpiece" : "Speaker",
                     isActive: callManager.isSpeakerOn
                 ) {
                     callManager.toggleSpeaker()
@@ -190,9 +240,12 @@ struct ActiveCallView: View {
 
                 // Video toggle
                 CallControlButton(
-                    icon: callManager.isVideoEnabled ? "video.fill" : "video.slash.fill",
-                    label: "Video",
-                    isActive: callManager.isVideoEnabled
+                    icon: callManager.callType == "video" && callManager.isVideoEnabled
+                        ? "video.fill"
+                        : "video.slash.fill",
+                    label: videoButtonLabel,
+                    isActive: callManager.callType == "video" && callManager.isVideoEnabled,
+                    isDisabled: videoUpgradeDisabled
                 ) {
                     callManager.toggleVideo()
                 }
@@ -237,7 +290,7 @@ struct ActiveCallView: View {
             VStack(spacing: SanchrSpacing.xs) {
                 Button {
                     Task {
-                        try? await callManager.answerCall()
+                        try? await callManager.requestAnswerCall()
                     }
                 } label: {
                     Image(systemName: "phone.fill")
@@ -356,6 +409,10 @@ struct ActiveCallView: View {
         return false
     }
 
+    private func isVideoCall(_ callManager: CallManager) -> Bool {
+        callManager.callType == "video"
+    }
+
     private func isIncoming(_ state: CallState) -> Bool {
         if case .incoming = state { return true }
         return false
@@ -366,6 +423,13 @@ struct ActiveCallView: View {
         case .outgoing, .ringing: return true
         default: return false
         }
+    }
+
+    private func videoUpgradeRequestBinding(callManager: CallManager) -> Binding<Bool> {
+        Binding(
+            get: { callManager.incomingVideoUpgradeRequest },
+            set: { _ in }
+        )
     }
 }
 
@@ -400,6 +464,7 @@ struct CallControlButton: View {
     let icon: String
     let label: String
     let isActive: Bool
+    var isDisabled: Bool = false
     let action: () -> Void
 
     @State private var isPressed = false
@@ -445,9 +510,11 @@ struct CallControlButton: View {
 
                 Text(label)
                     .font(SanchrTypography.captionSmall)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(.white.opacity(isDisabled ? 0.45 : 0.7))
             }
         }
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.65 : 1)
     }
 }
 

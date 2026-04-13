@@ -144,9 +144,6 @@ final class ChatDetailViewModel {
 
     // MARK: - Conversation Lifecycle
 
-    /// Called when the user enters a conversation.
-    /// Clears any pending notifications for this conversation and sets the active conversation
-    /// so that foreground notifications for it are suppressed.
     @MainActor
     func onConversationAppear(conversationId: String, pushManager: PushManager) {
         pushManager.setActiveConversation(conversationId)
@@ -591,26 +588,12 @@ final class ChatDetailViewModel {
             )
 
         case .contact(let stripped):
-            // TODO: replace with structured contact message once a contact
-            // MessageContent variant + proto exists. For now we send a text
-            // fallback so the picker round-trip is observable end-to-end.
             await sendTextFallback(Self.contactFallbackText(stripped), context: context)
 
         case .location(let payload):
-            // TODO: replace with structured location message + proto. We are
-            // forbidden from reverse-geocoding (privacy contract), so the
-            // text fallback only contains the raw lat/long.
             await sendTextFallback(Self.locationFallbackText(payload), context: context)
 
         case .vaultItem(let item):
-            // Flow C: user picked a vault item from the chat attachment
-            // picker. The forward-secure vault rewrite made it
-            // impossible to cross-reference a vault item from a chat
-            // (the recipient has no AccessK_vault for it), so the only
-            // technically sound path is download + re-upload as a
-            // fresh chat attachment. VaultSharingCoordinator owns that
-            // pipeline; here we just delegate and surface any error
-            // into `errorMessage`.
             do {
                 _ = try await context.vaultSharingCoordinator.reshareToCurrentChat(
                     item: item,
@@ -627,11 +610,6 @@ final class ChatDetailViewModel {
             }
 
         case .voice(let clip):
-            // Voice notes flow through the same media upload pipeline as any
-            // other audio attachment. The voice-specific metadata
-            // (isVoiceMessage / audioDurationMs / audioWaveform) is stamped
-            // onto the optimistic attachment and re-applied after the
-            // upload's URL swap by sendMediaMessage's preservation block.
             let filename = "voice-\(Int(Date().timeIntervalSince1970 * 1000)).m4a"
             let sizeBytes = (try? FileManager.default.attributesOfItem(atPath: clip.url.path)[.size] as? Int64) ?? 0
             var a = Message.MediaAttachment(
