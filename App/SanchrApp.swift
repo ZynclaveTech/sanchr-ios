@@ -59,6 +59,8 @@ struct SanchrApp: App {
                         } catch {
                             SanchrLogger.network.error("Failed to connect gRPC channels: \(error.localizedDescription)")
                         }
+                        // One-time purge of AccessK entries derived under old HKDF params.
+                        await container.accessKeyStore.migrateHKDFv2IfNeeded()
                         // Wire PushManager after gRPC is connected (it needs notificationService)
                         await MainActor.run {
                             configurePushManager()

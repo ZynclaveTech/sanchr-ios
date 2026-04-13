@@ -42,6 +42,28 @@ public protocol AccessKeyStoreProtocol: AnyObject, Sendable {
     func deleteAll() async throws
 }
 
+// MARK: - HKDF v2 Migration
+
+extension AccessKeyStoreProtocol {
+    private static var hkdfMigrationKey: String { "sanchr.accesskey.hkdf_v2_migrated" }
+
+    /// Purges all AccessK entries derived under the pre-v2 HKDF parameters.
+    /// Called once on first launch after the derivation fix. Media can be
+    /// re-requested from sender via the ratchet channel if needed.
+    public func migrateHKDFv2IfNeeded() async {
+        guard !UserDefaults.standard.bool(forKey: Self.hkdfMigrationKey) else { return }
+
+        do {
+            try await deleteAll()
+            SanchrLogger.crypto.info("HKDF v2 migration: purged all stale AccessK entries")
+        } catch {
+            SanchrLogger.crypto.error("HKDF v2 migration failed: \(error)")
+        }
+
+        UserDefaults.standard.set(true, forKey: Self.hkdfMigrationKey)
+    }
+}
+
 public final class AccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
     public static let defaultTTL: TimeInterval = 30 * 24 * 60 * 60  // 30 days
 
