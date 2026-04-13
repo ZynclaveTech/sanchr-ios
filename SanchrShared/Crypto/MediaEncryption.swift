@@ -33,6 +33,9 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
 
     public init() {}
 
+    /// Paper Section 4.2.2: "chunked at 1 MB blocks"
+    private static let chunkSize = 1_048_576 // 1 MB
+
     // MARK: - Key Generation
 
     /// Generates a random 256-bit key for encrypting a media file.
@@ -80,11 +83,30 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
     public func encryptFile(at inputURL: URL, to outputURL: URL) async throws -> MediaEncryptionMetadata {
         SanchrLogger.media.info("Encrypting file at \(inputURL.lastPathComponent)")
 
-        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
-        let digest = SHA256.hash(data: inputData)
-
         let key = Self.generateMediaKey()
         let nonce = AES.GCM.Nonce()
+        let keyData = key.withUnsafeBytes { Data($0) }
+        let nonceData = Data(nonce)
+
+        let fileAttributes = try FileManager.default.attributesOfItem(atPath: inputURL.path)
+        let fileSize = (fileAttributes[.size] as? Int64) ?? 0
+
+        if fileSize > Self.chunkSize {
+            // Paper Section 4.2.2: chunked encryption for files > 1 MB
+            let result = try encryptFileChunked(
+                inputURL: inputURL, outputURL: outputURL,
+                key: key, baseNonce: nonce
+            )
+            return MediaEncryptionMetadata(
+                key: keyData, nonce: nonceData,
+                tag: result.tag, digest: result.digest,
+                fileSize: result.fileSize
+            )
+        }
+
+        // Single-shot path for small files
+        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
+        let digest = SHA256.hash(data: inputData)
         let sealedBox = try AES.GCM.seal(inputData, using: key, nonce: nonce)
 
         guard let combined = sealedBox.combined else {
@@ -93,17 +115,11 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
         }
         try combined.write(to: outputURL, options: .atomic)
 
-        let keyData = key.withUnsafeBytes { Data($0) }
-        let nonceData = Data(nonce)
-        let tagData = Data(sealedBox.tag)
-
         SanchrLogger.media.info("File encrypted: \(combined.count) bytes")
 
         return MediaEncryptionMetadata(
-            key: keyData,
-            nonce: nonceData,
-            tag: tagData,
-            digest: Data(digest),
+            key: keyData, nonce: nonceData,
+            tag: Data(sealedBox.tag), digest: Data(digest),
             fileSize: Int64(inputData.count)
         )
     }
@@ -111,11 +127,29 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
     public func encryptFile(at inputURL: URL, to outputURL: URL, withKey keyData: Data) async throws -> MediaEncryptionMetadata {
         SanchrLogger.media.info("Encrypting file with derived key at \(inputURL.lastPathComponent)")
 
-        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
-        let digest = SHA256.hash(data: inputData)
-
         let key = SymmetricKey(data: keyData)
         let nonce = AES.GCM.Nonce()
+        let nonceData = Data(nonce)
+
+        let fileAttributes = try FileManager.default.attributesOfItem(atPath: inputURL.path)
+        let fileSize = (fileAttributes[.size] as? Int64) ?? 0
+
+        if fileSize > Self.chunkSize {
+            // Paper Section 4.2.2: chunked encryption for files > 1 MB
+            let result = try encryptFileChunked(
+                inputURL: inputURL, outputURL: outputURL,
+                key: key, baseNonce: nonce
+            )
+            return MediaEncryptionMetadata(
+                key: keyData, nonce: nonceData,
+                tag: result.tag, digest: result.digest,
+                fileSize: result.fileSize
+            )
+        }
+
+        // Single-shot path for small files
+        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
+        let digest = SHA256.hash(data: inputData)
         let sealedBox = try AES.GCM.seal(inputData, using: key, nonce: nonce)
 
         guard let combined = sealedBox.combined else {
@@ -124,10 +158,8 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
         try combined.write(to: outputURL, options: .atomic)
 
         return MediaEncryptionMetadata(
-            key: keyData,
-            nonce: Data(nonce),
-            tag: Data(sealedBox.tag),
-            digest: Data(digest),
+            key: keyData, nonce: nonceData,
+            tag: Data(sealedBox.tag), digest: Data(digest),
             fileSize: Int64(inputData.count)
         )
     }
@@ -141,20 +173,126 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
 
         let ciphertext = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
         let symmetricKey = SymmetricKey(data: metadata.key)
-        let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
-        let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
 
-        // Verify integrity via SHA-256 digest if present.
-        if !metadata.digest.isEmpty {
-            let computedDigest = Data(SHA256.hash(data: plaintext))
-            guard computedDigest == metadata.digest else {
-                throw AppError.decryptionFailed(
-                    reason: "Media digest mismatch -- file may be corrupted.")
+        // Detect single-shot vs chunked format.
+        // Single-shot combined size = nonce(12) + fileSize + tag(16).
+        let singleShotSize = 12 + Int(metadata.fileSize) + 16
+
+        let plaintext: Data
+        if ciphertext.count == singleShotSize {
+            // Single-shot decryption (backward compatible)
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
+
+            if !metadata.digest.isEmpty {
+                let computedDigest = Data(SHA256.hash(data: plaintext))
+                guard computedDigest == metadata.digest else {
+                    throw AppError.decryptionFailed(
+                        reason: "Media digest mismatch -- file may be corrupted.")
+                }
             }
+        } else {
+            // Chunked decryption
+            plaintext = try decryptFileChunked(
+                ciphertext: ciphertext,
+                key: symmetricKey,
+                expectedDigest: metadata.digest
+            )
         }
 
         try plaintext.write(to: outputURL, options: .atomic)
         SanchrLogger.media.info("File decrypted: \(plaintext.count) bytes")
+    }
+
+    // MARK: - Chunked Encryption Helpers
+
+    /// Encrypts a file in 1 MB chunks using AES-256-GCM.
+    /// Each chunk gets its own nonce (incremented from base).
+    /// Output format: [chunk1_nonce(12) + chunk1_ciphertext + chunk1_tag(16)] repeated.
+    private func encryptFileChunked(
+        inputURL: URL,
+        outputURL: URL,
+        key: SymmetricKey,
+        baseNonce: AES.GCM.Nonce
+    ) throws -> (digest: Data, fileSize: Int64, tag: Data) {
+        let inputData = try Data(contentsOf: inputURL, options: [.mappedIfSafe])
+        let digest = Data(SHA256.hash(data: inputData))
+        let fileSize = Int64(inputData.count)
+
+        var outputData = Data()
+        var chunkIndex: UInt64 = 0
+        var offset = 0
+        var lastTag = Data()
+
+        while offset < inputData.count {
+            let end = min(offset + Self.chunkSize, inputData.count)
+            let chunk = inputData[offset..<end]
+
+            let nonce = try Self.deriveChunkNonce(base: baseNonce, index: chunkIndex)
+            let sealedBox = try AES.GCM.seal(chunk, using: key, nonce: nonce)
+
+            guard let combined = sealedBox.combined else {
+                throw AppError.encryptionFailed(reason: "Chunk \(chunkIndex) failed")
+            }
+            outputData.append(combined)
+            lastTag = Data(sealedBox.tag)
+
+            offset = end
+            chunkIndex += 1
+        }
+
+        try outputData.write(to: outputURL, options: .atomic)
+        SanchrLogger.media.info("Chunked encrypt: \(chunkIndex) chunks, \(outputData.count) bytes")
+
+        return (digest: digest, fileSize: fileSize, tag: lastTag)
+    }
+
+    /// Derives a per-chunk nonce by adding the chunk index to the base nonce bytes.
+    private static func deriveChunkNonce(base: AES.GCM.Nonce, index: UInt64) throws -> AES.GCM.Nonce {
+        var nonceBytes = Array(base) // 12 bytes
+        let indexBytes = withUnsafeBytes(of: index.bigEndian) { Array($0) }
+        for i in 0..<8 {
+            nonceBytes[4 + i] &+= indexBytes[i]
+        }
+        return try AES.GCM.Nonce(data: Data(nonceBytes))
+    }
+
+    /// Decrypts a file that was encrypted in 1 MB chunks.
+    private func decryptFileChunked(
+        ciphertext: Data,
+        key: SymmetricKey,
+        expectedDigest: Data
+    ) throws -> Data {
+        var plaintext = Data()
+        var offset = 0
+        var chunkIndex: UInt64 = 0
+
+        // Each chunk's combined = nonce(12) + ciphertext + tag(16)
+        // Full chunk combined size = 12 + chunkSize + 16
+        let fullChunkCombinedSize = 12 + Self.chunkSize + 16
+
+        while offset < ciphertext.count {
+            let remaining = ciphertext.count - offset
+            let chunkCombinedSize = min(fullChunkCombinedSize, remaining)
+
+            let chunkData = ciphertext[offset..<(offset + chunkCombinedSize)]
+            let sealedBox = try AES.GCM.SealedBox(combined: chunkData)
+            let decrypted = try AES.GCM.open(sealedBox, using: key)
+            plaintext.append(decrypted)
+
+            offset += chunkCombinedSize
+            chunkIndex += 1
+        }
+
+        if !expectedDigest.isEmpty {
+            let computedDigest = Data(SHA256.hash(data: plaintext))
+            guard computedDigest == expectedDigest else {
+                throw AppError.decryptionFailed(reason: "Media digest mismatch after chunked decryption")
+            }
+        }
+
+        SanchrLogger.media.info("Chunked decrypt: \(chunkIndex) chunks, \(plaintext.count) bytes")
+        return plaintext
     }
 }
 
