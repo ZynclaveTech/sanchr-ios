@@ -35,9 +35,12 @@ public final class MediaKeyDerivation: MediaKeyDerivationProtocol, @unchecked Se
     public init() {}
 
     public func deriveMediaKey(chainKey: Data, fileHash: Data) -> Data {
-        let ikm = SymmetricKey(data: chainKey)
+        // Paper: MediaK_n = HKDF(CK_n, file_hash, "media-v1")
+        // Backend canonical form: IKM = chainKey || fileHash, salt = empty, info = label
+        let concatenatedIKM = chainKey + fileHash
+        let ikm = SymmetricKey(data: concatenatedIKM)
         let derived = HKDF<SHA256>.deriveKey(
-            inputKeyMaterial: ikm, salt: fileHash,
+            inputKeyMaterial: ikm, salt: Data(),
             info: Data(Labels.mediaKey.utf8), outputByteCount: 32)
         return derived.withUnsafeBytes { Data($0) }
     }
