@@ -927,19 +927,44 @@ final class ChatDetailViewModel {
         sessionService: SessionService,
         messageSender: MessageSender
     ) async {
-        guard message.status == .failed, case .text(let text) = message.content else { return }
+        guard message.status == .failed else { return }
 
-        // Remove the failed message
-        messages.removeAll { $0.id == message.id }
-        rebuildSections()
+        switch message.content {
+        case .text(let text):
+            messages.removeAll { $0.id == message.id }
+            rebuildSections()
+            inputText = text
+            await sendMessage(
+                conversationId: message.conversationId,
+                sessionService: sessionService,
+                messageSender: messageSender
+            )
 
-        // Re-send
-        inputText = text
-        await sendMessage(
-            conversationId: message.conversationId,
-            sessionService: sessionService,
-            messageSender: messageSender
-        )
+        case .image(let attachment),
+             .video(let attachment),
+             .audio(let attachment),
+             .document(let attachment):
+            guard attachment.url.isFileURL,
+                  FileManager.default.fileExists(atPath: attachment.url.path) else {
+                SanchrLogger.chat.error("Cannot retry media: local file missing for \(message.id)")
+                return
+            }
+            messages.removeAll { $0.id == message.id }
+            rebuildSections()
+            do {
+                _ = try await messageSender.sendMedia(
+                    attachment: attachment,
+                    caption: attachment.caption,
+                    to: message.conversationId,
+                    progress: { _ in }
+                )
+            } catch {
+                SanchrLogger.chat.error("Media retry failed: \(error.localizedDescription)")
+            }
+
+        default:
+            SanchrLogger.chat.warning("Retry not supported for content type in message \(message.id)")
+        }
     }
 
     // MARK: - Delete Message
