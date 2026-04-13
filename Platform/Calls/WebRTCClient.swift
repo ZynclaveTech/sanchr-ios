@@ -42,6 +42,7 @@ final class WebRTCClient: NSObject {
     private var localAudioTrack: RTCAudioTrack?
     private var videoCapturer: FilteredVideoCapturer?
     private var localVideoSource: RTCVideoSource?
+    private var pendingRemoteIceCandidates: [RTCIceCandidate] = []
 
     private var isMuted: Bool = false
     private var isSpeakerOn: Bool = false
@@ -91,6 +92,7 @@ final class WebRTCClient: NSObject {
         }
 
         self.peerConnection = pc
+        pendingRemoteIceCandidates.removeAll()
         SanchrLogger.calls.info("Peer connection created successfully")
     }
 
@@ -305,10 +307,24 @@ final class WebRTCClient: NSObject {
                 }
             }
         }
+        try await flushPendingRemoteIceCandidates()
     }
 
     /// Adds a remote ICE candidate to the peer connection.
     func addIceCandidate(_ candidate: RTCIceCandidate) async throws {
+        guard let pc = peerConnection else {
+            throw AppError.callConnectionFailed
+        }
+        guard pc.remoteDescription != nil else {
+            pendingRemoteIceCandidates.append(candidate)
+            SanchrLogger.calls.info(
+                "Buffered remote ICE candidate until remote description is set")
+            return
+        }
+        try await addIceCandidateNow(candidate)
+    }
+
+    private func addIceCandidateNow(_ candidate: RTCIceCandidate) async throws {
         guard let pc = peerConnection else {
             throw AppError.callConnectionFailed
         }
@@ -323,6 +339,18 @@ final class WebRTCClient: NSObject {
                     continuation.resume()
                 }
             }
+        }
+    }
+
+    private func flushPendingRemoteIceCandidates() async throws {
+        guard peerConnection?.remoteDescription != nil else { return }
+        let candidates = pendingRemoteIceCandidates
+        pendingRemoteIceCandidates.removeAll()
+        for candidate in candidates {
+            try await addIceCandidateNow(candidate)
+        }
+        if !candidates.isEmpty {
+            SanchrLogger.calls.info("Flushed \(candidates.count) buffered remote ICE candidates")
         }
     }
 
@@ -374,6 +402,7 @@ final class WebRTCClient: NSObject {
         localVideoTrack = nil
         remoteVideoTrack = nil
         localVideoSource = nil
+        pendingRemoteIceCandidates.removeAll()
         peerConnection?.close()
         peerConnection = nil
         isMuted = false
@@ -441,6 +470,17 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
             self.remoteVideoTrack = videoTrack
             delegate?.webRTCClient(self, didReceiveRemoteVideoTrack: videoTrack)
         }
+    }
+
+    func peerConnection(
+        _ peerConnection: RTCPeerConnection,
+        didAdd rtpReceiver: RTCRtpReceiver,
+        streams mediaStreams: [RTCMediaStream]
+    ) {
+        guard let videoTrack = rtpReceiver.track as? RTCVideoTrack else { return }
+        SanchrLogger.calls.info("Remote video track added via RTP receiver")
+        self.remoteVideoTrack = videoTrack
+        delegate?.webRTCClient(self, didReceiveRemoteVideoTrack: videoTrack)
     }
 
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {

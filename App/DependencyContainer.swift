@@ -430,7 +430,10 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var callManager: CallManager = CallManager(
         webRTCClient: webRTCClient,
         callService: grpcClient.callSignalingService,
-        signalManager: signalProtocol
+        signalManager: signalProtocol,
+        tokenRefresher: { [weak self] in
+            _ = try await self?.sessionService.refreshTokenIfExpiringSoon()
+        }
     )
 
     @ObservationIgnored lazy var realtimeService: RealtimeService = RealtimeService(

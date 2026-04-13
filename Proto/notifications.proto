@@ -9,6 +9,7 @@ service NotificationService {
 message RegisterPushTokenRequest {
   string token = 1;
   string platform = 2;        // "ios" or "android"
+  string voip_token = 3;      // VoIP PushKit token (iOS only; empty on other platforms)
 }
 
 message RegisterPushTokenResponse {}

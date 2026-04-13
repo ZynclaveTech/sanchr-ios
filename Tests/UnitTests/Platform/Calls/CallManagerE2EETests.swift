@@ -235,7 +235,7 @@ final class CallManagerE2EETests: XCTestCase {
         let payloadData = try makeSealedPayload(payloadFingerprint: fp, sdpBody: sdp)
         let offer = makeOfferEvent(payload: payloadData)
 
-        callManager.handleIncomingCallOffer(offer)
+        _ = await callManager.handleIncomingCallOffer(offer)
 
         // Poll until state transitions away from .idle (or for up to 2 s on a loaded CI runner)
         let presented = XCTNSPredicateExpectation(
@@ -275,7 +275,7 @@ final class CallManagerE2EETests: XCTestCase {
         let payloadData = try makeSealedPayload(ageDelta: -60, payloadFingerprint: fp, sdpBody: sdp)
         let offer = makeOfferEvent(payload: payloadData)
 
-        callManager.handleIncomingCallOffer(offer)
+        _ = await callManager.handleIncomingCallOffer(offer)
 
         try await Task.sleep(for: .milliseconds(500))
 
@@ -295,7 +295,7 @@ final class CallManagerE2EETests: XCTestCase {
         let payloadData = try makeSealedPayload(payloadFingerprint: "sha-256 AA:BB", sdpBody: sdp)
         let offer = makeOfferEvent(payload: payloadData)
 
-        callManager.handleIncomingCallOffer(offer)
+        _ = await callManager.handleIncomingCallOffer(offer)
 
         try await Task.sleep(for: .milliseconds(500))
 
@@ -319,7 +319,7 @@ final class CallManagerE2EETests: XCTestCase {
         // endCall is synchronous for the state transition.
         if case .ended(let callId, let reason) = callManager.callState {
             XCTAssertEqual(callId, "teardown-test-id")
-            XCTAssertEqual(reason, .normal)
+            XCTAssertEqual(reason, .cancelled)
         } else {
             XCTFail("Expected .ended after endCall(), got \(callManager.callState)")
         }

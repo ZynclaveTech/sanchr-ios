@@ -154,6 +154,7 @@ final class RealtimeService: @unchecked Sendable {
                         self.isRunning = true
                     }
                     SanchrLogger.chat.info("Starting realtime message stream")
+                    _ = try await sessionService.refreshTokenIfExpiringSoon()
                     _ = try await messageRepository.flushPendingAcks()
                     let stream = try await messageRepository.openMessageStream()
                     SanchrLogger.chat.info("Realtime message stream opened")
@@ -171,6 +172,15 @@ final class RealtimeService: @unchecked Sendable {
                     SanchrLogger.chat.warning("Realtime message stream ended, retrying")
                 } catch {
                     guard !Task.isCancelled else { break }
+                    if Self.isUnauthenticated(error) {
+                        do {
+                            SanchrLogger.auth.info("Realtime stream unauthenticated; force-refreshing token before retry")
+                            _ = try await sessionService.forceRefreshToken()
+                            self.reconnectAttempt = 0
+                        } catch {
+                            SanchrLogger.auth.error("Realtime token refresh failed: \(error.localizedDescription)")
+                        }
+                    }
                     SanchrLogger.chat.error("Realtime stream failed: \(Self.detailedError(error))")
                 }
 
@@ -338,10 +348,14 @@ final class RealtimeService: @unchecked Sendable {
             }
 
         case .callOffer(let offer):
-            callManager.handleIncomingCallOffer(offer)
+            let outcome = await callManager.handleIncomingCallOffer(offer)
+            if outcome != .transientFailure {
+                await messageRepository.ackCallEvent(callId: offer.callID, kind: "offer")
+            }
 
         case .callLifecycle(let lifecycle):
-            callManager.handleCallLifecycleEvent(lifecycle)
+            _ = await callManager.handleCallLifecycleEvent(lifecycle)
+            await messageRepository.ackCallEvent(callId: lifecycle.callID, kind: "lifecycle")
 
         case .reaction(let reaction):
             await MainActor.run {
@@ -481,5 +495,14 @@ final class RealtimeService: @unchecked Sendable {
             return "gRPC \(statusCode) (\(nsError.code)): \(nsError.localizedDescription)"
         }
         return "\(type(of: error)): \(error.localizedDescription)"
+    }
+
+    private static func isUnauthenticated(_ error: Error) -> Bool {
+        if let status = error as? GRPCStatus {
+            return status.code == .unauthenticated
+        }
+        let nsError = error as NSError
+        return nsError.domain == "io.grpc"
+            && GRPCStatus.Code(rawValue: nsError.code) == .unauthenticated
     }
 }

@@ -33,7 +33,12 @@ message CallSignal {
     bytes ice_candidate = 3;          // unchanged
     CallControl control = 4;          // unchanged
     bytes encrypted_sdp_answer = 5;   // Signal-encrypt(SealedCallPayload JSON)
+    CallJoin join = 6;                // stream join; consumed by server, not relayed
   }
+}
+
+message CallJoin {
+  string role = 1;             // "caller" or "callee"
 }
 
 message CallControl {
@@ -42,6 +47,7 @@ message CallControl {
 
 message EndCallRequest {
   string call_id = 1;
+  string reason = 2;           // "ended", "declined", "cancelled", "busy", "missed", "failed"
 }
 
 message EndCallResponse {}

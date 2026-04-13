@@ -6,9 +6,22 @@ import WebRTC
 import SanchrShared
 
 protocol CallEventRouting: AnyObject, Sendable {
-    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent)
-    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent)
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) async -> CallOfferHandlingOutcome
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) async -> CallLifecycleHandlingOutcome
     func resetState()
+}
+
+enum CallOfferHandlingOutcome: Equatable, Sendable {
+    case accepted
+    case duplicate
+    case terminalRejected
+    case transientFailure
+}
+
+enum CallLifecycleHandlingOutcome: Equatable, Sendable {
+    case applied
+    case duplicate
+    case ignored
 }
 
 private struct SendableAnswerAction: @unchecked Sendable {
@@ -33,6 +46,7 @@ enum CallState: Equatable, Sendable {
         case failed
         case timeout
         case networkError
+        case cancelled
     }
 
     var callId: String? {
@@ -72,6 +86,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let provider: CXProvider
     private let callController: CXCallController
     private let signalManager: SignalProtocolManagerProtocol
+    private let tokenRefresher: @Sendable () async throws -> Void
 
     // MARK: - Internal State
 
@@ -81,6 +96,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private var callStartTime: Date?
     private var durationTimer: Timer?
     private var signalingTask: Task<Void, Never>?
+    private var signalingReadyCallId: String?
+    private var pendingLocalIceCandidates: [Data] = []
 
     /// Continuation for sending signals through the bidirectional stream.
     private var outboundContinuation: AsyncStream<Sanchr_Calling_CallSignal>.Continuation?
@@ -90,11 +107,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     init(
         webRTCClient: WebRTCClient,
         callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
-        signalManager: SignalProtocolManagerProtocol
+        signalManager: SignalProtocolManagerProtocol,
+        tokenRefresher: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
         self.signalManager = signalManager
+        self.tokenRefresher = tokenRefresher
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -155,7 +174,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             timestamp: Date().timeIntervalSince1970
         )
         let payloadData = try JSONEncoder().encode(payload)
+        // Always force a fresh PreKeySignalMessage for call offers.  Reusing an existing
+        // session can produce a type-0x02 SignalMessage that the recipient cannot decrypt
+        // if their session was cleared (e.g., after a fresh install).  Resetting first
+        // guarantees the next encrypt() call triggers processPreKeyBundle and produces a
+        // type-0x01 PreKeySignalMessage that self-heals across any session state mismatch.
+        // Side effect: the shared messaging session is refreshed, which is harmless.
         // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+        try? signalManager.resetSession(with: recipientId, deviceId: 1)
         let encryptedPayload = try await signalManager.encrypt(
             plaintext: payloadData, for: recipientId, deviceId: 1)
         // NOTE: delivery_token (sealed-sender call routing) is not yet implemented on the server.
@@ -175,6 +201,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         if response.status == "busy" {
             callState = .ended(callId: callId, reason: .busy)
+            pendingLocalIceCandidates.removeAll()
             webRTCClient.close()
             return
         }
@@ -197,7 +224,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         provider.reportOutgoingCall(with: uuid, startedConnectingAt: Date())
 
         // 7. Open bidirectional signaling stream
-        openSignalingStream(callId: callId)
+        openSignalingStream(callId: callId, role: "caller")
     }
 
     // MARK: - Incoming Call
@@ -364,7 +391,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     "VoIP push: SDP decrypted and stored for call \(callId)")
             } catch {
                 SanchrLogger.calls.error(
-                    "VoIP push: SDP decryption failed for call \(callId): \(error.localizedDescription)")
+                    "VoIP push: SDP decryption failed for call \(callId): \(error) [\(type(of: error))]")
+                // Self-heal: reset session so caller's next attempt starts fresh.
+                try? self.signalManager.resetSession(with: callerId, deviceId: 1)
                 // Don't end the call — give the user a chance to answer.
                 // answerCall() will fail gracefully if SDP is still nil.
             }
@@ -378,11 +407,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             return
         }
 
-        // For VoIP push calls the SDP is decrypted asynchronously; wait up to 5s.
+        try await tokenRefresher()
+
+        // For VoIP push calls the SDP is delivered by realtime replay; wait for the active ringing window.
         var sdpData: Data? = pendingSdpOffer
         if sdpData == nil {
             SanchrLogger.calls.info("answerCall: waiting for VoIP push SDP decryption...")
-            for _ in 0..<10 {
+            for _ in 0..<240 {
                 try await Task.sleep(for: .milliseconds(500))
                 if let offer = pendingSdpOffer {
                     sdpData = offer
@@ -391,7 +422,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             }
         }
         guard let sdpData else {
-            SanchrLogger.calls.error("answerCall: SDP offer unavailable after 5s wait")
+            SanchrLogger.calls.error("answerCall: SDP offer unavailable after ringing wait")
             throw AppError.callConnectionFailed
         }
 
@@ -419,7 +450,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         try await webRTCClient.setLocalDescription(answer)
 
         // 6. Open signaling stream and send encrypted answer
-        openSignalingStream(callId: callId)
+        openSignalingStream(callId: callId, role: "callee")
 
         guard let answerFingerprint = WebRTCClient.extractDtlsFingerprint(from: answer) else {
             throw AppError.callConnectionFailed
@@ -468,6 +499,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         signal.control = declinedControl
         outboundContinuation?.yield(signal)
 
+        Task {
+            await endCallOnServer(callId: callId, reason: "declined")
+        }
+
         endCallInternal(callId: callId, reason: .declined)
     }
 
@@ -476,22 +511,22 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         guard let callId = callState.callId else { return }
         SanchrLogger.calls.info("Ending call \(callId)")
 
-        // Send ended control via signaling
+        let reason = endReasonForCurrentState()
+
+        // Send terminal control via signaling
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
-        var endedControl = Sanchr_Calling_CallControl()
-        endedControl.action = "ended"
-        signal.control = endedControl
+        var terminalControl = Sanchr_Calling_CallControl()
+        terminalControl.action = reason.serverReason
+        signal.control = terminalControl
         outboundContinuation?.yield(signal)
 
         // Also notify the server via the unary endCall RPC
         Task {
-            var request = Sanchr_Calling_EndCallRequest()
-            request.callID = callId
-            _ = try? await callService.endCall(request)
+            await endCallOnServer(callId: callId, reason: reason.serverReason)
         }
 
-        endCallInternal(callId: callId, reason: .normal)
+        endCallInternal(callId: callId, reason: reason.localReason)
     }
 
     // MARK: - In-Call Controls
@@ -549,11 +584,25 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Signaling Stream
 
     /// Opens the bidirectional gRPC stream for exchanging SDP answers, ICE candidates, and control messages.
-    private func openSignalingStream(callId: String) {
+    private func openSignalingStream(callId: String, role: String) {
+        if signalingReadyCallId == callId, outboundContinuation != nil {
+            flushLocalIceCandidates(callId: callId)
+            return
+        }
+
         let (outboundStream, continuation) = AsyncStream<Sanchr_Calling_CallSignal>.makeStream()
         // Continuation set synchronously before the reading Task spawns so that yields
         // issued immediately after this call returns are guaranteed to reach the stream.
         self.outboundContinuation = continuation
+        self.signalingReadyCallId = callId
+
+        var joinSignal = Sanchr_Calling_CallSignal()
+        joinSignal.callID = callId
+        var join = Sanchr_Calling_CallJoin()
+        join.role = role
+        joinSignal.join = join
+        continuation.yield(joinSignal)
+        flushLocalIceCandidates(callId: callId)
 
         signalingTask = Task { [weak self] in
             guard let self else { return }
@@ -637,6 +686,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 case .control(let control):
                     await handleControlMessage(control, callId: callId)
 
+                case .join(_):
+                    SanchrLogger.calls.debug("Ignoring server-side call join echo for \(callId)")
+
                 case nil:
                     SanchrLogger.calls.warning("Received signal with no active field")
                 }
@@ -693,8 +745,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         case "ended":
             endCallInternal(callId: callId, reason: .normal)
 
+        case "cancelled":
+            endCallInternal(callId: callId, reason: .cancelled)
+
         case "missed":
             endCallInternal(callId: callId, reason: .timeout)
+
+        case "failed":
+            endCallInternal(callId: callId, reason: .failed)
 
         default:
             SanchrLogger.calls.warning("Unknown control action: \(control.action)")
@@ -730,7 +788,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         signalingTask = nil
         outboundContinuation?.finish()
         outboundContinuation = nil
+        signalingReadyCallId = nil
+        pendingLocalIceCandidates.removeAll()
         pendingSdpOffer = nil
+        webRTCClient.stopLocalMedia()
+        webRTCClient.close()
 
         callState = .ended(callId: callId, reason: reason)
 
@@ -743,41 +805,31 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             case .failed: cxReason = .failed
             case .timeout: cxReason = .unanswered
             case .networkError: cxReason = .failed
+            case .cancelled: cxReason = .remoteEnded
             }
             provider.reportCall(with: uuid, endedAt: Date(), reason: cxReason)
             callUUID = nil
         }
 
-        // Padding: keep peer connection alive until next time bucket, then tear down
-        // For calls that never became active (e.g., busy/declined), use now as start
-        // so that teardown is still padded to the first bucket (60 s), hiding whether
-        // the call was answered from traffic analysis.
-        let start = callStartTime ?? Date()
-        let paddingTarget = CallDurationPaddingManager.paddingEnd(callStart: start, callEnd: Date())
         callStartTime = nil
 
-        paddingManager.padThenComplete(target: paddingTarget) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
             guard let self else { return }
-            self.webRTCClient.stopLocalMedia()
-            self.webRTCClient.close()
-
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2))
-                if case .ended = self.callState {
-                    self.callState = .idle
-                    self.isMuted = false
-                    self.isSpeakerOn = false
-                    self.isVideoEnabled = false
-                    self.callType = "voice"
-                    self.peerId = nil
-                    self.peerName = nil
-                    self.currentVideoFilter = .none
-                }
+            if case .ended = self.callState {
+                self.callState = .idle
+                self.isMuted = false
+                self.isSpeakerOn = false
+                self.isVideoEnabled = false
+                self.callType = "voice"
+                self.peerId = nil
+                self.peerName = nil
+                self.currentVideoFilter = .none
             }
         }
     }
 
-    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) {
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) async -> CallOfferHandlingOutcome {
         // If a VoIP push already set us to incoming for this exact call but the SDP
         // was absent from the push (payload too large), grab it from the stream replay.
         if case .incoming(let existingCallId, _, _) = callState,
@@ -786,91 +838,60 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         {
             SanchrLogger.calls.info(
                 "Stream: received SDP for pending VoIP call \(offer.callID) — decrypting")
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                do {
-                    guard !offer.encryptedSdpPayload.isEmpty else {
-                        SanchrLogger.calls.error("Stream: SDP payload empty for pending call \(offer.callID)")
-                        return
-                    }
-                    // FIXME: senderDevice hard-coded to 1
-                    let plaintext = try await self.signalManager.decrypt(
-                        ciphertext: offer.encryptedSdpPayload,
-                        from: offer.callerID,
-                        senderDevice: 1
-                    )
-                    let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
-                    let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
-                    guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
-                          sdpFingerprint == sealedPayload.dtlsFingerprint
-                    else {
-                        SanchrLogger.calls.error("Stream: DTLS fingerprint mismatch for pending call \(offer.callID)")
-                        return
-                    }
-                    self.pendingSdpOffer = Data(sealedPayload.sdp.utf8)
-                    SanchrLogger.calls.info("Stream: SDP stored for pending VoIP call \(offer.callID)")
-                } catch {
-                    SanchrLogger.calls.error(
-                        "Stream: SDP decryption failed for pending call \(offer.callID): \(error.localizedDescription)")
-                }
+            do {
+                let sdp = try await decryptAndValidateOffer(offer, maxAgeSeconds: 120)
+                pendingSdpOffer = Data(sdp.utf8)
+                SanchrLogger.calls.info("Stream: SDP stored for pending VoIP call \(offer.callID)")
+                return .accepted
+            } catch {
+                SanchrLogger.calls.error(
+                    "Stream: SDP decryption failed for pending call \(offer.callID): \(error) [\(type(of: error))]")
+                try? self.signalManager.resetSession(with: offer.callerID, deviceId: 1)
+                return .transientFailure
             }
-            return
+        }
+
+        if callState.callId == offer.callID {
+            SanchrLogger.calls.info("Duplicate call offer for current call \(offer.callID)")
+            return .duplicate
         }
 
         guard case .idle = callState else {
-            SanchrLogger.calls.warning("Ignoring incoming call offer while another call is active")
-            return
+            SanchrLogger.calls.warning("Rejecting incoming call offer as busy while another call is active")
+            Task {
+                await endCallOnServer(callId: offer.callID, reason: "busy")
+            }
+            return .terminalRejected
         }
 
-        Task {
-            do {
-                guard !offer.encryptedSdpPayload.isEmpty else {
-                    SanchrLogger.calls.error("Rejecting unencrypted call offer from \(offer.callerID) — E2EE required")
-                    return
-                }
-                // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
-                let plaintext = try await signalManager.decrypt(
-                    ciphertext: offer.encryptedSdpPayload,
-                    from: offer.callerID,
-                    senderDevice: 1
+        do {
+            let sdp = try await decryptAndValidateOffer(offer, maxAgeSeconds: 30)
+            SanchrLogger.calls.info("E2EE offer verified from \(offer.callerID)")
+            await MainActor.run {
+                self.handleIncomingCall(
+                    callId: offer.callID,
+                    callerId: offer.callerID,
+                    callerName: offer.callerID,
+                    sdpOffer: Data(sdp.utf8),
+                    isVideo: offer.callType == "video"
                 )
-                let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
-                let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
-                guard age <= 30 else {
-                    SanchrLogger.calls.error("Rejecting stale incoming call offer (age=\(Int(age))s)")
-                    return
-                }
-                let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
-                guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
-                      sdpFingerprint == sealedPayload.dtlsFingerprint else {
-                    SanchrLogger.calls.error("DTLS fingerprint missing or mismatched — rejecting incoming offer to prevent MITM")
-                    return
-                }
-                SanchrLogger.calls.info(
-                    "E2EE offer verified from \(offer.callerID); fingerprint = \(sealedPayload.dtlsFingerprint)")
-
-                await MainActor.run {
-                    self.handleIncomingCall(
-                        callId: offer.callID,
-                        callerId: offer.callerID,
-                        callerName: offer.callerID,
-                        sdpOffer: Data(sealedPayload.sdp.utf8),
-                        isVideo: offer.callType == "video"
-                    )
-                }
-            } catch {
-                SanchrLogger.calls.error(
-                    "Failed to decrypt incoming call offer: \(error.localizedDescription)")
-                // Do NOT open a signaling stream or send "declined" here.
-                // We never reported this call to CallKit, so there is nothing to decline.
-                // Opening an orphaned stream and sending "declined" would incorrectly tell
-                // the caller the call was rejected, and leave stale signaling state.
-                // The call will timeout on the caller's side naturally.
             }
+            return .accepted
+        } catch {
+            SanchrLogger.calls.error(
+                "Failed to decrypt incoming call offer from \(offer.callerID.prefix(8))...: \(error) [\(type(of: error))]")
+            try? signalManager.resetSession(with: offer.callerID, deviceId: 1)
+            return .transientFailure
         }
     }
 
-    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) {
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) async -> CallLifecycleHandlingOutcome {
+        if let currentCallId = callState.callId, currentCallId != event.callID {
+            SanchrLogger.calls.info(
+                "Ignoring lifecycle \(event.eventType) for stale call \(event.callID) (current: \(currentCallId))")
+            return .ignored
+        }
+
         if !event.peerID.isEmpty {
             peerId = event.peerID
             if peerName == nil || peerName?.isEmpty == true {
@@ -880,32 +901,49 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         switch event.eventType {
         case "ringing":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "ringing"), callId: event.callID)
             }
+            return .applied
         case "accepted":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "accepted"), callId: event.callID)
             }
+            return .applied
         case "declined":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "declined"), callId: event.callID)
             }
+            return .applied
         case "busy":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "busy"), callId: event.callID)
             }
+            return .applied
         case "ended":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "ended"), callId: event.callID)
             }
+            return .applied
+        case "cancelled":
+            await MainActor.run {
+                handleControlMessage(controlMessage(action: "cancelled"), callId: event.callID)
+            }
+            return .applied
         case "missed":
-            Task { @MainActor in
+            await MainActor.run {
                 handleControlMessage(controlMessage(action: "missed"), callId: event.callID)
             }
+            return .applied
+        case "failed":
+            await MainActor.run {
+                handleControlMessage(controlMessage(action: "failed"), callId: event.callID)
+            }
+            return .applied
         default:
             SanchrLogger.calls.info(
                 "Ignoring unsupported call lifecycle event: \(event.eventType)")
+            return .ignored
         }
     }
 
@@ -916,6 +954,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         signalingTask = nil
         outboundContinuation?.finish()
         outboundContinuation = nil
+        signalingReadyCallId = nil
+        pendingLocalIceCandidates.removeAll()
         pendingSdpOffer = nil
         callStartTime = nil
         callUUID = nil
@@ -937,6 +977,90 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         var control = Sanchr_Calling_CallControl()
         control.action = action
         return control
+    }
+
+    private func endReasonForCurrentState() -> (serverReason: String, localReason: CallState.EndReason) {
+        switch callState {
+        case .active, .reconnecting:
+            return ("ended", .normal)
+        case .outgoing, .ringing, .incoming:
+            return ("cancelled", .cancelled)
+        case .ended(_, let reason):
+            return ("ended", reason)
+        case .idle:
+            return ("ended", .normal)
+        }
+    }
+
+    private func endCallOnServer(callId: String, reason: String) async {
+        do {
+            try await tokenRefresher()
+            var request = Sanchr_Calling_EndCallRequest()
+            request.callID = callId
+            request.reason = reason
+            _ = try await callService.endCall(request)
+        } catch {
+            SanchrLogger.calls.error(
+                "endCall RPC failed for \(callId) reason=\(reason): \(error.localizedDescription)")
+        }
+    }
+
+    private func flushLocalIceCandidates(callId: String) {
+        guard outboundContinuation != nil, signalingReadyCallId == callId else { return }
+        let candidates = pendingLocalIceCandidates
+        pendingLocalIceCandidates.removeAll()
+        for candidateData in candidates {
+            var signal = Sanchr_Calling_CallSignal()
+            signal.callID = callId
+            signal.iceCandidate = candidateData
+            outboundContinuation?.yield(signal)
+        }
+        if !candidates.isEmpty {
+            SanchrLogger.calls.info("Flushed \(candidates.count) buffered local ICE candidates for \(callId)")
+        }
+    }
+
+    private func sendOrBufferLocalIceCandidate(_ candidateData: Data) {
+        guard let callId = callState.callId else {
+            pendingLocalIceCandidates.append(candidateData)
+            return
+        }
+        guard outboundContinuation != nil, signalingReadyCallId == callId else {
+            pendingLocalIceCandidates.append(candidateData)
+            return
+        }
+
+        var signal = Sanchr_Calling_CallSignal()
+        signal.callID = callId
+        signal.iceCandidate = candidateData
+        outboundContinuation?.yield(signal)
+    }
+
+    private func decryptAndValidateOffer(
+        _ offer: Sanchr_Messaging_CallOfferEvent,
+        maxAgeSeconds: TimeInterval
+    ) async throws -> String {
+        guard !offer.encryptedSdpPayload.isEmpty else {
+            throw AppError.decryptionFailed(reason: "encrypted call offer payload is empty")
+        }
+        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+        let plaintext = try await signalManager.decrypt(
+            ciphertext: offer.encryptedSdpPayload,
+            from: offer.callerID,
+            senderDevice: 1
+        )
+        let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+        let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
+        guard age <= maxAgeSeconds else {
+            throw AppError.decryptionFailed(reason: "stale call offer age=\(Int(age))s")
+        }
+        let offerDesc = RTCSessionDescription(type: .offer, sdp: sealedPayload.sdp)
+        guard let sdpFingerprint = WebRTCClient.extractDtlsFingerprint(from: offerDesc),
+              sdpFingerprint == sealedPayload.dtlsFingerprint
+        else {
+            throw AppError.decryptionFailed(reason: "DTLS fingerprint missing or mismatched")
+        }
+        return sealedPayload.sdp
     }
 
     // MARK: - Helpers
@@ -968,6 +1092,9 @@ extension CallManager: CXProviderDelegate {
     func providerDidReset(_ provider: CXProvider) {
         SanchrLogger.calls.info("CallKit provider reset")
         if let callId = callState.callId {
+            Task {
+                await endCallOnServer(callId: callId, reason: "failed")
+            }
             endCallInternal(callId: callId, reason: .failed)
         } else {
             webRTCClient.close()
@@ -1089,8 +1216,6 @@ extension CallManager: WebRTCClientDelegate {
     }
 
     func webRTCClient(_ client: WebRTCClient, didReceiveLocalCandidate candidate: RTCIceCandidate) {
-        guard let callId = callState.callId else { return }
-
         // Serialize candidate as JSON and send via signaling stream
         let candidateDict: [String: Any] = [
             "candidate": candidate.sdp,
@@ -1103,10 +1228,7 @@ extension CallManager: WebRTCClientDelegate {
             return
         }
 
-        var signal = Sanchr_Calling_CallSignal()
-        signal.callID = callId
-        signal.iceCandidate = candidateData
-        outboundContinuation?.yield(signal)
+        sendOrBufferLocalIceCandidate(candidateData)
     }
 
     func webRTCClient(_ client: WebRTCClient, didReceiveRemoteVideoTrack track: RTCVideoTrack) {

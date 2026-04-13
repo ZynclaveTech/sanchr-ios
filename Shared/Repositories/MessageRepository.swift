@@ -42,6 +42,9 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Closes the shared bidirectional message stream.
     func closeMessageStream() async
 
+    /// Acknowledges that a queued call event was handled and can be removed server-side.
+    func ackCallEvent(callId: String, kind: String) async
+
     /// Sends a typing indicator to a conversation.
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws
 
@@ -606,6 +609,17 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
     func closeMessageStream() async {
         await streamController.finish()
+    }
+
+    func ackCallEvent(callId: String, kind: String) async {
+        guard !callId.isEmpty, kind == "offer" || kind == "lifecycle" else { return }
+        var ack = Sanchr_Messaging_CallEventAck()
+        ack.callID = callId
+        ack.kind = kind
+
+        var clientEvent = Sanchr_Messaging_ClientEvent()
+        clientEvent.callEventAck = ack
+        await streamController.send(clientEvent)
     }
 
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {

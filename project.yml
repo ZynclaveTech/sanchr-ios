@@ -18,6 +18,12 @@ settings:
     CODE_SIGN_IDENTITY: "Apple Development"
     "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
     ENABLE_USER_SCRIPT_SANDBOXING: false
+    APS_ENVIRONMENT: development
+  configs:
+    Debug:
+      APS_ENVIRONMENT: development
+    Release:
+      APS_ENVIRONMENT: production
 
 packages:
   grpc-swift:
@@ -262,7 +268,7 @@ targets:
     entitlements:
       path: Sanchr.entitlements
       properties:
-        aps-environment: development
+        aps-environment: $(APS_ENVIRONMENT)
         com.apple.developer.associated-domains: []
         com.apple.security.application-groups:
           - group.io.sanchr.shared

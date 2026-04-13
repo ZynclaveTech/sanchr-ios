@@ -30,6 +30,7 @@ public struct Sanchr_Notifications_RegisterPushTokenRequest: Sendable {
   /// "ios" or "android"
   public var platform: String = String()
 
+  /// VoIP PushKit token (iOS only; empty on other platforms)
   public var voipToken: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

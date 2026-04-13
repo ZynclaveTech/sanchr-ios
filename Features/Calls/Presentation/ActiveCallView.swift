@@ -344,6 +344,7 @@ struct ActiveCallView: View {
             case .failed: return "Call failed"
             case .timeout: return "No answer"
             case .networkError: return "Connection lost"
+            case .cancelled: return "Cancelled"
             }
         }
     }

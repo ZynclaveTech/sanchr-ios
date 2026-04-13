@@ -44,6 +44,7 @@ message ClientEvent {
     TypingIndicator typing = 1;
     // field 2 reserved — formerly ReceiptRequest (removed: sealed receipts)
     // field 3 reserved — formerly PresenceHeartbeat (removed: P2P presence)
+    CallEventAck call_event_ack = 4;
   }
 }
 
@@ -76,6 +77,11 @@ message CallLifecycleEvent {
   string peer_id = 2;
   string event_type = 3;
   string actor_id = 4;
+}
+
+message CallEventAck {
+  string call_id = 1;
+  string kind = 2; // "offer" or "lifecycle"
 }
 
 message EncryptedEnvelope {

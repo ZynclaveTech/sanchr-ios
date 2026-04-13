@@ -237,6 +237,7 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     private(set) var openStreamCallCount = 0
     private(set) var flushPendingAcksCallCount = 0
     private(set) var closeStreamCallCount = 0
+    private(set) var callEventAcks: [(callId: String, kind: String)] = []
     private(set) var p2pPresenceSends: [(recipientUserId: String, statusCode: Sanchr_Messaging_PresenceStatus)] = []
     var flushPendingAcksResult = 0
     private(set) var streamContinuation: AsyncStream<RealtimeEvent>.Continuation?
@@ -280,6 +281,10 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         closeStreamCallCount += 1
         streamContinuation?.finish()
         streamContinuation = nil
+    }
+
+    func ackCallEvent(callId: String, kind: String) async {
+        callEventAcks.append((callId: callId, kind: kind))
     }
 
     func sendTypingIndicator(conversationId: String, isTyping: Bool) async throws {}
@@ -372,12 +377,14 @@ final class MockCallEventRouter: CallEventRouting, @unchecked Sendable {
     private(set) var lifecycleEvents: [Sanchr_Messaging_CallLifecycleEvent] = []
     private(set) var resetCallCount = 0
 
-    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) {
+    func handleIncomingCallOffer(_ offer: Sanchr_Messaging_CallOfferEvent) async -> CallOfferHandlingOutcome {
         offers.append(offer)
+        return .accepted
     }
 
-    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) {
+    func handleCallLifecycleEvent(_ event: Sanchr_Messaging_CallLifecycleEvent) async -> CallLifecycleHandlingOutcome {
         lifecycleEvents.append(event)
+        return .applied
     }
 
     func resetState() {

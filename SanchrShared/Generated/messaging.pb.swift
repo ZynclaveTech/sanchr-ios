@@ -176,8 +176,6 @@ public struct Sanchr_Messaging_ClientEvent: Sendable {
 
   public var event: Sanchr_Messaging_ClientEvent.OneOf_Event? = nil
 
-  /// field 2 reserved — formerly ReceiptRequest (removed: sealed receipts)
-  /// field 3 reserved — formerly PresenceHeartbeat (removed: P2P presence)
   public var typing: Sanchr_Messaging_TypingIndicator {
     get {
       if case .typing(let v)? = event {return v}
@@ -186,12 +184,23 @@ public struct Sanchr_Messaging_ClientEvent: Sendable {
     set {event = .typing(newValue)}
   }
 
+  /// field 2 reserved — formerly ReceiptRequest (removed: sealed receipts)
+  /// field 3 reserved — formerly PresenceHeartbeat (removed: P2P presence)
+  public var callEventAck: Sanchr_Messaging_CallEventAck {
+    get {
+      if case .callEventAck(let v)? = event {return v}
+      return Sanchr_Messaging_CallEventAck()
+    }
+    set {event = .callEventAck(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Event: Equatable, Sendable {
+    case typing(Sanchr_Messaging_TypingIndicator)
     /// field 2 reserved — formerly ReceiptRequest (removed: sealed receipts)
     /// field 3 reserved — formerly PresenceHeartbeat (removed: P2P presence)
-    case typing(Sanchr_Messaging_TypingIndicator)
+    case callEventAck(Sanchr_Messaging_CallEventAck)
 
   }
 
@@ -332,6 +341,21 @@ public struct Sanchr_Messaging_CallLifecycleEvent: Sendable {
   public var eventType: String = String()
 
   public var actorID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_CallEventAck: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var callID: String = String()
+
+  /// "offer" or "lifecycle"
+  public var kind: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -948,7 +972,7 @@ extension Sanchr_Messaging_SendMessageResponse: SwiftProtobuf.Message, SwiftProt
 
 extension Sanchr_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}typing\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}typing\0\u{4}\u{3}call_event_ack\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -969,6 +993,19 @@ extension Sanchr_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
           self.event = .typing(v)
         }
       }()
+      case 4: try {
+        var v: Sanchr_Messaging_CallEventAck?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .callEventAck(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .callEventAck(v)
+        }
+      }()
       default: break
       }
     }
@@ -979,9 +1016,17 @@ extension Sanchr_Messaging_ClientEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .typing(let v)? = self.event {
+    switch self.event {
+    case .typing?: try {
+      guard case .typing(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .callEventAck?: try {
+      guard case .callEventAck(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1273,6 +1318,41 @@ extension Sanchr_Messaging_CallLifecycleEvent: SwiftProtobuf.Message, SwiftProto
     if lhs.peerID != rhs.peerID {return false}
     if lhs.eventType != rhs.eventType {return false}
     if lhs.actorID != rhs.actorID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_CallEventAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CallEventAck"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{1}kind\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.callID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.kind) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.callID.isEmpty {
+      try visitor.visitSingularStringField(value: self.callID, fieldNumber: 1)
+    }
+    if !self.kind.isEmpty {
+      try visitor.visitSingularStringField(value: self.kind, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_CallEventAck, rhs: Sanchr_Messaging_CallEventAck) -> Bool {
+    if lhs.callID != rhs.callID {return false}
+    if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
