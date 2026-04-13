@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UserNotifications
 import SanchrShared
@@ -24,6 +25,7 @@ struct SanchrApp: App {
     @State private var sanchrTheme = SanchrTheme()
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
+    @State private var cancellables = Set<AnyCancellable>()
 
     var body: some Scene {
         WindowGroup {
@@ -65,6 +67,18 @@ struct SanchrApp: App {
                         await MainActor.run {
                             configurePushManager()
                         }
+                        // Flush queued messages whenever connectivity is restored.
+                        let messageSender = container.messageSender
+                        container.networkMonitor.connectivityPublisher
+                            .dropFirst()
+                            .removeDuplicates()
+                            .filter { $0 == true }
+                            .sink { _ in
+                                Task {
+                                    await messageSender.retrySendingMessages()
+                                }
+                            }
+                            .store(in: &cancellables)
                     }
                     .onChange(of: scenePhase) { oldPhase, newPhase in
                         handleScenePhaseChange(from: oldPhase, to: newPhase)
@@ -101,16 +115,32 @@ struct SanchrApp: App {
         // Capture the realtime service as a let so the Sendable closure can
         // reference it without retaining `self` (which is a SwiftUI struct).
         let realtimeService = container.realtimeService
+        let messageRepository = container.messageRepository
         pushManager.onSilentWakeup = { @Sendable in
-            let newCount = await realtimeService.syncNow()
-            guard newCount > 0 else { return .noData }
+            let syncResult = await realtimeService.syncNowResult()
+            guard syncResult.appliedCount > 0 else { return .noData }
+
+            let conversations = (try? await messageRepository.fetchConversations()) ?? []
+            let mutedConversationIds = Set(
+                conversations.lazy.filter(\.isMuted).map(\.id)
+            )
+            let unmutedCount = syncResult.appliedCountsByConversation.reduce(into: 0) {
+                total, entry in
+                guard !mutedConversationIds.contains(entry.key) else { return }
+                total += entry.value
+            }
+            guard unmutedCount > 0 else {
+                SanchrLogger.push.info(
+                    "Silent push synced only muted conversation(s); skipping local notification")
+                return .newData
+            }
 
             // Schedule a local notification to alert the user. Message content
             // is E2EE so we show a generic placeholder — a future
             // NotificationServiceExtension can decrypt and enrich this.
             let content = UNMutableNotificationContent()
             content.title = "Sanchr"
-            content.body = newCount == 1 ? "New message" : "\(newCount) new messages"
+            content.body = unmutedCount == 1 ? "New message" : "\(unmutedCount) new messages"
             content.sound = .default
             content.categoryIdentifier = SanchrNotificationCategory.message
 
@@ -121,7 +151,7 @@ struct SanchrApp: App {
             )
             try? await UNUserNotificationCenter.current().add(request)
             SanchrLogger.push.info(
-                "Scheduled local notification for \(newCount) new message(s) from silent push")
+                "Scheduled local notification for \(unmutedCount) unmuted new message(s) from silent push")
             return .newData
         }
 
@@ -174,6 +204,11 @@ struct SanchrApp: App {
                 Task {
                     await container.syncOrchestrator.startSync()
                 }
+            }
+
+            // Flush any messages queued while the app was backgrounded.
+            Task {
+                await container.messageSender.retrySendingMessages()
             }
 
             // Start the vault EKF scheduler (idempotent).
