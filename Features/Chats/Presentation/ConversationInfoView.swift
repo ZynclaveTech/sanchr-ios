@@ -10,10 +10,12 @@ struct ConversationInfoView: View {
     let recipient: User?
 
     @Environment(DependencyContainer.self) private var container
+    @Environment(\.dismiss) private var dismiss
     @State private var refreshedRecipient: User?
     @State private var notificationsMuted = false
     @State private var mediaVisibility = true
     @State private var sanchrModeEnabled = false
+    @State private var isConversationArchived: Bool
     @State private var showDisappearingMessages = false
     @State private var showVaultMedia = false
     @State private var showWallpaper = false
@@ -27,6 +29,17 @@ struct ConversationInfoView: View {
     @State private var showClearChat = false
     @State private var showBlockContact = false
     @State private var showReportContact = false
+    @State private var conversationActionErrorMessage: String?
+
+    init(conversation: Conversation, recipient: User?) {
+        self.conversation = conversation
+        self.recipient = recipient
+        _notificationsMuted = State(initialValue: conversation.isMuted)
+        _mediaVisibility = State(
+            initialValue: ChatMediaVisibilityStore.isVisibleInGallery(conversationId: conversation.id)
+        )
+        _isConversationArchived = State(initialValue: conversation.isArchived)
+    }
 
     /// Use refreshed data if available, fall back to initial snapshot
     private var activeRecipient: User? {
@@ -75,6 +88,9 @@ struct ConversationInfoView: View {
                 SanchrLogger.chat.warning(
                     "Chat Settings: failed to refresh contacts: \(error.localizedDescription)")
             }
+        }
+        .task {
+            await loadConversationPreferences()
         }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView(conversationId: conversation.id)
@@ -126,7 +142,22 @@ struct ConversationInfoView: View {
             )
         }
         .alert("Block Contact", isPresented: $showBlockContact) {
-            Button("Block", role: .destructive) {}
+            Button("Block", role: .destructive) {
+                Task {
+                    guard let userId = recipient?.id else { return }
+                    let dataSource = ContactDataSource(
+                        grpcClient: container.grpcClient,
+                        localDatabase: container.localDatabase
+                    )
+                    do {
+                        try await dataSource.blockContact(userId: userId)
+                        SanchrLogger.sync.info("Blocked contact \(userId.prefix(8))… from ConversationInfo")
+                        dismiss()
+                    } catch {
+                        SanchrLogger.sync.error("Failed to block contact \(userId.prefix(8))…: \(error)")
+                    }
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
@@ -140,6 +171,14 @@ struct ConversationInfoView: View {
             Text(
                 "Report this contact for inappropriate behavior. We'll review your report and take appropriate action."
             )
+        }
+        .alert("Couldn't update conversation", isPresented: Binding(
+            get: { conversationActionErrorMessage != nil },
+            set: { if !$0 { conversationActionErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(conversationActionErrorMessage ?? "")
         }
     }
 
@@ -357,9 +396,9 @@ struct ConversationInfoView: View {
                 icon: "bell.fill",
                 iconBg: SanchrExportColors.surfaceSoft,
                 iconColor: SanchrExportColors.textSecondary,
-                title: "Notifications",
-                subtitle: "Mute this conversation",
-                isOn: $notificationsMuted
+                title: "Mute Conversation",
+                subtitle: "Turn off notifications for this chat",
+                isOn: notificationsMutedBinding
             )
 
             settingsToggleRow(
@@ -367,8 +406,8 @@ struct ConversationInfoView: View {
                 iconBg: SanchrExportColors.surfaceSoft,
                 iconColor: SanchrExportColors.textSecondary,
                 title: "Media Visibility",
-                subtitle: "Show in gallery",
-                isOn: $mediaVisibility
+                subtitle: "Allow media from this chat in Photos auto-save",
+                isOn: mediaVisibilityBinding
             )
 
             Button {
@@ -502,6 +541,34 @@ struct ConversationInfoView: View {
 
     private var chatActionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Button {
+                Task { await toggleArchivedState() }
+            } label: {
+                settingsRow(
+                    icon: isConversationArchived ? "tray.and.arrow.up.fill" : "archivebox.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: isConversationArchived ? "Unarchive Chat" : "Archive Chat",
+                    subtitle: isConversationArchived
+                        ? "Return this chat to your main list"
+                        : "Move this chat out of your main list"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                Task { await hideConversationFromDevice() }
+            } label: {
+                settingsRow(
+                    icon: "eye.slash.fill",
+                    iconBg: SanchrExportColors.surfaceSoft,
+                    iconColor: SanchrExportColors.textSecondary,
+                    title: "Hide from This Device",
+                    subtitle: "Remove this chat from this device only"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
 
             Button {
                 showExportChat = true
@@ -535,6 +602,90 @@ struct ConversationInfoView: View {
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    @MainActor
+    private func toggleArchivedState() async {
+        do {
+            let nextValue = !isConversationArchived
+            try await container.messageRepository.setConversationArchived(
+                conversationId: conversation.id,
+                isArchived: nextValue
+            )
+            isConversationArchived = nextValue
+            if nextValue {
+                dismiss()
+            }
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func hideConversationFromDevice() async {
+        do {
+            try await container.messageRepository.hideConversationLocally(conversationId: conversation.id)
+            dismiss()
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func loadConversationPreferences() async {
+        if let storedConversation = try? await container.localDatabase.fetchConversation(id: conversation.id) {
+            notificationsMuted = storedConversation.isMuted
+            isConversationArchived = storedConversation.isArchived
+        } else {
+            notificationsMuted = conversation.isMuted
+            isConversationArchived = conversation.isArchived
+        }
+        mediaVisibility = ChatMediaVisibilityStore.isVisibleInGallery(conversationId: conversation.id)
+    }
+
+    private var notificationsMutedBinding: Binding<Bool> {
+        Binding(
+            get: { notificationsMuted },
+            set: { newValue in
+                let previousValue = notificationsMuted
+                notificationsMuted = newValue
+                Task { await updateNotificationMute(from: previousValue, to: newValue) }
+            }
+        )
+    }
+
+    private var mediaVisibilityBinding: Binding<Bool> {
+        Binding(
+            get: { mediaVisibility },
+            set: { newValue in
+                mediaVisibility = newValue
+                ChatMediaVisibilityStore.setVisibleInGallery(
+                    newValue,
+                    conversationId: conversation.id
+                )
+            }
+        )
+    }
+
+    @MainActor
+    private func updateNotificationMute(from oldValue: Bool, to newValue: Bool) async {
+        guard oldValue != newValue else { return }
+        do {
+            var request = Sanchr_Notifications_SetConversationNotificationPrefsRequest()
+            request.conversationID = conversation.id
+            request.muted = newValue
+            _ = try await container.notificationServiceClient.setConversationNotificationPrefs(
+                request
+            )
+
+            try await container.messageRepository.setConversationMuted(
+                conversationId: conversation.id,
+                isMuted: newValue
+            )
+        } catch {
+            notificationsMuted = oldValue
+            conversationActionErrorMessage = error.localizedDescription
         }
     }
 
