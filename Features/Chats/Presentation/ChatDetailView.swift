@@ -947,7 +947,8 @@ struct ChatDetailView: View {
                     emoji: emoji,
                     messageId: messageId,
                     conversationId: conversation.id,
-                    userId: userId
+                    userId: userId,
+                    chatDataSource: container.chatDataSource
                 )
             },
             onForward: { message in

@@ -104,6 +104,30 @@ final class ChatDataSource: @unchecked Sendable {
         return response.conversations
     }
 
+    // MARK: - Send Reaction
+
+    /// Sends or removes a reaction on a message via gRPC.
+    func sendReaction(
+        messageID: String,
+        conversationID: String,
+        userID: String,
+        emoji: String,
+        removed: Bool
+    ) async throws {
+        var request = Sanchr_Messaging_Reaction()
+        request.messageID = messageID
+        request.conversationID = conversationID
+        request.userID = userID
+        request.emoji = emoji
+        request.removed = removed
+        request.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+
+        SanchrLogger.chat.info(
+            "ChatDataSource: sendReaction \(removed ? "remove" : "add") \(emoji) on \(messageID.prefix(8))..."
+        )
+        _ = try await messagingClient.sendReaction(request)
+    }
+
     // MARK: - Delete Message
 
     /// Deletes a message from a conversation on the server.

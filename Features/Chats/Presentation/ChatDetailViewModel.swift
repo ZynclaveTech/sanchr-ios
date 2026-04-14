@@ -184,10 +184,18 @@ final class ChatDetailViewModel {
 
     var showReactionPickerForMessageId: String?
 
-    func toggleReaction(emoji: String, messageId: String, conversationId: String, userId: String) {
+    func toggleReaction(
+        emoji: String,
+        messageId: String,
+        conversationId: String,
+        userId: String,
+        chatDataSource: ChatDataSource
+    ) {
         guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
 
-        if let reactionIndex = messages[index].reactions.firstIndex(where: { $0.emoji == emoji && $0.userId == userId }) {
+        let isRemoving = messages[index].reactions.contains(where: { $0.emoji == emoji && $0.userId == userId })
+
+        if isRemoving, let reactionIndex = messages[index].reactions.firstIndex(where: { $0.emoji == emoji && $0.userId == userId }) {
             // Remove own reaction
             messages[index].reactions.remove(at: reactionIndex)
         } else {
@@ -201,6 +209,38 @@ final class ChatDetailViewModel {
         }
 
         syncMessageSection(for: messages[index])
+
+        // Fire-and-forget gRPC call; revert local state on failure
+        Task { [weak self] in
+            do {
+                try await chatDataSource.sendReaction(
+                    messageID: messageId,
+                    conversationID: conversationId,
+                    userID: userId,
+                    emoji: emoji,
+                    removed: isRemoving
+                )
+            } catch {
+                await MainActor.run {
+                    guard let self,
+                          let idx = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
+
+                    // Revert: if we added, remove it; if we removed, re-add it
+                    if isRemoving {
+                        let restored = Message.MessageReaction(
+                            emoji: emoji,
+                            userId: userId,
+                            timestamp: Date()
+                        )
+                        self.messages[idx].reactions.append(restored)
+                    } else {
+                        self.messages[idx].reactions.removeAll(where: { $0.emoji == emoji && $0.userId == userId })
+                    }
+                    self.syncMessageSection(for: self.messages[idx])
+                    SanchrLogger.chat.error("Failed to send reaction: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func handleRealtimeReaction(messageId: String, userId: String, emoji: String, removed: Bool) {
