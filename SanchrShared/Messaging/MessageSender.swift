@@ -240,6 +240,7 @@ public actor MessageSender {
             // Route: 1:1 conversations use sealed sender when available;
             // groups always use the standard encrypted path.
             let isDirectChat = await isDirectConversation(chatId: chatId)
+            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
@@ -250,7 +251,8 @@ public actor MessageSender {
                     recipientIds: recipientIds,
                     senderId: senderId,
                     localMessageId: localId,
-                    sealedSender: sealedSender
+                    sealedSender: sealedSender,
+                    expiresAfterSecs: disappearingSecs
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -259,7 +261,7 @@ public actor MessageSender {
                         contentType: "text",
                         conversationId: chatId,
                         recipientIds: recipientIds,
-                        expiresAfterSecs: 0
+                        expiresAfterSecs: disappearingSecs
                     )
                 }
             }
@@ -410,6 +412,7 @@ public actor MessageSender {
             // Step 4 — route: 1:1 via sealed sender when available,
             // groups via standard encrypted path.
             let isDirectChat = await isDirectConversation(chatId: chatId)
+            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
@@ -420,7 +423,8 @@ public actor MessageSender {
                     recipientIds: recipientIds,
                     senderId: senderId,
                     localMessageId: localId,
-                    sealedSender: sealedSender
+                    sealedSender: sealedSender,
+                    expiresAfterSecs: disappearingSecs
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -429,7 +433,7 @@ public actor MessageSender {
                         contentType: contentTypeString,
                         conversationId: chatId,
                         recipientIds: recipientIds,
-                        expiresAfterSecs: 0
+                        expiresAfterSecs: disappearingSecs
                     )
                 }
             }
@@ -586,7 +590,8 @@ public actor MessageSender {
         recipientIds: [String],
         senderId: String,
         localMessageId: String,
-        sealedSender: SealedMessageSendingClient
+        sealedSender: SealedMessageSendingClient,
+        expiresAfterSecs: Int64
     ) async throws -> EncryptedMessageSendResult {
         do {
             let sealedResult = try await coordinator.withLock {
@@ -618,7 +623,7 @@ public actor MessageSender {
                     contentType: contentType,
                     conversationId: conversationId,
                     recipientIds: recipientIds,
-                    expiresAfterSecs: 0
+                    expiresAfterSecs: expiresAfterSecs
                 )
             }
         }

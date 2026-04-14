@@ -121,7 +121,7 @@ struct ConversationInfoView: View {
             await loadRecentMediaIfNeeded()
         }
         .navigationDestination(isPresented: $showDisappearingMessages) {
-            DisappearingMessagesView()
+            DisappearingMessagesView(conversationId: conversation.id)
         }
         .navigationDestination(isPresented: $showVaultMedia) {
             VaultMediaView(conversationId: conversation.id)
@@ -1509,6 +1509,8 @@ private struct WallpaperThemeView: View {
 // MARK: - DisappearingMessagesView
 
 private struct DisappearingMessagesView: View {
+    let conversationId: String
+
     @State private var selectedDuration: Int = 0
 
     private let options: [(String, String, Int)] = [
@@ -1549,6 +1551,10 @@ private struct DisappearingMessagesView: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedDuration = option.2
                         }
+                        DisappearingTimerStore.setDuration(
+                            conversationId: conversationId,
+                            secs: Int64(option.2)
+                        )
                     } label: {
                         HStack(spacing: 12) {
                             Circle()
@@ -1606,6 +1612,11 @@ private struct DisappearingMessagesView: View {
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Disappearing Messages")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            selectedDuration = Int(
+                DisappearingTimerStore.getDuration(conversationId: conversationId)
+            )
+        }
     }
 }
 

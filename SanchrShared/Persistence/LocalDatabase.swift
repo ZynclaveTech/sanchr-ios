@@ -1490,3 +1490,20 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
         status: Message.DeliveryStatus
     ) async throws { throw error }
 }
+
+// MARK: - Disappearing Messages Timer (UserDefaults)
+
+/// Lightweight per-conversation disappearing-message duration storage.
+/// Keyed by conversation ID in UserDefaults so it survives app restarts
+/// without requiring a GRDB schema migration.
+public enum DisappearingTimerStore {
+    private static let keyPrefix = "sanchr.disappearing."
+
+    public static func setDuration(conversationId: String, secs: Int64) {
+        UserDefaults.standard.set(secs, forKey: keyPrefix + conversationId)
+    }
+
+    public static func getDuration(conversationId: String) -> Int64 {
+        Int64(UserDefaults.standard.integer(forKey: keyPrefix + conversationId))
+    }
+}
