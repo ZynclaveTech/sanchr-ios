@@ -45,7 +45,7 @@ final class ChatsListViewModel {
 
     /// Whether the list is empty (after loading).
     var isEmpty: Bool {
-        !isLoading && conversations.isEmpty
+        !isLoading && pinnedConversations.isEmpty && recentConversations.isEmpty
     }
 
     // MARK: - Sync State Observation
@@ -93,7 +93,9 @@ final class ChatsListViewModel {
     // MARK: - Derived State
 
     private func rebuildVisibleConversations() {
-        totalUnreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
+        totalUnreadCount = conversations
+            .filter { !$0.isArchived }
+            .reduce(0) { $0 + $1.unreadCount }
         let visible = filteredConversations()
         pinnedConversations = visible.filter(\.isPinned)
         recentConversations = visible.filter { !$0.isPinned }
@@ -101,7 +103,7 @@ final class ChatsListViewModel {
 
     /// Returns conversations filtered by search text and active filter tab.
     private func filteredConversations() -> [Conversation] {
-        var result = sortedConversations()
+        var result = sortedConversations().filter { !$0.isArchived }
 
         // Apply filter tab
         switch selectedFilter {
@@ -226,44 +228,104 @@ final class ChatsListViewModel {
 
     // MARK: - Conversation Actions
 
-    /// Deletes a conversation locally (and eventually on server).
-    func deleteConversation(_ conversation: Conversation) async {
-        SanchrLogger.chat.info("Deleting conversation \(conversation.id.prefix(8))...")
-        conversations.removeAll { $0.id == conversation.id }
-        // TODO: Delete via repository/server
+    /// Deletes a conversation on the backend and locally.
+    /// Falls back to local-only deletion when the backend RPC fails so the user
+    /// is never blocked by a transient network issue.
+    func deleteConversation(
+        _ conversation: Conversation,
+        messageRepository: MessageRepositoryProtocol,
+        chatDataSource: ChatDataSource
+    ) async {
+        // Persist to backend (graceful degradation on failure)
+        do {
+            try await chatDataSource.deleteConversation(conversationId: conversation.id)
+        } catch {
+            SanchrLogger.chat.error("Backend conversation delete failed: \(error.localizedDescription)")
+        }
+
+        // Always hide locally regardless of RPC result
+        do {
+            try await messageRepository.hideConversationLocally(conversationId: conversation.id)
+            conversations.removeAll { $0.id == conversation.id }
+            SanchrLogger.chat.info("Deleted conversation \(conversation.id.prefix(8))")
+        } catch {
+            errorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Failed to hide conversation locally: \(error.localizedDescription)")
+        }
     }
 
     /// Toggles the pin state of a conversation.
-    func togglePin(_ conversation: Conversation) async {
+    func togglePin(_ conversation: Conversation, messageRepository: MessageRepositoryProtocol) async {
         guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
             return
         }
-        conversations[index].isPinned.toggle()
+        let newValue = !conversations[index].isPinned
+        do {
+            try await messageRepository.setConversationPinned(
+                conversationId: conversation.id,
+                isPinned: newValue
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Failed to persist pin state: \(error.localizedDescription)")
+            return
+        }
+        conversations[index].isPinned = newValue
         rebuildVisibleConversations()
         SanchrLogger.chat.info(
             "Toggled pin for \(conversation.id.prefix(8)): \(self.conversations[index].isPinned)")
-        // TODO: Persist pin state
     }
 
     /// Toggles the mute state of a conversation.
-    func toggleMute(_ conversation: Conversation) async {
+    func toggleMute(
+        _ conversation: Conversation,
+        messageRepository: MessageRepositoryProtocol,
+        notificationService: Sanchr_Notifications_NotificationServiceAsyncClientProtocol
+    ) async {
         guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
             return
         }
-        conversations[index].isMuted.toggle()
+        let newValue = !conversations[index].isMuted
+        do {
+            var request = Sanchr_Notifications_SetConversationNotificationPrefsRequest()
+            request.conversationID = conversation.id
+            request.muted = newValue
+            _ = try await notificationService.setConversationNotificationPrefs(request)
+
+            try await messageRepository.setConversationMuted(
+                conversationId: conversation.id,
+                isMuted: newValue
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Failed to persist mute state: \(error.localizedDescription)")
+            return
+        }
+        conversations[index].isMuted = newValue
         rebuildVisibleConversations()
-        // TODO: Persist mute state
     }
 
     /// Archives a conversation.
-    func archiveConversation(_ conversation: Conversation) async {
+    func archiveConversation(
+        _ conversation: Conversation,
+        messageRepository: MessageRepositoryProtocol
+    ) async {
         guard let index = conversations.firstIndex(where: { $0.id == conversation.id }) else {
+            return
+        }
+        do {
+            try await messageRepository.setConversationArchived(
+                conversationId: conversation.id,
+                isArchived: true
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Failed to persist archive state: \(error.localizedDescription)")
             return
         }
         conversations[index].isArchived = true
         conversations.removeAll { $0.id == conversation.id }
         SanchrLogger.chat.info("Archived conversation \(conversation.id.prefix(8))")
-        // TODO: Persist archive state via repository/server
     }
 
     /// Marks a conversation as read: resets the in-memory unread count and sends a

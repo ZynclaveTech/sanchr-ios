@@ -1,12 +1,30 @@
+import AVFoundation
 import Kingfisher
+import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
+import UIKit
 import SanchrShared
+
+private struct PendingHomeMediaSelection: Identifiable {
+    let id = UUID()
+    let intent: AttachmentIntent
+}
 
 struct ChatsListView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
     @State private var viewModel = ChatsListViewModel()
     @State private var showNewConversation = false
+    @State private var showHomeMediaOptions = false
+    @State private var showHomeCameraCapture = false
+    @State private var showHomePhotoLibrary = false
+    @State private var selectedHomePhotoItems: [PhotosPickerItem] = []
+    @State private var pendingHomeMediaSelection: PendingHomeMediaSelection?
+    @State private var isPreparingHomeMedia = false
+    @State private var homeMediaLoadErrorMessage: String?
+    @State private var showArchivedChats = false
+    @State private var showHiddenChats = false
     @State private var conversationToDelete: Conversation?
     @State private var sanchrModeEnabled = false
 
@@ -36,13 +54,70 @@ struct ChatsListView: View {
         ) {
             Button("Delete", role: .destructive) {
                 if let conversation = conversationToDelete {
-                    Task { await viewModel.deleteConversation(conversation) }
+                    Task {
+                        await viewModel.deleteConversation(
+                            conversation,
+                            messageRepository: container.messageRepository,
+                            chatDataSource: container.chatDataSource
+                        )
+                    }
                 }
                 conversationToDelete = nil
             }
             Button("Cancel", role: .cancel) {
                 conversationToDelete = nil
             }
+        }
+        .confirmationDialog("Add Media", isPresented: $showHomeMediaOptions, titleVisibility: .visible) {
+            Button("Camera") {
+                showHomeCameraCapture = true
+            }
+
+            Button("Photo Library") {
+                showHomePhotoLibrary = true
+            }
+
+            Button("Cancel", role: .cancel) {}
+        }
+        .fullScreenCover(isPresented: $showHomeCameraCapture) {
+            CameraCaptureView(
+                onCapture: { capture in
+                    pendingHomeMediaSelection = PendingHomeMediaSelection(intent: .capturedMedia(capture))
+                    showHomeCameraCapture = false
+                },
+                onCancel: { showHomeCameraCapture = false }
+            )
+        }
+        .photosPicker(
+            isPresented: $showHomePhotoLibrary,
+            selection: $selectedHomePhotoItems,
+            maxSelectionCount: 10,
+            matching: .any(of: [.images, .videos])
+        )
+        .sheet(item: $pendingHomeMediaSelection) { selection in
+            HomeMediaDestinationPicker(
+                localDatabase: container.localDatabase,
+                onConversationPicked: { conversationId in
+                    router.deepLinkToConversation(
+                        conversationId: conversationId,
+                        pendingAttachment: selection.intent
+                    )
+                    pendingHomeMediaSelection = nil
+                },
+                onCancel: { pendingHomeMediaSelection = nil }
+            )
+        }
+        .navigationDestination(isPresented: $showHiddenChats) {
+            HiddenChatsView(
+                localDatabase: container.localDatabase,
+                messageRepository: container.messageRepository
+            )
+        }
+        .navigationDestination(isPresented: $showArchivedChats) {
+            ArchivedChatsView(
+                localDatabase: container.localDatabase,
+                messageRepository: container.messageRepository
+            )
         }
         .refreshable {
             await viewModel.refresh(
@@ -97,13 +172,48 @@ struct ChatsListView: View {
             scheduledRefreshTask = nil
             untrackAllVisiblePresencePeers()
         }
+        .alert("Couldn't load media", isPresented: Binding(
+            get: { homeMediaLoadErrorMessage != nil },
+            set: { if !$0 { homeMediaLoadErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(homeMediaLoadErrorMessage ?? "")
+        }
+        .overlay {
+            if isPreparingHomeMedia {
+                Color.black.opacity(0.12)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack(spacing: 10) {
+                            ProgressView()
+                                .tint(.white)
+                            Text("Preparing media…")
+                                .font(SanchrTypography.caption)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(Color.black.opacity(0.74))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+            }
+        }
+        .onChange(of: selectedHomePhotoItems) { _, items in
+            guard !items.isEmpty else { return }
+            let selectedItems = items
+            selectedHomePhotoItems = []
+            Task {
+                await prepareHomePhotoLibrarySelection(from: selectedItems)
+            }
+        }
     }
 
     private var mainContent: some View {
         Group {
             if viewModel.conversations.isEmpty && viewModel.isLoading {
                 loadingState
-            } else if viewModel.conversations.isEmpty {
+            } else if viewModel.isEmpty {
                 emptyState
             } else {
                 conversationList
@@ -218,14 +328,25 @@ struct ChatsListView: View {
             .tint(.sanchrError)
 
             Button {
-                Task { await viewModel.archiveConversation(conversation) }
+                Task {
+                    await viewModel.archiveConversation(
+                        conversation,
+                        messageRepository: container.messageRepository
+                    )
+                }
             } label: {
                 Label("Archive", systemImage: "archivebox.fill")
             }
             .tint(Color(hex: 0x6B7280))
 
             Button {
-                Task { await viewModel.toggleMute(conversation) }
+                Task {
+                    await viewModel.toggleMute(
+                        conversation,
+                        messageRepository: container.messageRepository,
+                        notificationService: container.notificationServiceClient
+                    )
+                }
             } label: {
                 Label(
                     conversation.isMuted ? "Unmute" : "Mute",
@@ -236,7 +357,12 @@ struct ChatsListView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
-                Task { await viewModel.togglePin(conversation) }
+                Task {
+                    await viewModel.togglePin(
+                        conversation,
+                        messageRepository: container.messageRepository
+                    )
+                }
             } label: {
                 Label(
                     conversation.isPinned ? "Unpin" : "Pin",
@@ -247,7 +373,12 @@ struct ChatsListView: View {
         }
         .contextMenu {
             Button {
-                Task { await viewModel.togglePin(conversation) }
+                Task {
+                    await viewModel.togglePin(
+                        conversation,
+                        messageRepository: container.messageRepository
+                    )
+                }
             } label: {
                 Label(
                     conversation.isPinned ? "Unpin" : "Pin",
@@ -256,7 +387,13 @@ struct ChatsListView: View {
             }
 
             Button {
-                Task { await viewModel.toggleMute(conversation) }
+                Task {
+                    await viewModel.toggleMute(
+                        conversation,
+                        messageRepository: container.messageRepository,
+                        notificationService: container.notificationServiceClient
+                    )
+                }
             } label: {
                 Label(
                     conversation.isMuted ? "Unmute" : "Mute",
@@ -273,7 +410,12 @@ struct ChatsListView: View {
             }
 
             Button {
-                Task { await viewModel.archiveConversation(conversation) }
+                Task {
+                    await viewModel.archiveConversation(
+                        conversation,
+                        messageRepository: container.messageRepository
+                    )
+                }
             } label: {
                 Label("Archive", systemImage: "archivebox")
             }
@@ -292,13 +434,27 @@ struct ChatsListView: View {
         SanchrBrandHeader(title: "Sanchr") {
             SanchrGlassCluster(spacing: 12) {
                 HStack(spacing: 10) {
-                    SanchrIconButton(systemName: "camera.fill") {}
+                    SanchrIconButton(systemName: "camera.fill") {
+                        showHomeMediaOptions = true
+                    }
 
                     Menu {
                         Button {
                             showNewConversation = true
                         } label: {
                             Label("New Chat", systemImage: "square.and.pencil")
+                        }
+
+                        Button {
+                            showHiddenChats = true
+                        } label: {
+                            Label("Hidden Chats", systemImage: "eye.slash")
+                        }
+
+                        Button {
+                            showArchivedChats = true
+                        } label: {
+                            Label("Archived Chats", systemImage: "archivebox")
                         }
 
                         Button {
@@ -498,6 +654,14 @@ struct ChatsListView: View {
             router.chatsPath = NavigationPath()
             openConversation(conversation)
             router.clearPendingConversation()
+            return
+        }
+
+        if let conversation = try? await container.localDatabase.fetchConversation(id: pendingConversationId) {
+            router.selectedTab = .chats
+            router.chatsPath = NavigationPath()
+            openConversation(conversation)
+            router.clearPendingConversation()
         }
     }
 
@@ -542,7 +706,8 @@ struct ChatsListView: View {
     private func updatePresenceTrackingForVisibleConversations() {
         let peerIds = Set(
             viewModel.conversations.compactMap { conversation -> String? in
-                guard conversation.type == .oneToOne,
+                guard !conversation.isArchived,
+                      conversation.type == .oneToOne,
                       let peer = conversation.participants.first(where: { !$0.isLocalUser }),
                       !peer.id.isEmpty
                 else { return nil }
@@ -566,6 +731,619 @@ struct ChatsListView: View {
             container.realtimeService.untrackPresencePeer(peerId)
         }
         trackedPresencePeerIds.removeAll()
+    }
+
+    @MainActor
+    private func prepareHomePhotoLibrarySelection(from items: [PhotosPickerItem]) async {
+        isPreparingHomeMedia = true
+        defer { isPreparingHomeMedia = false }
+
+        var pickedMedia: [PickedMedia] = []
+        pickedMedia.reserveCapacity(items.count)
+
+        for item in items {
+            if let media = await loadPickedMedia(from: item) {
+                pickedMedia.append(media)
+            }
+        }
+
+        guard !pickedMedia.isEmpty else {
+            homeMediaLoadErrorMessage = "Couldn't load the selected media."
+            return
+        }
+
+        pendingHomeMediaSelection = PendingHomeMediaSelection(intent: .photoLibrary(pickedMedia))
+    }
+
+    private func loadPickedMedia(from item: PhotosPickerItem) async -> PickedMedia? {
+        let supportedType = item.supportedContentTypes.first(where: {
+            $0.conforms(to: .movie) || $0.conforms(to: .image)
+        })
+
+        if let supportedType, supportedType.conforms(to: .movie) {
+            return await loadPickedVideo(from: item, contentType: supportedType)
+        }
+
+        return await loadPickedPhoto(from: item, contentType: supportedType)
+    }
+
+    private func loadPickedPhoto(from item: PhotosPickerItem, contentType: UTType?) async -> PickedMedia? {
+        guard let sourceData = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: sourceData)
+        else {
+            SanchrLogger.chat.error("Home media picker failed to load selected image")
+            return nil
+        }
+
+        let pixelWidth = Int(image.size.width * image.scale)
+        let pixelHeight = Int(image.size.height * image.scale)
+
+        let mimeType: String
+        let payloadData: Data
+        let filenameExtension: String
+        if let contentType, contentType.conforms(to: .png) {
+            mimeType = "image/png"
+            payloadData = sourceData
+            filenameExtension = "png"
+        } else {
+            mimeType = "image/jpeg"
+            payloadData = image.jpegData(compressionQuality: 0.92) ?? sourceData
+            filenameExtension = "jpg"
+        }
+
+        return PickedMedia(
+            id: UUID(),
+            kind: .photo,
+            data: payloadData,
+            fileURL: nil,
+            originalFilename: "library-\(UUID().uuidString).\(filenameExtension)",
+            mimeType: mimeType,
+            width: pixelWidth,
+            height: pixelHeight,
+            durationSeconds: nil
+        )
+    }
+
+    private func loadPickedVideo(from item: PhotosPickerItem, contentType: UTType) async -> PickedMedia? {
+        guard let sourceData = try? await item.loadTransferable(type: Data.self) else {
+            SanchrLogger.chat.error("Home media picker failed to load selected video")
+            return nil
+        }
+
+        let fileExtension = contentType.preferredFilenameExtension ?? "mov"
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).\(fileExtension)")
+
+        do {
+            try sourceData.write(to: tempURL)
+        } catch {
+            SanchrLogger.chat.error("Home media picker failed to stage selected video: \(error.localizedDescription)")
+            return nil
+        }
+
+        let asset = AVURLAsset(url: tempURL)
+        let duration = try? await asset.load(.duration)
+        let durationSeconds = duration.map(CMTimeGetSeconds).flatMap { seconds in
+            seconds.isFinite ? seconds : nil
+        }
+
+        let posterImage = makeVideoPosterImage(for: asset)
+        let pixelWidth = posterImage.map { Int($0.size.width * $0.scale) } ?? 0
+        let pixelHeight = posterImage.map { Int($0.size.height * $0.scale) } ?? 0
+
+        return PickedMedia(
+            id: UUID(),
+            kind: .video,
+            data: Data(),
+            fileURL: tempURL,
+            originalFilename: "library-\(UUID().uuidString).\(fileExtension)",
+            mimeType: contentType.preferredMIMEType ?? "video/mp4",
+            width: pixelWidth,
+            height: pixelHeight,
+            durationSeconds: durationSeconds
+        )
+    }
+
+    private func makeVideoPosterImage(for asset: AVURLAsset) -> UIImage? {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 2048, height: 2048)
+        guard let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) else {
+            return nil
+        }
+        return UIImage(cgImage: cgImage)
+    }
+}
+
+private struct HomeMediaDestinationPicker: View {
+    let localDatabase: LocalDatabaseProtocol
+    let onConversationPicked: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var summaries: [ShareChatSummary] = []
+    @State private var isLoading = true
+    @State private var loadError: String?
+    @State private var searchText = ""
+
+    private var filteredSummaries: [ShareChatSummary] {
+        guard !searchText.isEmpty else { return summaries }
+        return summaries.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let loadError {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("Couldn't load chats")
+                            .font(SanchrTypography.bodyBold)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                        Text(loadError)
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if filteredSummaries.isEmpty {
+                    ContentUnavailableView(
+                        searchText.isEmpty ? "No chats available" : "No matches",
+                        systemImage: "message",
+                        description: Text(
+                            searchText.isEmpty
+                                ? "Start a chat first, then capture media to send."
+                                : "Try a different name."
+                        )
+                    )
+                } else {
+                    List(filteredSummaries, id: \.id) { summary in
+                        Button {
+                            onConversationPicked(summary.id)
+                        } label: {
+                            HomeMediaDestinationRow(summary: summary)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .listRowBackground(SanchrExportColors.background)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(SanchrExportColors.background)
+                    .searchable(text: $searchText, prompt: "Search chats")
+                }
+            }
+            .navigationTitle("Send to")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                }
+            }
+            .background(SanchrExportColors.background.ignoresSafeArea())
+        }
+        .presentationDetents([.large])
+        .task { await loadSummaries() }
+    }
+
+    private func loadSummaries() async {
+        do {
+            summaries = try await localDatabase.fetchShareChatSummaries()
+                .sorted { $0.lastActivityMs > $1.lastActivityMs }
+            isLoading = false
+        } catch {
+            loadError = error.localizedDescription
+            isLoading = false
+        }
+    }
+}
+
+private struct HomeMediaDestinationRow: View {
+    let summary: ShareChatSummary
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(SanchrExportColors.surfaceMuted)
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Text(initials(for: summary.title))
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary.title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .lineLimit(1)
+                if let preview = summary.lastMessagePreview, !preview.isEmpty {
+                    Text(preview)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SanchrExportColors.textTertiary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private func initials(for name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: " ").prefix(2)
+        let initials = parts.compactMap { $0.first }.map(String.init).joined().uppercased()
+        return initials.isEmpty ? "?" : initials
+    }
+}
+
+private struct HiddenChatsView: View {
+    let localDatabase: LocalDatabaseProtocol
+    let messageRepository: MessageRepositoryProtocol
+
+    @Environment(AppRouter.self) private var router
+    @State private var summaries: [ShareChatSummary] = []
+    @State private var isLoading = true
+    @State private var isRestoringConversationIds: Set<String> = []
+    @State private var loadError: String?
+    @State private var searchText = ""
+
+    private var filteredSummaries: [ShareChatSummary] {
+        guard !searchText.isEmpty else { return summaries }
+        return summaries.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .tint(.sanchrPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let loadError {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("Couldn't load hidden chats")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                    Text(loadError)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredSummaries.isEmpty {
+                ContentUnavailableView(
+                    summaries.isEmpty ? "No hidden chats" : "No matches",
+                    systemImage: "eye.slash",
+                    description: Text(
+                        summaries.isEmpty
+                            ? "Chats removed from this device will appear here."
+                            : "Try a different name."
+                    )
+                )
+            } else {
+                List {
+                    ForEach(filteredSummaries, id: \.id) { summary in
+                        HiddenChatRow(
+                            summary: summary,
+                            isRestoring: isRestoringConversationIds.contains(summary.id),
+                            onOpen: { router.deepLinkToConversation(conversationId: summary.id) },
+                            onRestore: { restore(summary.id) }
+                        )
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(SanchrExportColors.background)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(SanchrExportColors.background)
+                .searchable(text: $searchText, prompt: "Search hidden chats")
+            }
+        }
+        .navigationTitle("Hidden Chats")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .task { await loadSummaries() }
+    }
+
+    @MainActor
+    private func loadSummaries() async {
+        do {
+            summaries = try await localDatabase.fetchHiddenChatSummaries()
+                .sorted { $0.lastActivityMs > $1.lastActivityMs }
+            isLoading = false
+            loadError = nil
+        } catch {
+            loadError = error.localizedDescription
+            isLoading = false
+        }
+    }
+
+    @MainActor
+    private func restore(_ conversationId: String) {
+        guard !isRestoringConversationIds.contains(conversationId) else { return }
+        isRestoringConversationIds.insert(conversationId)
+
+        Task {
+            do {
+                try await messageRepository.restoreConversationLocally(conversationId: conversationId)
+                await MainActor.run {
+                    summaries.removeAll { $0.id == conversationId }
+                    isRestoringConversationIds.remove(conversationId)
+                    router.deepLinkToConversation(conversationId: conversationId)
+                }
+            } catch {
+                await MainActor.run {
+                    loadError = error.localizedDescription
+                    isRestoringConversationIds.remove(conversationId)
+                }
+            }
+        }
+    }
+}
+
+private struct ArchivedChatsView: View {
+    let localDatabase: LocalDatabaseProtocol
+    let messageRepository: MessageRepositoryProtocol
+
+    @Environment(AppRouter.self) private var router
+    @State private var summaries: [ShareChatSummary] = []
+    @State private var isLoading = true
+    @State private var isUpdatingConversationIds: Set<String> = []
+    @State private var loadError: String?
+    @State private var searchText = ""
+
+    private var filteredSummaries: [ShareChatSummary] {
+        guard !searchText.isEmpty else { return summaries }
+        return summaries.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .tint(.sanchrPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let loadError {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("Couldn't load archived chats")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                    Text(loadError)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredSummaries.isEmpty {
+                ContentUnavailableView(
+                    summaries.isEmpty ? "No archived chats" : "No matches",
+                    systemImage: "archivebox",
+                    description: Text(
+                        summaries.isEmpty
+                            ? "Archived chats will appear here."
+                            : "Try a different name."
+                    )
+                )
+            } else {
+                List {
+                    ForEach(filteredSummaries, id: \.id) { summary in
+                        ArchivedChatRow(
+                            summary: summary,
+                            isUpdating: isUpdatingConversationIds.contains(summary.id),
+                            onOpen: { router.deepLinkToConversation(conversationId: summary.id) },
+                            onUnarchive: { unarchive(summary.id) }
+                        )
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(SanchrExportColors.background)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(SanchrExportColors.background)
+                .searchable(text: $searchText, prompt: "Search archived chats")
+            }
+        }
+        .navigationTitle("Archived Chats")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .task { await loadSummaries() }
+    }
+
+    @MainActor
+    private func loadSummaries() async {
+        do {
+            summaries = try await localDatabase.fetchArchivedChatSummaries()
+                .sorted { $0.lastActivityMs > $1.lastActivityMs }
+            isLoading = false
+            loadError = nil
+        } catch {
+            loadError = error.localizedDescription
+            isLoading = false
+        }
+    }
+
+    @MainActor
+    private func unarchive(_ conversationId: String) {
+        guard !isUpdatingConversationIds.contains(conversationId) else { return }
+        isUpdatingConversationIds.insert(conversationId)
+
+        Task {
+            do {
+                try await messageRepository.setConversationArchived(
+                    conversationId: conversationId,
+                    isArchived: false
+                )
+                await MainActor.run {
+                    summaries.removeAll { $0.id == conversationId }
+                    isUpdatingConversationIds.remove(conversationId)
+                    router.deepLinkToConversation(conversationId: conversationId)
+                }
+            } catch {
+                await MainActor.run {
+                    loadError = error.localizedDescription
+                    isUpdatingConversationIds.remove(conversationId)
+                }
+            }
+        }
+    }
+}
+
+private struct HiddenChatRow: View {
+    let summary: ShareChatSummary
+    let isRestoring: Bool
+    let onOpen: () -> Void
+    let onRestore: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(SanchrExportColors.surfaceMuted)
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Text(initials(for: summary.title))
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .lineLimit(1)
+
+                if let preview = summary.lastMessagePreview, !preview.isEmpty {
+                    Text(preview)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                } else {
+                    Text("Removed from this device")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 12)
+
+            Button {
+                onRestore()
+            } label: {
+                if isRestoring {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Text("Restore")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(SanchrColors.primary)
+                        .clipShape(Capsule())
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(isRestoring)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
+    }
+
+    private func initials(for name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: " ").prefix(2)
+        let initials = parts.compactMap { $0.first }.map(String.init).joined().uppercased()
+        return initials.isEmpty ? "?" : initials
+    }
+}
+
+private struct ArchivedChatRow: View {
+    let summary: ShareChatSummary
+    let isUpdating: Bool
+    let onOpen: () -> Void
+    let onUnarchive: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(SanchrExportColors.surfaceMuted)
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Text(initials(for: summary.title))
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .lineLimit(1)
+
+                if let preview = summary.lastMessagePreview, !preview.isEmpty {
+                    Text(preview)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                } else {
+                    Text("Archived")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 12)
+
+            Button {
+                onUnarchive()
+            } label: {
+                if isUpdating {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Text("Unarchive")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(SanchrColors.primary)
+                        .clipShape(Capsule())
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(isUpdating)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
+    }
+
+    private func initials(for name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: " ").prefix(2)
+        let initials = parts.compactMap { $0.first }.map(String.init).joined().uppercased()
+        return initials.isEmpty ? "?" : initials
     }
 }
 

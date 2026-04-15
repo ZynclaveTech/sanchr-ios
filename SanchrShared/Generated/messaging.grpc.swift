@@ -81,6 +81,11 @@ public protocol Sanchr_Messaging_MessagingServiceClientProtocol: GRPCClient {
     _ request: Sanchr_Messaging_SendSealedMessageRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>
+
+  func deleteConversation(
+    _ request: Sanchr_Messaging_DeleteConversationRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse>
 }
 
 extension Sanchr_Messaging_MessagingServiceClientProtocol {
@@ -327,6 +332,24 @@ extension Sanchr_Messaging_MessagingServiceClientProtocol {
       interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
     )
   }
+
+  /// Unary call to DeleteConversation
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to DeleteConversation.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func deleteConversation(
+    _ request: Sanchr_Messaging_DeleteConversationRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteConversation.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteConversationInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -454,6 +477,11 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncClientProtocol: GRPCClient
     _ request: Sanchr_Messaging_SendSealedMessageRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>
+
+  func makeDeleteConversationCall(
+    _ request: Sanchr_Messaging_DeleteConversationRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -617,6 +645,18 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
+    )
+  }
+
+  public func makeDeleteConversationCall(
+    _ request: Sanchr_Messaging_DeleteConversationRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteConversation.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteConversationInterceptors() ?? []
     )
   }
 }
@@ -790,6 +830,18 @@ extension Sanchr_Messaging_MessagingServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeSendSealedMessageInterceptors() ?? []
     )
   }
+
+  public func deleteConversation(
+    _ request: Sanchr_Messaging_DeleteConversationRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Messaging_DeleteConversationResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteConversation.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteConversationInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -849,6 +901,9 @@ public protocol Sanchr_Messaging_MessagingServiceClientInterceptorFactoryProtoco
 
   /// - Returns: Interceptors to use when invoking 'sendSealedMessage'.
   func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'deleteConversation'.
+  func makeDeleteConversationInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse>]
 }
 
 public enum Sanchr_Messaging_MessagingServiceClientMetadata {
@@ -869,6 +924,7 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getSenderCertificate,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.getDeliveryTokens,
       Sanchr_Messaging_MessagingServiceClientMetadata.Methods.sendSealedMessage,
+      Sanchr_Messaging_MessagingServiceClientMetadata.Methods.deleteConversation,
     ]
   )
 
@@ -950,6 +1006,12 @@ public enum Sanchr_Messaging_MessagingServiceClientMetadata {
       path: "/sanchr.messaging.MessagingService/SendSealedMessage",
       type: GRPCCallType.unary
     )
+
+    public static let deleteConversation = GRPCMethodDescriptor(
+      name: "DeleteConversation",
+      path: "/sanchr.messaging.MessagingService/DeleteConversation",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -982,6 +1044,8 @@ public protocol Sanchr_Messaging_MessagingServiceProvider: CallHandlerProvider {
   func getDeliveryTokens(request: Sanchr_Messaging_DeliveryTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_DeliveryTokenResponse>
 
   func sendSealedMessage(request: Sanchr_Messaging_SendSealedMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_SendSealedMessageResponse>
+
+  func deleteConversation(request: Sanchr_Messaging_DeleteConversationRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Messaging_DeleteConversationResponse>
 }
 
 extension Sanchr_Messaging_MessagingServiceProvider {
@@ -1113,6 +1177,15 @@ extension Sanchr_Messaging_MessagingServiceProvider {
         userFunction: self.sendSealedMessage(request:context:)
       )
 
+    case "DeleteConversation":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_DeleteConversationRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Messaging_DeleteConversationResponse>(),
+        interceptors: self.interceptors?.makeDeleteConversationInterceptors() ?? [],
+        userFunction: self.deleteConversation(request:context:)
+      )
+
     default:
       return nil
     }
@@ -1191,6 +1264,11 @@ public protocol Sanchr_Messaging_MessagingServiceAsyncProvider: CallHandlerProvi
     request: Sanchr_Messaging_SendSealedMessageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Messaging_SendSealedMessageResponse
+
+  func deleteConversation(
+    request: Sanchr_Messaging_DeleteConversationRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Messaging_DeleteConversationResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -1329,6 +1407,15 @@ extension Sanchr_Messaging_MessagingServiceAsyncProvider {
         wrapping: { try await self.sendSealedMessage(request: $0, context: $1) }
       )
 
+    case "DeleteConversation":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Messaging_DeleteConversationRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Messaging_DeleteConversationResponse>(),
+        interceptors: self.interceptors?.makeDeleteConversationInterceptors() ?? [],
+        wrapping: { try await self.deleteConversation(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -1388,6 +1475,10 @@ public protocol Sanchr_Messaging_MessagingServiceServerInterceptorFactoryProtoco
   /// - Returns: Interceptors to use when handling 'sendSealedMessage'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSendSealedMessageInterceptors() -> [ServerInterceptor<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>]
+
+  /// - Returns: Interceptors to use when handling 'deleteConversation'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDeleteConversationInterceptors() -> [ServerInterceptor<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse>]
 }
 
 public enum Sanchr_Messaging_MessagingServiceServerMetadata {
@@ -1408,6 +1499,7 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getSenderCertificate,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.getDeliveryTokens,
       Sanchr_Messaging_MessagingServiceServerMetadata.Methods.sendSealedMessage,
+      Sanchr_Messaging_MessagingServiceServerMetadata.Methods.deleteConversation,
     ]
   )
 
@@ -1487,6 +1579,12 @@ public enum Sanchr_Messaging_MessagingServiceServerMetadata {
     public static let sendSealedMessage = GRPCMethodDescriptor(
       name: "SendSealedMessage",
       path: "/sanchr.messaging.MessagingService/SendSealedMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let deleteConversation = GRPCMethodDescriptor(
+      name: "DeleteConversation",
+      path: "/sanchr.messaging.MessagingService/DeleteConversation",
       type: GRPCCallType.unary
     )
   }

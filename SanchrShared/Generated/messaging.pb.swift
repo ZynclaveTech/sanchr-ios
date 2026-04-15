@@ -775,6 +775,11 @@ public struct Sanchr_Messaging_SealedDeviceMessage: Sendable {
 
   public var sealedEnvelope: Data = Data()
 
+  /// Optional cleartext routing metadata. It lets the server honor
+  /// per-device conversation notification mutes before sending silent APNs,
+  /// while the sealed envelope remains opaque.
+  public var conversationID: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -802,6 +807,30 @@ public struct Sanchr_Messaging_SealedInboundMessage: Sendable {
   public var serverTimestamp: Int64 = 0
 
   public var messageID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_DeleteConversationRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var conversationID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_DeleteConversationResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var success: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2315,7 +2344,7 @@ extension Sanchr_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, Swif
 
 extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SealedDeviceMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0\u{3}conversation_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2326,6 +2355,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularStringField(value: &self.recipientID) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self.sealedEnvelope) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
       default: break
       }
     }
@@ -2341,6 +2371,9 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if !self.sealedEnvelope.isEmpty {
       try visitor.visitSingularBytesField(value: self.sealedEnvelope, fieldNumber: 3)
     }
+    if !self.conversationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2348,6 +2381,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if lhs.recipientID != rhs.recipientID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
+    if lhs.conversationID != rhs.conversationID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2418,6 +2452,60 @@ extension Sanchr_Messaging_SealedInboundMessage: SwiftProtobuf.Message, SwiftPro
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
     if lhs.serverTimestamp != rhs.serverTimestamp {return false}
     if lhs.messageID != rhs.messageID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_DeleteConversationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteConversationRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}conversation_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.conversationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_DeleteConversationRequest, rhs: Sanchr_Messaging_DeleteConversationRequest) -> Bool {
+    if lhs.conversationID != rhs.conversationID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_DeleteConversationResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteConversationResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.success) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.success != false {
+      try visitor.visitSingularBoolField(value: self.success, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_DeleteConversationResponse, rhs: Sanchr_Messaging_DeleteConversationResponse) -> Bool {
+    if lhs.success != rhs.success {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

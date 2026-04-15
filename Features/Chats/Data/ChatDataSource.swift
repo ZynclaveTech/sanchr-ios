@@ -164,6 +164,17 @@ final class ChatDataSource: @unchecked Sendable {
         return messagingClient.messageStream(clientEvents)
     }
 
+    // MARK: - Delete Conversation
+
+    /// Deletes a conversation on the server so the deletion persists across devices.
+    func deleteConversation(conversationId: String) async throws {
+        var request = Sanchr_Messaging_DeleteConversationRequest()
+        request.conversationID = conversationId
+
+        SanchrLogger.chat.info("ChatDataSource: deleteConversation \(conversationId.prefix(8))...")
+        _ = try await messagingClient.deleteConversation(request)
+    }
+
     // MARK: - Domain Model Mapping
 
     /// Maps a proto Conversation to the domain Conversation model.

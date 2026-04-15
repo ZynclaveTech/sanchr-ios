@@ -126,6 +126,7 @@ extension AuthInterceptorFactory: Sanchr_Messaging_MessagingServiceClientInterce
     public func makeGetSenderCertificateInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SenderCertificateRequest, Sanchr_Messaging_SenderCertificateResponse>] { makeInterceptors() }
     public func makeGetDeliveryTokensInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeliveryTokenRequest, Sanchr_Messaging_DeliveryTokenResponse>] { makeInterceptors() }
     public func makeSendSealedMessageInterceptors() -> [ClientInterceptor<Sanchr_Messaging_SendSealedMessageRequest, Sanchr_Messaging_SendSealedMessageResponse>] { makeInterceptors() }
+    public func makeDeleteConversationInterceptors() -> [ClientInterceptor<Sanchr_Messaging_DeleteConversationRequest, Sanchr_Messaging_DeleteConversationResponse>] { makeInterceptors() }
 }
 
 // MARK: - ContactService Interceptors
@@ -172,6 +173,7 @@ extension AuthInterceptorFactory: Sanchr_Settings_SettingsServiceClientIntercept
 extension AuthInterceptorFactory: Sanchr_Notifications_NotificationServiceClientInterceptorFactoryProtocol {
     public func makeRegisterPushTokenInterceptors() -> [ClientInterceptor<Sanchr_Notifications_RegisterPushTokenRequest, Sanchr_Notifications_RegisterPushTokenResponse>] { makeInterceptors() }
     public func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>] { makeInterceptors() }
+    public func makeSetConversationNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse>] { makeInterceptors() }
 }
 
 // MARK: - VaultService Interceptors
