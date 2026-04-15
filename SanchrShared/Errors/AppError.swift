@@ -17,6 +17,7 @@ public enum AppError: LocalizedError, Equatable {
     case otpExpired
     case otpInvalid
     case accountLocked
+    case registrationLockPinRequired
     case registrationFailed(reason: String)
 
     // MARK: - Encryption
@@ -80,6 +81,8 @@ public enum AppError: LocalizedError, Equatable {
             return "Invalid verification code. Please try again."
         case .accountLocked:
             return "Your account has been locked. Please contact support."
+        case .registrationLockPinRequired:
+            return "A registration lock PIN is required to verify this account."
         case .registrationFailed(let reason):
             return "Registration failed: \(reason)"
         case .encryptionFailed(let reason):

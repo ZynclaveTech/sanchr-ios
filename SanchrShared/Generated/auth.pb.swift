@@ -85,6 +85,8 @@ public struct Sanchr_Auth_VerifyOTPRequest: Sendable {
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
   public mutating func clearDevice() {self._device = nil}
 
+  public var registrationLockPin: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -109,6 +111,8 @@ public struct Sanchr_Auth_LoginRequest: Sendable {
   public var hasDevice: Bool {self._device != nil}
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
   public mutating func clearDevice() {self._device = nil}
+
+  public var registrationLockPin: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -329,7 +333,7 @@ extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VerifyOTPRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}otp_code\0\u{1}device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{3}otp_code\0\u{1}device\0\u{3}registration_lock_pin\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -340,6 +344,7 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 1: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.otpCode) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._device) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.registrationLockPin) }()
       default: break
       }
     }
@@ -359,6 +364,9 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     try { if let v = self._device {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if !self.registrationLockPin.isEmpty {
+      try visitor.visitSingularStringField(value: self.registrationLockPin, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -366,6 +374,7 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.otpCode != rhs.otpCode {return false}
     if lhs._device != rhs._device {return false}
+    if lhs.registrationLockPin != rhs.registrationLockPin {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -373,7 +382,7 @@ extension Sanchr_Auth_VerifyOTPRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoginRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}password\0\u{1}device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}password\0\u{1}device\0\u{3}registration_lock_pin\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -384,6 +393,7 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 1: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.password) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._device) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.registrationLockPin) }()
       default: break
       }
     }
@@ -403,6 +413,9 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._device {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if !self.registrationLockPin.isEmpty {
+      try visitor.visitSingularStringField(value: self.registrationLockPin, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -410,6 +423,7 @@ extension Sanchr_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.phoneNumber != rhs.phoneNumber {return false}
     if lhs.password != rhs.password {return false}
     if lhs._device != rhs._device {return false}
+    if lhs.registrationLockPin != rhs.registrationLockPin {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

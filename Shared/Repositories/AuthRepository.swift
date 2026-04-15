@@ -8,7 +8,7 @@ protocol AuthRepositoryProtocol: AnyObject, Sendable {
     func requestOTP(phoneNumber: String, displayName: String?) async throws -> OTPRequestResult
 
     /// Verifies the OTP code and returns authentication tokens.
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens
+    func verifyOTP(phoneNumber: String, code: String, requestId: String, registrationLockPin: String?) async throws -> AuthTokens
 
     /// Starts the staged registration flow by requesting an OTP.
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult
@@ -85,17 +85,23 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         )
     }
 
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens {
+    func verifyOTP(phoneNumber: String, code: String, requestId: String, registrationLockPin: String? = nil) async throws -> AuthTokens {
         SanchrLogger.auth.info("Verifying OTP for \(phoneNumber.prefix(4))****")
 
         var request = Sanchr_Auth_VerifyOTPRequest()
         request.phoneNumber = phoneNumber
         request.otpCode = code
         request.device = try makeDeviceInfo()
+        if let pin = registrationLockPin, !pin.isEmpty {
+            request.registrationLockPin = pin
+        }
 
         let response: Sanchr_Auth_AuthResponse
         do {
             response = try await authService.verifyOTP(request)
+        } catch let error as GRPCStatus where error.message?.contains("registration_lock_pin_required") == true {
+            SanchrLogger.auth.info("Server requires registration lock PIN")
+            throw AppError.registrationLockPinRequired
         } catch {
             SanchrLogger.auth.error("verifyOTP failed: \(Self.detailedError(error))")
             throw error

@@ -4,7 +4,7 @@ import SanchrShared
 /// Protocol for high-level authentication operations.
 protocol AuthServiceProtocol: AnyObject, Sendable {
     func login(phoneNumber: String) async throws -> OTPRequestResult
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws
+    func verifyOTP(phoneNumber: String, code: String, requestId: String, registrationLockPin: String?) async throws
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult
     func logout() async throws
     func deleteAccount() async throws
@@ -25,12 +25,13 @@ final class AuthServiceImpl: AuthServiceProtocol, @unchecked Sendable {
         return try await repository.requestOTP(phoneNumber: phoneNumber, displayName: nil)
     }
 
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws {
+    func verifyOTP(phoneNumber: String, code: String, requestId: String, registrationLockPin: String?) async throws {
         SanchrLogger.auth.info("Verifying OTP")
         let tokens = try await repository.verifyOTP(
             phoneNumber: phoneNumber,
             code: code,
-            requestId: requestId
+            requestId: requestId,
+            registrationLockPin: registrationLockPin
         )
         try await sessionService.storeTokens(tokens)
     }

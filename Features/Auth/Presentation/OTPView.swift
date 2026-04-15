@@ -108,6 +108,20 @@ struct OTPView: View {
             }
         }
         .onAppear { isFocused = true }
+        .alert("Registration Lock", isPresented: $viewModel.showRegistrationLockPIN) {
+            SecureField("Enter your PIN", text: $viewModel.registrationLockPIN)
+                .keyboardType(.numberPad)
+            Button("Submit") {
+                Task {
+                    await viewModel.submitRegistrationLockPIN(authService: container.authService)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.registrationLockPIN = ""
+            }
+        } message: {
+            Text("This account has a registration lock. Enter your PIN to continue.")
+        }
     }
 
     // MARK: - OTP Input Boxes

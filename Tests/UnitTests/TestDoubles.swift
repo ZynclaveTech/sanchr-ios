@@ -206,7 +206,7 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
         OTPRequestResult(requestId: phoneNumber, expiresInSeconds: 300, phoneNumber: phoneNumber)
     }
 
-    func verifyOTP(phoneNumber: String, code: String, requestId: String) async throws -> AuthTokens {
+    func verifyOTP(phoneNumber: String, code: String, requestId: String, registrationLockPin: String? = nil) async throws -> AuthTokens {
         throw AppError.unknown(underlying: "unused")
     }
 
@@ -232,7 +232,11 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
 }
 
 final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendable {
-    var syncResult = MessageSyncResult(appliedCount: 0, latestTimestamp: 0)
+    var syncResult = MessageSyncResult(
+        appliedCount: 0,
+        latestTimestamp: 0,
+        appliedCountsByConversation: [:]
+    )
     private(set) var syncedTimestamps: [Int64] = []
     private(set) var openStreamCallCount = 0
     private(set) var flushPendingAcksCallCount = 0
@@ -262,6 +266,31 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
 
     func fetchConversations() async throws -> [Conversation] {
         []
+    }
+
+    private(set) var pinUpdates: [(conversationId: String, isPinned: Bool)] = []
+    func setConversationPinned(conversationId: String, isPinned: Bool) async throws {
+        pinUpdates.append((conversationId: conversationId, isPinned: isPinned))
+    }
+
+    private(set) var muteUpdates: [(conversationId: String, isMuted: Bool)] = []
+    func setConversationMuted(conversationId: String, isMuted: Bool) async throws {
+        muteUpdates.append((conversationId: conversationId, isMuted: isMuted))
+    }
+
+    private(set) var archiveUpdates: [(conversationId: String, isArchived: Bool)] = []
+    func setConversationArchived(conversationId: String, isArchived: Bool) async throws {
+        archiveUpdates.append((conversationId: conversationId, isArchived: isArchived))
+    }
+
+    private(set) var hiddenConversationIds: [String] = []
+    func hideConversationLocally(conversationId: String) async throws {
+        hiddenConversationIds.append(conversationId)
+    }
+
+    private(set) var restoredConversationIds: [String] = []
+    func restoreConversationLocally(conversationId: String) async throws {
+        restoredConversationIds.append(conversationId)
     }
 
     func markAsRead(conversationId: String, upToMessageId: String) async throws {}

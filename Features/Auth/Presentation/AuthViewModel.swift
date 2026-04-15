@@ -43,6 +43,8 @@ final class AuthViewModel {
     var showOTPView: Bool = false
     var showRegisterView: Bool = false
     var resendCountdown: Int = 0
+    var showRegistrationLockPIN: Bool = false
+    var registrationLockPIN: String = ""
 
     // MARK: - Validation
 
@@ -132,7 +134,7 @@ final class AuthViewModel {
     }
 
     /// Verify OTP: validates 6-digit code, calls auth service, handles success/failure.
-    func verifyOTP(authService: AuthServiceProtocol) async {
+    func verifyOTP(authService: AuthServiceProtocol, registrationLockPin: String? = nil) async {
         guard let requestId = otpRequestId else {
             errorMessage = "Please request a new verification code."
             return
@@ -151,12 +153,16 @@ final class AuthViewModel {
             try await authService.verifyOTP(
                 phoneNumber: fullPhoneNumber,
                 code: otpCode,
-                requestId: requestId
+                requestId: requestId,
+                registrationLockPin: registrationLockPin
             )
             // Session is now authenticated; RootView observes sessionService.isAuthenticated
             authState = .authenticated
             resendTimer?.invalidate()
             SanchrLogger.auth.info("OTP verified successfully")
+        } catch let error as AppError where error == .registrationLockPinRequired {
+            SanchrLogger.auth.info("Registration lock PIN required, showing prompt")
+            showRegistrationLockPIN = true
         } catch let error as AppError where error == .otpInvalid || error == .otpExpired {
             errorMessage = error.localizedDescription
             otpCode = ""
@@ -164,6 +170,18 @@ final class AuthViewModel {
             errorMessage = error.localizedDescription
             otpCode = ""
         }
+    }
+
+    /// Retry OTP verification with the registration lock PIN.
+    func submitRegistrationLockPIN(authService: AuthServiceProtocol) async {
+        let pin = registrationLockPIN.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pin.isEmpty else {
+            errorMessage = "Please enter your registration lock PIN."
+            return
+        }
+        showRegistrationLockPIN = false
+        await verifyOTP(authService: authService, registrationLockPin: pin)
+        registrationLockPIN = ""
     }
 
     /// Resend OTP: resets the code and re-requests.
