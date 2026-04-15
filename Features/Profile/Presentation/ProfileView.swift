@@ -310,48 +310,94 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - QR Code Sheet
+    // MARK: - QR Code Sheet (Glass Card with Brand Ring)
 
     private var qrCodeSheet: some View {
         NavigationStack {
             VStack(spacing: SanchrSpacing.xl) {
                 Spacer()
 
-                Text("Share Your Profile")
-                    .font(SanchrTypography.screenTitle)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                // Glass card container
+                VStack(spacing: SanchrSpacing.lg) {
+                    // QR code with gradient brand ring
+                    ZStack {
+                        // Outer gradient ring
+                        RoundedRectangle(cornerRadius: SanchrRadius.lg)
+                            .fill(SanchrGradients.primary)
+                            .frame(width: 226, height: 226)
 
-                // QR Code placeholder (would generate from userId)
-                RoundedRectangle(cornerRadius: SanchrRadius.card)
-                    .fill(Color.white)
-                    .frame(width: 200, height: 200)
-                    .overlay {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 120))
-                            .foregroundColor(.black)
+                        // White inner surface
+                        RoundedRectangle(cornerRadius: SanchrRadius.lg - 2)
+                            .fill(Color.white)
+                            .frame(width: 220, height: 220)
+
+                        // QR code image
+                        if let qrImage = generateQRCode() {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 190, height: 190)
+                        }
                     }
-                    .sanchrCardShadow()
 
-                Text(viewModel.displayName)
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    // User display name
+                    Text(viewModel.displayName)
+                        .font(SanchrTypography.cardTitle)
+                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
-                Text("Scan this code to add me on Sanchr")
-                    .font(SanchrTypography.caption)
-                    .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                    // Subtitle
+                    Text("Scan to add on Sanchr")
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+
+                    // E2EE badge pill
+                    HStack(spacing: SanchrSpacing.xxs) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                        Text("End-to-end encrypted")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.horizontal, SanchrSpacing.sm)
+                    .padding(.vertical, SanchrSpacing.xxs + 2)
+                    .background(Color.green.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                .padding(SanchrSpacing.xl)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.sanchrPrimary.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24)
+                                .stroke(Color.sanchrPrimary.opacity(0.12), lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, SanchrSpacing.xl)
 
                 Spacer()
 
-                Button {
-                    // Share QR code image
-                } label: {
-                    Text("Share")
-                        .font(SanchrTypography.button)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SanchrSpacing.sm)
-                        .background(SanchrGradients.primary)
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                // Action buttons: Share (flex) + Save (icon)
+                HStack(spacing: SanchrSpacing.sm) {
+                    Button(action: shareQRCode) {
+                        Text("Share")
+                            .font(SanchrTypography.button)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, SanchrSpacing.sm)
+                            .background(SanchrGradients.primary)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                    }
+
+                    Button(action: saveQRCode) {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.sanchrPrimary)
+                            .frame(width: 48, height: 48)
+                            .background(Color.sanchrPrimary.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                    }
                 }
                 .padding(.horizontal, SanchrSpacing.xl)
                 .padding(.bottom, SanchrSpacing.xl)
@@ -364,5 +410,87 @@ struct ProfileView: View {
             }
         }
         .presentationDetents([.large])
+    }
+
+    // MARK: - QR Code Helpers
+
+    /// Renders the Sanchr logo mark as a gradient-filled UIImage for QR center overlay.
+    private func sanchrLogoMark() -> UIImage {
+        let size: CGFloat = 36
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { ctx in
+            let rect = CGRect(origin: .zero, size: CGSize(width: size, height: size))
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: size * 0.22)
+            path.addClip()
+            // Indigo-to-cyan gradient matching SanchrGradients.primary
+            let colors: [CGColor] = [
+                UIColor(red: 99 / 255, green: 102 / 255, blue: 241 / 255, alpha: 1).cgColor,  // #6366F1
+                UIColor(red: 6 / 255, green: 182 / 255, blue: 212 / 255, alpha: 1).cgColor,   // #06B6D4
+            ]
+            if let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors as CFArray,
+                locations: [0.0, 1.0]
+            ) {
+                ctx.cgContext.drawLinearGradient(
+                    gradient,
+                    start: .zero,
+                    end: CGPoint(x: size, y: size),
+                    options: []
+                )
+            }
+            // "S" letter centered
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.alignment = .center
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: size * 0.55),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: paragraphStyle,
+            ]
+            let text = "S"
+            let textSize = text.size(withAttributes: attrs)
+            let textRect = CGRect(
+                x: (size - textSize.width) / 2,
+                y: (size - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attrs)
+        }
+    }
+
+    /// Generates the QR code image with the Sanchr logo mark at center.
+    private func generateQRCode() -> UIImage? {
+        let deepLink = "https://sanchr.io/u/\(viewModel.userId)"
+        return QRCodeGenerator.generate(
+            from: deepLink,
+            size: 190,
+            logoImage: sanchrLogoMark(),
+            logoSizeFraction: 0.18
+        )
+    }
+
+    /// Presents the system share sheet with a rendered QR card image.
+    private func shareQRCode() {
+        guard let qrImage = generateQRCode() else { return }
+        let activityVC = UIActivityViewController(
+            activityItems: [qrImage],
+            applicationActivities: nil
+        )
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController
+        else { return }
+        // Walk to the top-most presented view controller
+        var presenter = rootVC
+        while let presented = presenter.presentedViewController {
+            presenter = presented
+        }
+        presenter.present(activityVC, animated: true)
+    }
+
+    /// Saves the QR code image to the user's Photos library.
+    private func saveQRCode() {
+        guard let qrImage = generateQRCode() else { return }
+        UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
     }
 }
