@@ -137,7 +137,7 @@ struct ContactUsView: View {
             }
             .tint(.sanchrPrimary)
 
-            Button {} label: {
+            Button { sendSupportEmail() } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "paperplane")
                         .symbolRenderingMode(.monochrome)
@@ -156,6 +156,29 @@ struct ContactUsView: View {
         }
         .padding(20)
         .settingsCard(cornerRadius: 24)
+    }
+
+    private func sendSupportEmail() {
+        let subject = "[Support] \(topic)"
+        var body = "Name: \(name)\nEmail: \(email)\n\n\(message)"
+
+        if includeDeviceInfo {
+            let device = UIDevice.current
+            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+            let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+            body += "\n\n---\nDevice: \(device.model) (\(device.systemName) \(device.systemVersion))\nApp: Sanchr v\(appVersion) (\(buildNumber))"
+        }
+
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+
+        if let url = URL(string: "mailto:support@sanchr.io?subject=\(encodedSubject)&body=\(encodedBody)") {
+            UIApplication.shared.open(url) { success in
+                if !success {
+                    UIPasteboard.general.string = "To: support@sanchr.io\nSubject: \(subject)\n\n\(body)"
+                }
+            }
+        }
     }
 
     private func field(title: String, text: Binding<String>, placeholder: String) -> some View {
