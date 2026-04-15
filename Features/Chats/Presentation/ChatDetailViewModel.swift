@@ -628,10 +628,28 @@ final class ChatDetailViewModel {
             )
 
         case .contact(let stripped):
-            await sendTextFallback(Self.contactFallbackText(stripped), context: context)
+            do {
+                _ = try await context.messageSender.sendContact(
+                    name: stripped.displayName,
+                    phoneNumber: stripped.phoneNumbers.first ?? "",
+                    to: context.conversationId
+                )
+            } catch {
+                SanchrLogger.chat.error("Contact send failed: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+            }
 
         case .location(let payload):
-            await sendTextFallback(Self.locationFallbackText(payload), context: context)
+            do {
+                _ = try await context.messageSender.sendLocation(
+                    latitude: payload.latitude,
+                    longitude: payload.longitude,
+                    to: context.conversationId
+                )
+            } catch {
+                SanchrLogger.chat.error("Location send failed: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+            }
 
         case .vaultItem(let item):
             do {

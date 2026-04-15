@@ -300,6 +300,117 @@ public actor MessageSender {
         }
     }
 
+    /// Send a location message as structured content.
+    ///
+    /// The wire format mirrors `sendText` but uses `contentType: "location"`
+    /// and a JSON payload `{"latitude": <Double>, "longitude": <Double>}`
+    /// instead of raw UTF-8 text. The optimistic row uses the existing
+    /// `.location(latitude:longitude:)` content case so the UI renders a
+    /// map pin immediately.
+    public func sendLocation(
+        latitude: Double,
+        longitude: Double,
+        to chatId: String
+    ) async throws -> MessageSendReceipt {
+        guard let senderId = await currentUser.currentUserId else {
+            throw AppError.sessionExpired
+        }
+        let timestamp = Date()
+        let localId = try await insertPendingOutgoingLocationRow(
+            latitude: latitude,
+            longitude: longitude,
+            chatId: chatId,
+            authorId: senderId,
+            timestamp: timestamp
+        )
+
+        // ── Offline queue: skip gRPC if no network ─────────────────────
+        if !networkMonitor.isConnected {
+            logger.info("MessageSender.sendLocation queued offline chat=\(chatId) local=\(localId)")
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: localId,
+                serverTimestampMs: Int64(timestamp.timeIntervalSince1970 * 1000)
+            )
+        }
+
+        do {
+            let recipientIds = try await resolveRecipientIds(
+                chatId: chatId,
+                senderId: senderId
+            )
+
+            // JSON payload for the location wire format.
+            let payloadDict: [String: Double] = [
+                "latitude": latitude,
+                "longitude": longitude
+            ]
+            let plaintextData = try JSONSerialization.data(
+                withJSONObject: payloadDict,
+                options: [.sortedKeys]
+            )
+
+            let isDirectChat = await isDirectConversation(chatId: chatId)
+            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+
+            let sendResult: EncryptedMessageSendResult
+            if isDirectChat, let sealedSender {
+                sendResult = try await sendViaSealedSender(
+                    plaintext: plaintextData,
+                    contentType: "location",
+                    conversationId: chatId,
+                    recipientIds: recipientIds,
+                    senderId: senderId,
+                    localMessageId: localId,
+                    sealedSender: sealedSender,
+                    expiresAfterSecs: disappearingSecs
+                )
+            } else {
+                sendResult = try await coordinator.withLock { [encryptedSender] in
+                    try await encryptedSender.sendEncryptedMessage(
+                        plaintext: plaintextData,
+                        contentType: "location",
+                        conversationId: chatId,
+                        recipientIds: recipientIds,
+                        expiresAfterSecs: disappearingSecs
+                    )
+                }
+            }
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sendResult.serverTimestampMs) / 1000.0
+            )
+            let confirmedRow = Message(
+                id: sendResult.messageId.isEmpty ? localId : sendResult.messageId,
+                conversationId: chatId,
+                senderId: senderId,
+                timestamp: serverTimestamp,
+                content: .location(latitude: latitude, longitude: longitude),
+                status: .sent,
+                isOutgoing: true
+            )
+            try await markMessageAsSent(
+                localMessageId: localId,
+                confirmedRow: confirmedRow
+            )
+
+            logger.info(
+                "MessageSender.sendLocation succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId)"
+            )
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: confirmedRow.id,
+                serverTimestampMs: sendResult.serverTimestampMs
+            )
+        } catch {
+            logger.error(
+                "MessageSender.sendLocation failed chat=\(chatId) local=\(localId): \(error.localizedDescription)"
+            )
+            await markMessageAsFailed(localMessageId: localId, error: error)
+            throw error
+        }
+    }
+
     /// Send a media message (with optional caption).
     ///
     /// The upload runs OUTSIDE the cross-process lock — uploads are slow and
@@ -474,6 +585,115 @@ public actor MessageSender {
         }
     }
 
+    /// Send a contact card as structured content. The wire payload is a
+    /// JSON object `{"name": "…", "phoneNumber": "…"}` with content type
+    /// `"contact"`. Follows the same optimistic-row → encrypt → send
+    /// pipeline as `sendText()`.
+    public func sendContact(
+        name: String,
+        phoneNumber: String,
+        to chatId: String
+    ) async throws -> MessageSendReceipt {
+        guard let senderId = await currentUser.currentUserId else {
+            throw AppError.sessionExpired
+        }
+        let timestamp = Date()
+        let localId = try await insertPendingOutgoingContactRow(
+            name: name,
+            phoneNumber: phoneNumber,
+            chatId: chatId,
+            authorId: senderId,
+            timestamp: timestamp
+        )
+
+        // ── Offline queue: skip gRPC if no network ─────────────────────
+        if !networkMonitor.isConnected {
+            logger.info("MessageSender.sendContact queued offline chat=\(chatId) local=\(localId)")
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: localId,
+                serverTimestampMs: Int64(timestamp.timeIntervalSince1970 * 1000)
+            )
+        }
+
+        do {
+            let recipientIds = try await resolveRecipientIds(
+                chatId: chatId,
+                senderId: senderId
+            )
+
+            // Wire format: JSON `{"name":"…","phoneNumber":"…"}`,
+            // contentType "contact". Matches the `MessageContent.contact`
+            // enum case on the receive side.
+            struct ContactPayload: Encodable {
+                let name: String
+                let phoneNumber: String
+            }
+            let plaintextData = try JSONEncoder().encode(
+                ContactPayload(name: name, phoneNumber: phoneNumber)
+            )
+
+            let isDirectChat = await isDirectConversation(chatId: chatId)
+            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+
+            let sendResult: EncryptedMessageSendResult
+            if isDirectChat, let sealedSender {
+                sendResult = try await sendViaSealedSender(
+                    plaintext: plaintextData,
+                    contentType: "contact",
+                    conversationId: chatId,
+                    recipientIds: recipientIds,
+                    senderId: senderId,
+                    localMessageId: localId,
+                    sealedSender: sealedSender,
+                    expiresAfterSecs: disappearingSecs
+                )
+            } else {
+                sendResult = try await coordinator.withLock { [encryptedSender] in
+                    try await encryptedSender.sendEncryptedMessage(
+                        plaintext: plaintextData,
+                        contentType: "contact",
+                        conversationId: chatId,
+                        recipientIds: recipientIds,
+                        expiresAfterSecs: disappearingSecs
+                    )
+                }
+            }
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sendResult.serverTimestampMs) / 1000.0
+            )
+            let confirmedRow = Message(
+                id: sendResult.messageId.isEmpty ? localId : sendResult.messageId,
+                conversationId: chatId,
+                senderId: senderId,
+                timestamp: serverTimestamp,
+                content: .contact(name: name, phoneNumber: phoneNumber),
+                status: .sent,
+                isOutgoing: true
+            )
+            try await markMessageAsSent(
+                localMessageId: localId,
+                confirmedRow: confirmedRow
+            )
+
+            logger.info(
+                "MessageSender.sendContact succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId)"
+            )
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: confirmedRow.id,
+                serverTimestampMs: sendResult.serverTimestampMs
+            )
+        } catch {
+            logger.error(
+                "MessageSender.sendContact failed chat=\(chatId) local=\(localId): \(error.localizedDescription)"
+            )
+            await markMessageAsFailed(localMessageId: localId, error: error)
+            throw error
+        }
+    }
+
     // MARK: Offline Queue Flush
 
     /// Retries all pending (`.sending`) outgoing messages in timestamp order.
@@ -519,6 +739,14 @@ public actor MessageSender {
                         caption: att.caption,
                         to: message.conversationId,
                         progress: { _ in }
+                    )
+
+                case .contact(let name, let phoneNumber):
+                    try? await db.deleteMessage(id: message.id)
+                    _ = try await sendContact(
+                        name: name,
+                        phoneNumber: phoneNumber,
+                        to: message.conversationId
                     )
 
                 default:
@@ -656,6 +884,50 @@ public actor MessageSender {
             senderId: authorId,
             timestamp: timestamp,
             content: .text(text),
+            status: .sending,
+            isOutgoing: true
+        )
+        try await db.saveMessage(row)
+        return localId
+    }
+
+    /// Insert an outgoing location row in `.sending` state.
+    private func insertPendingOutgoingLocationRow(
+        latitude: Double,
+        longitude: Double,
+        chatId: String,
+        authorId: String,
+        timestamp: Date
+    ) async throws -> String {
+        let localId = UUID().uuidString
+        let row = Message(
+            id: localId,
+            conversationId: chatId,
+            senderId: authorId,
+            timestamp: timestamp,
+            content: .location(latitude: latitude, longitude: longitude),
+            status: .sending,
+            isOutgoing: true
+        )
+        try await db.saveMessage(row)
+        return localId
+    }
+
+    /// Insert an outgoing contact row in `.sending` state.
+    private func insertPendingOutgoingContactRow(
+        name: String,
+        phoneNumber: String,
+        chatId: String,
+        authorId: String,
+        timestamp: Date
+    ) async throws -> String {
+        let localId = UUID().uuidString
+        let row = Message(
+            id: localId,
+            conversationId: chatId,
+            senderId: authorId,
+            timestamp: timestamp,
+            content: .contact(name: name, phoneNumber: phoneNumber),
             status: .sending,
             isOutgoing: true
         )
