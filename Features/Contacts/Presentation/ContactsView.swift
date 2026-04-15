@@ -7,6 +7,7 @@ struct ContactsView: View {
     @State private var viewModel = ContactsViewModel()
     @State private var navigateToConversation: Conversation?
     @State private var isStartingChat = false
+    @State private var showAddContact = false
 
     var body: some View {
         Group {
@@ -22,10 +23,13 @@ struct ContactsView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: {
+                Button { showAddContact = true } label: {
                     Image(systemName: "person.badge.plus")
                 }
             }
+        }
+        .sheet(isPresented: $showAddContact) {
+            AddContactSheet()
         }
         .sanchrInteractivePopEnabled()
         .refreshable {

@@ -39,6 +39,9 @@ public enum SanchrLogger {
     /// Privacy and user settings operations.
     public static let settings = Logger(subsystem: subsystem, category: "Settings")
 
+    /// Contact discovery and management events.
+    public static let contacts = Logger(subsystem: subsystem, category: "Contacts")
+
     /// Vault and EKF scheduler operations.
     public static let vault = Logger(subsystem: subsystem, category: "Vault")
 }
