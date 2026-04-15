@@ -5,6 +5,7 @@ import SanchrShared
 struct SettingsView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
+    @State private var settingsSearchText = ""
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
@@ -15,7 +16,7 @@ struct SettingsView: View {
             VStack(spacing: 12) {
                 profileCard
                 sanchrModeCard
-                settingsGroup(
+                filteredSettingsGroup(
                     title: "Account",
                     rows: [
                         AnySettingsRow(
@@ -50,7 +51,7 @@ struct SettingsView: View {
                         ),
                     ]
                 )
-                settingsGroup(
+                filteredSettingsGroup(
                     title: "Preferences",
                     rows: [
                         AnySettingsRow(
@@ -79,7 +80,7 @@ struct SettingsView: View {
                         ),
                     ]
                 )
-                settingsGroup(
+                filteredSettingsGroup(
                     title: "Support",
                     rows: [
                         AnySettingsRow(
@@ -118,13 +119,7 @@ struct SettingsView: View {
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: {
-                    Image(systemName: "magnifyingglass")
-                }
-            }
-        }
+        .searchable(text: $settingsSearchText, prompt: "Search settings")
         .sanchrInteractivePopEnabled()
         .task {
             viewModel.loadProfile(from: container.sessionService)
@@ -279,6 +274,18 @@ struct SettingsView: View {
         .frame(height: 34)
         .background(SanchrExportColors.surfaceMuted)
         .clipShape(Capsule())
+    }
+
+    private func matchesSearch(_ title: String) -> Bool {
+        settingsSearchText.isEmpty || title.localizedCaseInsensitiveContains(settingsSearchText)
+    }
+
+    @ViewBuilder
+    private func filteredSettingsGroup(title: String, rows: [AnySettingsRow]) -> some View {
+        let filtered = rows.filter { matchesSearch($0.title) }
+        if !filtered.isEmpty {
+            settingsGroup(title: title, rows: filtered)
+        }
     }
 
     private func settingsGroup(title: String, rows: [AnySettingsRow]) -> some View {
