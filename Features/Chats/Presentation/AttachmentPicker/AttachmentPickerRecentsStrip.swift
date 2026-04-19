@@ -84,7 +84,13 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
 
     func collectionView(_ cv: UICollectionView, cellForItemAt ip: IndexPath) -> UICollectionViewCell {
         let photo = recents[ip.item]
-        let c = cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip) as! RecentPhotoCell
+
+        // Safe cast to RecentPhotoCell — if wrong type, create a blank cell
+        guard let c = cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip) as? RecentPhotoCell else {
+            SanchrLogger.ui.error("AttachmentPickerRecentsStrip: Cell is not RecentPhotoCell (got \(type(of: cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip))))")
+            return cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip)
+        }
+
         c.isAccessibilityElement = true
         c.accessibilityLabel = "Recent photo"
         c.accessibilityTraits = .button
