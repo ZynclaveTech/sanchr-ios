@@ -26,6 +26,12 @@ struct MediaBubbleImage: View {
         return cache
     }()
 
+    private static let blurHashCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 200 // Bounded — blurhash placeholders are small, but don't hoard
+        return cache
+    }()
+
     private static let thumbCacheDir: URL = {
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("MediaMessages", isDirectory: true)
@@ -124,9 +130,18 @@ struct MediaBubbleImage: View {
 
         if placeholderImage == nil, let blurHash = attachment.blurHash {
             let targetSize = displaySize
-            placeholderImage = await Task.detached(priority: .utility) {
-                BubbleImagePipeline.decodeBlurHash(blurHash, size: targetSize)
-            }.value
+            let cacheKey = "\(blurHash)-\(Int(targetSize.width))x\(Int(targetSize.height))" as NSString
+            if let cached = Self.blurHashCache.object(forKey: cacheKey) {
+                placeholderImage = cached
+            } else {
+                let decoded = await Task.detached(priority: .utility) {
+                    BubbleImagePipeline.decodeBlurHash(blurHash, size: targetSize)
+                }.value
+                if let decoded {
+                    Self.blurHashCache.setObject(decoded, forKey: cacheKey)
+                }
+                placeholderImage = decoded
+            }
         }
 
         isDownloading = true

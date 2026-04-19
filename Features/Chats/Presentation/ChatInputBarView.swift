@@ -243,6 +243,13 @@ struct ChatInputBarView: View {
         .padding(.bottom, 6)
         .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
         .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
+        .onChange(of: viewModel.inputText) { _, newValue in
+            viewModel.handleInputTextChanged(
+                newValue,
+                conversationId: conversation.id,
+                messageRepository: container.messageRepository
+            )
+        }
     }
 
     private var hasInput: Bool {
