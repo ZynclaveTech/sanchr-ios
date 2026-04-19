@@ -119,7 +119,11 @@ struct PINEntryView: View {
             }
         } else {
             Button {
-                appendDigit(Int(key)!)
+                if let digit = Int(key) {
+                    appendDigit(digit)
+                } else {
+                    SanchrLogger.app.error("PINEntryView: Invalid key '\(key)' parsed as non-digit")
+                }
             } label: {
                 Text(key)
                     .font(.system(size: 28, weight: .regular, design: .rounded))
