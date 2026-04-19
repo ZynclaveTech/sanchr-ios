@@ -29,11 +29,18 @@ struct SanchrApp: App {
     /// Owned at App level so it survives background/foreground cycles
     /// and SwiftUI view-tree reconciliation without resetting to true.
     @State private var showSplash = true
+    /// Whether the user has authenticated at the app lock gate (if enabled).
+    /// This gates the entire app to prevent unauthorized access.
+    @State private var hasAuthenticatedAtGate = false
 
     var body: some Scene {
         WindowGroup {
             if ProcessInfo.processInfo.sanchrIsRunningUnitTests {
                 Color.clear
+            } else if container.appLockManager.biometricLockEnabled && !hasAuthenticatedAtGate {
+                // App lock is enabled and user hasn't authenticated yet —
+                // Block access to the entire app until authentication succeeds.
+                AppLockGateView(isAuthenticated: $hasAuthenticatedAtGate)
             } else {
                 RootView(showSplash: $showSplash)
                     .environment(container)
@@ -186,6 +193,11 @@ struct SanchrApp: App {
             orchestrator.scheduleBackgroundSync()
             orchestrator.scheduleAppRefresh()
             lockManager.appDidEnterBackground()
+
+            // Reset app lock gate authentication — when app returns to foreground,
+            // the gate will require re-authentication if biometric lock is enabled.
+            hasAuthenticatedAtGate = false
+
             container.realtimeService.enterBackground()
             SanchrLogger.sync.info("App entered background, scheduled background tasks")
 
