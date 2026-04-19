@@ -20,7 +20,7 @@ struct SplashView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer()
+                Spacer(minLength: 32)
 
                 // ── Logo + ambient glow ──────────────────────────────────
                 ZStack {
@@ -51,6 +51,8 @@ struct SplashView: View {
                         .scaleEffect(appeared ? 1.0 : 0.75)
                         .opacity(appeared ? 1 : 0)
                         .animation(
+                            // Slight overshoot (dampingFraction < 0.7) is intentional — gives the
+                            // logo a confident "landing" feel on the branded splash screen.
                             .spring(response: 0.45, dampingFraction: 0.62)
                             .delay(0.10),
                             value: appeared
@@ -95,6 +97,7 @@ struct SplashView: View {
         .onAppear {
             appeared = true
         }
+        .preferredColorScheme(.dark)
     }
 }
 
