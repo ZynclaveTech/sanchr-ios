@@ -6,6 +6,7 @@ struct BlockedContactsView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var blockedIDs: [String] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -55,6 +56,14 @@ struct BlockedContactsView: View {
         }
         .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Blocked Contacts")
+        .alert("Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
         .task {
             await loadBlocked()
         }
@@ -76,6 +85,7 @@ struct BlockedContactsView: View {
         do {
             blockedIDs = try await dataSource.getBlockedList()
         } catch {
+            errorMessage = error.localizedDescription
             SanchrLogger.sync.error("Failed to load blocked list: \(error.localizedDescription)")
         }
     }
@@ -89,6 +99,7 @@ struct BlockedContactsView: View {
             try await dataSource.unblockContact(userId: userId)
             blockedIDs.removeAll { $0 == userId }
         } catch {
+            errorMessage = error.localizedDescription
             SanchrLogger.sync.error("Failed to unblock: \(error.localizedDescription)")
         }
     }
