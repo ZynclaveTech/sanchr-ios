@@ -20,6 +20,14 @@ public struct AppConfiguration: Sendable {
     public let stunServers: [String]
     public let turnServers: [String]
 
+    // MARK: - TLS Certificate Pinning
+
+    /// SHA-256 hash of the gRPC server's TLS certificate (DER format, base64-encoded)
+    public let grpcCertificateHash: String?
+
+    /// SHA-256 hash of the call signaling server's TLS certificate (DER format, base64-encoded)
+    public let callCertificateHash: String?
+
     // MARK: - Feature Flags
 
     public let isVaultEnabled: Bool
@@ -40,7 +48,9 @@ public struct AppConfiguration: Sendable {
         isVaultEnabled: Bool,
         isVideoCallEnabled: Bool,
         isDisappearingMessagesEnabled: Bool,
-        maxMediaUploadSizeMB: Int
+        maxMediaUploadSizeMB: Int,
+        grpcCertificateHash: String? = nil,
+        callCertificateHash: String? = nil
     ) {
         self.environment = environment
         self.grpcHost = grpcHost
@@ -55,6 +65,8 @@ public struct AppConfiguration: Sendable {
         self.isVideoCallEnabled = isVideoCallEnabled
         self.isDisappearingMessagesEnabled = isDisappearingMessagesEnabled
         self.maxMediaUploadSizeMB = maxMediaUploadSizeMB
+        self.grpcCertificateHash = grpcCertificateHash
+        self.callCertificateHash = callCertificateHash
     }
 
     // MARK: - Factory
@@ -133,6 +145,10 @@ public struct AppConfiguration: Sendable {
         isVaultEnabled: true,
         isVideoCallEnabled: false,  // TODO: Enable after beta testing
         isDisappearingMessagesEnabled: true,
-        maxMediaUploadSizeMB: 25
+        maxMediaUploadSizeMB: 25,
+        // TODO: Obtain actual certificate hashes from backend certificates
+        // openssl s_client -connect api.sanchr.io:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform DER | openssl dgst -sha256 -binary | base64
+        grpcCertificateHash: nil,
+        callCertificateHash: nil
     )
 }
