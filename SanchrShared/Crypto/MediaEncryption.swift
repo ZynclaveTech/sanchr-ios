@@ -247,13 +247,22 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
         return (digest: digest, fileSize: fileSize, tag: lastTag)
     }
 
-    /// Derives a per-chunk nonce by adding the chunk index to the base nonce bytes.
+    /// Derives a per-chunk nonce using XOR to ensure uniqueness and prevent collisions.
+    /// The base nonce has a 4-byte random prefix (bytes 0-3).
+    /// Bytes 4-11 are XORed with the big-endian chunk index.
+    /// This prevents nonce reuse even for large files (up to 2^64 chunks).
     private static func deriveChunkNonce(base: AES.GCM.Nonce, index: UInt64) throws -> AES.GCM.Nonce {
         var nonceBytes = Array(base) // 12 bytes
+
+        // Convert chunk index to big-endian 8 bytes
         let indexBytes = withUnsafeBytes(of: index.bigEndian) { Array($0) }
+
+        // XOR the counter into nonce bytes 4-11
+        // XOR ensures: different indices → different nonces, even if base is reused
         for i in 0..<8 {
-            nonceBytes[4 + i] &+= indexBytes[i]
+            nonceBytes[4 + i] ^= indexBytes[i]
         }
+
         return try AES.GCM.Nonce(data: Data(nonceBytes))
     }
 
