@@ -60,7 +60,7 @@ final class ChatDetailViewModel {
     /// Cleared when the user leaves the conversation.
     var firstUnreadMessageId: String?
 
-    private var lastPaginationAnchor: Date?
+    var lastPaginationAnchor: Date?
     private var typingIdleTask: Task<Void, Never>?
     private var peerTypingClearTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
@@ -262,45 +262,6 @@ final class ChatDetailViewModel {
 
     func clearReply() {
         replyingToMessage = nil
-    }
-
-    // MARK: - Load Messages
-
-    func loadMessages(
-        conversationId: String,
-        unreadCount: Int = 0,
-        messageRepository: MessageRepositoryProtocol
-    ) async {
-        guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-
-        defer { isLoading = false }
-
-        do {
-            messages = try await messageRepository.fetchMessages(
-                conversationId: conversationId,
-                before: nil,
-                limit: 50
-            )
-            rebuildSections()
-            hasMoreMessages = messages.count >= 50
-            lastPaginationAnchor = nil
-
-            // Compute first unread message for the divider. Only set once per
-            // conversation entry; cleared in onConversationDisappear.
-            if unreadCount > 0, messages.count > unreadCount {
-                firstUnreadMessageId = messages[messages.count - unreadCount].id
-            } else {
-                firstUnreadMessageId = nil
-            }
-
-            SanchrLogger.chat.info(
-                "Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
-        } catch {
-            errorMessage = error.localizedDescription
-            SanchrLogger.chat.error("Failed to load messages: \(error.localizedDescription)")
-        }
     }
 
     // MARK: - Send Message (E2EE)
@@ -890,152 +851,6 @@ final class ChatDetailViewModel {
         )
     }
 
-    // MARK: - Receive & Decrypt Incoming Message
-
-    /// Decrypts an incoming encrypted envelope and appends the plaintext message to the list.
-    func handleIncomingEnvelope(
-        _ envelope: Sanchr_Messaging_EncryptedEnvelope,
-        signalProtocol: SignalProtocolManagerProtocol
-    ) async {
-        do {
-            let plaintext = try await signalProtocol.decryptEnvelope(envelope)
-            guard let text = String(data: plaintext, encoding: .utf8) else {
-                SanchrLogger.chat.error("Failed to decode decrypted plaintext as UTF-8")
-                return
-            }
-
-            let incomingMessage = Message(
-                id: envelope.messageID,
-                conversationId: envelope.conversationID,
-                senderId: envelope.senderID,
-                timestamp: Date(
-                    timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
-                content: .text(text),
-                status: .delivered,
-                isOutgoing: false
-            )
-            appendMessageChronologically(incomingMessage)
-            SanchrLogger.chat.info(
-                "Decrypted and displayed incoming message \(envelope.messageID.prefix(8))")
-        } catch {
-            SanchrLogger.chat.error(
-                "Failed to decrypt incoming message: \(error.localizedDescription)")
-            // Insert a system message indicating decryption failure
-            let errorMsg = Message(
-                id: envelope.messageID,
-                conversationId: envelope.conversationID,
-                senderId: envelope.senderID,
-                timestamp: Date(
-                    timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
-                content: .system(.identityKeyChanged),
-                status: .delivered,
-                isOutgoing: false
-            )
-            appendMessageChronologically(errorMsg)
-        }
-    }
-
-    // MARK: - Load More (Pagination)
-
-    /// Loads older messages for infinite scroll.
-    func loadMore(conversationId: String, messageRepository: MessageRepositoryProtocol) async {
-        guard !isLoadingMore, hasMoreMessages, let oldest = messages.first else { return }
-        guard lastPaginationAnchor != oldest.timestamp else { return }
-        isLoadingMore = true
-        lastPaginationAnchor = oldest.timestamp
-
-        defer { isLoadingMore = false }
-
-        do {
-            let olderMessages = try await messageRepository.fetchMessages(
-                conversationId: conversationId,
-                before: oldest.timestamp,
-                limit: 30
-            )
-            if olderMessages.isEmpty {
-                hasMoreMessages = false
-            } else {
-                let existingIds = Set(messages.map(\.id))
-                let deduped = olderMessages.filter { !existingIds.contains($0.id) }
-                messages.insert(contentsOf: deduped, at: 0)
-                rebuildSections()
-            }
-        } catch {
-            SanchrLogger.chat.error("Load more failed: \(error.localizedDescription)")
-        }
-    }
-
-    // MARK: - Retry Failed Message
-
-    func retryMessage(
-        _ message: Message,
-        sessionService: SessionService,
-        messageSender: MessageSender
-    ) async {
-        guard message.status == .failed else { return }
-
-        switch message.content {
-        case .text(let text):
-            messages.removeAll { $0.id == message.id }
-            rebuildSections()
-            inputText = text
-            await sendMessage(
-                conversationId: message.conversationId,
-                sessionService: sessionService,
-                messageSender: messageSender
-            )
-
-        case .image(let attachment),
-             .video(let attachment),
-             .audio(let attachment),
-             .document(let attachment):
-            guard attachment.url.isFileURL,
-                  FileManager.default.fileExists(atPath: attachment.url.path) else {
-                SanchrLogger.chat.error("Cannot retry media: local file missing for \(message.id)")
-                return
-            }
-            messages.removeAll { $0.id == message.id }
-            rebuildSections()
-            do {
-                _ = try await messageSender.sendMedia(
-                    attachment: attachment,
-                    caption: attachment.caption,
-                    to: message.conversationId,
-                    progress: { _ in }
-                )
-            } catch {
-                SanchrLogger.chat.error("Media retry failed: \(error.localizedDescription)")
-            }
-
-        default:
-            SanchrLogger.chat.warning("Retry not supported for content type in message \(message.id)")
-        }
-    }
-
-    // MARK: - Delete Message
-
-    func deleteMessage(
-        _ message: Message,
-        forEveryone: Bool,
-        messageRepository: MessageRepositoryProtocol,
-        chatDataSource: ChatDataSource
-    ) async {
-        do {
-            if forEveryone {
-                try await chatDataSource.deleteMessage(
-                    conversationID: message.conversationId,
-                    messageID: message.id
-                )
-            }
-            try await messageRepository.deleteMessage(id: message.id, forEveryone: forEveryone)
-            messages.removeAll { $0.id == message.id }
-            rebuildSections()
-            SanchrLogger.chat.info("Deleted message \(message.id.prefix(8))")
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
     // MARK: - Typing Indicator
 
     func sendTypingIndicator(
@@ -1257,7 +1072,7 @@ final class ChatDetailViewModel {
         syncMessageSection(for: message, previousTimestamp: previousTimestamp)
     }
 
-    private func appendMessageChronologically(_ message: Message) {
+    func appendMessageChronologically(_ message: Message) {
         if let lastMessage = messages.last, message.timestamp < lastMessage.timestamp {
             messages.append(message)
             messages.sort { $0.timestamp < $1.timestamp }
@@ -1328,7 +1143,7 @@ final class ChatDetailViewModel {
         messageSections[sectionIndex].messages[messageIndex] = message
     }
 
-    private func rebuildSections() {
+    func rebuildSections() {
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: messages) { message in
             calendar.startOfDay(for: message.timestamp)
