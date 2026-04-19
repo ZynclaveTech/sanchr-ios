@@ -1,5 +1,4 @@
 import Foundation
-import UserNotifications
 import SanchrShared
 
 struct MessageSection: Identifiable, Sendable {
@@ -24,7 +23,6 @@ final class ChatDetailViewModel {
     var isLoadingMore: Bool = false
     var isSending: Bool = false
     var errorMessage: String?
-    var conversationInfo: Conversation?
     var isTyping: Bool = false
 
     /// Message being replied to (shown as quote in composer)
@@ -181,8 +179,6 @@ final class ChatDetailViewModel {
     }
 
     // MARK: - Reactions
-
-    var showReactionPickerForMessageId: String?
 
     func toggleReaction(
         emoji: String,
@@ -889,15 +885,6 @@ final class ChatDetailViewModel {
             contentType: content,
             conversationId: context.conversationId,
             caption: nil,
-            sessionService: context.sessionService,
-            messageSender: context.messageSender
-        )
-    }
-
-    private func sendTextFallback(_ text: String, context: AttachmentSendContext) async {
-        inputText = text
-        await sendMessage(
-            conversationId: context.conversationId,
             sessionService: context.sessionService,
             messageSender: context.messageSender
         )
