@@ -57,10 +57,15 @@ public enum SanchrTypography {
 
     public static func font(size: Size, weight: Weight = .regular) -> Font {
         let pointSize = size.rawValue
+        let baseFont: Font
         if UIFont(name: "Afacad", size: pointSize) != nil {
-            return .custom("Afacad", size: pointSize).weight(weight.swiftUIWeight)
+            baseFont = .custom("Afacad", size: pointSize).weight(weight.swiftUIWeight)
+        } else {
+            baseFont = .system(size: pointSize, weight: weight.swiftUIWeight, design: .rounded)
         }
-        return .system(size: pointSize, weight: weight.swiftUIWeight, design: .rounded)
+        // Apply Dynamic Type scaling — fonts scale with system text size preference
+        // Users with vision impairment who increase text size in Settings will see larger fonts
+        return baseFont.relativeTo(.body)
     }
 
     /// Large hero text (48pt bold primary).

@@ -1,0 +1,9 @@
+/* Settings */
+"settings.security" = "Security";
+"settings.biometric.title" = "Biometric Lock";
+"settings.deleteAccount" = "Delete Account";
+
+/* Common */
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.retry" = "Retry";
