@@ -289,7 +289,7 @@ struct ChatDetailView: View {
                                     let payload = try await source.requestOneShot()
                                     await viewModel.send(intent: .location(payload), context: ctx)
                                 } catch {
-                                    print("[AttachmentPicker] location failed: \(error)")
+                                    SanchrLogger.chat.error("Location request failed: \(error)")
                                 }
                             }
                         }
@@ -374,11 +374,11 @@ struct ChatDetailView: View {
                         let picked = try FileSource.makePickedFile(fromSecurityScopedURL: url)
                         await viewModel.send(intent: .file(picked), context: ctx)
                     } catch {
-                        print("[AttachmentPicker] file import failed: \(error)")
+                        SanchrLogger.chat.error("File import failed: \(error)")
                     }
                 }
             case .failure(let error):
-                print("[AttachmentPicker] file picker error: \(error)")
+                SanchrLogger.chat.error("File picker error: \(error)")
             }
         }
     }
