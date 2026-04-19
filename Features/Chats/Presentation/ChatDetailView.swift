@@ -107,8 +107,10 @@ struct ChatDetailView: View {
                 )
                 // If there are unread messages, scroll to the divider instead of bottom.
                 if let firstUnreadId = viewModel.firstUnreadMessageId {
-                    issueTranscriptScroll(
-                        to: .message(id: firstUnreadId, sequence: nextTranscriptScrollSequence())
+                    transcriptScrollSequence &+= 1
+                    transcriptScrollCommand = .message(
+                        id: firstUnreadId,
+                        sequence: transcriptScrollSequence
                     )
                 }
                 // refreshConversationState() now lives on ChatDetailHeaderView's
@@ -190,7 +192,11 @@ struct ChatDetailView: View {
             }
             .onChange(of: viewModel.currentSearchResultId) { _, messageId in
                 guard let messageId else { return }
-                issueTranscriptScroll(to: .message(id: messageId, sequence: nextTranscriptScrollSequence()))
+                transcriptScrollSequence &+= 1
+                transcriptScrollCommand = .message(
+                    id: messageId,
+                    sequence: transcriptScrollSequence
+                )
             }
     }
 
@@ -211,7 +217,22 @@ struct ChatDetailView: View {
             }
 
             ZStack(alignment: .bottomTrailing) {
-                messagesScrollView
+                ChatTranscriptView(
+                    conversation: conversation,
+                    viewModel: viewModel,
+                    voicePlayback: voicePlayback,
+                    galleryCoordinator: galleryCoordinator,
+                    contactCoordinator: contactCoordinator,
+                    locationCoordinator: locationCoordinator,
+                    documentCoordinator: documentCoordinator,
+                    isScrolledToBottom: $isScrolledToBottom,
+                    newMessageCountWhileScrolled: $newMessageCountWhileScrolled,
+                    transcriptScrollSequence: $transcriptScrollSequence,
+                    transcriptScrollCommand: $transcriptScrollCommand,
+                    hasPresentedInitialTranscript: $hasPresentedInitialTranscript,
+                    hasScheduledDeferredEntryTasks: $hasScheduledDeferredEntryTasks,
+                    messageToForward: $messageToForward
+                )
 
                 if !isScrolledToBottom {
                     scrollToBottomFAB
@@ -700,117 +721,11 @@ struct ChatDetailView: View {
         .padding(.vertical, 8)
     }
 
-    private var messagesScrollView: some View {
-        MessageCollectionView(
-            renderInput: transcriptRenderInput,
-            voicePlayback: voicePlayback,
-            onInitialPresentation: {
-                handleInitialTranscriptPresentation()
-            },
-            onReply: { message in
-                viewModel.setReply(to: message)
-            },
-            onReact: { emoji, messageId in
-                let userId = container.signalProtocol.localUserId
-                viewModel.toggleReaction(
-                    emoji: emoji,
-                    messageId: messageId,
-                    conversationId: conversation.id,
-                    userId: userId,
-                    chatDataSource: container.chatDataSource
-                )
-            },
-            onForward: { message in
-                messageToForward = message
-            },
-            onRetry: { message in
-                Task {
-                    await viewModel.retryMessage(
-                        message,
-                        sessionService: container.sessionService,
-                        messageSender: container.messageSender
-                    )
-                }
-            },
-            onLoadMore: {
-                Task {
-                    await viewModel.loadMore(
-                        conversationId: conversation.id,
-                        messageRepository: container.messageRepository
-                    )
-                }
-            },
-            onBubbleTap: { interaction in
-                viewModel.route(
-                    interaction: interaction,
-                    onOpenGallery: { seed in
-                        galleryCoordinator.present(seed: seed)
-                    },
-                    onOpenContact: { name, phone in
-                        Task { await contactCoordinator.present(name: name, phoneNumber: phone) }
-                    },
-                    onOpenLocation: { lat, lon in
-                        locationCoordinator.present(latitude: lat, longitude: lon)
-                    },
-                    onOpenDocument: { messageId in
-                        Task { await documentCoordinator.open(messageId: messageId) }
-                    }
-                )
-            },
-            isScrolledToBottom: $isScrolledToBottom,
-            newMessageCountWhileScrolled: $newMessageCountWhileScrolled
-        )
-        // Transparent background — the chat-level .background on the
-        // outer VStack paints either the wallpaper gradient or the
-        // surfaceSoft fallback, and the messagesScrollView must let
-        // it show through. Setting an opaque colour here would hide
-        // every wallpaper behind a flat fill.
-        .background(Color.clear)
-        .overlay {
-            if !hasPresentedInitialTranscript {
-                transcriptLoadingPlaceholder
-            } else if viewModel.messageSections.isEmpty {
-                transcriptEmptyState
-            }
-        }
-        .environment(container)
-        .onAppear {
-            // Load more is handled by the collection view's scroll delegate
-        }
-    }
-
-    private var transcriptLoadingPlaceholder: some View {
-        VStack(spacing: 10) {
-            ProgressView()
-                .tint(.sanchrPrimary)
-            Text("Opening conversation…")
-                .font(SanchrTypography.caption)
-                .foregroundColor(SanchrExportColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SanchrExportColors.surfaceSoft.opacity(0.96))
-        .allowsHitTesting(false)
-    }
-
-    private var transcriptEmptyState: some View {
-        VStack(spacing: 8) {
-            Text("No messages yet")
-                .font(SanchrTypography.bodyBold)
-                .foregroundColor(SanchrExportColors.textPrimary)
-            Text("Send a message to start the conversation.")
-                .font(SanchrTypography.caption)
-                .foregroundColor(SanchrExportColors.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 28)
-        .allowsHitTesting(false)
-    }
-
     private var scrollToBottomFAB: some View {
         Button {
             newMessageCountWhileScrolled = 0
-            issueTranscriptScroll(to: .manualBottom(sequence: nextTranscriptScrollSequence()))
+            transcriptScrollSequence &+= 1
+            transcriptScrollCommand = .manualBottom(sequence: transcriptScrollSequence)
         } label: {
             ZStack(alignment: .topTrailing) {
                 Group {
@@ -1075,65 +990,6 @@ struct ChatDetailView: View {
 
     private var hasInput: Bool {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var transcriptRenderInput: TranscriptRenderInput {
-        TranscriptRenderInput(
-            sections: viewModel.messageSections,
-            uploadProgress: viewModel.uploadProgress,
-            uploadStatusLabel: viewModel.uploadStatusLabel,
-            version: viewModel.transcriptVersion,
-            scrollCommand: transcriptScrollCommand,
-            firstUnreadMessageId: viewModel.firstUnreadMessageId
-        )
-    }
-
-    private func nextTranscriptScrollSequence() -> UInt64 {
-        transcriptScrollSequence &+= 1
-        return transcriptScrollSequence
-    }
-
-    private func issueTranscriptScroll(to command: TranscriptScrollCommand) {
-        transcriptScrollCommand = command
-    }
-
-    private func handleInitialTranscriptPresentation() {
-        hasPresentedInitialTranscript = true
-        scheduleDeferredEntryTasksIfNeeded()
-    }
-
-    private func scheduleDeferredEntryTasksIfNeeded() {
-        guard !hasScheduledDeferredEntryTasks else { return }
-        hasScheduledDeferredEntryTasks = true
-
-        // loadHeaderPreferences() moved to ChatDetailHeaderView's own .task.
-        // Only the read-receipt marking remains as a root-owned deferred task.
-        Task {
-            await markConversationAsReadIfNeeded()
-        }
-    }
-
-    private func markConversationAsReadIfNeeded() async {
-        guard let lastIncomingUnreadMessage = viewModel.messages.last(where: {
-            !$0.isOutgoing && $0.status != .read
-        }) else { return }
-
-        // Repo gates receipts internally — falls through to local-only when disabled.
-        if conversation.type == .oneToOne {
-            try? await container.messageRepository.markAsRead(
-                conversationId: conversation.id,
-                upToMessageId: lastIncomingUnreadMessage.id
-            )
-        } else {
-            try? await container.messageRepository.markAsReadLocally(
-                conversationId: conversation.id,
-                upToMessageId: lastIncomingUnreadMessage.id
-            )
-        }
-
-        NotificationCenter.default.postConversationStateDidChange(
-            conversationId: conversation.id
-        )
     }
 
     private func generateVideoThumbnail(videoURL: URL) async -> URL? {
