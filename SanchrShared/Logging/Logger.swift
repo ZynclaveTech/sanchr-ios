@@ -44,4 +44,10 @@ public enum SanchrLogger {
 
     /// Vault and EKF scheduler operations.
     public static let vault = Logger(subsystem: subsystem, category: "Vault")
+
+    /// UI-layer warnings (cell cast failures, unexpected view states, etc.).
+    public static let ui = Logger(subsystem: subsystem, category: "UI")
+
+    /// Security and trust-chain events (TLS pinning, app lock, keychain).
+    public static let security = Logger(subsystem: subsystem, category: "Security")
 }

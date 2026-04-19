@@ -1,7 +1,7 @@
 import Foundation
 
 /// Type-safe localization service for managing translated strings across the app.
-final class LocalizationService {
+final class LocalizationService: Sendable {
     enum Key: String {
         // Settings
         case settingsSecurity = "settings.security"
