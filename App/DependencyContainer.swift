@@ -88,13 +88,21 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var photosSaver: PhotosSaving = PhotosSaver()
 
     @ObservationIgnored lazy var mediaChainState: MediaChainState = {
-        let deviceSecret = try! deviceSecretProvider.mediaAccessSecret()
-        // Mirror the derived media-access secret into the shared keychain so
-        // the share extension (which can't import Platform/DeviceSecretProvider
-        // and can't re-derive it without the device master secret HKDF chain)
-        // can rebuild an identical `MediaChainState` for cross-process sends.
-        try? secureStorage.saveMediaAccessSecret(deviceSecret)
-        return MediaChainState(deviceSecret: deviceSecret)
+        do {
+            let deviceSecret = try deviceSecretProvider.mediaAccessSecret()
+            // Mirror the derived media-access secret into the shared keychain so
+            // the share extension (which can't import Platform/DeviceSecretProvider
+            // and can't re-derive it without the device master secret HKDF chain)
+            // can rebuild an identical `MediaChainState` for cross-process sends.
+            try? secureStorage.saveMediaAccessSecret(deviceSecret)
+            return MediaChainState(deviceSecret: deviceSecret)
+        } catch {
+            // Fallback: Generate a temporary device secret if keychain is unavailable.
+            // This allows the app to launch even if keychain is locked or inaccessible.
+            SanchrLogger.security.error("Failed to retrieve media access secret from keychain: \(error)")
+            let tempSecret = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
+            return MediaChainState(deviceSecret: tempSecret)
+        }
     }()
 
     @ObservationIgnored lazy var mediaUploadManager = MediaUploadManager(
