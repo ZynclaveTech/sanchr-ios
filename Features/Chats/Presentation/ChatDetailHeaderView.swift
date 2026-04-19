@@ -14,12 +14,19 @@ import SanchrShared
 struct ChatDetailHeaderView: View {
     let conversation: Conversation
 
-    @Bindable var viewModel: ChatDetailViewModel
+    @Bindable var presence: ChatPresenceState
+    @Bindable var search: ChatSearchState
     @Binding var isConversationArchived: Bool
     @Binding var conversationActionErrorMessage: String?
     @Binding var showConversationInfo: Bool
     @Binding var callErrorMessage: String?
     let onDismiss: () -> Void
+    /// Narrow callback so the header can seed peer presence/typing config
+    /// from settings without holding a reference to the full view model.
+    var onConfigurePeer: (_ showsPresence: Bool, _ showsTypingIndicators: Bool) -> Void
+    /// Narrow callback so the header's search toggle can clear the search
+    /// results without reaching into the view model.
+    var onClearSearch: () -> Void
 
     @Environment(DependencyContainer.self) private var container
 
@@ -93,9 +100,9 @@ struct ChatDetailHeaderView: View {
 
                         headerActionButton(icon: "magnifyingglass") {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                viewModel.isSearching.toggle()
-                                if !viewModel.isSearching {
-                                    viewModel.clearSearch()
+                                search.isSearching.toggle()
+                                if !search.isSearching {
+                                    onClearSearch()
                                 }
                             }
                         }
@@ -217,16 +224,16 @@ struct ChatDetailHeaderView: View {
     }
 
     private var headerStatusText: String {
-        if viewModel.showsTypingIndicators, (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+        if presence.showsTypingIndicators, (presence.peerIsTyping || presence.peerPresenceStatus == .typing) {
             return "Typing..."
         }
 
-        if viewModel.showsPresence, !viewModel.peerPresenceHidden, conversation.type == .oneToOne {
-            if viewModel.peerPresenceStatus == .online {
+        if presence.showsPresence, !presence.peerPresenceHidden, conversation.type == .oneToOne {
+            if presence.peerPresenceStatus == .online {
                 return "Online now"
             }
 
-            if let lastSeen = viewModel.peerLastSeen {
+            if let lastSeen = presence.peerLastSeen {
                 return "Last seen \(lastSeen.relativePresenceDescription)"
             }
         }
@@ -314,17 +321,13 @@ struct ChatDetailHeaderView: View {
             // handlePresenceUpdate. Typing, on the other hand, is a
             // local-only courtesy: if I've disabled typing indicators
             // for myself, I also don't want to see the other side's.
-            viewModel.configurePeer(
-                recipient,
-                showsPresence: true,
-                showsTypingIndicators: settings.typingIndicator
-            )
+            onConfigurePeer(true, settings.typingIndicator)
         } catch {
             SanchrLogger.chat.error("Failed to load chat header preferences: \(error.localizedDescription)")
             // Server default for typing_indicator is true. Rather than silently
             // suppressing typing indicators for the entire session on a transient
             // network error, apply the safe default so the UI stays functional.
-            viewModel.configurePeer(recipient, showsPresence: true, showsTypingIndicators: true)
+            onConfigurePeer(true, true)
         }
     }
 }

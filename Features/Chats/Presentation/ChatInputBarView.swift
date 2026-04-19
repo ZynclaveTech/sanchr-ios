@@ -15,20 +15,26 @@ import SanchrShared
 @MainActor
 struct ChatInputBarView: View {
     let conversation: Conversation
-    @Bindable var viewModel: ChatDetailViewModel
+    @Bindable var input: ChatInputState
     @FocusState.Binding var isInputFocused: Bool
     var voicePlayback: VoicePlaybackController
     @Binding var showAttachmentPicker: Bool
     @Binding var showEmojiPicker: Bool
     var enterSendsMessage: Bool
     var attachmentSendContext: () -> ChatDetailViewModel.AttachmentSendContext
+    /// Narrow callbacks so the composer doesn't need a reference to the full
+    /// view model. The root constructs these once from its owned `viewModel`.
+    var onSendText: () async -> Void
+    var onInputTextChanged: (String) -> Void
+    var onSendIntent: (AttachmentIntent, ChatDetailViewModel.AttachmentSendContext) async -> Void
+    var onClearReply: () -> Void
 
     @Environment(DependencyContainer.self) private var container
 
     var body: some View {
         VStack(spacing: 0) {
             // Reply banner
-            if let replyMessage = viewModel.replyingToMessage {
+            if let replyMessage = input.replyingToMessage {
                 HStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(SanchrColors.primary)
@@ -51,7 +57,7 @@ struct ChatInputBarView: View {
 
                     Button {
                         withAnimation(.easeOut(duration: 0.15)) {
-                            viewModel.clearReply()
+                            onClearReply()
                         }
                     } label: {
                         Group {
@@ -119,22 +125,16 @@ struct ChatInputBarView: View {
 
                 // Text input field
                 HStack(spacing: 6) {
-                    TextField("Message...", text: $viewModel.inputText, axis: .vertical)
+                    TextField("Message...", text: $input.inputText, axis: .vertical)
                         .font(SanchrTypography.messageBubbleText)
                         .textFieldStyle(.plain)
                         .lineLimit(1...5)
                         .focused($isInputFocused)
                         .onSubmit {
                             if enterSendsMessage {
-                                Task {
-                                    await viewModel.sendMessage(
-                                        conversationId: conversation.id,
-                                        sessionService: container.sessionService,
-                                        messageSender: container.messageSender
-                                    )
-                                }
+                                Task { await onSendText() }
                             } else {
-                                viewModel.inputText += "\n"
+                                input.inputText += "\n"
                             }
                         }
 
@@ -174,13 +174,7 @@ struct ChatInputBarView: View {
                 if hasInput {
                     // Send button
                     Button {
-                        Task {
-                            await viewModel.sendMessage(
-                                conversationId: conversation.id,
-                                sessionService: container.sessionService,
-                                messageSender: container.messageSender
-                            )
-                        }
+                        Task { await onSendText() }
                     } label: {
                         Group {
                             if #available(iOS 26.0, *) {
@@ -226,9 +220,9 @@ struct ChatInputBarView: View {
                         onSend: { url, durationMs, waveform in
                             let ctx = attachmentSendContext()
                             Task { @MainActor in
-                                await viewModel.send(
-                                    intent: .voice(VoiceClip(url: url, durationMs: durationMs, waveform: waveform)),
-                                    context: ctx
+                                await onSendIntent(
+                                    .voice(VoiceClip(url: url, durationMs: durationMs, waveform: waveform)),
+                                    ctx
                                 )
                             }
                         }
@@ -243,17 +237,13 @@ struct ChatInputBarView: View {
         .padding(.bottom, 6)
         .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
         .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
-        .onChange(of: viewModel.inputText) { _, newValue in
-            viewModel.handleInputTextChanged(
-                newValue,
-                conversationId: conversation.id,
-                messageRepository: container.messageRepository
-            )
+        .onChange(of: input.inputText) { _, newValue in
+            onInputTextChanged(newValue)
         }
     }
 
     private var hasInput: Bool {
-        !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !input.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Preview label rendered in the reply banner. Static so it can be used from

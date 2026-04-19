@@ -176,14 +176,14 @@ struct ChatDetailView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.searchQuery) { _, query in
+            .onChange(of: viewModel.searchState.searchQuery) { _, query in
                 viewModel.scheduleSearch(
                     conversationId: conversation.id,
                     query: query,
                     localDatabase: container.localDatabase
                 )
             }
-            .onChange(of: viewModel.currentSearchResultId) { _, messageId in
+            .onChange(of: viewModel.searchState.currentSearchResultId) { _, messageId in
                 guard let messageId else { return }
                 transcriptScrollSequence &+= 1
                 transcriptScrollCommand = .message(
@@ -205,14 +205,14 @@ struct ChatDetailView: View {
         VStack(spacing: 0) {
             header
 
-            if viewModel.isSearching {
+            if viewModel.searchState.isSearching {
                 chatSearchBar
             }
 
             ZStack(alignment: .bottomTrailing) {
                 ChatTranscriptView(
                     conversation: conversation,
-                    viewModel: viewModel,
+                    messagesState: viewModel.messagesState,
                     voicePlayback: voicePlayback,
                     galleryCoordinator: galleryCoordinator,
                     contactCoordinator: contactCoordinator,
@@ -224,7 +224,45 @@ struct ChatDetailView: View {
                     transcriptScrollCommand: $transcriptScrollCommand,
                     hasPresentedInitialTranscript: $hasPresentedInitialTranscript,
                     hasScheduledDeferredEntryTasks: $hasScheduledDeferredEntryTasks,
-                    messageToForward: $messageToForward
+                    messageToForward: $messageToForward,
+                    onReply: { viewModel.setReply(to: $0) },
+                    onReact: { emoji, messageId in
+                        viewModel.toggleReaction(
+                            emoji: emoji,
+                            messageId: messageId,
+                            conversationId: conversation.id,
+                            userId: container.signalProtocol.localUserId,
+                            chatDataSource: container.chatDataSource
+                        )
+                    },
+                    onRetry: { message in
+                        await viewModel.retryMessage(
+                            message,
+                            sessionService: container.sessionService,
+                            messageSender: container.messageSender
+                        )
+                    },
+                    onLoadMore: {
+                        await viewModel.loadMore(
+                            conversationId: conversation.id,
+                            messageRepository: container.messageRepository
+                        )
+                    },
+                    onRouteInteraction: { interaction in
+                        viewModel.route(
+                            interaction: interaction,
+                            onOpenGallery: { galleryCoordinator.present(seed: $0) },
+                            onOpenContact: { name, phone in
+                                Task { await contactCoordinator.present(name: name, phoneNumber: phone) }
+                            },
+                            onOpenLocation: { lat, lon in
+                                locationCoordinator.present(latitude: lat, longitude: lon)
+                            },
+                            onOpenDocument: { messageId in
+                                Task { await documentCoordinator.open(messageId: messageId) }
+                            }
+                        )
+                    }
                 )
 
                 if !isScrolledToBottom {
@@ -234,19 +272,37 @@ struct ChatDetailView: View {
                 // Reaction picker overlay removed — reactions are in context menu
             }
 
-            if viewModel.showsTypingIndicators && (viewModel.peerIsTyping || viewModel.peerPresenceStatus == .typing) {
+            if viewModel.presenceState.showsTypingIndicators && (viewModel.presenceState.peerIsTyping || viewModel.presenceState.peerPresenceStatus == .typing) {
                 typingPill
             }
 
             ChatInputBarView(
                 conversation: conversation,
-                viewModel: viewModel,
+                input: viewModel.inputState,
                 isInputFocused: $isInputFocused,
                 voicePlayback: voicePlayback,
                 showAttachmentPicker: $showAttachmentPicker,
                 showEmojiPicker: $showEmojiPicker,
                 enterSendsMessage: enterSendsMessage,
-                attachmentSendContext: { makeAttachmentSendContext() }
+                attachmentSendContext: { makeAttachmentSendContext() },
+                onSendText: {
+                    await viewModel.sendMessage(
+                        conversationId: conversation.id,
+                        sessionService: container.sessionService,
+                        messageSender: container.messageSender
+                    )
+                },
+                onInputTextChanged: { newValue in
+                    viewModel.handleInputTextChanged(
+                        newValue,
+                        conversationId: conversation.id,
+                        messageRepository: container.messageRepository
+                    )
+                },
+                onSendIntent: { intent, ctx in
+                    await viewModel.send(intent: intent, context: ctx)
+                },
+                onClearReply: { viewModel.clearReply() }
             )
 
             if showAttachmentPicker {
@@ -323,7 +379,7 @@ struct ChatDetailView: View {
 
             if showEmojiPicker {
                 EmojiPickerSheet { emoji in
-                    viewModel.inputText.append(emoji)
+                    viewModel.inputState.inputText.append(emoji)
                 }
                 .frame(height: 280)
                 .background(SanchrExportColors.background)
@@ -611,12 +667,21 @@ struct ChatDetailView: View {
     private var header: some View {
         ChatDetailHeaderView(
             conversation: conversation,
-            viewModel: viewModel,
+            presence: viewModel.presenceState,
+            search: viewModel.searchState,
             isConversationArchived: $isConversationArchived,
             conversationActionErrorMessage: $conversationActionErrorMessage,
             showConversationInfo: $showConversationInfo,
             callErrorMessage: $callErrorMessage,
-            onDismiss: { dismiss() }
+            onDismiss: { dismiss() },
+            onConfigurePeer: { showsPresence, showsTyping in
+                viewModel.configurePeer(
+                    recipient,
+                    showsPresence: showsPresence,
+                    showsTypingIndicators: showsTyping
+                )
+            },
+            onClearSearch: { viewModel.clearSearch() }
         )
     }
 
@@ -627,13 +692,13 @@ struct ChatDetailView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textTertiary)
 
-                TextField("Search messages...", text: $viewModel.searchQuery)
+                TextField("Search messages...", text: Bindable(viewModel.searchState).searchQuery)
                     .font(SanchrTypography.messageBubbleText)
                     .textFieldStyle(.plain)
                     .onSubmit {
                         viewModel.scheduleSearch(
                             conversationId: conversation.id,
-                            query: viewModel.searchQuery,
+                            query: viewModel.searchState.searchQuery,
                             localDatabase: container.localDatabase
                         )
                     }
@@ -642,19 +707,19 @@ struct ChatDetailView: View {
             .frame(height: 36)
             .modifier(ChatSearchFieldSurfaceModifier())
 
-            if !viewModel.searchResults.isEmpty {
+            if !viewModel.searchState.searchResults.isEmpty {
                 SanchrGlassCluster(spacing: 10) {
                     HStack(spacing: 6) {
                         Group {
                             if #available(iOS 26.0, *) {
-                                Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
+                                Text("\(viewModel.searchState.currentSearchIndex + 1)/\(viewModel.searchState.searchResults.count)")
                                     .font(SanchrTypography.captionSmall)
                                     .foregroundColor(SanchrExportColors.textPrimary)
                                     .padding(.horizontal, 12)
                                     .frame(height: 32)
                                     .sanchrGlass(role: .chip)
                             } else {
-                                Text("\(viewModel.currentSearchIndex + 1)/\(viewModel.searchResults.count)")
+                                Text("\(viewModel.searchState.currentSearchIndex + 1)/\(viewModel.searchState.searchResults.count)")
                                     .font(SanchrTypography.captionSmall)
                                     .foregroundColor(SanchrExportColors.textSecondary)
                                     .frame(minWidth: 30)
@@ -684,7 +749,7 @@ struct ChatDetailView: View {
 
             Button {
                 withAnimation {
-                    viewModel.isSearching = false
+                    viewModel.searchState.isSearching = false
                     viewModel.clearSearch()
                 }
             } label: {

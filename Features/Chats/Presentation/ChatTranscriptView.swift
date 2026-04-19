@@ -10,7 +10,7 @@ import SanchrShared
 @MainActor
 struct ChatTranscriptView: View {
     let conversation: Conversation
-    @Bindable var viewModel: ChatDetailViewModel
+    @Bindable var messagesState: ChatMessagesState
     var voicePlayback: VoicePlaybackController
     var galleryCoordinator: MediaGalleryCoordinator
     var contactCoordinator: ContactActionCoordinator
@@ -24,6 +24,15 @@ struct ChatTranscriptView: View {
     @Binding var hasScheduledDeferredEntryTasks: Bool
     @Binding var messageToForward: Message?
 
+    /// Narrow callbacks so the transcript doesn't need a reference to the
+    /// full view model. The root constructs these once from its owned
+    /// `viewModel` (see ChatDetailView.chatBaseView).
+    var onReply: (Message) -> Void
+    var onReact: (String, String) -> Void
+    var onRetry: (Message) async -> Void
+    var onLoadMore: () async -> Void
+    var onRouteInteraction: (MessageInteraction) -> Void
+
     @Environment(DependencyContainer.self) private var container
 
     var body: some View {
@@ -33,56 +42,20 @@ struct ChatTranscriptView: View {
             onInitialPresentation: {
                 handleInitialTranscriptPresentation()
             },
-            onReply: { message in
-                viewModel.setReply(to: message)
-            },
+            onReply: onReply,
             onReact: { emoji, messageId in
-                let userId = container.signalProtocol.localUserId
-                viewModel.toggleReaction(
-                    emoji: emoji,
-                    messageId: messageId,
-                    conversationId: conversation.id,
-                    userId: userId,
-                    chatDataSource: container.chatDataSource
-                )
+                onReact(emoji, messageId)
             },
             onForward: { message in
                 messageToForward = message
             },
             onRetry: { message in
-                Task {
-                    await viewModel.retryMessage(
-                        message,
-                        sessionService: container.sessionService,
-                        messageSender: container.messageSender
-                    )
-                }
+                Task { await onRetry(message) }
             },
             onLoadMore: {
-                Task {
-                    await viewModel.loadMore(
-                        conversationId: conversation.id,
-                        messageRepository: container.messageRepository
-                    )
-                }
+                Task { await onLoadMore() }
             },
-            onBubbleTap: { interaction in
-                viewModel.route(
-                    interaction: interaction,
-                    onOpenGallery: { seed in
-                        galleryCoordinator.present(seed: seed)
-                    },
-                    onOpenContact: { name, phone in
-                        Task { await contactCoordinator.present(name: name, phoneNumber: phone) }
-                    },
-                    onOpenLocation: { lat, lon in
-                        locationCoordinator.present(latitude: lat, longitude: lon)
-                    },
-                    onOpenDocument: { messageId in
-                        Task { await documentCoordinator.open(messageId: messageId) }
-                    }
-                )
-            },
+            onBubbleTap: onRouteInteraction,
             isScrolledToBottom: $isScrolledToBottom,
             newMessageCountWhileScrolled: $newMessageCountWhileScrolled
         )
@@ -95,7 +68,7 @@ struct ChatTranscriptView: View {
         .overlay {
             if !hasPresentedInitialTranscript {
                 transcriptLoadingPlaceholder
-            } else if viewModel.messageSections.isEmpty {
+            } else if messagesState.messageSections.isEmpty {
                 transcriptEmptyState
             }
         }
@@ -135,12 +108,12 @@ struct ChatTranscriptView: View {
 
     private var transcriptRenderInput: TranscriptRenderInput {
         TranscriptRenderInput(
-            sections: viewModel.messageSections,
-            uploads: viewModel.uploads,
-            uploadsVersion: viewModel.uploads.version,
-            version: viewModel.transcriptVersion,
+            sections: messagesState.messageSections,
+            uploads: messagesState.uploads,
+            uploadsVersion: messagesState.uploads.version,
+            version: messagesState.transcriptVersion,
             scrollCommand: transcriptScrollCommand,
-            firstUnreadMessageId: viewModel.firstUnreadMessageId
+            firstUnreadMessageId: messagesState.firstUnreadMessageId
         )
     }
 
@@ -172,7 +145,7 @@ struct ChatTranscriptView: View {
     }
 
     private func markConversationAsReadIfNeeded() async {
-        guard let lastIncomingUnreadMessage = viewModel.messages.last(where: {
+        guard let lastIncomingUnreadMessage = messagesState.messages.last(where: {
             !$0.isOutgoing && $0.status != .read
         }) else { return }
 
