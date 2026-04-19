@@ -153,16 +153,47 @@ actor LinkPreviewService {
     }
 
     /// Detect first URL in a text string.
+    ///
+    /// Performance notes:
+    /// - `NSDataDetector` instantiation is expensive; we reuse a single
+    ///   thread-safe detector. `NSDataDetector` is documented as safe for
+    ///   concurrent reads (a subclass of `NSRegularExpression` with the
+    ///   same guarantees).
+    /// - Results are cached by text so repeat renders of the same message
+    ///   bubble during a scroll pay O(1) instead of O(n) regex cost.
     nonisolated static func firstURL(in text: String) -> URL? {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+        if let cached = urlDetectionCache.object(forKey: text as NSString) {
+            return cached.url
+        }
+        guard let detector = sharedLinkDetector else {
             return nil
         }
         let range = NSRange(text.startIndex..., in: text)
-        guard let match = detector.firstMatch(in: text, range: range),
-              let url = match.url else {
-            return nil
-        }
+        let url = detector.firstMatch(in: text, range: range)?.url
+        urlDetectionCache.setObject(CachedURL(url: url), forKey: text as NSString)
         return url
+    }
+
+    /// Single shared `NSDataDetector` instance. Creating one per call was
+    /// costing us multiple samples per scroll in Time Profiler.
+    /// `NSRegularExpression` (NSDataDetector's superclass) is documented as
+    /// safe for concurrent reads, so `nonisolated(unsafe)` is correct here.
+    nonisolated(unsafe) private static let sharedLinkDetector: NSDataDetector? = {
+        try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    }()
+
+    /// Bounded cache of detection results keyed by source text. The wrapper
+    /// lets us cache the `nil` outcome too (NSCache requires non-nil values).
+    /// NSCache is documented thread-safe; `nonisolated(unsafe)` encodes that.
+    nonisolated(unsafe) private static let urlDetectionCache: NSCache<NSString, CachedURL> = {
+        let cache = NSCache<NSString, CachedURL>()
+        cache.countLimit = 500 // ~typical loaded transcript size; bounded
+        return cache
+    }()
+
+    private final class CachedURL: NSObject, @unchecked Sendable {
+        let url: URL?
+        init(url: URL?) { self.url = url }
     }
 }
 
