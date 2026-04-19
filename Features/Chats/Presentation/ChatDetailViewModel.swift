@@ -11,74 +11,160 @@ struct MessageSection: Identifiable, Sendable {
 /// Manages messages, input, sending, optimistic updates, and pagination.
 /// All outgoing messages are encrypted via Signal Protocol before sending.
 /// Incoming messages are decrypted before display.
+///
+/// This class is a thin composition root: the 32 stored properties that used
+/// to live here have been split into four concern-specific @Observable
+/// sub-stores (`messagesState`, `inputState`, `presenceState`, `searchState`)
+/// so views can subscribe to only the surface they actually read. Proxy
+/// properties are retained for back-compat with callers that still reach
+/// through the view model — remove them once every view has been narrowed.
 @MainActor
 @Observable
 final class ChatDetailViewModel {
 
-    // MARK: - State
+    // MARK: - Sub-stores
 
-    var messages: [Message] = [] {
-        didSet { refreshMessagesLookup() }
+    let messagesState: ChatMessagesState
+    let inputState: ChatInputState
+    let presenceState: ChatPresenceState
+    let searchState: ChatSearchState
+
+    init(
+        messagesState: ChatMessagesState = ChatMessagesState(),
+        inputState: ChatInputState = ChatInputState(),
+        presenceState: ChatPresenceState = ChatPresenceState(),
+        searchState: ChatSearchState = ChatSearchState()
+    ) {
+        self.messagesState = messagesState
+        self.inputState = inputState
+        self.presenceState = presenceState
+        self.searchState = searchState
     }
-    /// O(1) message lookup by ID. Kept in sync with `messages` via
-    /// `refreshMessagesLookup()` (called from every mutation path).
-    /// Replaces O(n) linear scans through `messages.first(where:)` in
-    /// hot paths like DocumentPreviewCoordinator's messageLookup closure.
-    private(set) var messagesById: [String: Message] = [:]
-    var inputText: String = ""
-    var isLoading: Bool = false
-    var isLoadingMore: Bool = false
-    var isSending: Bool = false
-    var errorMessage: String?
-    var isTyping: Bool = false
 
-    /// Message being replied to (shown as quote in composer)
-    var replyingToMessage: Message?
+    // MARK: - Back-compat proxy properties (remove after all views narrow)
+    //
+    // These keep existing call sites in views + tests working while we
+    // migrate one subscription at a time. Each getter reads through to the
+    // matching sub-store; each setter writes back. There is NO extra
+    // observation overhead — reading `viewModel.messages` bumps the same
+    // track as reading `viewModel.messagesState.messages` because
+    // @Observable tracks keypaths on the concrete storage.
 
-    /// Per-message upload progress + status, isolated in a dedicated
-    /// @Observable store so byte-progress callbacks don't bump the
-    /// transcript version (which would trigger a full snapshot reload).
-    /// Consumers watch `uploads.version` for reconfigure-only updates.
-    let uploads = UploadProgressStore()
-
-    /// Whether the peer is typing.
-    var peerIsTyping: Bool = false
-    var peerTypingName: String = ""
-    var peerPresenceStatus: User.Status = .offline
-    var peerLastSeen: Date?
-    var peerPresenceHidden: Bool = false
-    var showsPresence: Bool = false
-    var showsTypingIndicators: Bool = false
-
-    /// Grouped messages by day for stable section headers.
-    private(set) var messageSections: [MessageSection] = [] {
-        didSet { bumpTranscriptVersion() }
+    var messages: [Message] {
+        get { messagesState.messages }
+        set { messagesState.messages = newValue }
     }
-    private(set) var transcriptVersion: UInt64 = 0
+    var messagesById: [String: Message] { messagesState.messagesById }
+    var messageSections: [MessageSection] {
+        get { messagesState.messageSections }
+        set { messagesState.messageSections = newValue }
+    }
+    var transcriptVersion: UInt64 { messagesState.transcriptVersion }
+    var isLoading: Bool {
+        get { messagesState.isLoading }
+        set { messagesState.isLoading = newValue }
+    }
+    var isLoadingMore: Bool {
+        get { messagesState.isLoadingMore }
+        set { messagesState.isLoadingMore = newValue }
+    }
+    var hasMoreMessages: Bool {
+        get { messagesState.hasMoreMessages }
+        set { messagesState.hasMoreMessages = newValue }
+    }
+    var firstUnreadMessageId: String? {
+        get { messagesState.firstUnreadMessageId }
+        set { messagesState.firstUnreadMessageId = newValue }
+    }
+    var lastPaginationAnchor: Date? {
+        get { messagesState.lastPaginationAnchor }
+        set { messagesState.lastPaginationAnchor = newValue }
+    }
+    var uploads: UploadProgressStore { messagesState.uploads }
 
-    /// Whether there are more messages to load.
-    var hasMoreMessages: Bool = true
+    var inputText: String {
+        get { inputState.inputText }
+        set { inputState.inputText = newValue }
+    }
+    var isSending: Bool {
+        get { inputState.isSending }
+        set { inputState.isSending = newValue }
+    }
+    var isTyping: Bool {
+        get { inputState.isTyping }
+        set { inputState.isTyping = newValue }
+    }
+    var replyingToMessage: Message? {
+        get { inputState.replyingToMessage }
+        set { inputState.replyingToMessage = newValue }
+    }
+    var errorMessage: String? {
+        get { inputState.errorMessage }
+        set { inputState.errorMessage = newValue }
+    }
 
-    /// ID of the first unread message on conversation entry.
-    /// Drives the "New Messages" divider in the transcript.
-    /// Cleared when the user leaves the conversation.
-    var firstUnreadMessageId: String?
+    var peerIsTyping: Bool {
+        get { presenceState.peerIsTyping }
+        set { presenceState.peerIsTyping = newValue }
+    }
+    var peerTypingName: String {
+        get { presenceState.peerTypingName }
+        set { presenceState.peerTypingName = newValue }
+    }
+    var peerPresenceStatus: User.Status {
+        get { presenceState.peerPresenceStatus }
+        set { presenceState.peerPresenceStatus = newValue }
+    }
+    var peerLastSeen: Date? {
+        get { presenceState.peerLastSeen }
+        set { presenceState.peerLastSeen = newValue }
+    }
+    var peerPresenceHidden: Bool {
+        get { presenceState.peerPresenceHidden }
+        set { presenceState.peerPresenceHidden = newValue }
+    }
+    var showsPresence: Bool {
+        get { presenceState.showsPresence }
+        set { presenceState.showsPresence = newValue }
+    }
+    var showsTypingIndicators: Bool {
+        get { presenceState.showsTypingIndicators }
+        set { presenceState.showsTypingIndicators = newValue }
+    }
+    var typingIdleTask: Task<Void, Never>? {
+        get { presenceState.typingIdleTask }
+        set { presenceState.typingIdleTask = newValue }
+    }
+    var peerTypingClearTask: Task<Void, Never>? {
+        get { presenceState.peerTypingClearTask }
+        set { presenceState.peerTypingClearTask = newValue }
+    }
+    var typingIndicatorIsActive: Bool {
+        get { presenceState.typingIndicatorIsActive }
+        set { presenceState.typingIndicatorIsActive = newValue }
+    }
 
-    var lastPaginationAnchor: Date?
-    // Promoted to internal: accessed from ChatDetailViewModel+Realtime.swift
-    var typingIdleTask: Task<Void, Never>?
-    var peerTypingClearTask: Task<Void, Never>?
-    // Promoted to internal: accessed from ChatDetailViewModel+Search.swift
-    var searchTask: Task<Void, Never>?
-    // Promoted to internal: accessed from ChatDetailViewModel+Realtime.swift
-    var typingIndicatorIsActive = false
-
-    // MARK: - Search State
-
-    var isSearching = false
-    var searchQuery = ""
-    var searchResults: [Message] = []
-    var currentSearchIndex = 0
+    var isSearching: Bool {
+        get { searchState.isSearching }
+        set { searchState.isSearching = newValue }
+    }
+    var searchQuery: String {
+        get { searchState.searchQuery }
+        set { searchState.searchQuery = newValue }
+    }
+    var searchResults: [Message] {
+        get { searchState.searchResults }
+        set { searchState.searchResults = newValue }
+    }
+    var currentSearchIndex: Int {
+        get { searchState.currentSearchIndex }
+        set { searchState.currentSearchIndex = newValue }
+    }
+    var searchTask: Task<Void, Never>? {
+        get { searchState.searchTask }
+        set { searchState.searchTask = newValue }
+    }
+    var currentSearchResultId: String? { searchState.currentSearchResultId }
 
     // MARK: - Bubble-tap routing
 
@@ -129,7 +215,7 @@ final class ChatDetailViewModel {
     /// current snapshot. The snapshot is frozen at call time — new messages
     /// arriving while the gallery is open do NOT mutate the pager.
     func galleryItems(forTappedMessageId messageId: String) -> GallerySeed? {
-        let ordered = messages
+        let ordered = messagesState.messages
             .sorted { $0.timestamp < $1.timestamp }
             .compactMap { msg -> GalleryItem? in
                 switch msg.content {
@@ -164,7 +250,7 @@ final class ChatDetailViewModel {
     @MainActor
     func onConversationDisappear(pushManager: PushManager) {
         pushManager.setActiveConversation(nil)
-        firstUnreadMessageId = nil
+        messagesState.firstUnreadMessageId = nil
     }
 
     func configurePeer(
@@ -173,16 +259,16 @@ final class ChatDetailViewModel {
         showsTypingIndicators: Bool? = nil
     ) {
         if let showsPresence {
-            self.showsPresence = showsPresence
+            presenceState.showsPresence = showsPresence
         }
         if let showsTypingIndicators {
-            self.showsTypingIndicators = showsTypingIndicators
+            presenceState.showsTypingIndicators = showsTypingIndicators
         }
 
         guard let peer else { return }
-        peerPresenceStatus = peer.status
-        peerLastSeen = peer.lastSeen
-        peerPresenceHidden = false
+        presenceState.peerPresenceStatus = peer.status
+        presenceState.peerLastSeen = peer.lastSeen
+        presenceState.peerPresenceHidden = false
     }
 
     // MARK: - Typing Indicator / Realtime
@@ -192,28 +278,28 @@ final class ChatDetailViewModel {
     // Extracted to ChatDetailViewModel+Search.swift
 
     func updateMessage(id: String, mutate: (inout Message) -> Void) {
-        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
-        let previousTimestamp = messages[index].timestamp
-        mutate(&messages[index])
-        syncMessageSection(for: messages[index], previousTimestamp: previousTimestamp)
+        guard let index = messagesState.messages.firstIndex(where: { $0.id == id }) else { return }
+        let previousTimestamp = messagesState.messages[index].timestamp
+        mutate(&messagesState.messages[index])
+        syncMessageSection(for: messagesState.messages[index], previousTimestamp: previousTimestamp)
     }
 
     func replaceMessage(id: String, with message: Message) {
-        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
-        let previousTimestamp = messages[index].timestamp
-        messages[index] = message
+        guard let index = messagesState.messages.firstIndex(where: { $0.id == id }) else { return }
+        let previousTimestamp = messagesState.messages[index].timestamp
+        messagesState.messages[index] = message
         syncMessageSection(for: message, previousTimestamp: previousTimestamp)
     }
 
     func appendMessageChronologically(_ message: Message) {
-        if let lastMessage = messages.last, message.timestamp < lastMessage.timestamp {
-            messages.append(message)
-            messages.sort { $0.timestamp < $1.timestamp }
+        if let lastMessage = messagesState.messages.last, message.timestamp < lastMessage.timestamp {
+            messagesState.messages.append(message)
+            messagesState.messages.sort { $0.timestamp < $1.timestamp }
             rebuildSections()
             return
         }
 
-        messages.append(message)
+        messagesState.messages.append(message)
         appendMessageToSections(message)
     }
 
@@ -221,14 +307,14 @@ final class ChatDetailViewModel {
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: message.timestamp)
 
-        if let lastIndex = messageSections.indices.last {
-            if messageSections[lastIndex].id == day {
-                messageSections[lastIndex].messages.append(message)
+        if let lastIndex = messagesState.messageSections.indices.last {
+            if messagesState.messageSections[lastIndex].id == day {
+                messagesState.messageSections[lastIndex].messages.append(message)
                 return
             }
 
-            if messageSections[lastIndex].id < day {
-                messageSections.append(
+            if messagesState.messageSections[lastIndex].id < day {
+                messagesState.messageSections.append(
                     MessageSection(
                         id: day,
                         title: sectionTitle(for: day, calendar: calendar),
@@ -239,8 +325,8 @@ final class ChatDetailViewModel {
             }
         }
 
-        if messageSections.isEmpty {
-            messageSections = [
+        if messagesState.messageSections.isEmpty {
+            messagesState.messageSections = [
                 MessageSection(
                     id: day,
                     title: sectionTitle(for: day, calendar: calendar),
@@ -264,8 +350,8 @@ final class ChatDetailViewModel {
             return
         }
 
-        guard let sectionIndex = messageSections.firstIndex(where: { $0.id == day }),
-              let messageIndex = messageSections[sectionIndex].messages.firstIndex(where: {
+        guard let sectionIndex = messagesState.messageSections.firstIndex(where: { $0.id == day }),
+              let messageIndex = messagesState.messageSections[sectionIndex].messages.firstIndex(where: {
                   $0.id == message.id
               })
         else {
@@ -273,16 +359,16 @@ final class ChatDetailViewModel {
             return
         }
 
-        messageSections[sectionIndex].messages[messageIndex] = message
+        messagesState.messageSections[sectionIndex].messages[messageIndex] = message
     }
 
     func rebuildSections() {
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: messages) { message in
+        let grouped = Dictionary(grouping: messagesState.messages) { message in
             calendar.startOfDay(for: message.timestamp)
         }
 
-        messageSections = grouped
+        messagesState.messageSections = grouped
             .map { day, messages in
                 MessageSection(
                     id: day,
@@ -303,20 +389,9 @@ final class ChatDetailViewModel {
         return day.formatted(date: .abbreviated, time: .omitted)
     }
 
-    private func bumpTranscriptVersion() {
-        transcriptVersion &+= 1
-    }
-
-    /// Rebuilds the `messagesById` dict after every mutation of `messages`.
-    /// Wired via `didSet` on `messages` so every append / replace / remove /
-    /// reassignment keeps the lookup dict authoritative.
-    private func refreshMessagesLookup() {
-        messagesById = Dictionary(uniqueKeysWithValues: messages.map { ($0.id, $0) })
-    }
-
     /// O(1) lookup by ID — preferred over `messages.first(where:)` in hot paths.
     func message(withId id: String) -> Message? {
-        messagesById[id]
+        messagesState.message(withId: id)
     }
 }
 

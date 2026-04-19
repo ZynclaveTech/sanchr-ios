@@ -63,9 +63,4 @@ extension ChatDetailViewModel {
         guard !searchResults.isEmpty else { return }
         currentSearchIndex = (currentSearchIndex - 1 + searchResults.count) % searchResults.count
     }
-
-    var currentSearchResultId: String? {
-        guard !searchResults.isEmpty else { return nil }
-        return searchResults[currentSearchIndex].id
-    }
 }
