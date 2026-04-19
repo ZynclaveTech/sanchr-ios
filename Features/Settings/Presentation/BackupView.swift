@@ -15,6 +15,7 @@ struct BackupView: View {
     @State private var showingRestoreSheet = false
     @State private var restoreTargetId: String?
     @State private var restoreRecoveryKey = ""
+    @State private var lastLoadError: String?
     @State private var showDisableAlert = false
     @State private var showDeleteAlert = false
 
@@ -321,9 +322,16 @@ struct BackupView: View {
                     .foregroundColor(Color.sanchrTextSecondary(colorScheme))
             }
         case .failed:
-            Text("Could not load history")
-                .font(SanchrTypography.caption)
-                .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+            VStack(spacing: 12) {
+                Text("Could not load history")
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                if let error = lastLoadError {
+                    Text(error)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                }
+            }
         case .loaded:
             if backupHistory.isEmpty {
                 Text("No backups yet")
@@ -443,7 +451,9 @@ struct BackupView: View {
         do {
             backupHistory = try await container.backupCoordinator.listBackups()
             historyState = .loaded
+            lastLoadError = nil
         } catch {
+            lastLoadError = error.localizedDescription
             historyState = .failed
         }
     }
