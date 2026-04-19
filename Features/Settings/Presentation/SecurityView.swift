@@ -393,6 +393,7 @@ struct SecurityView: View {
                 }
             } catch {
                 viewModel.biometricLock = false
+                viewModel.errorMessage = error.localizedDescription
             }
         }
     }
