@@ -402,13 +402,271 @@ final class CallManagerE2EETests: XCTestCase {
         }
     }
 
+    // MARK: - Peer Profile Resolution
+
+    func test_resolveCallPeerProfile_prefersContactProfile() async throws {
+        let avatarURL = try XCTUnwrap(URL(string: "https://cdn.sanchr.test/alice.jpg"))
+        let database = ProfileResolverDatabase(
+            contacts: [
+                makeUser(id: "alice", displayName: "Alice Contact", avatarURL: avatarURL),
+            ],
+            conversations: [
+                makeConversation(
+                    peer: makeUser(id: "alice", displayName: "Alice Conversation", avatarURL: nil)
+                ),
+            ]
+        )
+
+        let profile = await DependencyContainer.resolveCallPeerProfile(
+            userId: "alice",
+            localDatabase: database
+        )
+
+        XCTAssertEqual(profile?.displayName, "Alice Contact")
+        XCTAssertEqual(profile?.avatarURL, avatarURL)
+    }
+
+    func test_resolveCallPeerProfile_usesConversationFallback() async throws {
+        let avatarURL = try XCTUnwrap(URL(string: "https://cdn.sanchr.test/bob.jpg"))
+        let database = ProfileResolverDatabase(
+            contacts: [],
+            conversations: [
+                makeConversation(
+                    peer: makeUser(id: "bob", displayName: "Bob Conversation", avatarURL: avatarURL)
+                ),
+            ]
+        )
+
+        let profile = await DependencyContainer.resolveCallPeerProfile(
+            userId: "bob",
+            localDatabase: database
+        )
+
+        XCTAssertEqual(profile?.displayName, "Bob Conversation")
+        XCTAssertEqual(profile?.avatarURL, avatarURL)
+    }
+
+    func test_resolveCallPeerProfile_ignoresUUIDDisplayNames() async throws {
+        let userId = "00000000-0000-0000-0000-000000000000"
+        let database = ProfileResolverDatabase(
+            contacts: [
+                makeUser(id: userId, phoneNumber: userId, displayName: userId, avatarURL: nil),
+            ],
+            conversations: []
+        )
+
+        let profile = await DependencyContainer.resolveCallPeerProfile(
+            userId: userId,
+            localDatabase: database
+        )
+
+        XCTAssertNil(profile)
+    }
+
+    func test_resolveCallPeerProfile_allowsMissingAvatar() async {
+        let database = ProfileResolverDatabase(
+            contacts: [
+                makeUser(id: "carol", displayName: "Carol", avatarURL: nil),
+            ],
+            conversations: []
+        )
+
+        let profile = await DependencyContainer.resolveCallPeerProfile(
+            userId: "carol",
+            localDatabase: database
+        )
+
+        XCTAssertEqual(profile?.displayName, "Carol")
+        XCTAssertNil(profile?.avatarURL)
+    }
+
+    func test_handleIncomingCall_appliesResolvedPeerAvatar() async throws {
+        let avatarURL = try XCTUnwrap(URL(string: "https://cdn.sanchr.test/alice.jpg"))
+        let callManager = makeCallManager { userId in
+            guard userId == "alice" else { return nil }
+            return CallPeerProfile(displayName: "Alice", avatarURL: avatarURL)
+        }
+
+        await MainActor.run {
+            callManager.handleIncomingCall(
+                callId: "profile-call",
+                callerId: "alice",
+                callerName: "alice",
+                sdpOffer: Data(),
+                isVideo: false
+            )
+        }
+
+        let resolved = XCTNSPredicateExpectation(
+            predicate: NSPredicate { [weak callManager] _, _ in
+                callManager?.peerName == "Alice" && callManager?.peerAvatarURL == avatarURL
+            },
+            object: nil
+        )
+        await fulfillment(of: [resolved], timeout: 2.0)
+
+        XCTAssertEqual(callManager.peerName, "Alice")
+        XCTAssertEqual(callManager.peerAvatarURL, avatarURL)
+    }
+
+    func test_shouldReportIncomingCallToCallKit_skipsForegroundPresentation() {
+        XCTAssertFalse(
+            CallManager.shouldReportIncomingCallToCallKit(
+                applicationState: .active,
+                isSimulator: false
+            )
+        )
+    }
+
+    func test_shouldReportIncomingCallToCallKit_skipsSimulatorPresentation() {
+        XCTAssertFalse(
+            CallManager.shouldReportIncomingCallToCallKit(
+                applicationState: .background,
+                isSimulator: true
+            )
+        )
+    }
+
+    func test_shouldReportIncomingCallToCallKit_keepsBackgroundCallKitPath() {
+        XCTAssertTrue(
+            CallManager.shouldReportIncomingCallToCallKit(
+                applicationState: .background,
+                isSimulator: false
+            )
+        )
+    }
+
+    func test_handleControlAction_videoOffDisablesPeerVideoWithoutDroppingTrackState() async {
+        let callManager = makeCallManager()
+
+        await MainActor.run {
+            callManager.callType = "video"
+            callManager.callState = .active(callId: "video-call", startTime: Date())
+            callManager.peerVideoEnabled = true
+            callManager.hasRemoteVideoTrack = true
+            callManager.handleControlAction("video_off", callId: "video-call")
+        }
+
+        XCTAssertFalse(callManager.peerVideoEnabled)
+        XCTAssertTrue(callManager.hasRemoteVideoTrack)
+    }
+
+    func test_handleControlAction_videoOnRestoresPeerVideo() async {
+        let callManager = makeCallManager()
+
+        await MainActor.run {
+            callManager.callType = "video"
+            callManager.callState = .active(callId: "video-call", startTime: Date())
+            callManager.peerVideoEnabled = false
+            callManager.hasRemoteVideoTrack = true
+            callManager.handleControlAction("video_on", callId: "video-call")
+        }
+
+        XCTAssertTrue(callManager.peerVideoEnabled)
+        XCTAssertTrue(callManager.hasRemoteVideoTrack)
+    }
+
+    func test_handleCallLifecycleEvent_refreshesPeerProfile() async throws {
+        let avatarURL = try XCTUnwrap(URL(string: "https://cdn.sanchr.test/dave.jpg"))
+        let callManager = makeCallManager { userId in
+            guard userId == "dave" else { return nil }
+            return CallPeerProfile(displayName: "Dave", avatarURL: avatarURL)
+        }
+        callManager.callState = .active(callId: "lifecycle-call", startTime: Date())
+
+        var event = Sanchr_Messaging_CallLifecycleEvent()
+        event.callID = "lifecycle-call"
+        event.peerID = "dave"
+        event.eventType = "accepted"
+        _ = await callManager.handleCallLifecycleEvent(event)
+
+        let resolved = XCTNSPredicateExpectation(
+            predicate: NSPredicate { [weak callManager] _, _ in
+                callManager?.peerName == "Dave" && callManager?.peerAvatarURL == avatarURL
+            },
+            object: nil
+        )
+        await fulfillment(of: [resolved], timeout: 2.0)
+
+        XCTAssertEqual(callManager.peerName, "Dave")
+        XCTAssertEqual(callManager.peerAvatarURL, avatarURL)
+    }
+
+    func test_resetState_clearsPeerAvatar() {
+        let callManager = makeCallManager()
+        callManager.callState = .active(callId: "avatar-call", startTime: Date())
+        callManager.peerId = "alice"
+        callManager.peerName = "Alice"
+        callManager.peerAvatarURL = URL(string: "https://cdn.sanchr.test/alice.jpg")
+
+        callManager.resetState()
+
+        XCTAssertNil(callManager.peerId)
+        XCTAssertNil(callManager.peerName)
+        XCTAssertNil(callManager.peerAvatarURL)
+    }
+
     // MARK: - Private Helpers
 
-    private func makeCallManager() -> CallManager {
+    private func makeCallManager(
+        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil }
+    ) -> CallManager {
         CallManager(
             webRTCClient: WebRTCClient(),
             callService: MockCallSignalingService(),
-            signalManager: MockSignalManager()
+            signalManager: MockSignalManager(),
+            peerProfileResolver: peerProfileResolver
         )
     }
+
+    private func makeUser(
+        id: String,
+        phoneNumber: String = "",
+        displayName: String,
+        avatarURL: URL?,
+        isLocalUser: Bool = false
+    ) -> User {
+        User(
+            id: id,
+            phoneNumber: phoneNumber,
+            displayName: displayName,
+            avatarURL: avatarURL,
+            isVerified: false,
+            status: .offline,
+            isLocalUser: isLocalUser
+        )
+    }
+
+    private func makeConversation(peer: User) -> Conversation {
+        Conversation(
+            id: "conversation-\(peer.id)",
+            participants: [
+                makeUser(id: "local", displayName: "Local User", avatarURL: nil, isLocalUser: true),
+                peer,
+            ],
+            unreadCount: 0,
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: .oneToOne,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+}
+
+private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked Sendable {
+    let contacts: [User]
+    let conversations: [Conversation]
+
+    init(contacts: [User], conversations: [Conversation]) {
+        self.contacts = contacts
+        self.conversations = conversations
+    }
+
+    func saveMessage(_ message: Message) async throws {}
+    func deleteMessage(id: String) async throws {}
+    func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {}
+    func fetchContacts() async throws -> [User] { contacts }
+    func fetchConversations() async throws -> [Conversation] { conversations }
 }

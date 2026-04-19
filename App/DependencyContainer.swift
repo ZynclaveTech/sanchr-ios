@@ -189,7 +189,7 @@ final class DependencyContainer: @unchecked Sendable {
     /// per device, acquires a delivery token, and dispatches via unauthenticated RPC.
     @ObservationIgnored lazy var sealedMessageSendingClient: SealedMessageSendingClient = {
         // Parse the local device ID (stored as a String in the keychain).
-        // Default to 1 if unreadable — the filter is best-effort; a wrong
+        // Default to 1 if unreadable the filter is best-effort; a wrong
         // value simply means this device may receive a self-sync echo for
         // multi-device setups, which is harmless (dedup handles it).
         let deviceIdString = try? secureStorage.readDeviceId()
@@ -203,7 +203,7 @@ final class DependencyContainer: @unchecked Sendable {
     }()
 
     /// SOLE outgoing-message send pipeline. `ChatDetailViewModel` and the
-    /// share-extension `ShareSendCoordinator` both call into this actor — no
+    /// share-extension `ShareSendCoordinator` both call into this actor no
     /// other code path is allowed to write outgoing message rows.
     @ObservationIgnored lazy var messageSender: MessageSender = MessageSender(
         db: localDatabase,
@@ -375,6 +375,9 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var pushManager: PushManager = {
         nonisolated(unsafe) weak var weakSelf = self
         let manager = PushManager(notificationService: grpcClient.notificationService)
+        manager.isAuthenticated = {
+            weakSelf?.sessionService.isAuthenticated ?? false
+        }
         manager.isConversationMuted = { conversationId in
             guard let container = weakSelf else { return false }
             return (try? await container.localDatabase.fetchConversation(id: conversationId)?.isMuted) ?? false
@@ -403,7 +406,7 @@ final class DependencyContainer: @unchecked Sendable {
             )
             // Open the MessageStream so the queued CallOfferEvent (with encrypted SDP) is
             // delivered from Redis and handleIncomingCallOffer can set pendingSdpOffer.
-            // start() is idempotent — if the stream is already running this is a no-op.
+            // start() is idempotent if the stream is already running this is a no-op.
             container.realtimeService.start()
         }
         return manager
@@ -498,7 +501,7 @@ final class DependencyContainer: @unchecked Sendable {
         // Eagerly start network monitoring if needed.
 
         // Vault share temp-file sweep. Runs detached at utility priority
-        // so it doesn't block startup — any orphans from a crashed share
+        // so it doesn't block startup any orphans from a crashed share
         // are cleaned up before the user touches the vault view. The
         // entire vault-share/ directory is removed unconditionally: no
         // valid share spans an app restart, so there's nothing to
@@ -628,7 +631,7 @@ final class DependencyContainer: @unchecked Sendable {
         )
         // Rebuild the cross-process send pipeline so it captures the freshly
         // installed `signalSessionManager`. The `MessageSender` actor itself
-        // is rebuilt for the same reason — its `encryptedSender` dependency
+        // is rebuilt for the same reason its `encryptedSender` dependency
         // is held as a stored property and would otherwise reference the old
         // signal manager indefinitely.
         self.encryptedMessageSendingClient = DefaultEncryptedMessageSendingClient(
@@ -750,7 +753,7 @@ final class DependencyContainer: @unchecked Sendable {
             catch { SanchrLogger.app.error("deleteAccount: failed to remove sender lock: \(error.localizedDescription)") }
         }
 
-        // Media cache directory — wipe contents but leave the dir so future
+        // Media cache directory wipe contents but leave the dir so future
         // launches don't need to recreate it.
         let mediaDir = AppGroup.mediaCacheURL
         if let entries = try? fm.contentsOfDirectory(at: mediaDir, includingPropertiesForKeys: nil) {

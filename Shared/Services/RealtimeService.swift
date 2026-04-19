@@ -266,9 +266,14 @@ final class RealtimeService: @unchecked Sendable {
         presenceCache[userId]
     }
 
-    @discardableResult
-    func syncNow() async -> Int {
-        guard sessionService.isAuthenticated else { return 0 }
+    func syncNowResult() async -> MessageSyncResult {
+        guard sessionService.isAuthenticated else {
+            return MessageSyncResult(
+                appliedCount: 0,
+                latestTimestamp: sessionService.lastMessageSyncTimestamp,
+                appliedCountsByConversation: [:]
+            )
+        }
 
         do {
             let result = try await messageRepository.syncPendingMessages(
@@ -283,11 +288,20 @@ final class RealtimeService: @unchecked Sendable {
                     NotificationCenter.default.postConversationStateDidChange()
                 }
             }
-            return result.appliedCount
+            return result
         } catch {
             SanchrLogger.sync.error("Realtime sync failed: \(error.localizedDescription)")
-            return 0
+            return MessageSyncResult(
+                appliedCount: 0,
+                latestTimestamp: sessionService.lastMessageSyncTimestamp,
+                appliedCountsByConversation: [:]
+            )
         }
+    }
+
+    @discardableResult
+    func syncNow() async -> Int {
+        await syncNowResult().appliedCount
     }
 
     private func handle(_ event: RealtimeEvent) async {

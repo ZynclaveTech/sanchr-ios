@@ -23,6 +23,7 @@ public enum SealedSenderError: Error, Sendable {
 public struct InnerPayload: Codable, Sendable {
     public let v: Int
     public let conversationId: String
+    public let messageId: String?
     public let contentType: String
     public let content: Data
     public let isSync: Bool
@@ -30,6 +31,7 @@ public struct InnerPayload: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case v
         case conversationId = "conversation_id"
+        case messageId = "message_id"
         case contentType = "content_type"
         case content
         case isSync = "is_sync"
@@ -38,12 +40,14 @@ public struct InnerPayload: Codable, Sendable {
     public init(
         v: Int = 1,
         conversationId: String,
+        messageId: String? = nil,
         contentType: String,
         content: Data,
         isSync: Bool
     ) {
         self.v = v
         self.conversationId = conversationId
+        self.messageId = messageId
         self.contentType = contentType
         self.content = content
         self.isSync = isSync
@@ -66,6 +70,7 @@ public protocol SealedSenderManagerProtocol: Sendable {
     /// Constructs and JSON-encodes an `InnerPayload` for sealed sender transmission.
     func encodeInnerPayload(
         conversationId: String,
+        messageId: String?,
         contentType: String,
         content: Data,
         isSync: Bool
@@ -232,12 +237,14 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
 
     public func encodeInnerPayload(
         conversationId: String,
+        messageId: String?,
         contentType: String,
         content: Data,
         isSync: Bool
     ) throws -> Data {
         let payload = InnerPayload(
             conversationId: conversationId,
+            messageId: messageId,
             contentType: contentType,
             content: content,
             isSync: isSync

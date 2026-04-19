@@ -7,7 +7,11 @@ final class RealtimeServiceTests: XCTestCase {
     func testSyncNowAdvancesHighWatermarkAndPostsConversationChange() async throws {
         let sessionService = try await makeAuthenticatedSessionService()
         let messageRepository = MockMessageRepository()
-        messageRepository.syncResult = MessageSyncResult(appliedCount: 2, latestTimestamp: 1_750_000_123)
+        messageRepository.syncResult = MessageSyncResult(
+            appliedCount: 2,
+            latestTimestamp: 1_750_000_123,
+            appliedCountsByConversation: ["conversation-1": 2]
+        )
 
         let service = RealtimeService(
             messageRepository: messageRepository,
@@ -30,6 +34,37 @@ final class RealtimeServiceTests: XCTestCase {
         XCTAssertEqual(messageRepository.syncedTimestamps, [0])
         XCTAssertEqual(messageRepository.flushPendingAcksCallCount, 1)
         XCTAssertEqual(sessionService.lastMessageSyncTimestamp, 1_750_000_123)
+    }
+
+    func testSyncNowResultIncludesAppliedConversationCounts() async throws {
+        let sessionService = try await makeAuthenticatedSessionService()
+        let messageRepository = MockMessageRepository()
+        messageRepository.syncResult = MessageSyncResult(
+            appliedCount: 3,
+            latestTimestamp: 1_750_000_456,
+            appliedCountsByConversation: [
+                "conversation-1": 2,
+                "conversation-2": 1,
+            ]
+        )
+
+        let service = RealtimeService(
+            messageRepository: messageRepository,
+            signalKeyManager: MockKeyManager(),
+            sessionService: sessionService,
+            callManager: MockCallEventRouter(),
+            privacySettings: PrivacySettingsCache(),
+            networkMonitor: MockNetworkMonitor()
+        )
+
+        let result = await service.syncNowResult()
+
+        XCTAssertEqual(result.appliedCount, 3)
+        XCTAssertEqual(result.latestTimestamp, 1_750_000_456)
+        XCTAssertEqual(
+            result.appliedCountsByConversation,
+            ["conversation-1": 2, "conversation-2": 1]
+        )
     }
 
     func testRealtimeStreamRoutesEventsToNotificationsKeyRefreshAndCallHandlers() async throws {

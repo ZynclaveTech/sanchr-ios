@@ -1,59 +1,74 @@
+import Kingfisher
 import SwiftUI
 import SanchrShared
 
 struct CallsListView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = CallsViewModel()
-    @State private var selectedFilter: CallFilter = .all
-
-    enum CallFilter: String, CaseIterable, Identifiable {
-        case all = "All"
-        case missed = "Missed"
-
-        var id: String { rawValue }
-    }
-
-    private var filteredCallHistory: [CallHistoryEntry] {
-        switch selectedFilter {
-        case .all:
-            return viewModel.callHistory
-        case .missed:
-            return viewModel.callHistory.filter { $0.type == .missed }
-        }
-    }
+    @State private var showNewCallPicker = false
 
     var body: some View {
-        Group {
-            if viewModel.callHistory.isEmpty && viewModel.isLoading {
-                loadingState
-            } else if viewModel.callHistory.isEmpty {
-                emptyState
-            } else {
-                callList
-            }
+        ZStack(alignment: .bottomTrailing) {
+            mainContent
+            newCallButton
         }
-        .navigationTitle("Calls")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: {
-                    Image(systemName: "magnifyingglass")
+        .navigationBarHidden(true)
+        .sanchrInteractivePopEnabled()
+        .background(SanchrExportColors.background)
+        .sheet(isPresented: $showNewCallPicker) {
+            NewCallContactPicker(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .refreshable {
+            // `.refreshable` runs in a SwiftUI-managed Task that gets cancelled when
+            // the view re-renders (e.g. `isLoading` flips). Fire an unstructured Task
+            // so the gRPC call isn't cancelled mid-flight, and use a CheckedContinuation
+            // to hold the spinner open until the load actually completes.
+            await withCheckedContinuation { continuation in
+                Task {
+                    // showLoadingIndicator: false — the native pull-to-refresh spinner
+                    // is already visible; toggling isLoading while the refresh control
+                    // is active causes "not idle" UIKit warnings.
+                    await viewModel.loadCallHistory(localDatabase: container.localDatabase, showLoadingIndicator: false)
+                    continuation.resume()
                 }
             }
         }
-        .sanchrInteractivePopEnabled()
         .task {
             viewModel.configure(
                 callManager: container.callManager,
                 getCallHistoryUseCase: container.getCallHistoryUseCase,
                 startCallUseCase: container.startCallUseCase
             )
-            await viewModel.loadCallHistory()
+            // Use an unstructured Task so that SwiftUI .task cancellation
+            // (triggered by view re-renders during startup) does not propagate
+            // to the gRPC call. The server responds in ~5 ms; the structured
+            // task was being cancelled before the response arrived back on iOS,
+            // producing a spurious GRPCStatus.cancelled on every app open.
+            Task { await viewModel.loadCallHistory(localDatabase: container.localDatabase) }
+        }
+        .onChange(of: container.callManager.callState) { _, newState in
+            if newState != .idle {
+                showNewCallPicker = false
+            }
         }
     }
 
+    private var mainContent: some View {
+        Group {
+            if viewModel.callHistory.isEmpty && viewModel.isLoading {
+                loadingState
+            } else {
+                callList
+            }
+        }
+        .background(SanchrExportColors.background)
+    }
+
     private var loadingState: some View {
-        VStack {
+        VStack(spacing: 0) {
+            customHeader
             Spacer()
             ProgressView()
                 .tint(.sanchrPrimary)
@@ -64,90 +79,205 @@ struct CallsListView: View {
     }
 
     private var callList: some View {
-        ZStack(alignment: .bottomTrailing) {
-            List {
-                Section {
-                    filterTabs
+        List {
+            Section {
+                customHeader
+                    .listRowInsets(EdgeInsets())
+
+                searchBar
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 2)
+                    .listRowInsets(EdgeInsets())
+
+                filterBar
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .listRowInsets(EdgeInsets())
+
+                if !viewModel.callHistory.isEmpty {
+                    summaryStrip
                         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                        .padding(.top, 6)
-                        .padding(.bottom, 6)
+                        .padding(.bottom, 8)
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(SanchrExportColors.background)
+
+            if viewModel.groupedCallHistory.isEmpty {
+                Section {
+                    emptyState
                         .listRowInsets(EdgeInsets())
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(SanchrExportColors.background)
-
-                Section {
-                    ForEach(filteredCallHistory) { entry in
-                        CallHistoryRow(entry: entry) {
-                            Task {
-                                if entry.isVideo {
-                                    await viewModel.startVideoCall(
-                                        contactId: entry.contactId,
-                                        name: entry.contactName
-                                    )
-                                } else {
-                                    await viewModel.startVoiceCall(
-                                        contactId: entry.contactId,
-                                        name: entry.contactName
-                                    )
+            } else {
+                ForEach(viewModel.groupedCallHistory) { section in
+                    Section {
+                        ForEach(section.entries) { entry in
+                            CallHistoryRow(entry: entry) {
+                                Task { await redial(entry) }
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task { await viewModel.deleteEntry(entry) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash.fill")
                                 }
                             }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    Task { await redial(entry) }
+                                } label: {
+                                    Label("Call back", systemImage: entry.isVideo ? "video.fill" : "phone.fill")
+                                }
+                                .tint(.sanchrPrimary)
+                            }
                         }
-                    }
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(SanchrExportColors.background)
-
-                if let error = viewModel.errorMessage {
-                    Section {
-                        Text(error)
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(.sanchrError)
-                            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                            .listRowInsets(EdgeInsets())
+                    } header: {
+                        sectionHeaderLabel(section.title)
                     }
                     .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                    .listRowBackground(SanchrExportColors.background)
                 }
+            }
 
+            if let error = viewModel.errorMessage {
                 Section {
-                    Color.clear
-                        .frame(height: 92)
+                    errorBanner(error)
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
                         .listRowInsets(EdgeInsets())
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(SanchrExportColors.background)
 
-            helpButton
+            Section {
+                Color.clear
+                    .frame(height: 92)
+                    .listRowInsets(EdgeInsets())
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .background(SanchrExportColors.background)
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    private var filterTabs: some View {
-        HStack(spacing: 10) {
-            ForEach(CallFilter.allCases) { filter in
-                SanchrFilterChip(title: filter.rawValue, isSelected: selectedFilter == filter) {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selectedFilter = filter
+    private var customHeader: some View {
+        SanchrBrandHeader(title: "Calls") {
+            SanchrGlassCluster(spacing: 12) {
+                HStack(spacing: 10) {
+                    SanchrIconButton(
+                        systemName: "arrow.clockwise",
+                        foreground: SanchrExportColors.textSecondary,
+                        background: SanchrExportColors.surface
+                    ) {
+                        Task { await viewModel.loadCallHistory(localDatabase: container.localDatabase) }
+                    }
+                    .accessibilityLabel("Refresh calls")
+
+                    Menu {
+                        Button {
+                            showNewCallPicker = true
+                        } label: {
+                            Label("New Call", systemImage: "phone.plus")
+                        }
+
+                        Button(role: .destructive) {
+                            Task { await viewModel.clearHistory() }
+                        } label: {
+                            Label("Clear Local History", systemImage: "trash")
+                        }
+                    } label: {
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .frame(width: 40, height: 40)
+                                    .sanchrGlass(role: .toolbarButton, interactive: true)
+                            } else {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(SanchrExportColors.textPrimary)
+                                    .frame(width: 40, height: 40)
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Calls menu")
+                }
+            }
+        }
+    }
+
+    private var searchBar: some View {
+        SanchrSearchField(placeholder: "Search calls...", text: $viewModel.searchText) {
+            Button {
+                if viewModel.searchText.isEmpty {
+                    viewModel.selectedFilter = .missed
+                } else {
+                    viewModel.searchText = ""
+                }
+            } label: {
+                Image(systemName: viewModel.searchText.isEmpty ? "phone.badge.waveform" : "xmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(viewModel.searchText.isEmpty ? "Show missed calls" : "Clear search")
+        }
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SanchrSpacing.filterTabGap) {
+                ForEach(CallFilter.allCases) { filter in
+                    SanchrFilterChip(
+                        title: filter.rawValue,
+                        isSelected: viewModel.selectedFilter == filter
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.selectedFilter = filter
+                        }
                     }
                 }
             }
-            Spacer(minLength: 0)
         }
     }
 
-    private var helpButton: some View {
-        Button {} label: {
+    private var summaryStrip: some View {
+        HStack(spacing: SanchrSpacing.sm) {
+            CallMetricChip(
+                title: "\(viewModel.callHistory.count)",
+                subtitle: "Total",
+                systemImage: "phone.connection.fill",
+                tint: SanchrColors.primary
+            )
+
+            CallMetricChip(
+                title: "\(viewModel.missedCount)",
+                subtitle: "Missed",
+                systemImage: "phone.down.fill",
+                tint: viewModel.missedCount > 0 ? SanchrColors.error : SanchrColors.success
+            )
+        }
+    }
+
+    private var newCallButton: some View {
+        Button {
+            showNewCallPicker = true
+        } label: {
             Group {
                 if #available(iOS 26.0, *) {
-                    Image(systemName: "questionmark")
-                        .font(.system(size: 22, weight: .semibold))
+                    Image(systemName: "phone.fill.badge.plus")
+                        .font(.system(size: 21, weight: .semibold))
                         .foregroundColor(.white)
-                        .frame(width: 64, height: 64)
+                        .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
                         .sanchrGlass(
                             role: .floatingAction,
                             interactive: true,
@@ -155,70 +285,153 @@ struct CallsListView: View {
                             tint: SanchrColors.primary
                         )
                 } else {
-                    Image(systemName: "questionmark")
-                        .font(.system(size: 22, weight: .semibold))
+                    Image(systemName: "phone.fill.badge.plus")
+                        .font(.system(size: 21, weight: .semibold))
                         .foregroundColor(.white)
-                        .frame(width: 64, height: 64)
-                        .background(
-                            LinearGradient(
-                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .frame(width: SanchrSpacing.fabSize, height: SanchrSpacing.fabSize)
+                        .background(SanchrGradients.primary)
                         .clipShape(Circle())
                         .shadow(color: SanchrColors.primary.opacity(0.28), radius: 24, x: 0, y: 14)
                 }
             }
         }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
+        .buttonStyle(.plain)
+        .padding(.trailing, SanchrExportMetrics.screenHorizontal)
+        .padding(.bottom, SanchrSpacing.lg)
+        .accessibilityLabel("Start a new call")
     }
 
     private var emptyState: some View {
         VStack {
-            Spacer()
+            Spacer(minLength: SanchrSpacing.xxxl)
 
             VStack(spacing: 18) {
                 Circle()
                     .fill(SanchrColors.primary.opacity(0.12))
                     .frame(width: 104, height: 104)
                     .overlay {
-                        Image(systemName: "phone.fill")
+                        Image(systemName: viewModel.callHistory.isEmpty ? "phone.fill" : "magnifyingglass")
                             .font(.system(size: 40))
                             .foregroundStyle(SanchrGradients.primaryDark)
                     }
 
-                Text("No calls yet")
+                Text(viewModel.callHistory.isEmpty ? "No calls yet" : "No matching calls")
                     .font(SanchrTypography.cardTitle)
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text("Your encrypted call history will appear here.")
+                Text(viewModel.callHistory.isEmpty
+                    ? "Your encrypted call history will appear here."
+                    : "Try another search or filter.")
                     .font(SanchrTypography.body)
                     .foregroundColor(SanchrExportColors.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
 
-            Spacer()
+            Spacer(minLength: SanchrSpacing.xxxl)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 360)
         .background(SanchrExportColors.background)
+    }
+
+    private func sectionHeaderLabel(_ title: String) -> some View {
+        SanchrSectionEyebrow(title: title)
+            .textCase(nil)
+            .listRowInsets(EdgeInsets())
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: SanchrSpacing.xs) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(SanchrColors.error)
+            Text(message)
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrColors.error)
+                .lineLimit(3)
+            Spacer(minLength: 0)
+        }
+        .padding(SanchrSpacing.sm)
+        .background(SanchrColors.error.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.sm, style: .continuous))
+    }
+
+    @discardableResult
+    private func redial(_ entry: CallHistoryEntry) async -> Bool {
+        if entry.isVideo {
+            return await viewModel.startVideoCall(
+                contactId: entry.contactId,
+                name: entry.displayName
+            )
+        } else {
+            return await viewModel.startVoiceCall(
+                contactId: entry.contactId,
+                name: entry.displayName
+            )
+        }
     }
 }
 
-struct CallHistoryRow: View {
+private struct CallMetricChip: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: SanchrSpacing.xs) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(tint)
+                .frame(width: 28, height: 28)
+                .background(tint.opacity(0.12))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text(subtitle)
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, SanchrSpacing.sm)
+        .padding(.vertical, SanchrSpacing.sm)
+        .frame(maxWidth: .infinity)
+        .background(SanchrExportColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.sm, style: .continuous))
+    }
+}
+
+private struct CallHistoryRow: View {
     let entry: CallHistoryEntry
     let action: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
-            avatar
+            CallAvatarView(
+                displayName: entry.displayName,
+                avatarURL: entry.avatarURL,
+                status: nil,
+                badgeSystemImage: entry.isVideo ? "video.fill" : "phone.fill"
+            )
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(entry.contactName)
-                    .font(SanchrTypography.conversationName)
-                    .foregroundColor(SanchrExportColors.textPrimary)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: SanchrSpacing.xs) {
+                    Text(entry.displayName)
+                        .font(SanchrTypography.conversationName)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .lineLimit(1)
+
+                    if entry.isVideo {
+                        Image(systemName: "video.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SanchrColors.accent)
+                    }
+                }
 
                 HStack(spacing: 6) {
                     Image(systemName: statusIcon)
@@ -229,52 +442,35 @@ struct CallHistoryRow: View {
                         .font(SanchrTypography.conversationPreviewBold)
                         .foregroundColor(statusColor)
 
-                    Circle()
-                        .fill(Color(hex: 0xD1D5DB))
-                        .frame(width: 4, height: 4)
-
-                    Text(relativeTimestamp)
-                        .font(SanchrTypography.conversationPreview)
-                        .foregroundColor(SanchrExportColors.textSecondary)
+                    if entry.duration > 0 {
+                        Text(durationText)
+                            .font(SanchrTypography.conversationPreview)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
                 }
+
+                Text(relativeTimestamp)
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(SanchrExportColors.textTertiary)
+                    .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: SanchrSpacing.sm)
 
             Button(action: action) {
                 Image(systemName: entry.isVideo ? "video.fill" : "phone.fill")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 52, height: 52)
+                    .frame(width: 48, height: 48)
                     .background(SanchrColors.primary)
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Call \(entry.displayName)")
         }
         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
         .padding(.vertical, 12)
-    }
-
-    private var avatar: some View {
-        Circle()
-            .fill(Color.sanchrPrimary.opacity(0.14))
-            .frame(width: 56, height: 56)
-            .overlay {
-                Text(entry.contactName.prefix(1).uppercased())
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(.sanchrPrimary)
-            }
-            .overlay(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(SanchrColors.accent)
-                    .frame(width: 18, height: 18)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    .offset(x: 1, y: 1)
-            }
+        .contentShape(Rectangle())
     }
 
     private var statusText: String {
@@ -302,12 +498,20 @@ struct CallHistoryRow: View {
     private var statusColor: Color {
         switch entry.type {
         case .incoming:
-            return Color(hex: 0x10B981)
+            return SanchrColors.success
         case .outgoing:
-            return Color(hex: 0x22C55E)
+            return SanchrColors.primary
         case .missed:
             return SanchrColors.error
         }
+    }
+
+    private var durationText: String {
+        let totalSeconds = Int(entry.duration.rounded())
+        guard totalSeconds >= 60 else { return "\(totalSeconds)s" }
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return seconds == 0 ? "\(minutes)m" : "\(minutes)m \(seconds)s"
     }
 
     private var relativeTimestamp: String {
@@ -319,5 +523,294 @@ struct CallHistoryRow: View {
             return "Yesterday, \(entry.timestamp.chatTimestamp)"
         }
         return entry.timestamp.formatted(date: .abbreviated, time: .shortened)
+    }
+}
+
+private struct NewCallContactPicker: View {
+    @Environment(DependencyContainer.self) private var container
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var viewModel: CallsViewModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SanchrCenteredHeader(title: "New Call") {
+                SanchrIconButton(systemName: "xmark", action: { dismiss() })
+                    .accessibilityLabel("Close")
+            } trailing: {
+                Color.clear
+            }
+
+            searchBar
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                .padding(.top, SanchrSpacing.sm)
+                .padding(.bottom, SanchrSpacing.xs)
+
+            if let message = viewModel.newCallErrorMessage {
+                pickerErrorBanner(message)
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.bottom, SanchrSpacing.xs)
+            }
+
+            pickerContent
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .task {
+            await viewModel.loadNewCallContacts(
+                contactRepository: container.contactRepository,
+                localDatabase: container.localDatabase
+            )
+        }
+        .onChange(of: container.callManager.callState) { _, newState in
+            if newState != .idle {
+                dismiss()
+            }
+        }
+    }
+
+    private var searchBar: some View {
+        SanchrSearchField(placeholder: "Search contacts...", text: $viewModel.contactSearchText) {
+            if !viewModel.contactSearchText.isEmpty {
+                Button {
+                    viewModel.contactSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear contact search")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pickerContent: some View {
+        if viewModel.newCallContacts.isEmpty && viewModel.isLoadingContacts {
+            Spacer()
+            ProgressView()
+                .tint(.sanchrPrimary)
+            Spacer()
+        } else if viewModel.filteredNewCallContacts.isEmpty {
+            Spacer()
+            VStack(spacing: SanchrSpacing.sm) {
+                Image(systemName: "person.2.slash")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+                Text(viewModel.newCallContacts.isEmpty ? "No contacts yet" : "No matching contacts")
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text("Synced Sanchr contacts will appear here.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            Spacer()
+        } else {
+            List {
+                ForEach(viewModel.filteredNewCallContacts) { contact in
+                    NewCallContactRow(contact: contact) {
+                        Task {
+                            await viewModel.startVoiceCall(
+                                contactId: contact.id,
+                                name: callDisplayName(for: contact)
+                            )
+                        }
+                    } startVideoCall: {
+                        Task {
+                            await viewModel.startVideoCall(
+                                contactId: contact.id,
+                                name: callDisplayName(for: contact)
+                            )
+                        }
+                    }
+                    .listRowInsets(EdgeInsets())
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(SanchrExportColors.background)
+        }
+    }
+
+    private func pickerErrorBanner(_ message: String) -> some View {
+        HStack(spacing: SanchrSpacing.xs) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(SanchrColors.error)
+            Text(message)
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrColors.error)
+                .lineLimit(3)
+            Spacer(minLength: 0)
+        }
+        .padding(SanchrSpacing.sm)
+        .background(SanchrColors.error.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.sm, style: .continuous))
+    }
+
+    private func callDisplayName(for contact: User) -> String {
+        let name = contact.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty, UUID(uuidString: name) == nil {
+            return name
+        }
+        let phone = contact.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        return phone.isEmpty ? "Unknown Caller" : phone
+    }
+}
+
+private struct NewCallContactRow: View {
+    let contact: User
+    let startVoiceCall: () -> Void
+    let startVideoCall: () -> Void
+
+    var body: some View {
+        HStack(spacing: SanchrSpacing.sm) {
+            CallAvatarView(
+                displayName: contact.displayName,
+                avatarURL: contact.avatarURL,
+                status: contact.status,
+                badgeSystemImage: contact.isVerified ? "shield.fill" : nil
+            )
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(contact.displayName)
+                        .font(SanchrTypography.conversationName)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                        .lineLimit(1)
+
+                    if contact.isVerified {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SanchrColors.accent)
+                    }
+                }
+
+                Text(subtitle)
+                    .font(SanchrTypography.conversationPreview)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: SanchrSpacing.xs)
+
+            HStack(spacing: SanchrSpacing.xs) {
+                CallPickerActionButton(
+                    systemImage: "phone.fill",
+                    accessibilityLabel: "Start voice call with \(contact.displayName)",
+                    action: startVoiceCall
+                )
+
+                CallPickerActionButton(
+                    systemImage: "video.fill",
+                    accessibilityLabel: "Start video call with \(contact.displayName)",
+                    action: startVideoCall
+                )
+            }
+        }
+        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+        .padding(.vertical, 12)
+    }
+
+    private var subtitle: String {
+        if let bio = contact.bio, !bio.isEmpty {
+            return bio
+        }
+        if !contact.phoneNumber.isEmpty {
+            return contact.phoneNumber
+        }
+        return contact.status == .online ? "Online" : "Sanchr contact"
+    }
+}
+
+private struct CallPickerActionButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 40, height: 40)
+                .background(SanchrColors.primary)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private struct CallAvatarView: View {
+    let displayName: String
+    let avatarURL: URL?
+    let status: User.Status?
+    let badgeSystemImage: String?
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let avatarURL {
+                    KFImage(avatarURL)
+                        .resizable()
+                        .placeholder { avatarPlaceholder }
+                        .fade(duration: 0.2)
+                        .scaledToFill()
+                } else {
+                    avatarPlaceholder
+                }
+            }
+            .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(SanchrExportColors.background, lineWidth: 2)
+            }
+
+            if let badgeSystemImage {
+                Circle()
+                    .fill(SanchrColors.accent)
+                    .frame(width: 18, height: 18)
+                    .overlay {
+                        Image(systemName: badgeSystemImage)
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .offset(x: 1, y: 1)
+            } else if status == .online {
+                Circle()
+                    .fill(SanchrColors.statusOnline)
+                    .frame(width: SanchrSpacing.statusIndicatorSize, height: SanchrSpacing.statusIndicatorSize)
+                    .overlay {
+                        Circle()
+                            .stroke(SanchrExportColors.background, lineWidth: SanchrSpacing.statusIndicatorBorder)
+                    }
+                    .offset(x: 1, y: 1)
+            }
+        }
+        .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
+        .accessibilityHidden(true)
+    }
+
+    private var avatarPlaceholder: some View {
+        Circle()
+            .fill(SanchrColors.primary.opacity(0.14))
+            .overlay {
+                Text(initials)
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(.sanchrPrimary)
+            }
+    }
+
+    private var initials: String {
+        let words = displayName
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+            .map { String($0).uppercased() }
+            .joined()
+        return words.isEmpty ? "?" : words
     }
 }

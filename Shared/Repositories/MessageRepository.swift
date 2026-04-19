@@ -27,6 +27,13 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Fetches all conversations for the current user.
     func fetchConversations() async throws -> [Conversation]
 
+    /// Persists local-only conversation presentation flags.
+    func setConversationPinned(conversationId: String, isPinned: Bool) async throws
+    func setConversationMuted(conversationId: String, isMuted: Bool) async throws
+    func setConversationArchived(conversationId: String, isArchived: Bool) async throws
+    func hideConversationLocally(conversationId: String) async throws
+    func restoreConversationLocally(conversationId: String) async throws
+
     /// Marks messages as read up to the given message ID.
     func markAsRead(conversationId: String, upToMessageId: String) async throws
 
@@ -75,13 +82,22 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 struct MessageSyncResult: Sendable {
     let appliedCount: Int
     let latestTimestamp: Int64
+    let appliedCountsByConversation: [String: Int]
 }
 
-private actor MessageStreamController {
+private enum SealedDecodeOutcome {
+    case event(RealtimeEvent)
+    case undeliverable(Error)
+}
+
+actor MessageStreamController {
+    private let bufferLimit = 64
     private var continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation?
+    private var bufferedEvents: [Sanchr_Messaging_ClientEvent] = []
 
     func begin() -> AsyncStream<Sanchr_Messaging_ClientEvent> {
         continuation?.finish()
+        continuation = nil
         return AsyncStream(bufferingPolicy: .bufferingNewest(64)) { continuation in
             Task {
                 self.setContinuation(continuation)
@@ -92,6 +108,12 @@ private actor MessageStreamController {
     func send(_ event: Sanchr_Messaging_ClientEvent) {
         if let continuation {
             continuation.yield(event)
+            return
+        }
+
+        bufferedEvents.append(event)
+        if bufferedEvents.count > bufferLimit {
+            bufferedEvents.removeFirst(bufferedEvents.count - bufferLimit)
         }
     }
 
@@ -102,6 +124,66 @@ private actor MessageStreamController {
 
     private func setContinuation(_ continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation) {
         self.continuation = continuation
+        guard !bufferedEvents.isEmpty else { return }
+
+        let events = bufferedEvents
+        bufferedEvents.removeAll(keepingCapacity: true)
+        for event in events {
+            continuation.yield(event)
+        }
+    }
+}
+
+actor MessageEnvelopeReplayGate {
+    private let limit: Int
+    private var inFlight: Set<String> = []
+    private var recent: [String] = []
+    private var recentSet: Set<String> = []
+
+    init(limit: Int = 512) {
+        self.limit = max(1, limit)
+    }
+
+    func begin(_ messageId: String) -> Bool {
+        let key = messageId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return true }
+        guard !inFlight.contains(key), !recentSet.contains(key) else { return false }
+
+        inFlight.insert(key)
+        return true
+    }
+
+    func finish(_ messageId: String, remember: Bool) {
+        let key = messageId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+
+        inFlight.remove(key)
+        guard remember, !recentSet.contains(key) else { return }
+
+        recent.append(key)
+        recentSet.insert(key)
+
+        while recent.count > limit {
+            let removed = recent.removeFirst()
+            recentSet.remove(removed)
+        }
+    }
+}
+
+private actor SealedDropLogLimiter {
+    private let interval: Int
+    private var droppedCount = 0
+
+    init(interval: Int = 50) {
+        self.interval = max(1, interval)
+    }
+
+    func recordDrop() -> Int? {
+        droppedCount += 1
+        if droppedCount == 1 || droppedCount % interval == 0 {
+            return droppedCount
+        }
+        return nil
     }
 }
 
@@ -120,6 +202,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let mediaDownloadManager: MediaDownloadManager
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
+    private let sealedEnvelopeReplayGate = MessageEnvelopeReplayGate()
+    private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
 
@@ -134,7 +218,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
         privacySettings: PrivacySettingsCache,
         receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
-            UInt64(Double.random(in: 0...30) * 1_000_000_000)
+            UInt64(Double.random(in: 0...3) * 1_000_000_000)
         }
     ) {
         self.grpcClient = grpcClient
@@ -203,6 +287,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let contentType = Self.contentTypeString(for: message.content)
         let innerPayload = try sealedSenderManager.encodeInnerPayload(
             conversationId: message.conversationId,
+            messageId: message.id,
             contentType: contentType,
             content: plaintext,
             isSync: false
@@ -279,7 +364,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         do {
             let request = Sanchr_Messaging_GetConversationsRequest()
             let response = try await grpcClient.messagingService.getConversations(request)
-            let cachedConversations = (try? await localDatabase.fetchConversations()) ?? []
+            let cachedConversations = (try? await localDatabase.fetchAllConversationsIncludingHidden()) ?? []
             let cachedLookup = Dictionary(uniqueKeysWithValues: cachedConversations.map { ($0.id, $0) })
             let currentUserId = self.currentUserIdProvider()
 
@@ -325,6 +410,38 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 "Fetching conversations from server failed, using local cache: \(error.localizedDescription)"
             )
             return try await normalizedLocalConversations(currentUserId: currentUserIdProvider())
+        }
+    }
+
+    func setConversationPinned(conversationId: String, isPinned: Bool) async throws {
+        try await updateConversation(conversationId: conversationId) { conversation in
+            conversation.isPinned = isPinned
+        }
+    }
+
+    func setConversationMuted(conversationId: String, isMuted: Bool) async throws {
+        try await updateConversation(conversationId: conversationId) { conversation in
+            conversation.isMuted = isMuted
+        }
+    }
+
+    func setConversationArchived(conversationId: String, isArchived: Bool) async throws {
+        try await updateConversation(conversationId: conversationId) { conversation in
+            conversation.isArchived = isArchived
+        }
+    }
+
+    func hideConversationLocally(conversationId: String) async throws {
+        try await localDatabase.setConversationHidden(id: conversationId, isHidden: true)
+        await MainActor.run {
+            NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
+        }
+    }
+
+    func restoreConversationLocally(conversationId: String) async throws {
+        try await localDatabase.setConversationHidden(id: conversationId, isHidden: false)
+        await MainActor.run {
+            NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
         }
     }
 
@@ -412,6 +529,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let content = try receiptUpdate.serializedData()
             let innerPayload = try sealedSenderManager.encodeInnerPayload(
                 conversationId: "",
+                messageId: nil,
                 contentType: "receipt/v1",
                 content: content,
                 isSync: false
@@ -548,16 +666,33 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         switch event {
                         case .message(let envelope):
                             if Self.shouldDecodeAsSealed(envelope) {
-                                if let event = await self.decodeSealedEnvelope(envelope) {
-                                    await self.ackDeliveredEnvelope(
+                                guard await self.sealedEnvelopeReplayGate.begin(envelope.messageID) else {
+                                    continue
+                                }
+
+                                var shouldRememberEnvelope = false
+                                switch await self.decodeSealedEnvelope(envelope) {
+                                case .event(let event):
+                                    shouldRememberEnvelope = await self.ackDeliveredEnvelope(
                                         messageId: envelope.messageID,
                                         conversationId: envelope.conversationID
                                     )
                                     if case .message = event {
-                                        _ = try? await self.flushPendingAcks()
+                                        let flushedCount = (try? await self.flushPendingAcks()) ?? 0
+                                        shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
                                     }
                                     continuation.yield(event)
+                                case .undeliverable(let error):
+                                    shouldRememberEnvelope = await self.ackUndeliverableSealedMessage(
+                                        messageId: envelope.messageID,
+                                        conversationId: envelope.conversationID,
+                                        error: error
+                                    )
                                 }
+                                await self.sealedEnvelopeReplayGate.finish(
+                                    envelope.messageID,
+                                    remember: shouldRememberEnvelope
+                                )
                             } else if let message = await self.decodeMessage(from: envelope) {
                                 _ = try? await self.flushPendingAcks()
                                 continuation.yield(.message(message))
@@ -593,16 +728,33 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         case .reaction(let reaction):
                             continuation.yield(.reaction(reaction))
                         case .sealedMessage(let sealed):
-                            if let event = await self.decodeSealedMessage(from: sealed) {
-                                await self.ackDeliveredEnvelope(
+                            guard await self.sealedEnvelopeReplayGate.begin(sealed.messageID) else {
+                                continue
+                            }
+
+                            var shouldRememberEnvelope = false
+                            switch await self.decodeSealedMessage(from: sealed) {
+                            case .event(let event):
+                                shouldRememberEnvelope = await self.ackDeliveredEnvelope(
                                     messageId: sealed.messageID,
                                     conversationId: Self.nilUUIDString
                                 )
                                 if case .message = event {
-                                    _ = try? await self.flushPendingAcks()
+                                    let flushedCount = (try? await self.flushPendingAcks()) ?? 0
+                                    shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
                                 }
                                 continuation.yield(event)
+                            case .undeliverable(let error):
+                                shouldRememberEnvelope = await self.ackUndeliverableSealedMessage(
+                                    messageId: sealed.messageID,
+                                    conversationId: Self.nilUUIDString,
+                                    error: error
+                                )
                             }
+                            await self.sealedEnvelopeReplayGate.finish(
+                                sealed.messageID,
+                                remember: shouldRememberEnvelope
+                            )
                         }
                     }
                     continuation.finish()
@@ -681,6 +833,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let content = try presenceUpdate.serializedData()
         let innerPayload = try sealedSenderManager.encodeInnerPayload(
             conversationId: "",
+            messageId: nil,
             contentType: "presence/v1",
             content: content,
             isSync: false
@@ -733,24 +886,43 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let stream = grpcClient.messagingService.syncMessages(request)
         var count = 0
         var latestTimestamp = sinceTimestamp
+        var appliedCountsByConversation: [String: Int] = [:]
 
         for try await envelope in stream {
             if Self.shouldDecodeAsSealed(envelope) {
-                if let event = await decodeSealedEnvelope(envelope) {
-                    await ackDeliveredEnvelope(
+                guard await sealedEnvelopeReplayGate.begin(envelope.messageID) else {
+                    continue
+                }
+
+                var shouldRememberEnvelope = false
+                switch await decodeSealedEnvelope(envelope) {
+                case .event(let event):
+                    shouldRememberEnvelope = await ackDeliveredEnvelope(
                         messageId: envelope.messageID,
                         conversationId: envelope.conversationID
                     )
                     if case .message(let message) = event {
                         count += 1
+                        appliedCountsByConversation[message.conversationId, default: 0] += 1
                         latestTimestamp = max(
                             latestTimestamp,
                             Int64(message.timestamp.timeIntervalSince1970 * 1000)
                         )
                     }
+                case .undeliverable(let error):
+                    shouldRememberEnvelope = await ackUndeliverableSealedMessage(
+                        messageId: envelope.messageID,
+                        conversationId: envelope.conversationID,
+                        error: error
+                    )
                 }
+                await sealedEnvelopeReplayGate.finish(
+                    envelope.messageID,
+                    remember: shouldRememberEnvelope
+                )
             } else if let message = await decodeMessage(from: envelope) {
                 count += 1
+                appliedCountsByConversation[message.conversationId, default: 0] += 1
                 latestTimestamp = max(
                     latestTimestamp,
                     Int64(message.timestamp.timeIntervalSince1970 * 1000)
@@ -764,7 +936,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             SanchrLogger.chat.info("Synced \(count) pending message(s) from server")
         }
 
-        return MessageSyncResult(appliedCount: count, latestTimestamp: latestTimestamp)
+        return MessageSyncResult(
+            appliedCount: count,
+            latestTimestamp: latestTimestamp,
+            appliedCountsByConversation: appliedCountsByConversation
+        )
     }
 
     func flushPendingAcks() async throws -> Int {
@@ -850,7 +1026,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
     private func decodeSealedEnvelope(
         _ envelope: Sanchr_Messaging_EncryptedEnvelope
-    ) async -> RealtimeEvent? {
+    ) async -> SealedDecodeOutcome {
         if Self.isNilSenderSentinel(envelope), envelope.contentType != "sealed" {
             SanchrLogger.chat.warning(
                 "Routing nil-sender envelope through sealed decrypt msg=\(envelope.messageID.prefix(8)) contentType=\(envelope.contentType)"
@@ -860,8 +1036,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return await decodeSealedMessage(from: Self.sealedInboundMessage(from: envelope))
     }
 
-    private func ackDeliveredEnvelope(messageId: String, conversationId: String) async {
-        guard !messageId.isEmpty else { return }
+    private func ackDeliveredEnvelope(messageId: String, conversationId: String) async -> Bool {
+        guard !messageId.isEmpty else { return false }
 
         var ref = Sanchr_Messaging_AckedMessageRef()
         ref.conversationID = conversationId.isEmpty ? Self.nilUUIDString : conversationId
@@ -872,12 +1048,43 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
         do {
             _ = try await grpcClient.messagingService.ackMessages(request)
-            SanchrLogger.chat.debug("Acked delivered envelope \(messageId.prefix(8))")
+            return true
         } catch {
             SanchrLogger.chat.warning(
                 "Failed to ack delivered envelope \(messageId.prefix(8)): \(error.localizedDescription)"
             )
+            return false
         }
+    }
+
+    private func ackUndeliverableSealedMessage(
+        messageId: String,
+        conversationId: String,
+        error: Error
+    ) async -> Bool {
+        guard Self.shouldAckUndeliverableSealedMessage(error) else {
+            SanchrLogger.chat.warning(
+                "Leaving sealed message unacked for retry msg=\(messageId.prefix(8)) error=\(error.localizedDescription)"
+            )
+            return false
+        }
+
+        let acked = await ackDeliveredEnvelope(messageId: messageId, conversationId: conversationId)
+        if acked, let droppedCount = await sealedDropLogLimiter.recordDrop() {
+            SanchrLogger.chat.warning(
+                "Dropped \(droppedCount) undeliverable sealed message(s); latest=\(messageId.prefix(8))"
+            )
+        }
+        return acked
+    }
+
+    static func shouldAckUndeliverableSealedMessage(_ error: Error) -> Bool {
+        if case AppError.decryptionFailed(let reason) = error,
+           reason.localizedCaseInsensitiveContains("No active sessions") {
+            return false
+        }
+
+        return true
     }
 
     private func decodeMessage(from envelope: Sanchr_Messaging_EncryptedEnvelope) async -> Message? {
@@ -948,10 +1155,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ///
     /// Returns `.presence` for P2P presence envelopes (contentType "presence/v1"),
     /// `.receipt` for sealed read receipts (contentType "receipt/v1"),
-    /// or `.message` for regular chat envelopes. Returns `nil` on decryption failure.
+    /// or `.message` for regular chat envelopes. Returns `.undeliverable` on decode failure
+    /// so the caller can evict poison outbox rows instead of replaying them forever.
     private func decodeSealedMessage(
         from sealed: Sanchr_Messaging_SealedInboundMessage
-    ) async -> RealtimeEvent? {
+    ) async -> SealedDecodeOutcome {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
             let result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
@@ -976,7 +1184,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 SanchrLogger.chat.debug(
                     "P2P presence from \(result.senderUserId.prefix(8)) status=\(presenceUpdate.status)"
                 )
-                return .presence(presenceUpdate)
+                return .event(.presence(presenceUpdate))
             }
 
             // 4. Sealed read receipt: update local message status, no DB write for new row.
@@ -998,7 +1206,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 SanchrLogger.chat.debug(
                     "Sealed receipt from \(result.senderUserId.prefix(8)) msg=\(receiptUpdate.messageID.prefix(8))"
                 )
-                return .receipt(receiptUpdate)
+                return .event(.receipt(receiptUpdate))
             }
 
             let serverTimestamp = Date(
@@ -1015,9 +1223,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let effectiveSenderId: String = isOutgoing
                 ? (currentUserIdProvider() ?? senderId)
                 : senderId
+            let messageId = Self.canonicalSealedMessageId(
+                sealedEnvelopeId: sealed.messageID,
+                innerPayloadMessageId: innerPayload.messageId
+            )
 
             let message = Message(
-                id: sealed.messageID,
+                id: messageId,
                 conversationId: innerPayload.conversationId,
                 senderId: effectiveSenderId,
                 timestamp: serverTimestamp,
@@ -1051,15 +1263,24 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             }
 
             SanchrLogger.chat.info(
-                "Decoded sealed message \(sealed.messageID.prefix(8)) from \(effectiveSenderId.prefix(8)) isSync=\(isOutgoing)"
+                "Decoded sealed message \(messageId.prefix(8)) from \(effectiveSenderId.prefix(8)) isSync=\(isOutgoing)"
             )
-            return .message(message)
+            return .event(.message(message))
         } catch {
-            SanchrLogger.chat.error(
-                "Failed to decode sealed message \(sealed.messageID.prefix(8)): \(error)"
-            )
-            return nil
+            return .undeliverable(error)
         }
+    }
+
+    static func canonicalSealedMessageId(
+        sealedEnvelopeId: String,
+        innerPayloadMessageId: String?
+    ) -> String {
+        let candidate = innerPayloadMessageId?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let candidate, !candidate.isEmpty {
+            return candidate
+        }
+        return sealedEnvelopeId
     }
 
     /// Background auto-vault routing. Downloads the encrypted media,
@@ -1252,6 +1473,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             contactsLookup: contactsLookup,
             localUserId: currentUserIdProvider()
         )
+    }
+
+    private func updateConversation(
+        conversationId: String,
+        mutate: (inout Conversation) -> Void
+    ) async throws {
+        guard var conversation = try await localDatabase.fetchConversation(id: conversationId) else {
+            return
+        }
+        mutate(&conversation)
+        try await localDatabase.saveConversation(conversation)
+        await MainActor.run {
+            NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
+        }
     }
 
     private func normalizedLocalConversations(currentUserId: String?) async throws -> [Conversation] {

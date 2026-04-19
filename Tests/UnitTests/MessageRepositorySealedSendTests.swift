@@ -322,7 +322,13 @@ private final class StubSignalProtocol: SignalProtocolManagerProtocol, @unchecke
 private class StubSealedSenderManager: SealedSenderManagerProtocol, @unchecked Sendable {
     func acquireDeliveryToken() async throws -> Data { Data("tok".utf8) }
     func getSenderCertificate() async throws -> Data { Data() }
-    func encodeInnerPayload(conversationId: String, contentType: String, content: Data, isSync: Bool) throws -> Data {
+    func encodeInnerPayload(
+        conversationId: String,
+        messageId: String?,
+        contentType: String,
+        content: Data,
+        isSync: Bool
+    ) throws -> Data {
         content
     }
     func decodeInnerPayload(_ data: Data) throws -> InnerPayload {
@@ -408,6 +414,33 @@ private func makeRepo(spyService: SpyMessagingService) -> MessageRepositoryImpl 
 // MARK: - Tests
 
 final class MessageRepositorySealedSendTests: XCTestCase {
+
+    func test_canonicalSealedMessageId_prefersInnerPayloadMessageId() {
+        XCTAssertEqual(
+            MessageRepositoryImpl.canonicalSealedMessageId(
+                sealedEnvelopeId: "envelope-1",
+                innerPayloadMessageId: "local-1"
+            ),
+            "local-1"
+        )
+    }
+
+    func test_canonicalSealedMessageId_fallsBackToEnvelopeId_whenInnerPayloadMessageIdMissing() {
+        XCTAssertEqual(
+            MessageRepositoryImpl.canonicalSealedMessageId(
+                sealedEnvelopeId: "envelope-1",
+                innerPayloadMessageId: nil
+            ),
+            "envelope-1"
+        )
+        XCTAssertEqual(
+            MessageRepositoryImpl.canonicalSealedMessageId(
+                sealedEnvelopeId: "envelope-1",
+                innerPayloadMessageId: "   "
+            ),
+            "envelope-1"
+        )
+    }
 
     /// After the sealed-sender migration, `sendMessage` must call
     /// `sendSealedMessage` on the messaging service — never the plain `sendMessage` RPC.

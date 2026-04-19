@@ -90,6 +90,7 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
     public var isPinned: Bool
     public var isMuted: Bool
     public var isArchived: Bool
+    public var isHidden: Bool
     public var disappearingMessagesDuration: Double?
     public var createdAt: Date
     public var updatedAt: Date
@@ -107,6 +108,7 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
         self.isPinned = conversation.isPinned
         self.isMuted = conversation.isMuted
         self.isArchived = conversation.isArchived
+        self.isHidden = false
         self.disappearingMessagesDuration = conversation.disappearingMessagesDuration
         self.createdAt = conversation.createdAt
         self.updatedAt = conversation.updatedAt
@@ -127,6 +129,7 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
         isPinned: Bool,
         isMuted: Bool,
         isArchived: Bool,
+        isHidden: Bool = false,
         disappearingMessagesDuration: Double?,
         createdAt: Date,
         updatedAt: Date,
@@ -142,6 +145,7 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
         self.isPinned = isPinned
         self.isMuted = isMuted
         self.isArchived = isArchived
+        self.isHidden = isHidden
         self.disappearingMessagesDuration = disappearingMessagesDuration
         self.createdAt = createdAt
         self.updatedAt = updatedAt

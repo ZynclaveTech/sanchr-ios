@@ -227,6 +227,14 @@ public enum DatabaseSchema {
             }
         }
 
+        migrator.registerMigration("v9_hidden_conversations") { db in
+            try db.alter(table: "conversation") { t in
+                t.add(column: "isHidden", .boolean)
+                    .notNull()
+                    .defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

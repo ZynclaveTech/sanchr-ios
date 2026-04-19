@@ -3,8 +3,18 @@ import SanchrShared
 
 struct AddContactSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(DependencyContainer.self) private var container
+    @Environment(AppRouter.self) private var router
+
     @State private var showQRScanner = false
     @State private var showPhoneLookup = false
+    @State private var qrState: QRHandleState = .idle
+
+    private enum QRHandleState {
+        case idle
+        case opening       // startDirectConversation in-flight
+        case error(String)
+    }
 
     var body: some View {
         NavigationStack {
@@ -33,6 +43,36 @@ struct AddContactSheet: View {
                 }
                 .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
 
+                // QR handling feedback
+                switch qrState {
+                case .idle:
+                    EmptyView()
+                case .opening:
+                    HStack(spacing: SanchrSpacing.sm) {
+                        ProgressView().tint(.sanchrPrimary)
+                        Text("Opening conversation…")
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                    }
+                    .padding(.top, SanchrSpacing.xs)
+                case .error(let message):
+                    HStack(spacing: SanchrSpacing.xs) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(SanchrColors.error)
+                        Text(message)
+                            .font(SanchrTypography.caption)
+                            .foregroundColor(SanchrColors.error)
+                            .lineLimit(3)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(SanchrSpacing.sm)
+                    .background(SanchrColors.error.opacity(0.10))
+                    .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.card))
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.top, SanchrSpacing.xs)
+                }
+
                 Spacer()
             }
             .sanchrScreenBackground()
@@ -44,14 +84,52 @@ struct AddContactSheet: View {
             .fullScreenCover(isPresented: $showQRScanner) {
                 QRScannerView { scannedURL in
                     showQRScanner = false
-                    SanchrLogger.contacts.info("Scanned QR URL: \(scannedURL, privacy: .public)")
-                    // TODO: Handle deep link navigation from scanned URL
+                    Task { await handleScannedURL(scannedURL) }
                 }
             }
             .sheet(isPresented: $showPhoneLookup) {
                 PhoneNumberLookupView()
             }
         }
+    }
+
+    // MARK: - QR URL handling
+
+    /// Parses `https://sanchr.com/u/{userId}`, opens or creates a direct conversation,
+    /// then navigates to it and dismisses the sheet.
+    private func handleScannedURL(_ urlString: String) async {
+        guard let userId = extractUserId(from: urlString) else {
+            SanchrLogger.contacts.warning("QR scan: unrecognised URL format – \(urlString, privacy: .public)")
+            qrState = .error("Unrecognised QR code. Make sure you're scanning a Sanchr contact code.")
+            return
+        }
+
+        qrState = .opening
+
+        do {
+            let conversationId = try await container.messageRepository.startDirectConversation(peerUserId: userId)
+            dismiss()
+            // Brief pause so the sheet finishes dismissing before navigation fires
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            router.deepLinkToConversation(conversationId: conversationId)
+        } catch {
+            qrState = .error(error.localizedDescription)
+            SanchrLogger.contacts.error("QR scan: failed to open conversation – \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Extracts the user ID from `https://sanchr.com/u/<userId>`.
+    private func extractUserId(from urlString: String) -> String? {
+        guard let url = URL(string: urlString),
+              let host = url.host,
+              host.hasSuffix("sanchr.com")
+        else { return nil }
+
+        let components = url.pathComponents.filter { $0 != "/" }
+        // Expect ["u", "<userId>"]
+        guard components.count >= 2, components[0] == "u" else { return nil }
+        let userId = components[1]
+        return userId.isEmpty ? nil : userId
     }
 
     // MARK: - Action Card

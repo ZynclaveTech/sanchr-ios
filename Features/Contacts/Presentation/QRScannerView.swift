@@ -53,7 +53,7 @@ struct QRScannerView: View {
 
     private func handleCode(_ code: String) {
         guard !hasScanned else { return }
-        guard code.contains("sanchr.io") else {
+        guard code.contains("sanchr.com") else {
             SanchrLogger.contacts.debug("Ignored non-Sanchr QR code")
             return
         }

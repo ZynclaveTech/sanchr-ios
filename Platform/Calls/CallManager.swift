@@ -33,6 +33,16 @@ private struct SendableProvider: @unchecked Sendable {
     let provider: CXProvider
 }
 
+struct CallPeerProfile: Equatable, Sendable {
+    let displayName: String?
+    let avatarURL: URL?
+
+    init(displayName: String?, avatarURL: URL? = nil) {
+        self.displayName = displayName
+        self.avatarURL = avatarURL
+    }
+}
+
 // MARK: - Call State
 
 enum CallState: Equatable, Sendable {
@@ -80,12 +90,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     var isVideoEnabled: Bool = false
     var peerIsMuted: Bool = false
     var peerBatteryIsLow: Bool = false
+    var peerVideoEnabled: Bool = false
+    var hasRemoteVideoTrack: Bool = false
     var incomingVideoUpgradeRequest: Bool = false
     var outgoingVideoUpgradePending: Bool = false
     var callDuration: TimeInterval = 0
     var callType: String = "voice"
     var peerId: String?
     var peerName: String?
+    var peerAvatarURL: URL?
     var currentVideoFilter: VideoFilter = .none
 
     // MARK: - Dependencies
@@ -96,7 +109,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let callController: CXCallController
     private let signalManager: SignalProtocolManagerProtocol
     private let tokenRefresher: @Sendable () async throws -> Void
-    private let peerDisplayNameResolver: @Sendable (String) async -> String?
+    private let peerProfileResolver: @Sendable (String) async -> CallPeerProfile?
 
     // MARK: - Internal State
 
@@ -125,13 +138,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
         signalManager: SignalProtocolManagerProtocol,
         tokenRefresher: @escaping @Sendable () async throws -> Void = {},
-        peerDisplayNameResolver: @escaping @Sendable (String) async -> String? = { _ in nil }
+        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil }
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
         self.signalManager = signalManager
         self.tokenRefresher = tokenRefresher
-        self.peerDisplayNameResolver = peerDisplayNameResolver
+        self.peerProfileResolver = peerProfileResolver
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -227,11 +240,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         callState = .outgoing(callId: callId, recipientId: recipientId)
         peerId = recipientId
         peerName = recipientName
+        peerAvatarURL = nil
         peerIsMuted = false
         peerBatteryIsLow = false
+        peerVideoEnabled = isVideo
+        hasRemoteVideoTrack = false
         incomingVideoUpgradeRequest = false
         outgoingVideoUpgradePending = false
         startBatteryMonitoring()
+        resolveAndApplyPeerProfile(userId: recipientId, callId: callId, fallback: recipientName)
 
         // 6. Report to CallKit
         let uuid = UUID()
@@ -274,18 +291,29 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         return Self.unknownCallerName
     }
 
-    private func resolvedDisplayName(for userId: String, fallback: String?) async -> String {
-        if let resolvedName = Self.displayNameCandidate(await peerDisplayNameResolver(userId)) {
-            return resolvedName
-        }
-        return currentDisplayName(for: userId, fallback: fallback)
+    private func resolvedPeerProfile(for userId: String, fallback: String?) async -> CallPeerProfile {
+        let resolvedProfile = await peerProfileResolver(userId)
+        let displayName = Self.displayNameCandidate(resolvedProfile?.displayName)
+            ?? currentDisplayName(for: userId, fallback: fallback)
+        return CallPeerProfile(
+            displayName: displayName,
+            avatarURL: resolvedProfile?.avatarURL
+        )
     }
 
-    private func resolveAndApplyPeerName(userId: String, callId: String, fallback: String?) {
-        let resolver = peerDisplayNameResolver
+    private func resolveAndApplyPeerProfile(userId: String, callId: String, fallback: String?) {
+        let resolver = peerProfileResolver
         let fallbackName = currentDisplayName(for: userId, fallback: fallback)
+        let fallbackAvatarURL = peerId == userId ? peerAvatarURL : nil
         Task { [weak self] in
-            let displayName = Self.displayNameCandidate(await resolver(userId)) ?? fallbackName
+            let resolvedProfile = await resolver(userId)
+            let displayName = Self.displayNameCandidate(resolvedProfile?.displayName) ?? fallbackName
+            let avatarURL: URL?
+            if let resolvedProfile {
+                avatarURL = resolvedProfile.avatarURL
+            } else {
+                avatarURL = fallbackAvatarURL
+            }
 
             await MainActor.run { [weak self] in
                 guard let self,
@@ -296,6 +324,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 }
 
                 self.peerName = displayName
+                self.peerAvatarURL = avatarURL
                 if case .incoming(let incomingCallId, let callerId, _) = self.callState,
                    incomingCallId == callId
                 {
@@ -324,9 +353,31 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         provider.reportCall(with: callUUID, updated: update)
     }
 
+    private static var isRunningOnSimulator: Bool {
+        #if targetEnvironment(simulator)
+            true
+        #else
+            false
+        #endif
+    }
+
+    static func shouldReportIncomingCallToCallKit(
+        applicationState: UIApplication.State,
+        isSimulator: Bool
+    ) -> Bool {
+        guard !isSimulator else { return false }
+        return applicationState != .active
+    }
+
     /// Called when a push notification or signaling message delivers an incoming call.
+    @MainActor
     func handleIncomingCall(
-        callId: String, callerId: String, callerName: String, sdpOffer: Data, isVideo: Bool
+        callId: String,
+        callerId: String,
+        callerName: String,
+        callerAvatarURL: URL? = nil,
+        sdpOffer: Data,
+        isVideo: Bool
     ) {
         SanchrLogger.calls.info(
             "Incoming \(isVideo ? "video" : "voice") call from \(callerName) [\(callId)]")
@@ -336,13 +387,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         self.pendingSdpOffer = sdpOffer
         self.peerId = callerId
         self.peerName = Self.displayNameCandidate(callerName) ?? Self.unknownCallerName
+        self.peerAvatarURL = callerAvatarURL
         self.peerIsMuted = false
         self.peerBatteryIsLow = false
+        self.peerVideoEnabled = isVideo
+        self.hasRemoteVideoTrack = false
         self.incomingVideoUpgradeRequest = false
         self.outgoingVideoUpgradePending = false
 
-        let uuid = UUID()
-        self.callUUID = uuid
         callState = .incoming(
             callId: callId,
             callerId: callerId,
@@ -350,24 +402,38 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         )
         startBatteryMonitoring()
 
-        let update = CXCallUpdate()
-        update.localizedCallerName = self.peerName
-        update.hasVideo = isVideo
-        update.supportsGrouping = false
-        update.supportsHolding = true
-        update.supportsUngrouping = false
-        update.supportsDTMF = false
-        update.remoteHandle = CXHandle(type: .generic, value: callerId)
+        let shouldReportToCallKit = Self.shouldReportIncomingCallToCallKit(
+            applicationState: UIApplication.shared.applicationState,
+            isSimulator: Self.isRunningOnSimulator
+        )
+        if shouldReportToCallKit {
+            let uuid = UUID()
+            self.callUUID = uuid
 
-        provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
-            if let error {
-                SanchrLogger.calls.error(
-                    "Failed to report incoming call: \(error.localizedDescription)")
-                self?.callState = .ended(callId: callId, reason: .failed)
+            let update = CXCallUpdate()
+            update.localizedCallerName = self.peerName
+            update.hasVideo = isVideo
+            update.supportsGrouping = false
+            update.supportsHolding = true
+            update.supportsUngrouping = false
+            update.supportsDTMF = false
+            update.remoteHandle = CXHandle(type: .generic, value: callerId)
+
+            provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+                if let error {
+                    SanchrLogger.calls.error(
+                        "Failed to report incoming call: \(error.localizedDescription)")
+                    self?.callState = .ended(callId: callId, reason: .failed)
+                }
             }
+        } else {
+            self.callUUID = nil
+            SanchrLogger.calls.info(
+                "Presenting incoming call in-app without CallKit for \(Self.isRunningOnSimulator ? "simulator" : "foreground") call \(callId)"
+            )
         }
 
-        resolveAndApplyPeerName(userId: callerId, callId: callId, fallback: callerName)
+        resolveAndApplyPeerProfile(userId: callerId, callId: callId, fallback: callerName)
     }
 
     /// Called from the PushKit delegate when a VoIP push is received for an incoming call.
@@ -431,8 +497,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         self.isVideoEnabled = callType == "video"
         self.peerId = callerId
         self.peerName = Self.unknownCallerName
+        self.peerAvatarURL = nil
         self.peerIsMuted = false
         self.peerBatteryIsLow = false
+        self.peerVideoEnabled = callType == "video"
+        self.hasRemoteVideoTrack = false
         self.incomingVideoUpgradeRequest = false
         self.outgoingVideoUpgradePending = false
 
@@ -465,7 +534,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             }
         }
 
-        resolveAndApplyPeerName(userId: callerId, callId: callId, fallback: nil)
+        resolveAndApplyPeerProfile(userId: callerId, callId: callId, fallback: nil)
 
         // Decrypt the SDP offer asynchronously. answerCall() will wait for this to
         // complete (max 5 seconds) before proceeding.
@@ -695,7 +764,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     func toggleVideo() {
         if callType == "video" {
+            let previousVideoEnabled = isVideoEnabled
             isVideoEnabled = webRTCClient.toggleVideo()
+            if previousVideoEnabled != isVideoEnabled {
+                sendControlAction(isVideoEnabled ? "video_on" : "video_off")
+            }
         } else {
             requestVideoUpgrade()
         }
@@ -724,7 +797,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         incomingVideoUpgradeRequest = false
         callType = "video"
         isVideoEnabled = webRTCClient.setVideoEnabled(true)
+        peerVideoEnabled = true
         sendControlAction("video_accept", callId: callId)
+        sendControlAction("video_on", callId: callId)
     }
 
     func declineVideoUpgradeRequest() {
@@ -781,6 +856,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         await MainActor.run {
             callType = "video"
             isVideoEnabled = webRTCClient.setVideoEnabled(true)
+            peerVideoEnabled = true
         }
 
         let remoteDescription = RTCSessionDescription(type: .offer, sdp: payload.sdp)
@@ -970,6 +1046,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
     }
 
+    @MainActor
+    func handleControlAction(_ action: String, callId: String) {
+        handleControlMessage(controlMessage(action: action), callId: callId)
+    }
+
     /// Handles control messages: accepted, declined, busy, ended, ringing, missed.
     @MainActor
     private func handleControlMessage(_ control: Sanchr_Calling_CallControl, callId: String) {
@@ -1051,14 +1132,23 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 SanchrLogger.calls.info("Ignoring duplicate video_accept for call \(callId)")
                 return
             }
+            peerVideoEnabled = true
             startVideoUpgradeOffer(callId: callId)
 
         case "video_decline":
             outgoingVideoUpgradePending = false
 
+        case "video_on":
+            peerVideoEnabled = true
+
+        case "video_off":
+            peerVideoEnabled = false
+
         case "video_failed":
             outgoingVideoUpgradePending = false
             incomingVideoUpgradeRequest = false
+            peerVideoEnabled = false
+            hasRemoteVideoTrack = false
             if callType == "video" {
                 callType = "voice"
                 isVideoEnabled = webRTCClient.setVideoEnabled(false)
@@ -1188,11 +1278,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 self.isVideoEnabled = false
                 self.peerIsMuted = false
                 self.peerBatteryIsLow = false
+                self.peerVideoEnabled = false
+                self.hasRemoteVideoTrack = false
                 self.incomingVideoUpgradeRequest = false
                 self.outgoingVideoUpgradePending = false
                 self.callType = "voice"
                 self.peerId = nil
                 self.peerName = nil
+                self.peerAvatarURL = nil
                 self.currentVideoFilter = .none
             }
         }
@@ -1210,7 +1303,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             do {
                 let sdp = try await decryptAndValidateOffer(offer, maxAgeSeconds: 120)
                 pendingSdpOffer = Data(sdp.utf8)
-                resolveAndApplyPeerName(
+                resolveAndApplyPeerProfile(
                     userId: offer.callerID,
                     callId: offer.callID,
                     fallback: nil
@@ -1240,13 +1333,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         do {
             let sdp = try await decryptAndValidateOffer(offer, maxAgeSeconds: 30)
-            let callerName = await resolvedDisplayName(for: offer.callerID, fallback: nil)
+            let callerProfile = await resolvedPeerProfile(for: offer.callerID, fallback: nil)
+            let callerName = callerProfile.displayName ?? Self.unknownCallerName
             SanchrLogger.calls.info("E2EE offer verified from \(offer.callerID)")
             await MainActor.run {
                 self.handleIncomingCall(
                     callId: offer.callID,
                     callerId: offer.callerID,
                     callerName: callerName,
+                    callerAvatarURL: callerProfile.avatarURL,
                     sdpOffer: Data(sdp.utf8),
                     isVideo: offer.callType == "video"
                 )
@@ -1272,7 +1367,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             if peerName == nil || peerName?.isEmpty == true || peerName == event.peerID {
                 peerName = currentDisplayName(for: event.peerID, fallback: nil)
             }
-            resolveAndApplyPeerName(
+            resolveAndApplyPeerProfile(
                 userId: event.peerID,
                 callId: event.callID,
                 fallback: nil
@@ -1282,42 +1377,42 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         switch event.eventType {
         case "ringing":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "ringing"), callId: event.callID)
+                handleControlAction("ringing", callId: event.callID)
             }
             return .applied
         case "accepted":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "accepted"), callId: event.callID)
+                handleControlAction("accepted", callId: event.callID)
             }
             return .applied
         case "declined":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "declined"), callId: event.callID)
+                handleControlAction("declined", callId: event.callID)
             }
             return .applied
         case "busy":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "busy"), callId: event.callID)
+                handleControlAction("busy", callId: event.callID)
             }
             return .applied
         case "ended":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "ended"), callId: event.callID)
+                handleControlAction("ended", callId: event.callID)
             }
             return .applied
         case "cancelled":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "cancelled"), callId: event.callID)
+                handleControlAction("cancelled", callId: event.callID)
             }
             return .applied
         case "missed":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "missed"), callId: event.callID)
+                handleControlAction("missed", callId: event.callID)
             }
             return .applied
         case "failed":
             await MainActor.run {
-                handleControlMessage(controlMessage(action: "failed"), callId: event.callID)
+                handleControlAction("failed", callId: event.callID)
             }
             return .applied
         default:
@@ -1350,12 +1445,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         isVideoEnabled = false
         peerIsMuted = false
         peerBatteryIsLow = false
+        peerVideoEnabled = false
+        hasRemoteVideoTrack = false
         incomingVideoUpgradeRequest = false
         outgoingVideoUpgradePending = false
         callDuration = 0
         callType = "voice"
         peerId = nil
         peerName = nil
+        peerAvatarURL = nil
         currentVideoFilter = .none
     }
 
@@ -1382,6 +1480,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private func sendLocalStatusControls(callId: String) {
         sendControlAction(isMuted ? "muted" : "unmuted", callId: callId)
         sendControlAction(localBatteryIsLow ? "battery_low" : "battery_ok", callId: callId)
+        if callType == "video" {
+            sendControlAction(isVideoEnabled ? "video_on" : "video_off", callId: callId)
+        }
     }
 
     private func startBatteryMonitoring() {
@@ -1632,6 +1733,7 @@ extension CallManager: CXProviderDelegate {
         case .idle, .ended:
             SanchrLogger.calls.info("CallKit: ignored CXEndCallAction because call is already closed")
         case .incoming:
+            SanchrLogger.calls.warning("CallKit requested end for incoming call; treating it as decline")
             declineCall()
         default:
             endCall()
@@ -1742,7 +1844,18 @@ extension CallManager: WebRTCClientDelegate {
 
     func webRTCClient(_ client: WebRTCClient, didReceiveRemoteVideoTrack track: RTCVideoTrack) {
         SanchrLogger.calls.info("Remote video track received")
+        Task { @MainActor in
+            self.hasRemoteVideoTrack = true
+            self.peerVideoEnabled = true
+        }
         // The view layer will attach renderers via attachRemoteRenderer
+    }
+
+    func webRTCClientDidRemoveRemoteVideoTrack(_ client: WebRTCClient) {
+        SanchrLogger.calls.info("Remote video track removed")
+        Task { @MainActor in
+            self.hasRemoteVideoTrack = false
+        }
     }
 
     func webRTCClient(_ client: WebRTCClient, didChangeSignalingState state: RTCSignalingState) {

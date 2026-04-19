@@ -171,6 +171,7 @@ public protocol SealedMessageSendingClient: Sendable {
         plaintext: Data,
         contentType: String,
         conversationId: String,
+        messageId: String,
         recipientIds: [String],
         senderId: String
     ) async throws -> SealedMessageSendResult
@@ -208,12 +209,14 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         plaintext: Data,
         contentType: String,
         conversationId: String,
+        messageId: String,
         recipientIds: [String],
         senderId: String
     ) async throws -> SealedMessageSendResult {
         // 1. Build the InnerPayload (peer copy: isSync = false).
         let innerPayloadData = try sealedSenderManager.encodeInnerPayload(
             conversationId: conversationId,
+            messageId: messageId,
             contentType: contentType,
             content: plaintext,
             isSync: false
@@ -237,6 +240,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
                 sealed.recipientID = dm.recipientID
                 sealed.deviceID = dm.deviceID
                 sealed.sealedEnvelope = dm.ciphertext
+                sealed.conversationID = conversationId
                 sealedDeviceMessages.append(sealed)
             }
         }
@@ -248,6 +252,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         //    transcript row (the local optimistic message already covers it).
         let syncPayloadData = try sealedSenderManager.encodeInnerPayload(
             conversationId: conversationId,
+            messageId: messageId,
             contentType: contentType,
             content: plaintext,
             isSync: true
@@ -262,6 +267,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
                 sealed.recipientID = dm.recipientID
                 sealed.deviceID = dm.deviceID
                 sealed.sealedEnvelope = dm.ciphertext
+                sealed.conversationID = conversationId
                 sealedDeviceMessages.append(sealed)
             }
         } catch {

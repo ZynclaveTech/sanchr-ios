@@ -112,14 +112,35 @@ final class ProfileDataSource: ProfileDataSourceProtocol, @unchecked Sendable {
         SanchrLogger.network.info(
             "ProfileDataSource: avatar uploaded, mediaID=\(uploadResponse.mediaID)")
 
-        // Prefer CDN display URL from server; fall back to stripping query params
+        // Prefer the CDN display URL from the server.
+        // The server sometimes returns a relative path (e.g. "/avatars/…") instead of
+        // a full https:// URL. Resolve it against the configured mediaBaseURL so that
+        // callers always receive an absolute URL that URLSession can load.
         if !uploadResponse.displayURL.isEmpty {
-            return uploadResponse.displayURL
+            if let absolute = URL(string: uploadResponse.displayURL),
+               absolute.scheme != nil
+            {
+                // Already absolute — return as-is.
+                return absolute.absoluteString
+            }
+            // Relative path — resolve against the CDN base.
+            let base = AppConfiguration.current.mediaBaseURL
+            // Ensure the path starts with "/" before appending so we don't
+            // accidentally double-up the base path component.
+            let relativePath = uploadResponse.displayURL.hasPrefix("/")
+                ? uploadResponse.displayURL
+                : "/" + uploadResponse.displayURL
+            if let resolved = URL(string: relativePath, relativeTo: base)?.absoluteURL {
+                SanchrLogger.network.info(
+                    "ProfileDataSource: resolved relative displayURL → \(resolved.absoluteString.prefix(60))…")
+                return resolved.absoluteString
+            }
         }
-        if let components = URLComponents(string: uploadResponse.url) {
-            var clean = components
-            clean.queryItems = nil
-            if let permanentURL = clean.url?.absoluteString {
+
+        // Fall back: strip presigned query params from the upload URL.
+        if var components = URLComponents(string: uploadResponse.url) {
+            components.queryItems = nil
+            if let permanentURL = components.url?.absoluteString {
                 return permanentURL
             }
         }

@@ -85,12 +85,12 @@ public struct AppConfiguration: Sendable {
 
     public static let dev = AppConfiguration(
         environment: .dev,
-        grpcHost: "api-dev.sanchr.com",
+        grpcHost: "api.sanchr.com",
         grpcPort: 443,
-        callHost: "call-dev.sanchr.com",
+        callHost: "call.sanchr.com",
         callPort: 443,
         useTLS: true,
-        mediaBaseURL: URL(string: "https://media-dev.sanchr.com")!,
+        mediaBaseURL: URL(string: "https://sanchr-media.sfo3.digitaloceanspaces.com")!,
         stunServers: ["stun:stun.l.google.com:19302"],
         turnServers: [],
         isVaultEnabled: true,

@@ -61,9 +61,24 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Conversation currently visible in the UI, used to suppress duplicate banners.
     private var activeConversationId: String?
 
+    /// Optional app-provided lookup so notification presentation can respect
+    /// device-local conversation mute state.
+    var isConversationMuted: (@Sendable (String) async -> Bool)?
+
     /// Called when a VoIP push arrives with an incoming call.
     /// Wired in DependencyContainer to forward to CallManager.
     var incomingVoIPCallHandler: ((_ callId: String, _ callerId: String, _ callType: String, _ encryptedSdpPayload: Data) -> Void)?
+
+    /// Returns true if the user currently has an authenticated session.
+    /// Wired in DependencyContainer to SessionService.isAuthenticated.
+    /// Used to defer the VoIP push token upload until auth is confirmed, preventing
+    /// an UNAUTHENTICATED response from a background upload from triggering a
+    /// forceRefreshToken() → session-wipe cascade during early app launch.
+    var isAuthenticated: (() -> Bool)?
+
+    /// VoIP push token received from PushKit but not yet uploaded because auth was
+    /// not confirmed at the time of receipt. Uploaded by uploadPendingVoIPTokenIfNeeded().
+    private var pendingVoIPToken: String?
 
     /// Optional app-provided sync handler used for silent pushes that carry a
     /// structured `SanchrPushPayload` (e.g. non-sealed-sender message pushes).
@@ -292,6 +307,7 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// Handle a foreground notification. Returns presentation options.
     /// Shows banner for notifications not belonging to the currently active conversation.
     func handleForegroundNotification(_ notification: UNNotification)
+        async
         -> UNNotificationPresentationOptions
     {
         let userInfo = notification.request.content.userInfo
@@ -307,6 +323,15 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         {
             SanchrLogger.push.info(
                 "Suppressing notification for active conversation \(conversationId.prefix(8))...")
+            return []
+        }
+
+        if let conversationId = payload.conversationId,
+            let isConversationMuted,
+            await isConversationMuted(conversationId)
+        {
+            SanchrLogger.push.info(
+                "Suppressing notification for muted conversation \(conversationId.prefix(8))...")
             return []
         }
 
@@ -477,7 +502,7 @@ extension PushManager: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        return handleForegroundNotification(notification)
+        return await handleForegroundNotification(notification)
     }
 
     /// Called when the user interacts with a notification (tap, action button, inline reply).
@@ -498,6 +523,11 @@ extension PushManager: PKPushRegistryDelegate {
 
     /// Called when the OS issues or rotates the VoIP push token.
     /// Upload it to the server so the call bridge can wake this device.
+    /// If the user is not yet authenticated (common on early app launch before the
+    /// access token is refreshed), the token is stored and uploaded later via
+    /// uploadPendingVoIPTokenIfNeeded() — called from SanchrApp once auth is confirmed.
+    /// This prevents the gRPC call from failing with UNAUTHENTICATED and triggering
+    /// the global forceRefreshToken() → potential session-wipe cascade.
     public func pushRegistry(
         _ registry: PKPushRegistry,
         didUpdate pushCredentials: PKPushCredentials,
@@ -507,6 +537,25 @@ extension PushManager: PKPushRegistryDelegate {
         let tokenString = pushCredentials.token.map { String(format: "%02.2hhx", $0) }.joined()
         SanchrLogger.push.info("VoIP push token received: \(tokenString.prefix(8))...")
 
+        guard isAuthenticated?() == true else {
+            SanchrLogger.push.info("VoIP push token deferred — not yet authenticated")
+            pendingVoIPToken = tokenString
+            return
+        }
+
+        uploadVoIPToken(tokenString)
+    }
+
+    /// Uploads any VoIP push token that was deferred during early app launch.
+    /// Call this from SanchrApp after refreshSessionToken() succeeds.
+    func uploadPendingVoIPTokenIfNeeded() {
+        guard let token = pendingVoIPToken else { return }
+        pendingVoIPToken = nil
+        SanchrLogger.push.info("Uploading deferred VoIP push token")
+        uploadVoIPToken(token)
+    }
+
+    private func uploadVoIPToken(_ tokenString: String) {
         Task {
             do {
                 var request = Sanchr_Notifications_RegisterPushTokenRequest()
@@ -634,4 +683,3 @@ extension PushManager {
         return content
     }
 }
-

@@ -16,7 +16,6 @@ struct ChatsListView: View {
     @Environment(AppRouter.self) private var router
     @State private var viewModel = ChatsListViewModel()
     @State private var showNewConversation = false
-    @State private var showHomeMediaOptions = false
     @State private var showHomeCameraCapture = false
     @State private var showHomePhotoLibrary = false
     @State private var selectedHomePhotoItems: [PhotosPickerItem] = []
@@ -27,6 +26,9 @@ struct ChatsListView: View {
     @State private var showHiddenChats = false
     @State private var conversationToDelete: Conversation?
     @State private var sanchrModeEnabled = false
+    @State private var showRegLockNudge = SecurityNudge.shouldShowRegistrationLockNudge
+    @State private var showRegLockSheet = false
+    @State private var showRegLockDismissToast = false
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
@@ -68,17 +70,6 @@ struct ChatsListView: View {
                 conversationToDelete = nil
             }
         }
-        .confirmationDialog("Add Media", isPresented: $showHomeMediaOptions, titleVisibility: .visible) {
-            Button("Camera") {
-                showHomeCameraCapture = true
-            }
-
-            Button("Photo Library") {
-                showHomePhotoLibrary = true
-            }
-
-            Button("Cancel", role: .cancel) {}
-        }
         .fullScreenCover(isPresented: $showHomeCameraCapture) {
             CameraCaptureView(
                 onCapture: { capture in
@@ -94,6 +85,37 @@ struct ChatsListView: View {
             maxSelectionCount: 10,
             matching: .any(of: [.images, .videos])
         )
+        .sheet(isPresented: $showNewConversation) {
+            NewChatContactPickerSheet(
+                contactRepository: container.contactRepository,
+                localDatabase: container.localDatabase,
+                messageRepository: container.messageRepository
+            ) { conversationId in
+                showNewConversation = false
+                router.deepLinkToConversation(conversationId: conversationId)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showRegLockSheet, onDismiss: {
+            // Once the user looks at Registration Lock settings, retire the nudge permanently.
+            SecurityNudge.dismissRegistrationLockNudge()
+            withAnimation { showRegLockNudge = false }
+        }) {
+            NavigationStack {
+                RegistrationLockView()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showRegLockSheet = false }
+                                .foregroundColor(SanchrColors.primary)
+                        }
+                    }
+            }
+            .environment(container)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $pendingHomeMediaSelection) { selection in
             HomeMediaDestinationPicker(
                 localDatabase: container.localDatabase,
@@ -180,6 +202,13 @@ struct ChatsListView: View {
         } message: {
             Text(homeMediaLoadErrorMessage ?? "")
         }
+        .overlay(alignment: .bottom) {
+            if showRegLockDismissToast {
+                regLockDismissToast
+                    .padding(.bottom, 96)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .overlay {
             if isPreparingHomeMedia {
                 Color.black.opacity(0.12)
@@ -250,6 +279,14 @@ struct ChatsListView: View {
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .listRowInsets(EdgeInsets())
+
+                if showRegLockNudge {
+                    registrationLockNudgeBanner
+                        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                        .padding(.bottom, 8)
+                        .listRowInsets(EdgeInsets())
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 if viewModel.isSyncing {
                     syncingIndicator
@@ -435,7 +472,7 @@ struct ChatsListView: View {
             SanchrGlassCluster(spacing: 12) {
                 HStack(spacing: 10) {
                     SanchrIconButton(systemName: "camera.fill") {
-                        showHomeMediaOptions = true
+                        showHomeCameraCapture = true
                     }
 
                     Menu {
@@ -554,6 +591,87 @@ struct ChatsListView: View {
         .padding(.vertical, 6)
     }
 
+    // MARK: - Registration Lock Nudge
+
+    private var registrationLockNudgeBanner: some View {
+        Button {
+            SecurityNudge.dismissRegistrationLockNudge()
+            withAnimation { showRegLockNudge = false }
+            showRegLockSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(SanchrColors.primary.opacity(0.12))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(SanchrColors.primary)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Secure your account")
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textPrimary)
+                    Text("Enable Registration Lock to protect your phone number.")
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 4)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        showRegLockNudge = false
+                    }
+                    SecurityNudge.dismissRegistrationLockNudge()
+                    withAnimation(.easeIn(duration: 0.1).delay(0.1)) {
+                        showRegLockDismissToast = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                        withAnimation { showRegLockDismissToast = false }
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                        .frame(width: 24, height: 24)
+                        .background(SanchrExportColors.surfaceMuted)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(14)
+            .background(SanchrExportColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(SanchrColors.primary.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var regLockDismissToast: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+            Text("Enable Registration Lock anytime in Settings → Security")
+                .font(SanchrTypography.captionSmall)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+    }
+
     private func errorBanner(_ error: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -571,6 +689,22 @@ struct ChatsListView: View {
     private var emptyState: some View {
         VStack(spacing: 0) {
             customHeader
+
+            searchBar
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                .padding(.top, 8)
+
+            chipBar
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                .padding(.top, 8)
+                .padding(.bottom, showRegLockNudge ? 8 : 16)
+
+            if showRegLockNudge {
+                registrationLockNudgeBanner
+                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             Spacer()
 
@@ -852,6 +986,234 @@ struct ChatsListView: View {
             return nil
         }
         return UIImage(cgImage: cgImage)
+    }
+}
+
+// MARK: - New Chat Contact Picker
+
+private struct NewChatContactPickerSheet: View {
+    let contactRepository: ContactRepositoryProtocol
+    let localDatabase: LocalDatabaseProtocol
+    let messageRepository: MessageRepositoryProtocol
+    let onConversationReady: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var contacts: [User] = []
+    @State private var isLoadingContacts = true
+    @State private var loadError: String?
+    @State private var searchText = ""
+    @State private var startingContactId: String?
+
+    private var filteredContacts: [User] {
+        let sorted = contacts.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return sorted }
+        return sorted.filter {
+            "\($0.displayName) \($0.phoneNumber) \($0.bio ?? "")".lowercased().contains(query)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SanchrCenteredHeader(title: "New Chat") {
+                SanchrIconButton(systemName: "xmark") { dismiss() }
+                    .accessibilityLabel("Close")
+            } trailing: {
+                Color.clear
+            }
+
+            SanchrSearchField(placeholder: "Search contacts...", text: $searchText) {
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.top, SanchrSpacing.sm)
+            .padding(.bottom, SanchrSpacing.xs)
+
+            if let error = loadError {
+                HStack(spacing: SanchrSpacing.xs) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(SanchrColors.error)
+                    Text(error)
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(SanchrColors.error)
+                        .lineLimit(3)
+                    Spacer(minLength: 0)
+                }
+                .padding(SanchrSpacing.sm)
+                .background(SanchrColors.error.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: SanchrSpacing.sm, style: .continuous))
+                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+                .padding(.bottom, SanchrSpacing.xs)
+            }
+
+            pickerContent
+        }
+        .background(SanchrExportColors.background.ignoresSafeArea())
+        .task { await loadContacts() }
+    }
+
+    @ViewBuilder
+    private var pickerContent: some View {
+        if contacts.isEmpty && isLoadingContacts {
+            Spacer()
+            ProgressView().tint(.sanchrPrimary)
+            Spacer()
+        } else if filteredContacts.isEmpty {
+            Spacer()
+            VStack(spacing: SanchrSpacing.sm) {
+                Image(systemName: "person.2.slash")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+                Text(contacts.isEmpty ? "No contacts yet" : "No matching contacts")
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                Text("Synced Sanchr contacts will appear here.")
+                    .font(SanchrTypography.body)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            Spacer()
+        } else {
+            List {
+                ForEach(filteredContacts) { contact in
+                    NewChatContactRow(
+                        contact: contact,
+                        isStarting: startingContactId == contact.id
+                    ) {
+                        startChat(with: contact)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(SanchrExportColors.background)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(SanchrExportColors.background)
+        }
+    }
+
+    private func loadContacts() async {
+        isLoadingContacts = true
+        loadError = nil
+        do {
+            contacts = try await contactRepository.fetchContacts()
+        } catch {
+            do {
+                contacts = try await localDatabase.fetchContacts()
+            } catch {
+                loadError = error.localizedDescription
+            }
+        }
+        isLoadingContacts = false
+    }
+
+    private func startChat(with contact: User) {
+        guard startingContactId == nil else { return }
+        startingContactId = contact.id
+        Task {
+            do {
+                let conversationId = try await messageRepository.startDirectConversation(peerUserId: contact.id)
+                onConversationReady(conversationId)
+            } catch {
+                startingContactId = nil
+                loadError = error.localizedDescription
+            }
+        }
+    }
+}
+
+private struct NewChatContactRow: View {
+    let contact: User
+    let isStarting: Bool
+    let action: () -> Void
+
+    private var subtitle: String {
+        if let bio = contact.bio, !bio.isEmpty { return bio }
+        if !contact.phoneNumber.isEmpty { return contact.phoneNumber }
+        return contact.status == .online ? "Online" : "Sanchr contact"
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: SanchrSpacing.sm) {
+                // Avatar
+                ZStack {
+                    if let avatarURL = contact.avatarURL {
+                        KFImage(avatarURL)
+                            .resizable()
+                            .placeholder { avatarPlaceholder }
+                            .fade(duration: 0.2)
+                            .scaledToFill()
+                    } else {
+                        avatarPlaceholder
+                    }
+                }
+                .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)
+                .clipShape(Circle())
+
+                // Name + subtitle
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(contact.displayName)
+                            .font(SanchrTypography.conversationName)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                            .lineLimit(1)
+                        if contact.isVerified {
+                            Image(systemName: "shield.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(SanchrColors.accent)
+                        }
+                    }
+                    Text(subtitle)
+                        .font(SanchrTypography.conversationPreview)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: SanchrSpacing.xs)
+
+                // Start indicator or chevron
+                if isStarting {
+                    ProgressView()
+                        .tint(.sanchrPrimary)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
+            }
+            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isStarting)
+    }
+
+    private var avatarPlaceholder: some View {
+        Circle()
+            .fill(SanchrColors.primary.opacity(0.14))
+            .overlay {
+                Text(contact.displayName.prefix(1).uppercased())
+                    .font(SanchrTypography.cardTitle)
+                    .foregroundColor(.sanchrPrimary)
+            }
     }
 }
 

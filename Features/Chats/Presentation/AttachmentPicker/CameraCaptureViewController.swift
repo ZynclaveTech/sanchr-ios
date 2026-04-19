@@ -14,6 +14,11 @@ import UIKit
 /// turns off as soon as the controller leaves the screen.
 final class CameraCaptureViewController: UIViewController {
 
+    private enum CameraAlertKind {
+        case denied
+        case unavailable
+    }
+
     // MARK: - Callbacks
 
     nonisolated(unsafe) private let onCapture: (CapturedMedia) -> Void
@@ -162,7 +167,10 @@ final class CameraCaptureViewController: UIViewController {
     // MARK: - Permissions + Configuration
 
     private func requestAccessAndConfigure() {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        SanchrLogger.chat.info("CameraCapture authorization status: \(status.rawValue)")
+
+        switch status {
         case .authorized:
             sessionQueue.async { [weak self] in self?.configureSession() }
         case .notDetermined:
@@ -171,13 +179,15 @@ final class CameraCaptureViewController: UIViewController {
                 if granted {
                     self.sessionQueue.async { self.configureSession() }
                 } else {
-                    Task { @MainActor in self.presentDeniedAlert() }
+                    SanchrLogger.chat.info("CameraCapture permission request denied by user")
+                    Task { @MainActor in self.presentAlert(for: .denied) }
                 }
             }
         case .denied, .restricted:
-            presentDeniedAlert()
+            presentAlert(for: .denied)
         @unknown default:
-            presentDeniedAlert()
+            SanchrLogger.chat.error("CameraCapture encountered unknown authorization status")
+            presentAlert(for: .unavailable)
         }
     }
 
@@ -197,7 +207,8 @@ final class CameraCaptureViewController: UIViewController {
             session.canAddInput(input)
         else {
             session.commitConfiguration()
-            Task { @MainActor [weak self] in self?.presentDeniedAlert() }
+            SanchrLogger.chat.error("CameraCapture failed to create camera input for position \(self.currentPosition.rawValue)")
+            Task { @MainActor [weak self] in self?.presentAlert(for: .unavailable) }
             return
         }
         session.addInput(input)
@@ -205,6 +216,11 @@ final class CameraCaptureViewController: UIViewController {
 
         if session.canAddOutput(photoOutput), !session.outputs.contains(photoOutput) {
             session.addOutput(photoOutput)
+        } else if !session.outputs.contains(photoOutput) {
+            session.commitConfiguration()
+            SanchrLogger.chat.error("CameraCapture failed to add photo output")
+            Task { @MainActor [weak self] in self?.presentAlert(for: .unavailable) }
+            return
         }
 
         session.commitConfiguration()
@@ -221,21 +237,43 @@ final class CameraCaptureViewController: UIViewController {
         return AVCaptureDevice.default(for: .video)
     }
 
-    private func presentDeniedAlert() {
-        let alert = UIAlertController(
-            title: "Camera Access Needed",
-            message: "Enable camera access in Settings to capture photos.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { [weak self] _ in
-            if let url = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(url)
-            }
-            self?.handleCancel()
-        })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-            self?.handleCancel()
-        })
+    @MainActor
+    private func presentAlert(for kind: CameraAlertKind) {
+        guard presentedViewController == nil else { return }
+
+        let alert: UIAlertController
+        switch kind {
+        case .denied:
+            alert = UIAlertController(
+                title: "Camera Access Needed",
+                message: "Enable camera access in Settings to capture photos.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { [weak self] _ in
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+                self?.handleCancel()
+            })
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+                self?.handleCancel()
+            })
+        case .unavailable:
+            #if targetEnvironment(simulator)
+            let message = "The camera isn't available in this simulator right now. Use a real device or enable a simulator camera source, then try again."
+            #else
+            let message = "The camera couldn't be started on this device right now. Close other camera apps and try again."
+            #endif
+            alert = UIAlertController(
+                title: "Camera Unavailable",
+                message: message,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+                self?.handleCancel()
+            })
+        }
+
         present(alert, animated: true)
     }
 

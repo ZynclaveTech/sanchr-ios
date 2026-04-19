@@ -23,7 +23,15 @@ final class AuthViewModel {
     // MARK: - Input State
 
     var phoneNumber: String = ""
-    var countryCode: String = "+1"
+    var countryCode: String = {
+        let countryCodes: [(code: String, region: String)] = [
+            ("+1", "US"), ("+44", "UK"), ("+91", "IN"), ("+61", "AU"),
+            ("+81", "JP"), ("+49", "DE"), ("+33", "FR"), ("+86", "CN"),
+            ("+55", "BR"), ("+234", "NG"),
+        ]
+        let region = Locale.current.region?.identifier ?? ""
+        return countryCodes.first { $0.region == region }?.code ?? "+1"
+    }()
     var displayName: String = ""
     var profileImageData: Data?
     var otpCode: String = "" {

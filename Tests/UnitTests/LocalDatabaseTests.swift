@@ -205,6 +205,77 @@ final class LocalDatabaseTests: XCTestCase {
         XCTAssertEqual(messages.map(\.id), ["message-reopen"])
     }
 
+    func testFetchConversationsExcludesHiddenRowsButAllConversationsKeepsThem() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        let visible = makeConversation(id: "conversation-visible")
+        let hidden = makeConversation(id: "conversation-hidden")
+
+        try await database.saveConversation(visible)
+        try await database.saveConversation(hidden)
+        try await database.setConversationHidden(id: hidden.id, isHidden: true)
+
+        let fetched = try await database.fetchConversations()
+        XCTAssertEqual(fetched.map(\.id), [visible.id])
+
+        let allFetched = try await database.fetchAllConversationsIncludingHidden()
+        XCTAssertEqual(Set(allFetched.map(\.id)), Set([visible.id, hidden.id]))
+
+        let summaries = try await database.fetchShareChatSummaries()
+        XCTAssertEqual(summaries.map(\.id), [visible.id])
+
+        let archivedSummaries = try await database.fetchArchivedChatSummaries()
+        XCTAssertTrue(archivedSummaries.isEmpty)
+
+        let hiddenSummaries = try await database.fetchHiddenChatSummaries()
+        XCTAssertEqual(hiddenSummaries.map(\.id), [hidden.id])
+    }
+
+    func testFetchArchivedChatSummariesOnlyReturnsArchivedVisibleChats() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        var archived = makeConversation(id: "conversation-archived")
+        archived.isArchived = true
+        let visible = makeConversation(id: "conversation-visible")
+        var hiddenArchived = makeConversation(id: "conversation-hidden-archived")
+        hiddenArchived.isArchived = true
+
+        try await database.saveConversation(archived)
+        try await database.saveConversation(visible)
+        try await database.saveConversation(hiddenArchived)
+        try await database.setConversationHidden(id: hiddenArchived.id, isHidden: true)
+
+        let archivedSummaries = try await database.fetchArchivedChatSummaries()
+        XCTAssertEqual(archivedSummaries.map(\.id), [archived.id])
+    }
+
+    func testSaveConversationPreservesHiddenFlagAcrossRehydration() async throws {
+        let path = makeTemporaryDatabasePath()
+        let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })
+
+        var conversation = makeConversation(id: "conversation-preserve-hidden")
+        try await database.saveConversation(conversation)
+        try await database.setConversationHidden(id: conversation.id, isHidden: true)
+
+        conversation.unreadCount = 5
+        conversation.updatedAt = conversation.updatedAt.addingTimeInterval(60)
+        try await database.saveConversation(conversation)
+
+        let visibleConversations = try await database.fetchConversations()
+        XCTAssertTrue(visibleConversations.isEmpty)
+
+        let preserved = try await database.fetchAllConversationsIncludingHidden()
+            .first(where: { $0.id == conversation.id })
+        XCTAssertEqual(preserved?.unreadCount, 5)
+
+        try await database.setConversationHidden(id: conversation.id, isHidden: false)
+        let unhidden = try await database.fetchConversations()
+            .first(where: { $0.id == conversation.id })
+        XCTAssertEqual(unhidden?.unreadCount, 5)
+    }
+
     func testIncomingMessageReplayDoesNotDuplicateUnreadCountOrAckQueue() async throws {
         let path = makeTemporaryDatabasePath()
         let database = try LocalDatabase(path: path, passphraseProvider: { "unit-test-passphrase" })

@@ -26,20 +26,23 @@ struct SanchrApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
     @State private var cancellables = Set<AnyCancellable>()
+    /// Owned at App level so it survives background/foreground cycles
+    /// and SwiftUI view-tree reconciliation without resetting to true.
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
             if ProcessInfo.processInfo.sanchrIsRunningUnitTests {
                 Color.clear
             } else {
-                RootView()
+                RootView(showSplash: $showSplash)
                     .environment(container)
                     .environment(appRouter)
                     .environment(container.syncState)
                     .environment(\.sanchrTheme, sanchrTheme)
                     // Drive preferredColorScheme directly from @AppStorage
                     // because EnvironmentKey-based injections do NOT track
-                    // @Observable mutations on a class — only identity
+                    // @Observable mutations on a class only identity
                     // changes to the environment value re-trigger the
                     // modifier. AppearanceView writes to the same AppStorage
                     // key on every theme pick, so this bridge actually fires.
@@ -50,6 +53,8 @@ struct SanchrApp: App {
                         if container.localDataIssue == nil {
                             configureBackgroundSync()
                         }
+                        // Record first-launch date for security nudge timing (idempotent).
+                        SecurityNudge.recordFirstLaunchIfNeeded()
                     }
                     .task {
                         container.sharedTheme = sanchrTheme
@@ -308,11 +313,17 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 /// Presents either the authentication flow or the main tab interface
 /// based on the current session state.
 struct RootView: View {
+    @Binding var showSplash: Bool
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.activeOnboardingFlow") private var activeOnboardingFlow = false
     @State private var sessionReady = false
-    @State private var showSplash = true
+
+    /// Process-lifetime flag — stored in the type's memory, not in SwiftUI's
+    /// state system. SwiftUI cannot reset this on view reconciliation or scene
+    /// lifecycle events. Once the splash has played once after a cold launch,
+    /// this is permanently `true` for the life of the process.
+    @MainActor private static var splashHasPlayed = false
 
     private var hasCompletedProfileBasics: Bool {
         let name = container.sessionService.currentDisplayName ?? ""
@@ -383,10 +394,18 @@ struct RootView: View {
         }
         .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
         .task {
+            // If splash has already played this process session (e.g. we're
+            // returning from background and SwiftUI re-fired this task), dismiss
+            // it immediately and bail — never show splash again after cold launch.
+            if RootView.splashHasPlayed {
+                showSplash = false
+                return
+            }
             guard showSplash else { return }
             try? await Task.sleep(for: .seconds(1.15))
             withAnimation(.easeOut(duration: 0.25)) {
                 showSplash = false
+                RootView.splashHasPlayed = true
             }
         }
         .onChange(of: container.pushManager.pendingAction) { _, action in
@@ -400,16 +419,15 @@ struct RootView: View {
     /// Ensures all subsequent API calls have a valid token.
     /// Also configures the Signal Protocol store with the authenticated user's ID.
     private func refreshSessionToken() async {
-        if container.sessionService.isTokenValid {
-            SanchrLogger.auth.info("Restored persisted session without immediate token refresh")
-        } else {
-            do {
-                try await container.sessionService.forceRefreshToken()
-                SanchrLogger.auth.info("Session token refreshed, showing main UI")
-            } catch {
-                SanchrLogger.auth.error("Session token refresh failed: \(error.localizedDescription)")
-                // Token is invalid and can't be refreshed — session is expired
-            }
+        // Always attempt a proactive refresh if the token is expired or within 5 minutes of
+        // expiry. This prevents the app opening with a near-expired token that will fail
+        // mid-session. `refreshTokenIfExpiringSoon` is a no-op when the token has >5 min left.
+        do {
+            try await container.sessionService.refreshTokenIfExpiringSoon()
+            SanchrLogger.auth.info("Session token validated/refreshed, showing main UI")
+        } catch {
+            SanchrLogger.auth.error("Session token refresh failed: \(error.localizedDescription)")
+            // Token is invalid and can't be refreshed — session state cleared by refreshToken()
         }
 
         // Configure Signal store with the real user ID (replaces "pending" placeholder)
@@ -447,6 +465,11 @@ struct RootView: View {
 
         if container.sessionService.isAuthenticated {
             container.realtimeService.enterForeground()
+
+            // Now that the session is confirmed valid, upload any VoIP push token that
+            // arrived before auth was established (deferred to avoid UNAUTHENTICATED
+            // triggering a forceRefreshToken() → session-wipe cascade on early launch).
+            container.pushManager.uploadPendingVoIPTokenIfNeeded()
 
             // Warm the privacy cache so enforcement is ready before the first message send.
             do {

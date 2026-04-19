@@ -244,7 +244,11 @@ final class VaultViewModel {
         accessKeyStore: AccessKeyStoreProtocol,
         mediaEncryption: MediaEncryptionProtocol
     ) async {
-        isLoading = true
+        // Only show the full-screen spinner on the very first load (no items yet).
+        // On subsequent refreshes keep the existing items visible so they don't
+        // vanish while the network round-trip completes.
+        let isInitialLoad = items.isEmpty
+        if isInitialLoad { isLoading = true }
         errorMessage = nil
         defer { isLoading = false }
 
@@ -262,7 +266,9 @@ final class VaultViewModel {
             recomputeCounters()
         } catch {
             errorMessage = error.localizedDescription
-            items = []
+            // Only clear items on initial load failure — on refresh failure
+            // keep the stale items visible so the user doesn't lose context.
+            if isInitialLoad { items = [] }
             hasMorePages = false
         }
     }

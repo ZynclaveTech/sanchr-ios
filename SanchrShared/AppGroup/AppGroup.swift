@@ -100,3 +100,21 @@ public enum AppGroup {
         return dir
     }
 }
+
+public enum ChatMediaVisibilityStore {
+    private static func key(for conversationId: String) -> String {
+        "sanchr.chatMediaVisibility.\(conversationId)"
+    }
+
+    public static func isVisibleInGallery(conversationId: String) -> Bool {
+        let key = key(for: conversationId)
+        if AppGroup.userDefaults.object(forKey: key) == nil {
+            return true
+        }
+        return AppGroup.userDefaults.bool(forKey: key)
+    }
+
+    public static func setVisibleInGallery(_ isVisible: Bool, conversationId: String) {
+        AppGroup.userDefaults.set(isVisible, forKey: key(for: conversationId))
+    }
+}

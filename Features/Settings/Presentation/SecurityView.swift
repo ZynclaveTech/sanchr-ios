@@ -150,6 +150,12 @@ struct SecurityView: View {
                 ) { newValue in
                     container.appLockManager.biometricLockEnabled = newValue
                     if newValue {
+                        // If no timeout has ever been configured, seed a sensible default
+                        // (60 s) so biometric lock doesn't fire on every single app switch.
+                        if container.appLockManager.screenLockTimeout == 0 {
+                            viewModel.screenLockTimeout = 60
+                            container.appLockManager.screenLockTimeout = 60
+                        }
                         authenticateBiometric()
                     } else {
                         viewModel.debouncedSync(settingsDataSource: settingsDataSource)
@@ -159,14 +165,19 @@ struct SecurityView: View {
                 Divider()
                     .padding(.leading, 56)
 
+                let lockActive = viewModel.biometricLock || viewModel.screenLockEnabled
                 HStack(spacing: 14) {
                     iconTile(systemName: "lock.rectangle")
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Screen Lock Timeout")
                             .font(SanchrTypography.bodyBold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                        Text(timeoutLabel(viewModel.screenLockTimeout))
+                            .foregroundColor(
+                                lockActive
+                                    ? SanchrExportColors.textPrimary
+                                    : SanchrExportColors.textSecondary
+                            )
+                        Text(lockActive ? timeoutLabel(viewModel.screenLockTimeout) : "Enable a lock above first")
                             .font(SanchrTypography.captionSmall)
                             .foregroundColor(SanchrExportColors.textSecondary)
                     }
@@ -176,10 +187,14 @@ struct SecurityView: View {
                     Menu {
                         ForEach(screenLockTimeouts, id: \.1) { label, value in
                             Button(label) {
-                                viewModel.screenLockEnabled = true
                                 viewModel.screenLockTimeout = value
-                                container.appLockManager.screenLockEnabled = true
                                 container.appLockManager.screenLockTimeout = value
+                                // Only flip screenLockEnabled on if biometric isn't
+                                // already handling the lock — avoids a silent state change.
+                                if !viewModel.biometricLock {
+                                    viewModel.screenLockEnabled = true
+                                    container.appLockManager.screenLockEnabled = true
+                                }
                                 viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                             }
                         }
@@ -187,10 +202,16 @@ struct SecurityView: View {
                         Image(systemName: "chevron.right")
                             .symbolRenderingMode(.monochrome)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textTertiary)
+                            .foregroundColor(
+                                lockActive
+                                    ? SanchrExportColors.textTertiary
+                                    : SanchrExportColors.textTertiary.opacity(0.4)
+                            )
                     }
+                    .disabled(!lockActive)
                 }
                 .padding(.vertical, 12)
+                .opacity(lockActive ? 1 : 0.5)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)

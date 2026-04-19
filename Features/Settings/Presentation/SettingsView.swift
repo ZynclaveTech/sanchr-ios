@@ -183,17 +183,6 @@ struct SettingsView: View {
             }
             .frame(width: 64, height: 64)
             .clipShape(Circle())
-
-            Circle()
-                .fill(SanchrExportColors.surfaceMuted)
-                .frame(width: 20, height: 20)
-                .overlay {
-                    Image(systemName: "shield")
-                        .symbolRenderingMode(.monochrome)
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.sanchrPrimary)
-                }
-                .offset(x: 1, y: 1)
         }
     }
 

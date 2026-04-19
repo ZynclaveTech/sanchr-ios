@@ -216,19 +216,6 @@ struct ConversationInfoView: View {
                     Circle().stroke(Color.white, lineWidth: 2)
                 }
                 .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 4)
-
-                Circle()
-                    .fill(SanchrColors.accent)
-                    .frame(width: 24, height: 24)
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    .overlay {
-                        Circle().stroke(Color.white, lineWidth: 2)
-                    }
-                    .offset(x: 2, y: 2)
             }
 
             VStack(alignment: .leading, spacing: 2) {

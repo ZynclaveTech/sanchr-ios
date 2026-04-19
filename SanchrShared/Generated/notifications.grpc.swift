@@ -228,6 +228,9 @@ public protocol Sanchr_Notifications_NotificationServiceClientInterceptorFactory
 
   /// - Returns: Interceptors to use when invoking 'updateNotificationPrefs'.
   func makeUpdateNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'setConversationNotificationPrefs'.
+  func makeSetConversationNotificationPrefsInterceptors() -> [ClientInterceptor<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse>]
 }
 
 public enum Sanchr_Notifications_NotificationServiceClientMetadata {

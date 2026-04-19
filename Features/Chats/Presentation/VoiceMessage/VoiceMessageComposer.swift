@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SanchrShared
 
 struct VoiceMessageComposer: View {
@@ -61,12 +62,21 @@ struct VoiceMessageComposer: View {
     }
 
     private var micButton: some View {
-        Image(systemName: "mic.fill")
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(SanchrExportColors.textSecondary)
-            .frame(width: 36, height: 36)
-            .contentShape(Circle())
-            .gesture(holdGesture)
+        Button(action: handleMicButtonTap) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .frame(width: 36, height: 36)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(holdGesture)
+        .accessibilityLabel("Voice message")
+        .accessibilityHint("Press and hold to record a voice message.")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Start recording") {
+            Task { await startRecording() }
+        }
     }
 
     private var holdGesture: some Gesture {
@@ -101,6 +111,11 @@ struct VoiceMessageComposer: View {
         } catch {
             state = .idle
         }
+    }
+
+    private func handleMicButtonTap() {
+        guard UIAccessibility.isVoiceOverRunning else { return }
+        Task { await startRecording() }
     }
 
     private func releaseRecording() async {

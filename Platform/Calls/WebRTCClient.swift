@@ -9,6 +9,7 @@ protocol WebRTCClientDelegate: AnyObject {
     func webRTCClient(_ client: WebRTCClient, didChangeConnectionState state: RTCIceConnectionState)
     func webRTCClient(_ client: WebRTCClient, didReceiveLocalCandidate candidate: RTCIceCandidate)
     func webRTCClient(_ client: WebRTCClient, didReceiveRemoteVideoTrack track: RTCVideoTrack)
+    func webRTCClientDidRemoveRemoteVideoTrack(_ client: WebRTCClient)
     func webRTCClient(_ client: WebRTCClient, didChangeSignalingState state: RTCSignalingState)
 }
 
@@ -541,6 +542,14 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
 
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
         SanchrLogger.calls.info("Remote stream removed")
+        guard !stream.videoTracks.isEmpty || remoteVideoTrack != nil else { return }
+        if let remoteVideoTrack {
+            for renderer in remoteRenderers {
+                remoteVideoTrack.remove(renderer)
+            }
+        }
+        self.remoteVideoTrack = nil
+        delegate?.webRTCClientDidRemoveRemoteVideoTrack(self)
     }
 
     func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {

@@ -208,6 +208,7 @@ struct ProfileView: View {
                         }
                     }
                     .disabled(!viewModel.hasChanges || viewModel.isSaving)
+                    .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
 
                     // Cancel button
                     Button {
@@ -381,14 +382,19 @@ struct ProfileView: View {
                 // Action buttons: Share (flex) + Save (icon)
                 HStack(spacing: SanchrSpacing.sm) {
                     Button(action: shareQRCode) {
-                        Text("Share")
-                            .font(SanchrTypography.button)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, SanchrSpacing.sm)
-                            .background(SanchrGradients.primary)
-                            .foregroundColor(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
+                        HStack(spacing: SanchrSpacing.xs) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Share")
+                                .font(SanchrTypography.button)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SanchrSpacing.sm + 2)
+                        .background(SanchrColors.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
                     }
+                    .buttonStyle(.plain)
 
                     Button(action: saveQRCode) {
                         Image(systemName: "arrow.down.to.line")
@@ -398,6 +404,7 @@ struct ProfileView: View {
                             .background(Color.sanchrPrimary.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, SanchrSpacing.xl)
                 .padding(.bottom, SanchrSpacing.xl)
@@ -461,7 +468,7 @@ struct ProfileView: View {
 
     /// Generates the QR code image with the Sanchr logo mark at center.
     private func generateQRCode() -> UIImage? {
-        let deepLink = "https://sanchr.io/u/\(viewModel.userId)"
+        let deepLink = "https://sanchr.com/u/\(viewModel.userId)"
         return QRCodeGenerator.generate(
             from: deepLink,
             size: 190,

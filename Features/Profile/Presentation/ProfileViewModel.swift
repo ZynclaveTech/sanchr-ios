@@ -44,6 +44,9 @@ final class ProfileViewModel {
         if let avatar = sessionService.currentAvatarURL, !avatar.isEmpty {
             avatarURL = avatar
         }
+        if let status = sessionService.currentStatusText {
+            statusText = status
+        }
         originalDisplayName = displayName
         originalStatusText = statusText
         originalAvatarURL = avatarURL
@@ -82,7 +85,7 @@ final class ProfileViewModel {
             originalStatusText  = statusText
             originalAvatarURL   = avatarURL
 
-            sessionService.updateProfile(displayName: displayName, avatarURL: avatarURL)
+            sessionService.updateProfile(displayName: displayName, avatarURL: avatarURL, statusText: statusText)
 
             isEditing     = false
             errorMessage  = nil

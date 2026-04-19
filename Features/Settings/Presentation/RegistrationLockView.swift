@@ -180,7 +180,7 @@ struct RegistrationLockView: View {
                 )
                 bulletPoint(
                     icon: "key.fill",
-                    text: "Choose a PIN you'll remember — losing it means a 7-day waiting period to regain access."
+                    text: "Choose a PIN you'll remember, losing it means a 7-day waiting period to regain access."
                 )
                 bulletPoint(
                     icon: "arrow.clockwise",

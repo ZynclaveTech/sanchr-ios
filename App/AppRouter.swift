@@ -7,6 +7,11 @@ import SanchrShared
 /// and per-tab navigation stacks.
 @Observable
 final class AppRouter {
+    struct PendingChatAttachment {
+        let conversationId: String
+        let intent: AttachmentIntent
+    }
+
     /// Active tab in the main interface.
     enum Tab: Int, CaseIterable, Identifiable {
         case chats = 0
@@ -43,6 +48,7 @@ final class AppRouter {
     var contactsPath = NavigationPath()
     var settingsPath = NavigationPath()
     var pendingConversationId: String?
+    var pendingChatAttachment: PendingChatAttachment?
     var pendingCallId: String?
 
     /// Total unread message count across all conversations (drives tab badge).
@@ -92,10 +98,30 @@ final class AppRouter {
 
     /// Deep-link into a conversation from any tab. Used by the contact
     /// viewer's "Message on Sanchr" row after starting a direct chat.
-    func deepLinkToConversation(conversationId: String) {
+    func deepLinkToConversation(
+        conversationId: String,
+        pendingAttachment: AttachmentIntent? = nil
+    ) {
         selectedTab = .chats
         chatsPath = NavigationPath()
         pendingConversationId = conversationId
+        if let pendingAttachment {
+            pendingChatAttachment = PendingChatAttachment(
+                conversationId: conversationId,
+                intent: pendingAttachment
+            )
+        }
+    }
+
+    func consumePendingChatAttachment(for conversationId: String) -> AttachmentIntent? {
+        guard pendingChatAttachment?.conversationId == conversationId else { return nil }
+        let intent = pendingChatAttachment?.intent
+        pendingChatAttachment = nil
+        return intent
+    }
+
+    func clearPendingChatAttachment() {
+        pendingChatAttachment = nil
     }
 
     func clearPendingCall() {
@@ -266,7 +292,7 @@ struct MainTabView: View {
             : UIColor(SanchrColors.backgroundLight)
         appearance.backgroundColor = bgColor
 
-        // Top separator — subtle border
+        // Top separator subtle border
         let borderColor =
             colorScheme == .dark
             ? UIColor(SanchrColors.borderDark)

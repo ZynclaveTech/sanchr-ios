@@ -6,6 +6,7 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     public let displayName: String
     public let phoneNumber: String
     public let avatarURL: String?
+    public let statusText: String?
     public let tokenExpiresAt: Date?
     public let deviceId: String?
     public let installationId: String
@@ -16,6 +17,7 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
         displayName: String,
         phoneNumber: String,
         avatarURL: String? = nil,
+        statusText: String? = nil,
         tokenExpiresAt: Date? = nil,
         deviceId: String? = nil,
         installationId: String,
@@ -25,6 +27,7 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
         self.displayName = displayName
         self.phoneNumber = phoneNumber
         self.avatarURL = avatarURL
+        self.statusText = statusText
         self.tokenExpiresAt = tokenExpiresAt
         self.deviceId = deviceId
         self.installationId = installationId

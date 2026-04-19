@@ -26,6 +26,9 @@ final class SessionService: @unchecked Sendable {
     /// The current user's avatar URL (nil if not set).
     private(set) var currentAvatarURL: String?
 
+    /// The current user's status text / bio (nil if not set).
+    private(set) var currentStatusText: String?
+
     /// The current server-issued device ID (if authenticated).
     private(set) var currentDeviceId: String?
 
@@ -132,11 +135,18 @@ final class SessionService: @unchecked Sendable {
             throw AppError.sessionExpired
         }
 
-        // If no expiry is tracked or token has more than 5 minutes left, return as-is.
-        if let expiresAt = tokenExpiresAt,
-            expiresAt.timeIntervalSinceNow < 300
-        {
-            SanchrLogger.auth.info("Token expiring soon, refreshing proactively")
+        // Refresh if: expiry is unknown (treat as expired), or token expires within 5 minutes.
+        // Using a 5-minute buffer ensures the main UI always starts with a fresh token.
+        let needsRefresh: Bool
+        if let expiresAt = tokenExpiresAt {
+            needsRefresh = expiresAt.timeIntervalSinceNow < 300
+        } else {
+            // No expiry info — could be a snapshot from an older build. Refresh defensively.
+            needsRefresh = true
+        }
+
+        if needsRefresh {
+            SanchrLogger.auth.info("Token expiring soon or expiry unknown, refreshing proactively")
             return try await refreshToken()
         }
 
@@ -252,12 +262,15 @@ final class SessionService: @unchecked Sendable {
     }
 
     /// Updates the locally cached profile fields (after a profile save).
-    func updateProfile(displayName: String?, avatarURL: String?) {
+    func updateProfile(displayName: String?, avatarURL: String?, statusText: String? = nil) {
         if let displayName, !displayName.isEmpty {
             currentDisplayName = displayName
         }
         if let avatarURL {
             currentAvatarURL = avatarURL
+        }
+        if let statusText {
+            currentStatusText = statusText
         }
         try? persistSnapshot()
     }
@@ -302,6 +315,7 @@ final class SessionService: @unchecked Sendable {
         currentDisplayName = nil
         currentPhoneNumber = nil
         currentAvatarURL = nil
+        currentStatusText = nil
         currentDeviceId = nil
         currentInstallationId = nil
         lastMessageSyncTimestamp = 0
@@ -327,6 +341,7 @@ final class SessionService: @unchecked Sendable {
         currentDisplayName = snapshot.displayName
         currentPhoneNumber = snapshot.phoneNumber
         currentAvatarURL = snapshot.avatarURL
+        currentStatusText = snapshot.statusText
         tokenExpiresAt = snapshot.tokenExpiresAt
         currentDeviceId = snapshot.deviceId ?? currentDeviceId
         currentInstallationId = snapshot.installationId
@@ -372,6 +387,7 @@ final class SessionService: @unchecked Sendable {
             displayName: currentDisplayName ?? "",
             phoneNumber: currentPhoneNumber ?? "",
             avatarURL: currentAvatarURL,
+            statusText: currentStatusText,
             tokenExpiresAt: tokenExpiresAt,
             deviceId: currentDeviceId,
             installationId: currentInstallationId,

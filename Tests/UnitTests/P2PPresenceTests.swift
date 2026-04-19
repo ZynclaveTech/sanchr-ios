@@ -14,12 +14,20 @@ private final class CapturingSealedSenderManager: SealedSenderManagerProtocol, @
     var capturedContentType: String?
     var capturedConversationId: String?
     var capturedContent: Data?
+    var capturedMessageId: String?
 
     func acquireDeliveryToken() async throws -> Data { Data("tok".utf8) }
     func getSenderCertificate() async throws -> Data { Data() }
-    func encodeInnerPayload(conversationId: String, contentType: String, content: Data, isSync: Bool) throws -> Data {
+    func encodeInnerPayload(
+        conversationId: String,
+        messageId: String?,
+        contentType: String,
+        content: Data,
+        isSync: Bool
+    ) throws -> Data {
         capturedContentType = contentType
         capturedConversationId = conversationId
+        capturedMessageId = messageId
         capturedContent = content
         return content
     }
