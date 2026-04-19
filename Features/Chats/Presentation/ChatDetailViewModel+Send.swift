@@ -133,8 +133,7 @@ extension ChatDetailViewModel {
             }
         }()
 
-        uploadStatusLabel[optimisticId] = "Encrypting..."
-        uploadProgress[optimisticId] = 0.0
+        uploads.update(id: optimisticId, progress: 0.0, status: "Encrypting...")
 
         do {
             let receipt = try await messageSender.sendMedia(
@@ -144,12 +143,15 @@ extension ChatDetailViewModel {
             ) { [weak self] fraction in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    self.uploadProgress[optimisticId] = fraction
+                    let status: String?
                     if fraction >= 1.0 {
-                        self.uploadStatusLabel[optimisticId] = "Sending..."
+                        status = "Sending..."
                     } else if fraction > 0 {
-                        self.uploadStatusLabel[optimisticId] = "Uploading..."
+                        status = "Uploading..."
+                    } else {
+                        status = nil
                     }
+                    self.uploads.update(id: optimisticId, progress: fraction, status: status)
                 }
             }
 
@@ -185,13 +187,14 @@ extension ChatDetailViewModel {
                 replyToMessageId: optimisticMessage.replyToMessageId
             )
             replaceMessage(id: optimisticId, with: confirmed)
-            uploadProgress.removeValue(forKey: optimisticId)
-            uploadStatusLabel.removeValue(forKey: optimisticId)
+            uploads.clear(id: optimisticId)
             SanchrLogger.media.info("Media message sent: \(receipt.messageId)")
         } catch {
             updateMessage(id: optimisticId) { $0.status = .failed }
-            uploadStatusLabel[optimisticId] = "Failed"
-            uploadProgress.removeValue(forKey: optimisticId)
+            // Keep the "Failed" label visible for the user even after the
+            // progress value is gone — they need to see why the bubble shows
+            // a retry affordance. A subsequent retry will call clear(id:).
+            uploads.setStatus(id: optimisticId, status: "Failed")
             errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
         }
@@ -244,8 +247,7 @@ extension ChatDetailViewModel {
                 return
             }
             let optimisticId = UUID().uuidString
-            uploadStatusLabel[optimisticId] = "Forwarding..."
-            uploadProgress[optimisticId] = 0.0
+            uploads.update(id: optimisticId, progress: 0.0, status: "Forwarding...")
             do {
                 let receipt = try await messageSender.sendMedia(
                     attachment: a,
@@ -253,16 +255,14 @@ extension ChatDetailViewModel {
                     to: targetConversationId
                 ) { [weak self] fraction in
                     Task { @MainActor [weak self] in
-                        self?.uploadProgress[optimisticId] = fraction
+                        self?.uploads.update(id: optimisticId, progress: fraction, status: nil)
                     }
                 }
-                uploadProgress.removeValue(forKey: optimisticId)
-                uploadStatusLabel.removeValue(forKey: optimisticId)
+                uploads.clear(id: optimisticId)
                 SanchrLogger.chat.info(
                     "Forwarded media \(message.id.prefix(8)) → \(receipt.messageId.prefix(8))")
             } catch {
-                uploadStatusLabel.removeValue(forKey: optimisticId)
-                uploadProgress.removeValue(forKey: optimisticId)
+                uploads.clear(id: optimisticId)
                 errorMessage = error.localizedDescription
                 SanchrLogger.chat.error("Forward media failed: \(error.localizedDescription)")
             }

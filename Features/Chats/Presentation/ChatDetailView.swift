@@ -156,13 +156,6 @@ struct ChatDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
                 handleRealtimePresenceUpdated(note)
             }
-            .onChange(of: viewModel.inputText) { _, newValue in
-                viewModel.handleInputTextChanged(
-                    newValue,
-                    conversationId: conversation.id,
-                    messageRepository: container.messageRepository
-                )
-            }
             .onChange(of: isInputFocused) { _, focused in
                 if !focused {
                     // Keyboard dismissed — stop typing indicator
@@ -598,8 +591,8 @@ struct ChatDetailView: View {
             let vm = viewModel
             documentCoordinator.reconfigure(
                 resolver: container.chatMediaResolver,
-                messageLookup: { id in
-                    vm.messages.first(where: { $0.id == id })
+                messageLookup: { [vm] id in
+                    vm.message(withId: id)
                 }
             )
         }

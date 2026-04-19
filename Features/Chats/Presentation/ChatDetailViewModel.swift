@@ -17,7 +17,14 @@ final class ChatDetailViewModel {
 
     // MARK: - State
 
-    var messages: [Message] = []
+    var messages: [Message] = [] {
+        didSet { refreshMessagesLookup() }
+    }
+    /// O(1) message lookup by ID. Kept in sync with `messages` via
+    /// `refreshMessagesLookup()` (called from every mutation path).
+    /// Replaces O(n) linear scans through `messages.first(where:)` in
+    /// hot paths like DocumentPreviewCoordinator's messageLookup closure.
+    private(set) var messagesById: [String: Message] = [:]
     var inputText: String = ""
     var isLoading: Bool = false
     var isLoadingMore: Bool = false
@@ -28,14 +35,11 @@ final class ChatDetailViewModel {
     /// Message being replied to (shown as quote in composer)
     var replyingToMessage: Message?
 
-    /// Upload progress per message ID (0.0 to 1.0). Removed when complete.
-    var uploadProgress: [String: Double] = [:] {
-        didSet { bumpTranscriptVersion() }
-    }
-    /// Upload status label per message ID
-    var uploadStatusLabel: [String: String] = [:] {
-        didSet { bumpTranscriptVersion() }
-    }
+    /// Per-message upload progress + status, isolated in a dedicated
+    /// @Observable store so byte-progress callbacks don't bump the
+    /// transcript version (which would trigger a full snapshot reload).
+    /// Consumers watch `uploads.version` for reconfigure-only updates.
+    let uploads = UploadProgressStore()
 
     /// Whether the peer is typing.
     var peerIsTyping: Bool = false
@@ -301,6 +305,18 @@ final class ChatDetailViewModel {
 
     private func bumpTranscriptVersion() {
         transcriptVersion &+= 1
+    }
+
+    /// Rebuilds the `messagesById` dict after every mutation of `messages`.
+    /// Wired via `didSet` on `messages` so every append / replace / remove /
+    /// reassignment keeps the lookup dict authoritative.
+    private func refreshMessagesLookup() {
+        messagesById = Dictionary(uniqueKeysWithValues: messages.map { ($0.id, $0) })
+    }
+
+    /// O(1) lookup by ID — preferred over `messages.first(where:)` in hot paths.
+    func message(withId id: String) -> Message? {
+        messagesById[id]
     }
 }
 

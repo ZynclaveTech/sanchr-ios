@@ -136,8 +136,8 @@ struct ChatTranscriptView: View {
     private var transcriptRenderInput: TranscriptRenderInput {
         TranscriptRenderInput(
             sections: viewModel.messageSections,
-            uploadProgress: viewModel.uploadProgress,
-            uploadStatusLabel: viewModel.uploadStatusLabel,
+            uploads: viewModel.uploads,
+            uploadsVersion: viewModel.uploads.version,
             version: viewModel.transcriptVersion,
             scrollCommand: transcriptScrollCommand,
             firstUnreadMessageId: viewModel.firstUnreadMessageId

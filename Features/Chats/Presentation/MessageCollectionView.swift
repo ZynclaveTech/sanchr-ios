@@ -10,8 +10,15 @@ enum TranscriptScrollCommand: Equatable {
 
 struct TranscriptRenderInput {
     let sections: [MessageSection]
-    let uploadProgress: [String: Double]
-    let uploadStatusLabel: [String: String]
+    /// Live reference to the uploads store. Cells read current progress /
+    /// status through this; the controller never reads its fields directly
+    /// into a snapshot — that would defeat the throttled-reconfigure path.
+    let uploads: UploadProgressStore
+    /// Snapshot of `uploads.version` at construction time. The controller
+    /// uses this (not the live store) to decide whether to perform a
+    /// reconfigure-only apply. Decoupled so we can diff without touching
+    /// the store's observable fields.
+    let uploadsVersion: UInt64
     let version: UInt64
     let scrollCommand: TranscriptScrollCommand?
     /// ID of the first unread message. When set, a "New Messages" divider

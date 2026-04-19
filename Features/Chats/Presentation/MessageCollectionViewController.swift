@@ -226,6 +226,7 @@ final class MessageCollectionViewController: UIViewController {
     private var isLoadingMore: Bool = false
     private var lastRenderedItemSignatures: [String: MessageItemRenderSignature] = [:]
     private var lastAppliedTranscriptVersion: UInt64?
+    private var lastAppliedUploadsVersion: UInt64?
     private var lastHandledScrollCommand: TranscriptScrollCommand?
     private var pendingScrollCommand: TranscriptScrollCommand?
     private var pendingInitialBottomPresentation = false
@@ -299,12 +300,18 @@ final class MessageCollectionViewController: UIViewController {
         let didApplySnapshot: Bool
         if lastAppliedTranscriptVersion != renderInput.version {
             lastAppliedTranscriptVersion = renderInput.version
+            // A full snapshot apply already pulls the freshest upload state
+            // through the store, so sync the uploads watermark here too.
+            lastAppliedUploadsVersion = renderInput.uploadsVersion
             didApplySnapshot = true
             applySnapshot(
                 sections: renderInput.sections,
-                uploadProgress: renderInput.uploadProgress,
-                uploadStatusLabel: renderInput.uploadStatusLabel
+                uploads: renderInput.uploads
             )
+        } else if lastAppliedUploadsVersion != renderInput.uploadsVersion {
+            lastAppliedUploadsVersion = renderInput.uploadsVersion
+            reconfigureUploadItems(uploads: renderInput.uploads)
+            didApplySnapshot = false
         } else {
             didApplySnapshot = false
         }
@@ -378,46 +385,56 @@ final class MessageCollectionViewController: UIViewController {
 
     private func makeCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
         UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { [weak self] cell, _, item in
-            if item.isUnreadDivider {
-                cell.contentConfiguration = UIHostingConfiguration {
-                    UnreadDividerRow()
-                }
-                .margins(.all, 0)
-                .background(.clear)
-                return
-            }
+            self?.applyCellConfiguration(cell, item: item)
+        }
+    }
 
+    /// Single source of truth for bubble cell content — called from both
+    /// the registration block on initial dequeue AND the visible-cell
+    /// reconfigure path for upload-progress updates. Keeps both render
+    /// paths aligned so an upload bubble looks identical whether its cell
+    /// was just created or patched in place.
+    private func applyCellConfiguration(_ cell: UICollectionViewCell, item: MessageItem) {
+        if item.isUnreadDivider {
             cell.contentConfiguration = UIHostingConfiguration {
-                VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
-                    MessageBubble(
-                        message: item.message,
-                        uploadProgress: item.uploadProgress,
-                        uploadLabel: item.uploadLabel,
-                        hideTimestamp: item.isGroupedWithNext,
-                        isGroupedWithPrev: item.isGroupedWithPrev,
-                        isGroupedWithNext: item.isGroupedWithNext,
-                        voicePlayback: self?.voicePlayback ?? VoicePlaybackController(),
-                        onBubbleTap: { [weak self] interaction in
-                            self?.onBubbleTap?(interaction)
-                        }
-                    )
+                UnreadDividerRow()
+            }
+            .margins(.all, 0)
+            .background(.clear)
+            return
+        }
 
-                    if !item.message.reactions.isEmpty {
-                        ReactionPillsRow(
-                            reactions: item.message.reactions,
-                            isOutgoing: item.message.isOutgoing
-                        ) { [weak self] emoji in
-                            self?.onReactToMessage?(emoji, item.message.id)
-                        }
+        let voicePlayback = self.voicePlayback
+        cell.contentConfiguration = UIHostingConfiguration { [weak self] in
+            VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
+                MessageBubble(
+                    message: item.message,
+                    uploadProgress: item.uploadProgress,
+                    uploadLabel: item.uploadLabel,
+                    hideTimestamp: item.isGroupedWithNext,
+                    isGroupedWithPrev: item.isGroupedWithPrev,
+                    isGroupedWithNext: item.isGroupedWithNext,
+                    voicePlayback: voicePlayback,
+                    onBubbleTap: { interaction in
+                        self?.onBubbleTap?(interaction)
+                    }
+                )
+
+                if !item.message.reactions.isEmpty {
+                    ReactionPillsRow(
+                        reactions: item.message.reactions,
+                        isOutgoing: item.message.isOutgoing
+                    ) { emoji in
+                        self?.onReactToMessage?(emoji, item.message.id)
                     }
                 }
             }
-            .margins(.horizontal, SanchrExportMetrics.sectionHorizontal)
-            .margins(.vertical, item.isGroupedWithPrev ? 2 : 6)
-            .background(.clear)
-
-            self?.attachSwipeGesture(to: cell, message: item.message)
         }
+        .margins(.horizontal, SanchrExportMetrics.sectionHorizontal)
+        .margins(.vertical, item.isGroupedWithPrev ? 2 : 6)
+        .background(.clear)
+
+        attachSwipeGesture(to: cell, message: item.message)
     }
 
     // MARK: - Header Registration
@@ -463,12 +480,12 @@ final class MessageCollectionViewController: UIViewController {
 
     // MARK: - Snapshot Application
 
-    func applySnapshot(sections: [MessageSection], uploadProgress: [String: Double], uploadStatusLabel: [String: String]) {
+    func applySnapshot(sections: [MessageSection], uploads: UploadProgressStore) {
         guard dataSource != nil else {
             pendingRenderInput = TranscriptRenderInput(
                 sections: sections,
-                uploadProgress: uploadProgress,
-                uploadStatusLabel: uploadStatusLabel,
+                uploads: uploads,
+                uploadsVersion: uploads.version,
                 version: lastAppliedTranscriptVersion ?? 0,
                 scrollCommand: pendingScrollCommand,
                 firstUnreadMessageId: firstUnreadMessageId
@@ -511,8 +528,8 @@ final class MessageCollectionViewController: UIViewController {
                     message: message,
                     isGroupedWithPrev: isGroupedWithPrev,
                     isGroupedWithNext: isGroupedWithNext,
-                    uploadProgress: uploadProgress[message.id],
-                    uploadLabel: uploadStatusLabel[message.id]
+                    uploadProgress: uploads.progress(for: message.id),
+                    uploadLabel: uploads.statusLabel(for: message.id)
                 ))
             }
 
@@ -610,6 +627,43 @@ final class MessageCollectionViewController: UIViewController {
         guard !hasReportedInitialContentPresentation else { return }
         hasReportedInitialContentPresentation = true
         onInitialContentPresented?()
+    }
+
+    // MARK: - Reconfigure-only upload updates
+    //
+    // Fast path for byte-progress callbacks: the transcript version hasn't
+    // moved but `uploads.version` has. We refresh only the visible cells
+    // whose messages are active uploads — directly rewriting their
+    // UIHostingConfiguration in place. The dataSource snapshot is NOT
+    // touched, so the diff engine never runs, no animations fire, and
+    // invisible cells (which aren't rendered anyway) pick up fresh state
+    // when they're next dequeued or on the next full snapshot apply.
+    private func reconfigureUploadItems(uploads: UploadProgressStore) {
+        guard dataSource != nil else { return }
+
+        let activeIds = uploads.activeUploadIds
+        guard !activeIds.isEmpty else { return }
+
+        let visibleIndexPaths = collectionView.indexPathsForVisibleItems
+        guard !visibleIndexPaths.isEmpty else { return }
+
+        for indexPath in visibleIndexPaths {
+            guard let item = dataSource.itemIdentifier(for: indexPath),
+                  !item.isUnreadDivider,
+                  activeIds.contains(item.message.id),
+                  let cell = collectionView.cellForItem(at: indexPath) else { continue }
+
+            let refreshed = MessageItem(
+                message: item.message,
+                isGroupedWithPrev: item.isGroupedWithPrev,
+                isGroupedWithNext: item.isGroupedWithNext,
+                uploadProgress: uploads.progress(for: item.message.id),
+                uploadLabel: uploads.statusLabel(for: item.message.id)
+            )
+
+            applyCellConfiguration(cell, item: refreshed)
+            lastRenderedItemSignatures[item.message.id] = refreshed.renderSignature
+        }
     }
 
     // MARK: - Scrolling
