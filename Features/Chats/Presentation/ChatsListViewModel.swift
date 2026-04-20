@@ -43,9 +43,20 @@ final class ChatsListViewModel {
     /// Conversations that are not pinned (for the recent section).
     private(set) var recentConversations: [Conversation] = []
 
+    /// Whether we've finished the first load attempt (either local cache or
+    /// server). Used by the view to avoid flashing the "no conversations"
+    /// empty state before cached data has had a chance to paint.
+    private(set) var hasAttemptedInitialLoad: Bool = false
+
     /// Whether the list is empty (after loading).
+    /// Returns `false` before the first load attempt completes so the view
+    /// shows chrome + list skeleton instead of the empty state art while the
+    /// local DB fetch is still in flight.
     var isEmpty: Bool {
-        !isLoading && pinnedConversations.isEmpty && recentConversations.isEmpty
+        hasAttemptedInitialLoad
+            && !isLoading
+            && pinnedConversations.isEmpty
+            && recentConversations.isEmpty
     }
 
     // MARK: - Sync State Observation
@@ -142,7 +153,13 @@ final class ChatsListViewModel {
         isLoading = true
         errorMessage = nil
 
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            // Whether the fetch succeeded or failed, we've now attempted a
+            // load — the view can safely render its empty-state art from
+            // this point on. Never regresses back to false.
+            hasAttemptedInitialLoad = true
+        }
 
         do {
             conversations = try await messageRepository.fetchConversations()
@@ -163,6 +180,10 @@ final class ChatsListViewModel {
         } catch {
             SanchrLogger.chat.warning("Cached conversation refresh failed: \(error.localizedDescription)")
         }
+        // A cached-DB load counts as an initial-load attempt for UI purposes:
+        // if the DB is genuinely empty the user can see the empty state
+        // immediately without waiting for the server roundtrip.
+        hasAttemptedInitialLoad = true
     }
 
     /// Refreshes a single conversation row from local persistence.

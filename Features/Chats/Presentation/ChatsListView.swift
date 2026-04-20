@@ -235,10 +235,24 @@ struct ChatsListView: View {
 
     private var mainContent: some View {
         Group {
-            if viewModel.conversations.isEmpty && viewModel.isLoading {
-                loadingState
-            } else if viewModel.isEmpty {
+            // WhatsApp-style ordering: show the list (+ chrome) as soon as
+            // the view appears, even before any data is loaded. As soon as
+            // the local DB fetch resolves (typically a few ms later), cached
+            // rows pop in without any intermediate empty/spinner flash.
+            //
+            // Render priority:
+            //   1. Empty state — only after a confirmed empty load attempt
+            //   2. Full-screen spinner — only if we've truly never loaded
+            //      AND the server is still the first attempt we've made
+            //      (e.g., permissions prompt on first launch delayed us)
+            //   3. List — default, even when empty, so the header + chrome
+            //      remain stable while background loads populate rows
+            if viewModel.isEmpty {
                 emptyState
+            } else if viewModel.conversations.isEmpty
+                        && viewModel.isLoading
+                        && !viewModel.hasAttemptedInitialLoad {
+                loadingState
             } else {
                 conversationList
             }
