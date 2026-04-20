@@ -17,6 +17,8 @@ struct MediaBubbleImage: View {
     @State private var resolvedImage: UIImage?
     @State private var placeholderImage: UIImage?
     @State private var isDownloading = false
+    @State private var loadFailed = false
+    @State private var retryTick: Int = 0
     @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
 
     private static let imageCache: NSCache<NSString, UIImage> = {
@@ -32,8 +34,14 @@ struct MediaBubbleImage: View {
         return cache
     }()
 
+    /// Shared media-cache root. MUST stay in lockstep with
+    /// `MediaDownloadManager.cacheDir` — both read and write the same
+    /// `<messageId>.<ext>` filenames. Previously both pointed at
+    /// `.cachesDirectory/MediaMessages`, which iOS purges freely; now both
+    /// point at the App Group container so bubbles keep rendering after
+    /// storage pressure events.
     private static let thumbCacheDir: URL = {
-        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let dir = AppGroup.mediaCacheURL
             .appendingPathComponent("MediaMessages", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
@@ -109,6 +117,25 @@ struct MediaBubbleImage: View {
                                         .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
                                 }
                             }
+                        } else if loadFailed {
+                            // Tap-to-retry: replaces the silent placeholder that
+                            // used to leave receivers stuck when the first
+                            // download failed (network blip, expired URL, etc.).
+                            VStack(spacing: 4) {
+                                Image(systemName: "arrow.clockwise.circle.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.85) : .sanchrPrimary)
+                                Text("Tap to retry")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                loadFailed = false
+                                retryTick &+= 1
+                            }
+                            .accessibilityLabel("Media download failed. Tap to retry.")
+                            .accessibilityAddTraits(.isButton)
                         } else {
                             Image(systemName: "photo")
                                 .font(.system(size: 32))
@@ -117,12 +144,15 @@ struct MediaBubbleImage: View {
                     }
             }
         }
-        .task(id: mediaLoadKey) {
+        .task(id: "\(mediaLoadKey)#\(retryTick)") {
             await loadImages()
         }
     }
 
     private func loadImages() async {
+        // Reset the retry-error state on each attempt; the .task(id:) modifier
+        // re-runs this on every retryTick bump so we always restart clean.
+        loadFailed = false
         if let cached = Self.imageCache.object(forKey: messageId as NSString) {
             resolvedImage = cached
             return
@@ -150,6 +180,15 @@ struct MediaBubbleImage: View {
         if let image = await loadResolvedImage() {
             Self.cacheImage(image, forKey: messageId)
             resolvedImage = image
+        } else {
+            // Only surface the retry affordance for remote attachments
+            // (sanchr-media:// or https://). A missing local file URL on
+            // the sender side is expected transiently while the picker
+            // temp file is being copied into the App Group cache — the
+            // next body pass picks it up via `cachedMediaFilePath`.
+            if !attachment.url.isFileURL {
+                loadFailed = true
+            }
         }
     }
 
@@ -241,7 +280,13 @@ struct MediaBubbleImage: View {
     }
 
     private func localImageCandidateURL() -> URL? {
-        if attachment.url.isFileURL {
+        // Validate that the file actually exists. The sender's in-memory
+        // attachment.url often points at a picker temp file that iOS can
+        // clean up mid-session; returning a dead URL here made the bubble
+        // render nothing instead of falling through to the cached copy
+        // or the download pipeline.
+        if attachment.url.isFileURL,
+           FileManager.default.fileExists(atPath: attachment.url.path) {
             return attachment.url
         }
         return cachedMediaFilePath

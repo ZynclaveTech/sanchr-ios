@@ -25,9 +25,54 @@ actor MediaDownloadManager {
         self.grpcClient = grpcClient
         self.vaultEKFScheduler = vaultEKFScheduler
 
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDir = caches.appendingPathComponent("MediaMessages", isDirectory: true)
+        // Store cached decrypted media inside the App Group container
+        // rather than .cachesDirectory. cachesDirectory contents are purged
+        // by iOS at will (low disk, background maintenance, iCloud optimized
+        // storage) — causing users to see placeholder bubbles even for media
+        // that's already been downloaded and decrypted.
+        cacheDir = AppGroup.mediaCacheURL
+            .appendingPathComponent("MediaMessages", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        // One-time migration: move any existing files from the previous
+        // cachesDirectory location into the persistent App Group location.
+        // Safe to run on every init — it's a no-op once the old dir is empty.
+        Self.migrateLegacyCachesDirectoryIfNeeded(to: cacheDir)
+    }
+
+    /// Moves any pre-existing decrypted media files from the legacy
+    /// `.cachesDirectory/MediaMessages` location into the new App Group
+    /// cache. Leaves the old directory in place so other readers (e.g.,
+    /// MediaBubbleImage.thumbCacheDir fallbacks) can still find anything
+    /// we fail to move, but removes each file we successfully relocated.
+    private static func migrateLegacyCachesDirectoryIfNeeded(to newCacheDir: URL) {
+        let fm = FileManager.default
+        let legacy = fm.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("MediaMessages", isDirectory: true)
+        guard fm.fileExists(atPath: legacy.path),
+              let entries = try? fm.contentsOfDirectory(atPath: legacy.path),
+              !entries.isEmpty
+        else {
+            return
+        }
+        for entry in entries {
+            let src = legacy.appendingPathComponent(entry)
+            let dst = newCacheDir.appendingPathComponent(entry)
+            // If the new location already has it (e.g., mid-migration
+            // crash), keep the new copy and drop the legacy one.
+            if fm.fileExists(atPath: dst.path) {
+                try? fm.removeItem(at: src)
+                continue
+            }
+            do {
+                try fm.moveItem(at: src, to: dst)
+            } catch {
+                // Best effort — leave the legacy file for fallback reads.
+                SanchrLogger.media.warning(
+                    "Legacy media-cache migration skipped \(entry): \(error.localizedDescription)"
+                )
+            }
+        }
     }
 
     /// Returns the local file URL if already cached.

@@ -155,17 +155,27 @@ extension ChatDetailViewModel {
                 }
             }
 
-            // Cache the sender's local file under the optimistic id so the
-            // bubble never has to round-trip its own media through the
-            // download pipeline. Mirrors the legacy behaviour exactly.
+            // Cache the sender's local file under the SERVER message id so
+            // the bubble's `cachedMediaFilePath` lookup (which keys by
+            // `messages` row id — the server id after confirm) actually
+            // hits. Previously we keyed by `optimisticId`, so every sender
+            // bubble missed the cache and fell back to the download
+            // pipeline — or to a dead localFileURL if the picker temp was
+            // already cleaned up by iOS.
+            //
+            // Cache location is the App Group's MediaCache (persistent)
+            // rather than `.cachesDirectory` (which iOS evicts freely).
             let ext = mimeType.contains("png") ? "png"
                 : mimeType.hasPrefix("video/") ? "mp4"
                 : mimeType.hasPrefix("audio/") ? "m4a"
                 : "jpg"
-            let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            let cacheDir = AppGroup.mediaCacheURL
                 .appendingPathComponent("MediaMessages", isDirectory: true)
             try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            let cachedFile = cacheDir.appendingPathComponent("\(optimisticId).\(ext)")
+            let cachedFile = cacheDir.appendingPathComponent("\(receipt.messageId).\(ext)")
+            // Remove any previous copy (e.g., from a prior retry) before
+            // linking — copyItem refuses to overwrite an existing file.
+            try? FileManager.default.removeItem(at: cachedFile)
             try? FileManager.default.copyItem(at: localFileURL, to: cachedFile)
 
             let serverTimestamp = Date(
