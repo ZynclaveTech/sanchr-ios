@@ -1213,23 +1213,20 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         return merged
     }
 
+    /// Resolves the database file path for destroy/reset operations.
+    ///
+    /// Defaults to `AppGroup.databaseURL.path` — the same location the instance
+    /// initializer uses via `path: URL = AppGroup.databaseURL`. An earlier
+    /// implementation returned `applicationSupportDirectory/SanchrDB/sanchr.sqlite`,
+    /// which never matched the real DB location and caused
+    /// `resetLocalDataAfterBootstrapFailure` to silently skip the file on disk —
+    /// leaving users stuck in the recovery-view loop on reinstall.
+    /// `customPath` is retained for test use-cases that create a throwaway DB.
     private static func resolveDatabasePath(customPath: String?) -> String {
         if let customPath {
             return customPath
         }
-
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first!
-        let dbDir = appSupport.appendingPathComponent("SanchrDB", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dbDir, withIntermediateDirectories: true)
-        try? (dbDir as NSURL).setResourceValue(
-            URLFileProtection.completeUntilFirstUserAuthentication,
-            forKey: .fileProtectionKey
-        )
-
-        return dbDir.appendingPathComponent("sanchr.sqlite").path
+        return AppGroup.databaseURL.path
     }
 
     public static func destroyDatabaseFiles(customPath: String? = nil) throws {

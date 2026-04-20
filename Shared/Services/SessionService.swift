@@ -281,6 +281,19 @@ final class SessionService: @unchecked Sendable {
         try? persistSnapshot()
     }
 
+    /// Resets the incremental-sync high-water mark to 0 and persists the
+    /// updated session snapshot. Used by `resetLocalSecrets` after the local
+    /// database has been destroyed so that the next `syncPendingMessages`
+    /// call re-downloads the full server-side message history instead of
+    /// requesting only messages newer than the stale high-water mark.
+    ///
+    /// Bypasses the forward-only guard in `setLastMessageSyncTimestamp`
+    /// because this is an explicit reset, not a sync-progress update.
+    func resetMessageSyncHighWaterMark() {
+        lastMessageSyncTimestamp = 0
+        try? persistSnapshot()
+    }
+
     /// Permanently deletes the user's account on the server and wipes ALL
     /// local artifacts (including App Group state). On server failure no
     /// local wipe is performed so the user can retry without being stranded.

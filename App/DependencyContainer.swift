@@ -607,6 +607,11 @@ final class DependencyContainer: @unchecked Sendable {
         callManager.resetState()
         try? localDatabaseKeyProvider.resetDatabaseSecrets()
         try? LocalDatabase.destroyDatabaseFiles()
+        // The destroyed local DB is gone but the session's sync high-water
+        // mark still points at the last message we had. Reset it so the next
+        // syncPendingMessages() pulls the full server-side history instead
+        // of only messages newer than the stale mark.
+        sessionService.resetMessageSyncHighWaterMark()
         localDatabase = makeLocalDatabase()
     }
 

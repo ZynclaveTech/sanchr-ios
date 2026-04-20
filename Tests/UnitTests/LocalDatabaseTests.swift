@@ -516,6 +516,42 @@ final class LocalDatabaseTests: XCTestCase {
         return directory.appendingPathComponent("sanchr-tests.sqlite").path
     }
 
+    // MARK: - destroyDatabaseFiles path resolution
+
+    /// Regression guard: `destroyDatabaseFiles(customPath:)` must actually
+    /// remove the file at the given path (sqlite + WAL + SHM sidecars).
+    /// An earlier implementation resolved the default path to a directory
+    /// in `applicationSupportDirectory` that never contained the real DB,
+    /// causing `resetLocalDataAfterBootstrapFailure` to silently no-op on
+    /// the actual App Group database file. Users hit an unrecoverable
+    /// recovery-view loop on reinstall.
+    func testDestroyDatabaseFilesRemovesSqliteAndSidecarsAtCustomPath() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let dbPath = directory.appendingPathComponent("db.sqlite").path
+        let walPath = dbPath + "-wal"
+        let shmPath = dbPath + "-shm"
+
+        // Seed all three files that a live SQLCipher DB would leave behind.
+        FileManager.default.createFile(atPath: dbPath, contents: Data([0x01]))
+        FileManager.default.createFile(atPath: walPath, contents: Data([0x02]))
+        FileManager.default.createFile(atPath: shmPath, contents: Data([0x03]))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dbPath))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: walPath))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: shmPath))
+
+        try LocalDatabase.destroyDatabaseFiles(customPath: dbPath)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dbPath),
+                       "Main sqlite file must be removed.")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: walPath),
+                       "-wal sidecar must be removed.")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: shmPath),
+                       "-shm sidecar must be removed.")
+    }
+
     private func makeConversation(id: String, unreadCount: Int = 0) -> Conversation {
         Conversation(
             id: id,

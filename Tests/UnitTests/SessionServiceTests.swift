@@ -131,4 +131,73 @@ final class SessionServiceTests: XCTestCase {
         let cleanupValue = await cleanupCounter.value
         XCTAssertEqual(cleanupValue, 1)
     }
+
+    // MARK: - Reset Message Sync High-Water Mark
+
+    /// Regression guard: `resetLocalDataAfterBootstrapFailure` in
+    /// `DependencyContainer` relies on this method to zero the high-water
+    /// mark so the next server sync pulls full history instead of only
+    /// messages newer than the stale mark. If this behavior regresses,
+    /// users who hit `LocalDataRecoveryView` on reinstall silently lose
+    /// their entire message history.
+    func testResetMessageSyncHighWaterMarkZerosValueAndPersists() {
+        let storage = MockSecureStorage()
+        storage.refreshToken = "refresh-token"
+        storage.sessionSnapshot = SessionSnapshot(
+            userId: "user-123",
+            displayName: "Sanchr User",
+            phoneNumber: "+15551234567",
+            avatarURL: nil,
+            tokenExpiresAt: Date().addingTimeInterval(3600),
+            deviceId: "5",
+            installationId: "install-123",
+            lastMessageSyncTimestamp: 1_750_000_000_000
+        )
+
+        let service = SessionService(
+            secureStorage: storage,
+            authRepository: MockAuthRepository(),
+            privacySettings: PrivacySettingsCache()
+        )
+
+        XCTAssertEqual(service.lastMessageSyncTimestamp, 1_750_000_000_000)
+
+        service.resetMessageSyncHighWaterMark()
+
+        XCTAssertEqual(service.lastMessageSyncTimestamp, 0)
+        XCTAssertEqual(storage.sessionSnapshot?.lastMessageSyncTimestamp, 0)
+    }
+
+    /// The high-water mark reset must bypass the forward-only guard in
+    /// `setLastMessageSyncTimestamp`. This test is what prevents someone
+    /// from "simplifying" the reset path by routing it through the setter.
+    func testResetMessageSyncHighWaterMarkBypassesForwardOnlyGuard() {
+        let storage = MockSecureStorage()
+        storage.refreshToken = "refresh-token"
+        storage.sessionSnapshot = SessionSnapshot(
+            userId: "user-123",
+            displayName: "Sanchr User",
+            phoneNumber: "+15551234567",
+            avatarURL: nil,
+            tokenExpiresAt: Date().addingTimeInterval(3600),
+            deviceId: "5",
+            installationId: "install-123",
+            lastMessageSyncTimestamp: 42
+        )
+
+        let service = SessionService(
+            secureStorage: storage,
+            authRepository: MockAuthRepository(),
+            privacySettings: PrivacySettingsCache()
+        )
+
+        // setLastMessageSyncTimestamp refuses to go backwards.
+        service.setLastMessageSyncTimestamp(0)
+        XCTAssertEqual(service.lastMessageSyncTimestamp, 42, "Sanity: forward-only guard blocks zero.")
+
+        // resetMessageSyncHighWaterMark must bypass that guard.
+        service.resetMessageSyncHighWaterMark()
+        XCTAssertEqual(service.lastMessageSyncTimestamp, 0)
+        XCTAssertEqual(storage.sessionSnapshot?.lastMessageSyncTimestamp, 0)
+    }
 }
