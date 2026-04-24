@@ -1319,7 +1319,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             } catch {
                 SanchrLogger.calls.error(
                     "Stream: SDP decryption failed for pending call \(offer.callID): \(error) [\(type(of: error))]")
-                try? self.signalManager.resetSession(with: offer.callerID, deviceId: 1)
+                let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+                try? self.signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
                 return .transientFailure
             }
         }
@@ -1356,7 +1357,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         } catch {
             SanchrLogger.calls.error(
                 "Failed to decrypt incoming call offer from \(offer.callerID.prefix(8))...: \(error) [\(type(of: error))]")
-            try? signalManager.resetSession(with: offer.callerID, deviceId: 1)
+            let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+            try? signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
             return .transientFailure
         }
     }
@@ -1630,6 +1632,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         outboundContinuation?.yield(signal)
     }
 
+    /// Decrypts and validates an incoming call offer.
+    /// - Returns: The plaintext SDP string on success.
+    /// - Throws: `AppError.decryptionFailed` when the Signal decrypt fails,
+    ///   the payload is stale, or the embedded DTLS fingerprint does not
+    ///   match the SDP's. All failures log the reason and do not surface the
+    ///   raw decrypt error to the caller.
     private func decryptAndValidateOffer(
         _ offer: Sanchr_Messaging_CallOfferEvent,
         maxAgeSeconds: TimeInterval
@@ -1637,11 +1645,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         guard !offer.encryptedSdpPayload.isEmpty else {
             throw AppError.decryptionFailed(reason: "encrypted call offer payload is empty")
         }
-        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+        // caller_device is populated by multi-device-aware servers; legacy
+        // servers leave it at 0. When absent, fall back to device 1 so pre-
+        // multi-device deployments keep working exactly as before.
+        let senderDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
         let plaintext = try await signalManager.decrypt(
             ciphertext: offer.encryptedSdpPayload,
             from: offer.callerID,
-            senderDevice: 1
+            senderDevice: senderDevice
         )
         let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
         let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
@@ -1654,6 +1665,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         else {
             throw AppError.decryptionFailed(reason: "DTLS fingerprint missing or mismatched")
         }
+        // Persist the sender device so the answer we send back encrypts for
+        // the exact session we just decrypted from, not device 1.
+        self.remoteCallerDevice = senderDevice
         return sealedPayload.sdp
     }
 
