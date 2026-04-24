@@ -41,6 +41,46 @@ private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
 
+// MARK: - RecordingSignalManager (records senderDevice; decrypt returns valid SealedCallPayload)
+
+/// Identity-cipher mock that captures the `senderDevice` passed to `decrypt`
+/// and returns a valid `SealedCallPayload` JSON so the async decrypt path in
+/// `CallManager.handleVoIPPushIncomingCall` can complete without throwing.
+/// File-private so multiple tests can use it without redefining the 15+
+/// no-op protocol methods inline.
+private final class RecordingSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
+    let localUserId: String = "test-local-user"
+    var lastSenderDevice: Int32 = -1
+
+    func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data { plaintext }
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
+        lastSenderDevice = senderDevice
+        let payload = SealedCallPayload(
+            sdp: "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n",
+            dtlsFingerprint: "sha-256 DE:AD:BE:EF",
+            timestamp: Date().timeIntervalSince1970
+        )
+        return try JSONEncoder().encode(payload)
+    }
+
+    func establishSession(with userId: String, deviceId: Int32) async throws {}
+    func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
+    func hasSession(with userId: String) -> Bool { true }
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
+    func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
+    func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+        throw AppError.decryptionFailed(reason: "not used")
+    }
+    func resetSession(with userId: String, deviceId: Int32) throws {}
+    func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
+    func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
+    func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
+    func markIdentityVerified(userId: String) {}
+    func isIdentityVerified(userId: String) -> Bool { false }
+    func localIdentityKeyData() throws -> Data { Data() }
+    func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
+}
+
 // MARK: - MockCallSignalingService
 
 // Uses FakeChannel so GRPCClient conformance is satisfied. Unary methods are shadowed
@@ -741,38 +781,6 @@ final class CallManagerE2EETests: XCTestCase {
     /// VoIP push arrives with the caller's device id — the async SDP decrypt
     /// Task must use it instead of hardcoding device 1.
     func test_handleVoIPPushIncomingCall_usesCallerDeviceForDecrypt() async throws {
-        final class RecordingSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
-            let localUserId: String = "test-local-user"
-            var lastSenderDevice: Int32 = -1
-            func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data { plaintext }
-            func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
-                lastSenderDevice = senderDevice
-                // Return a valid SealedCallPayload JSON so the async decrypt Task completes
-                // without throwing — we only care about capturing senderDevice.
-                let payload = SealedCallPayload(
-                    sdp: "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n",
-                    dtlsFingerprint: "sha-256 DE:AD:BE:EF",
-                    timestamp: Date().timeIntervalSince1970
-                )
-                return try JSONEncoder().encode(payload)
-            }
-            func establishSession(with userId: String, deviceId: Int32) async throws {}
-            func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
-            func hasSession(with userId: String) -> Bool { true }
-            func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
-            func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
-            func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
-                throw AppError.decryptionFailed(reason: "not used")
-            }
-            func resetSession(with userId: String, deviceId: Int32) throws {}
-            func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
-            func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
-            func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
-            func markIdentityVerified(userId: String) {}
-            func isIdentityVerified(userId: String) -> Bool { false }
-            func localIdentityKeyData() throws -> Data { Data() }
-            func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
-        }
         let signalManager = RecordingSignalManager()
         let callService = MockCallSignalingService()
         let webRTCClient = WebRTCClient()
@@ -799,8 +807,9 @@ final class CallManagerE2EETests: XCTestCase {
             )
         }
 
-        // Give the async decrypt Task a chance to run.
-        try await Task.sleep(for: .milliseconds(200))
+        // Give the async decrypt Task a chance to run. 500ms matches the
+        // convention used by the other VoIP-push tests in this file.
+        try await Task.sleep(for: .milliseconds(500))
 
         XCTAssertEqual(signalManager.lastSenderDevice, 9,
             "VoIP push decrypt must address the caller's device id, not hardcode 1")

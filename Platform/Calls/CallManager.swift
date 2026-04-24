@@ -217,7 +217,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // guarantees the next encrypt() call triggers processPreKeyBundle and produces a
         // type-0x01 PreKeySignalMessage that self-heals across any session state mismatch.
         // Side effect: the shared messaging session is refreshed, which is harmless.
-        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+        // FIXME(calls/Sub-phase D): outgoing offer is encrypted only for recipient
+        // device 1. Sub-phase D fans this out via signalManager.encryptCallOffers
+        // and ships the result as CallOffer.device_offers. Until then, recipients
+        // on non-primary devices will not receive this call.
         try? signalManager.resetSession(with: recipientId, deviceId: 1)
         let encryptedPayload = try await signalManager.encrypt(
             plaintext: payloadData, for: recipientId, deviceId: 1)
@@ -899,7 +902,9 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             type: type
         )
         let payloadData = try JSONEncoder().encode(payload)
-        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+        // FIXME(calls/Sub-phase E): video-upgrade answer is encrypted for recipient
+        // device 1. Sub-phase E threads remoteCallerDevice through this path so
+        // the answer addresses the actual peer device that initiated the call.
         let encryptedPayload = try await signalManager.encrypt(
             plaintext: payloadData,
             for: recipientId,
@@ -991,7 +996,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     SanchrLogger.calls.info("Received encrypted SDP answer for call \(callId)")
                     guard let senderId = self.peerId else { continue }
                     do {
-                        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
+                        // FIXME(calls/Sub-phase E): caller-side answer decrypt assumes
+                        // the answerer is on device 1. Sub-phase E reads
+                        // CallSignal.peerDevice (server-populated from CallJoin.answererDevice)
+                        // and decrypts against that device, falling back to 1.
                         let plaintext = try await self.signalManager.decrypt(
                             ciphertext: ciphertext, from: senderId, senderDevice: 1)
                         let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
