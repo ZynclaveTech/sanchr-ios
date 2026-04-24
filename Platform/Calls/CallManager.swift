@@ -1469,6 +1469,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         peerName = nil
         peerAvatarURL = nil
         currentVideoFilter = .none
+        // Reset the resolved sender device so the next call's return-path
+        // encrypt does not inherit a stale device id from a prior session.
+        // Sub-phase D's sendEncryptedSessionDescription reads this; without
+        // the reset, a sequential call from a different device would encrypt
+        // the answer for the wrong Signal session.
+        remoteCallerDevice = 0
     }
 
     private func controlMessage(action: String) -> Sanchr_Calling_CallControl {

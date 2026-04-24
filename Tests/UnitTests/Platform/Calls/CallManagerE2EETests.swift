@@ -609,6 +609,31 @@ final class CallManagerE2EETests: XCTestCase {
         XCTAssertNil(callManager.peerAvatarURL)
     }
 
+    /// resetState must zero remoteCallerDevice so the next call's return-path
+    /// encrypt does not inherit a stale device id from the prior session.
+    /// Sub-phase D's sendEncryptedSessionDescription reads this value; without
+    /// the reset, a sequential call from a different device would encrypt the
+    /// answer for the wrong Signal session.
+    func test_resetState_clearsRemoteCallerDevice() async throws {
+        let callManager = makeCallManager()
+
+        // Drive the real decrypt path to set remoteCallerDevice = 7.
+        let payload = try makeSealedPayload(
+            payloadFingerprint: "sha-256 DE:AD:BE:EF",
+            sdpBody: "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        )
+        var offerEvent = makeOfferEvent(payload: payload, callerId: "alice")
+        offerEvent.callerDevice = 7
+        _ = await callManager.handleIncomingCallOffer(offerEvent)
+        XCTAssertEqual(callManager.remoteCallerDevice, 7,
+            "precondition: handleIncomingCallOffer must persist callerDevice")
+
+        callManager.resetState()
+
+        XCTAssertEqual(callManager.remoteCallerDevice, 0,
+            "resetState must zero remoteCallerDevice — Sub-phase D return-path encrypt must not inherit stale device ids")
+    }
+
     // MARK: - Private Helpers
 
     private func makeCallManager(
