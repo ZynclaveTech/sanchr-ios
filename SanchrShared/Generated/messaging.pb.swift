@@ -324,6 +324,11 @@ public struct Sanchr_Messaging_CallOfferEvent: Sendable {
   /// Signal-encrypt(SealedCallPayload JSON)
   public var encryptedSdpPayload: Data = Data()
 
+  /// Device id of the caller for Signal session addressing. Zero means absent
+  /// (legacy server) — iOS falls back to device 1 in that case. See
+  /// CallManager.decryptAndValidateOffer for the read site.
+  public var callerDevice: Int32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1254,7 +1259,7 @@ extension Sanchr_Messaging_ServerEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallOfferEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}caller_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0\u{3}encrypted_sdp_payload\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{3}caller_id\0\u{3}call_type\0\u{3}sdp_offer\0\u{3}srtp_key_params\0\u{3}encrypted_sdp_payload\0\u{3}caller_device\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1268,6 +1273,7 @@ extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf.
       case 4: try { try decoder.decodeSingularBytesField(value: &self.sdpOffer) }()
       case 5: try { try decoder.decodeSingularBytesField(value: &self.srtpKeyParams) }()
       case 6: try { try decoder.decodeSingularBytesField(value: &self.encryptedSdpPayload) }()
+      case 7: try { try decoder.decodeSingularInt32Field(value: &self.callerDevice) }()
       default: break
       }
     }
@@ -1292,6 +1298,9 @@ extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.encryptedSdpPayload.isEmpty {
       try visitor.visitSingularBytesField(value: self.encryptedSdpPayload, fieldNumber: 6)
     }
+    if self.callerDevice != 0 {
+      try visitor.visitSingularInt32Field(value: self.callerDevice, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1302,6 +1311,7 @@ extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.sdpOffer != rhs.sdpOffer {return false}
     if lhs.srtpKeyParams != rhs.srtpKeyParams {return false}
     if lhs.encryptedSdpPayload != rhs.encryptedSdpPayload {return false}
+    if lhs.callerDevice != rhs.callerDevice {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
