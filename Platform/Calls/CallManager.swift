@@ -1654,11 +1654,19 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Helpers
 
     private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
-        Self.buildIceServersImpl(from: credentials)
+        Self.buildIceServersImpl(
+            from: credentials,
+            stunServers: AppConfiguration.current.stunServers
+        )
     }
 
-    private static func buildIceServersImpl(
-        from credentials: Sanchr_Calling_TurnCredentials
+    /// Pure builder — testable without standing up a CallManager. Includes a
+    /// final-fallback Google STUN entry only when the configured `stunServers`
+    /// list is empty so that a misconfigured environment still degrades to a
+    /// working call rather than a no-ICE failure.
+    static func buildIceServersImpl(
+        from credentials: Sanchr_Calling_TurnCredentials,
+        stunServers: [String]
     ) -> [RTCIceServer] {
         var servers: [RTCIceServer] = []
 
@@ -1670,29 +1678,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             ))
         }
 
-        // STUN comes from AppConfiguration so each environment can point at
-        // its own STUN host. We always include at least one fallback even if
-        // the configured list is empty so calls degrade rather than fail.
-        let stun = AppConfiguration.current.stunServers
-        if !stun.isEmpty {
-            servers.append(RTCIceServer(urlStrings: stun))
-        } else {
+        if stunServers.isEmpty {
             servers.append(RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"]))
+        } else {
+            servers.append(RTCIceServer(urlStrings: stunServers))
         }
 
         return servers
     }
-
-#if DEBUG
-    /// Test-only entry point for `buildIceServers`. Static so unit tests do not
-    /// need to stand up a full CallManager (which requires CallKit + WebRTC).
-    /// Do not call from production code.
-    static func testOnly_buildIceServers(
-        from credentials: Sanchr_Calling_TurnCredentials
-    ) -> [RTCIceServer] {
-        Self.buildIceServersImpl(from: credentials)
-    }
-#endif
 }
 
 // MARK: - CXProviderDelegate

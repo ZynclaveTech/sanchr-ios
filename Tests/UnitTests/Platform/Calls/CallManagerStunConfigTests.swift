@@ -2,45 +2,55 @@ import XCTest
 import SanchrShared
 @testable import Sanchr
 
-/// Verifies that CallManager's STUN fallback list comes from
-/// AppConfiguration, not from a hard-coded constant.
+/// Verifies that CallManager's ICE-server list comes from injected config,
+/// not from a hard-coded constant. Each test drives `buildIceServersImpl`
+/// directly so it can pin the exact behavior of every branch.
 final class CallManagerStunConfigTests: XCTestCase {
 
-    /// When the gRPC TurnCredentials response carries no TURN URLs, the
-    /// resulting RTCIceServer list must contain every STUN URL from
-    /// AppConfiguration.current.stunServers — not just the default Google STUN.
-    func test_buildIceServers_withoutTurn_emitsConfiguredStunList() {
-        let credentials = Sanchr_Calling_TurnCredentials()  // empty — no TURN
-        let configured = AppConfiguration.current.stunServers
-        XCTAssertFalse(configured.isEmpty,
-            "AppConfiguration.current must declare at least one STUN server")
+    /// With no TURN credentials and a non-empty configured STUN list, the
+    /// emitted ICE-server list contains exactly the configured STUN URLs and
+    /// no implicit Google fallback.
+    func test_buildIceServers_withConfiguredStun_doesNotAppendGoogleFallback() {
+        let credentials = Sanchr_Calling_TurnCredentials()
+        let configured = ["stun:stun.example.com:3478", "stun:stun-backup.example.com:3478"]
 
-        let servers = CallManager.testOnly_buildIceServers(from: credentials)
+        let servers = CallManager.buildIceServersImpl(from: credentials, stunServers: configured)
+        let emitted = servers.flatMap { $0.urlStrings }
 
-        // Every configured STUN URL must appear in the returned servers.
-        let emitted: [String] = servers.flatMap { $0.urlStrings }
-        for stun in configured {
-            XCTAssertTrue(emitted.contains(stun),
-                "expected configured STUN '\(stun)' in iceServers, got \(emitted)")
-        }
+        XCTAssertEqual(emitted, configured,
+            "configured STUN list must be the only entries when no TURN is present, got \(emitted)")
+        XCTAssertFalse(emitted.contains("stun:stun.l.google.com:19302"),
+            "Google STUN must NOT be appended when the configured list is non-empty")
     }
 
-    /// When the gRPC response includes TURN credentials, both the TURN entry
-    /// and the configured STUN entries must be present.
+    /// With TURN credentials present, the emitted list contains the TURN
+    /// entry first, then the configured STUN entries — and no implicit
+    /// Google fallback.
     func test_buildIceServers_withTurn_emitsTurnPlusConfiguredStun() {
         var credentials = Sanchr_Calling_TurnCredentials()
         credentials.urls = ["turn:turn.example.com:3478"]
         credentials.username = "user"
         credentials.credential = "pass"
+        let configured = ["stun:stun.example.com:3478"]
 
-        let servers = CallManager.testOnly_buildIceServers(from: credentials)
-        let emitted: [String] = servers.flatMap { $0.urlStrings }
+        let servers = CallManager.buildIceServersImpl(from: credentials, stunServers: configured)
+        let emitted = servers.flatMap { $0.urlStrings }
 
-        XCTAssertTrue(emitted.contains("turn:turn.example.com:3478"),
-            "TURN entry must be present, got \(emitted)")
-        for stun in AppConfiguration.current.stunServers {
-            XCTAssertTrue(emitted.contains(stun),
-                "configured STUN '\(stun)' must still be present alongside TURN")
-        }
+        XCTAssertEqual(emitted, ["turn:turn.example.com:3478", "stun:stun.example.com:3478"],
+            "expected TURN-then-STUN ordering, got \(emitted)")
+    }
+
+    /// With no TURN credentials and an empty configured STUN list, the
+    /// fallback Google STUN is the only emitted entry — calls degrade
+    /// gracefully under misconfiguration.
+    func test_buildIceServers_withEmptyConfiguredList_emitsGoogleFallback() {
+        let servers = CallManager.buildIceServersImpl(
+            from: Sanchr_Calling_TurnCredentials(),
+            stunServers: []
+        )
+        let emitted = servers.flatMap { $0.urlStrings }
+
+        XCTAssertEqual(emitted, ["stun:stun.l.google.com:19302"],
+            "empty configured list must trigger exactly the Google STUN fallback, got \(emitted)")
     }
 }
