@@ -17,8 +17,10 @@ public struct AppConfiguration: Sendable {
     public let callPort: Int
     public let useTLS: Bool
     public let mediaBaseURL: URL
+    /// STUN-only fallback list baked into the client. TURN credentials are fetched
+    /// per-call via `CallSignalingService.GetTurnCredentials` and MUST NOT be
+    /// hard-coded here — rotating credentials in a release is a server ops failure.
     public let stunServers: [String]
-    public let turnServers: [String]
 
     // MARK: - TLS Certificate Pinning
 
@@ -44,7 +46,6 @@ public struct AppConfiguration: Sendable {
         useTLS: Bool,
         mediaBaseURL: URL,
         stunServers: [String],
-        turnServers: [String],
         isVaultEnabled: Bool,
         isVideoCallEnabled: Bool,
         isDisappearingMessagesEnabled: Bool,
@@ -60,7 +61,6 @@ public struct AppConfiguration: Sendable {
         self.useTLS = useTLS
         self.mediaBaseURL = mediaBaseURL
         self.stunServers = stunServers
-        self.turnServers = turnServers
         self.isVaultEnabled = isVaultEnabled
         self.isVideoCallEnabled = isVideoCallEnabled
         self.isDisappearingMessagesEnabled = isDisappearingMessagesEnabled
@@ -88,7 +88,6 @@ public struct AppConfiguration: Sendable {
         useTLS: false,
         mediaBaseURL: URL(string: "http://localhost:8080/media")!,
         stunServers: ["stun:stun.l.google.com:19302"],
-        turnServers: [],
         isVaultEnabled: true,
         isVideoCallEnabled: true,
         isDisappearingMessagesEnabled: true,
@@ -104,7 +103,6 @@ public struct AppConfiguration: Sendable {
         useTLS: true,
         mediaBaseURL: URL(string: "https://sanchr-media.sfo3.digitaloceanspaces.com")!,
         stunServers: ["stun:stun.l.google.com:19302"],
-        turnServers: [],
         isVaultEnabled: true,
         isVideoCallEnabled: true,
         isDisappearingMessagesEnabled: true,
@@ -120,7 +118,6 @@ public struct AppConfiguration: Sendable {
         useTLS: true,
         mediaBaseURL: URL(string: "https://media-staging.sanchr.io")!,
         stunServers: ["stun:stun.l.google.com:19302"],
-        turnServers: [],
         isVaultEnabled: true,
         isVideoCallEnabled: true,
         isDisappearingMessagesEnabled: true,
@@ -138,9 +135,6 @@ public struct AppConfiguration: Sendable {
         stunServers: [
             "stun:stun.l.google.com:19302",
             "stun:stun1.l.google.com:19302",
-        ],
-        turnServers: [
-            // TODO: Configure production TURN servers
         ],
         isVaultEnabled: true,
         isVideoCallEnabled: false,  // TODO: Enable after beta testing
