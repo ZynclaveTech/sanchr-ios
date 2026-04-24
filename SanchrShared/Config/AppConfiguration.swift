@@ -34,6 +34,12 @@ public struct AppConfiguration: Sendable {
     // MARK: - Feature Flags
 
     public let isVaultEnabled: Bool
+    /// FIXME(calls/P0-F): Currently set per-environment but never read by any code path.
+    /// Video calls work in ALL environments today. Sub-phase F of the calls-hardening
+    /// plan wires this flag into `CallManager.startCall` and `requestVideoUpgrade`,
+    /// and into the chat/call UI video CTAs. Do not add new reads of this flag until
+    /// Sub-phase F lands — doing so splits the gate across two places and guarantees
+    /// drift.
     public let isVideoCallEnabled: Bool
     public let isDisappearingMessagesEnabled: Bool
     public let maxMediaUploadSizeMB: Int
