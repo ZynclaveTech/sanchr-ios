@@ -380,15 +380,21 @@ git commit -m "docs(config): mark isVideoCallEnabled as unwired until sub-phase 
 
 ---
 
-## Sub-phase B — Proto evolution
+## Sub-phase B — Proto evolution (hand-edit)
 
-Three small additive changes, then one regeneration. All fields are optional scalars or repeated messages — safe to ship ahead of server, safe to ignore server-side until it's ready.
+> **Established repo practice:** Generated `.pb.swift` and `.grpc.swift` files in `SanchrShared/Generated/` are **hand-edited**, not regenerated. Confirmed empirically: a no-op run of `Scripts/generate-protos.sh` against `Proto/` deletes 268 lines including symbols the app actively depends on (`Sanchr_Messaging_DeleteConversationRequest` / `Response` and the `DeleteConversation` RPC stubs at `Features/Chats/Data/ChatDataSource.swift:171`, `SanchrShared/Networking/AuthInterceptor.swift:129`, etc.). Those symbols were introduced by commit `6a3d51c` (`feat(chat): wire conversation delete to DeleteConversation RPC`) which hand-added them to the generated files **without touching `Proto/messaging.proto`**. The iOS `Proto/` directory is therefore stale documentation; the source of truth for wire format is whatever the backend actually decodes.
+>
+> **Implication for Sub-phase B:** Do not run `Scripts/generate-protos.sh`. Hand-edit the relevant `.pb.swift` files directly to add the new fields. Update `Proto/*.proto` *as documentation* (so future readers see the intent matched in source) but expect that the protos and generated code will continue to drift on other axes — that's a separate hygiene task (deferred to P5).
+>
+> A round-trip serialization test in Task B3 catches errors in the hand-edits (wrong field number, wrong wire type, missing decoder case, missing visitor case) by encoding → bytes → decoding and asserting the original equals the round-tripped value.
 
-### Task B1: Extend proto definitions
+### Task B1: Update `Proto/*.proto` for documentation
 
 **Files:**
-- Modify: `Proto/messaging.proto` — add `int32 caller_device` to `CallOfferEvent`.
-- Modify: `Proto/calling.proto` — add `DeviceCallOffer`, `repeated DeviceCallOffer device_offers`, `int32 answerer_device` on `CallJoin`, `int32 answerer_device` on `CallSignal`.
+- Modify: `Proto/messaging.proto` — add `int32 caller_device = 7` to `CallOfferEvent`.
+- Modify: `Proto/calling.proto` — add `DeviceCallOffer`, `repeated DeviceCallOffer device_offers = 7` on `CallOffer`, `int32 peer_device = 7` on `CallSignal`, `int32 answerer_device = 2` on `CallJoin`.
+
+**Note:** No regen runs in this task. Editing `Proto/` is documentation only. The actual wire-format change happens in Task B2 by hand-editing the generated files.
 
 - [ ] **Step 1: Edit `Proto/messaging.proto`**
 
@@ -462,75 +468,413 @@ message CallJoin {
 }
 ```
 
-- [ ] **Step 3: Sanity-check the proto edits compile with `protoc --dry-run`**
+- [ ] **Step 3: Sanity-check the proto edits parse**
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
 protoc --proto_path=Proto --descriptor_set_out=/dev/null Proto/messaging.proto Proto/calling.proto
 ```
 
-Expected: exits 0 with no output. If you see a field-number collision or syntax error, fix it before regenerating Swift code.
+Expected: exits 0 with no output. **Do not run `Scripts/generate-protos.sh`.**
 
 - [ ] **Step 4: Commit the proto changes only**
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
 git add Proto/messaging.proto Proto/calling.proto
-git commit -m "proto(calls): add caller_device, device_offers, answerer_device
+git commit -m "proto(calls): document caller_device, device_offers, answerer_device
 
-All three fields are optional and additive — servers may ignore them until they
-ship matching logic. iOS will read them when present and fall back to device 1
-when absent, so this change is safe to land ahead of any backend work.
-
-caller_device on CallOfferEvent lets the callee decrypt against the caller's
-actual Signal session. device_offers on CallOffer lets the caller fan out per
-recipient device. answerer_device on CallJoin (mirrored on CallSignal.peer_device)
-lets the caller decrypt answers from a specific callee device."
+Documentation-only change to Proto/. The generated SwiftProtobuf code in
+SanchrShared/Generated/ is hand-edited in this repo (regen would delete
+DeleteConversation symbols added in 6a3d51c that have no proto counterpart),
+so the wire-format change actually lands in the next commit by editing
+calling.pb.swift and messaging.pb.swift directly. Keeping Proto/ aligned with
+intent helps readers and future-proofs against an eventual regen-policy fix."
 ```
 
 ---
 
-### Task B2: Regenerate Swift protobuf code
+### Task B2: Hand-edit generated SwiftProtobuf files
 
 **Files:**
-- Modify (bulk via script): `SanchrShared/Generated/messaging.pb.swift`, `.../calling.pb.swift`, `.../messaging.grpc.swift`, `.../calling.grpc.swift`.
+- Modify: `SanchrShared/Generated/messaging.pb.swift` — add `callerDevice: Int32` to `Sanchr_Messaging_CallOfferEvent`.
+- Modify: `SanchrShared/Generated/calling.pb.swift` — add `Sanchr_Calling_DeviceCallOffer` struct; add `deviceOffers` to `CallOffer`; add `peerDevice` to `CallSignal`; add `answererDevice` to `CallJoin`.
 
-- [ ] **Step 1: Run the regeneration script**
+**Reference pattern:** Commit `6a3d51c` is the canonical example of a hand-added field (`conversationID` on `SealedDeviceMessage`) and a hand-added top-level message (`DeleteConversationRequest`/`Response`). When in doubt, mirror that commit's shape exactly. Inspect with:
+
+```bash
+git show 6a3d51c -- SanchrShared/Generated/messaging.pb.swift
+```
+
+**SwiftProtobuf hand-edit checklist (per added scalar field):**
+1. Property declaration on the struct: `public var <camelName>: <Type> = <default>` (with optional doc comment).
+2. Entry in `_protobuf_nameMap` bytecode string: insert `\u{3}<snake_name>\0` between existing entries (the `\u{3}` is the field-separator marker SwiftProtobuf v1 uses; it is **not** a length encoding).
+3. Decoder switch case in `decodeMessage(decoder:)`:
+   `case <fieldNumber>: try { try decoder.decodeSingular<Type>Field(value: &self.<camelName>) }()`
+4. Visitor visit in `traverse(visitor:)`:
+   `if self.<camelName> != <default> { try visitor.visitSingular<Type>Field(value: self.<camelName>, fieldNumber: <fieldNumber>) }`
+5. Equality comparison in `static func ==(lhs:rhs:)`:
+   `if lhs.<camelName> != rhs.<camelName> { return false }`
+
+For a new top-level message (e.g. `Sanchr_Calling_DeviceCallOffer`), additionally add:
+- The `public struct ... : Sendable { ... }` declaration in the messages section.
+- A separate `extension <Type>: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding { ... }` block at the bottom of the file with `protoMessageName`, `_protobuf_nameMap`, `decodeMessage`, `traverse`, and `==` — exactly mirroring `Sanchr_Messaging_DeleteConversationRequest`'s shape.
+
+For a `repeated <Message>` field (`device_offers`), the patterns differ:
+- Property: `public var deviceOffers: [Sanchr_Calling_DeviceCallOffer] = []`
+- Decoder: `case 7: try { try decoder.decodeRepeatedMessageField(value: &self.deviceOffers) }()`
+- Visitor: `if !self.deviceOffers.isEmpty { try visitor.visitRepeatedMessageField(value: self.deviceOffers, fieldNumber: 7) }`
+- Equality: `if lhs.deviceOffers != rhs.deviceOffers { return false }`
+
+- [ ] **Step 1: Re-read each generated file before editing**
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
-./Scripts/generate-protos.sh
+grep -n 'Sanchr_Calling_CallOffer\b\|Sanchr_Calling_CallSignal\b\|Sanchr_Calling_CallJoin\b\|Sanchr_Calling_DeviceCallOffer\|Sanchr_Messaging_CallOfferEvent' SanchrShared/Generated/calling.pb.swift SanchrShared/Generated/messaging.pb.swift
 ```
 
-Expected output tail: `Done. Generated files in .../SanchrShared/Generated`.
+This locates both the struct declarations and their `extension <Type>: SwiftProtobuf.Message ...` blocks. Each new field needs edits in both the struct (property) and the extension (nameMap + decoder + visitor + equality).
 
-- [ ] **Step 2: Review the diff and revert cosmetic-only drift**
+- [ ] **Step 2: Edit `messaging.pb.swift` — add `callerDevice` to `CallOfferEvent`**
 
-```bash
-git diff --stat SanchrShared/Generated/
-git diff SanchrShared/Generated/messaging.pb.swift | head -80
-git diff SanchrShared/Generated/calling.pb.swift | head -120
+Locate `public struct Sanchr_Messaging_CallOfferEvent`. Add the new property after `encryptedSdpPayload`:
+
+```swift
+  /// Device id of the caller for Signal session addressing. Zero means absent
+  /// (legacy server) — iOS falls back to device 1 in that case. See
+  /// CallManager.decryptAndValidateOffer for the read site.
+  public var callerDevice: Int32 = 0
 ```
 
-Per the header comment in `Scripts/generate-protos.sh`, `ClientMetadata.Methods` visibility may flip `internal` → `public`. Revert that drift per file with `git checkout -p` unless the phase needs it. The only semantic changes you want in this commit are: new properties `callerDevice`, `deviceOffers`, `peerDevice`, `answererDevice`, the new `Sanchr_Calling_DeviceCallOffer` struct, and their `case` entries in the `_ProtobufMessage` conformance.
+Locate the `extension Sanchr_Messaging_CallOfferEvent: SwiftProtobuf.Message ...` block. Update the four sites:
 
-- [ ] **Step 3: Build to verify the generated code compiles against the existing call sites**
+- `_protobuf_nameMap`: insert `\u{3}caller_device\0` immediately before the trailing `\0` (i.e. after `encrypted_sdp_payload`).
+- `decodeMessage`: add `case 7: try { try decoder.decodeSingularInt32Field(value: &self.callerDevice) }()` after the existing `case 6` for `encryptedSdpPayload`.
+- `traverse`: add (after the existing `encryptedSdpPayload` block):
+  ```swift
+  if self.callerDevice != 0 {
+    try visitor.visitSingularInt32Field(value: self.callerDevice, fieldNumber: 7)
+  }
+  ```
+- `==`: add `if lhs.callerDevice != rhs.callerDevice {return false}` after the existing `encryptedSdpPayload` line.
+
+- [ ] **Step 3: Edit `calling.pb.swift` — add `DeviceCallOffer`**
+
+Add the new struct in the messages section (place it immediately after `Sanchr_Calling_CallOffer`):
+
+```swift
+public struct Sanchr_Calling_DeviceCallOffer: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var deviceID: Int32 = 0
+
+  public var encryptedSdpPayload: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+```
+
+Add the corresponding extension at the bottom of the file (mirror the shape of `Sanchr_Messaging_DeleteConversationRequest` from commit `6a3d51c`):
+
+```swift
+extension Sanchr_Calling_DeviceCallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeviceCallOffer"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}encrypted_sdp_payload\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.encryptedSdpPayload) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 1)
+    }
+    if !self.encryptedSdpPayload.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedSdpPayload, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Calling_DeviceCallOffer, rhs: Sanchr_Calling_DeviceCallOffer) -> Bool {
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.encryptedSdpPayload != rhs.encryptedSdpPayload {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+```
+
+The `protoMessageName` uses the existing `_protobuf_package` constant for `calling.pb.swift` (`fileprivate let _protobuf_package = "sanchr.calling"`) — locate it near the bottom of the file to confirm.
+
+- [ ] **Step 4: Edit `calling.pb.swift` — add `deviceOffers` to `CallOffer`**
+
+Locate `public struct Sanchr_Calling_CallOffer`. Add after `encryptedSdpPayload`:
+
+```swift
+  /// Per-recipient-device encrypted offers. When non-empty, the server fans
+  /// each entry to the matching device; the `encrypted_sdp_payload` field
+  /// above mirrors the device-1 entry as a fallback for legacy servers.
+  public var deviceOffers: [Sanchr_Calling_DeviceCallOffer] = []
+```
+
+In `extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message ...`:
+
+- `_protobuf_nameMap`: insert `\u{3}device_offers\0` immediately before the trailing `\0`.
+- `decodeMessage`: add `case 7: try { try decoder.decodeRepeatedMessageField(value: &self.deviceOffers) }()` after the existing `case 6`.
+- `traverse`: add:
+  ```swift
+  if !self.deviceOffers.isEmpty {
+    try visitor.visitRepeatedMessageField(value: self.deviceOffers, fieldNumber: 7)
+  }
+  ```
+- `==`: add `if lhs.deviceOffers != rhs.deviceOffers {return false}`.
+
+- [ ] **Step 5: Edit `calling.pb.swift` — add `peerDevice` to `CallSignal`**
+
+Locate `public struct Sanchr_Calling_CallSignal`. Add (outside the `oneof signal { ... }` block, after the `signal` property):
+
+```swift
+  /// Device id of the peer whose message this signal carries. Server-populated
+  /// from CallJoin.answererDevice for encrypted_sdp_answer; informational for
+  /// ice_candidate and control. Zero means absent (legacy server) — iOS falls
+  /// back to device 1.
+  public var peerDevice: Int32 = 0
+```
+
+In `extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message ...`:
+
+- `_protobuf_nameMap`: insert `\u{3}peer_device\0` immediately before the trailing `\0`.
+- `decodeMessage`: add `case 7: try { try decoder.decodeSingularInt32Field(value: &self.peerDevice) }()`.
+- `traverse`: add the standard `if self.peerDevice != 0 { ... fieldNumber: 7 }` block.
+- `==`: add `if lhs.peerDevice != rhs.peerDevice {return false}`.
+
+**Note on the `oneof`:** the existing `signal` oneof uses field numbers 3-6. Adding `peer_device = 7` outside the oneof is fine — it does not collide. Do not put `peer_device` inside the oneof; it must coexist with whichever signal variant is set.
+
+- [ ] **Step 6: Edit `calling.pb.swift` — add `answererDevice` to `CallJoin`**
+
+Locate `public struct Sanchr_Calling_CallJoin`. Add after `role`:
+
+```swift
+  /// Device id the joining client is answering from. Server mirrors this onto
+  /// CallSignal.peerDevice for the caller's stream so the caller can decrypt
+  /// answers with the correct Signal session.
+  public var answererDevice: Int32 = 0
+```
+
+In `extension Sanchr_Calling_CallJoin: SwiftProtobuf.Message ...`:
+
+- `_protobuf_nameMap`: insert `\u{3}answerer_device\0` before the trailing `\0` (after `role`).
+- `decodeMessage`: add `case 2: try { try decoder.decodeSingularInt32Field(value: &self.answererDevice) }()`.
+- `traverse`: add the standard block at fieldNumber 2.
+- `==`: add the standard line.
+
+- [ ] **Step 7: Build to confirm the hand-edits compile**
 
 ```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
 xcodebuild -workspace Sanchr.xcworkspace -scheme Sanchr \
   -destination 'generic/platform=iOS Simulator' \
-  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build 2>&1 | tail -30
+  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build 2>&1 | tail -20
 ```
 
-Expected: `** BUILD SUCCEEDED **`. Existing call sites that still read `.encryptedSdpPayload` compile fine because the field remains on the generated struct (the `deprecated=true` is a proto-level hint only — SwiftProtobuf v1 does not emit Swift-level deprecation attributes, so no new compiler warnings appear).
+Expected: `** BUILD SUCCEEDED **`. If any field reference fails to compile inside the existing extension blocks, the most common mistake is mismatched bytecode separator count in `_protobuf_nameMap`. Compare your edit byte-for-byte with commit `6a3d51c`'s pattern.
 
-- [ ] **Step 4: Commit the regenerated code separately**
+- [ ] **Step 8: Commit the hand-edits**
 
 ```bash
 cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
-git add SanchrShared/Generated/
-git commit -m "proto(gen): regenerate pb.swift for calls proto additions"
+git add SanchrShared/Generated/messaging.pb.swift SanchrShared/Generated/calling.pb.swift
+git commit -m "proto(gen): hand-add caller_device, device_offers, answerer_device, peer_device
+
+Hand-edits matching the proto-side documentation update (no regen — see prior
+commit's body for why). Mirrors the pattern established by 6a3d51c
+(DeleteConversation hand-add) for consistency. Round-trip serialization tests
+land in the next commit to verify wire format correctness."
 ```
+
+---
+
+### Task B3: Round-trip serialization tests for the new fields
+
+**Files:**
+- Create: `Tests/UnitTests/Proto/CallProtoRoundTripTests.swift`
+
+This task verifies that the hand-edits in Task B2 produce wire-compatible output by encoding each new field, serializing to bytes, deserializing, and asserting the round-trip preserves the value. Catches every mistake that produces a struct that *compiles* but doesn't *serialize* (missing decoder case, wrong wire type, mismatched field number, etc.).
+
+- [ ] **Step 1: Write the tests**
+
+Create `Tests/UnitTests/Proto/CallProtoRoundTripTests.swift`:
+
+```swift
+import XCTest
+import SwiftProtobuf
+import SanchrShared
+
+/// Verifies that hand-edited fields on the call-related generated SwiftProtobuf
+/// types serialize and deserialize correctly. A field that compiles but is
+/// missing from the decoder switch / traverse visitor / nameMap will fail
+/// these tests by losing its value through the encode→decode cycle.
+final class CallProtoRoundTripTests: XCTestCase {
+
+    func test_callOfferEvent_callerDevice_roundTrips() throws {
+        var original = Sanchr_Messaging_CallOfferEvent()
+        original.callID = "call-1"
+        original.callerID = "alice"
+        original.callType = "voice"
+        original.encryptedSdpPayload = Data([0x01, 0x02])
+        original.callerDevice = 7
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Messaging_CallOfferEvent(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded, original, "callerDevice must survive encode/decode")
+        XCTAssertEqual(decoded.callerDevice, 7)
+    }
+
+    func test_deviceCallOffer_roundTrips() throws {
+        var original = Sanchr_Calling_DeviceCallOffer()
+        original.deviceID = 3
+        original.encryptedSdpPayload = Data([0xAA, 0xBB, 0xCC])
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Calling_DeviceCallOffer(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.deviceID, 3)
+        XCTAssertEqual(decoded.encryptedSdpPayload, Data([0xAA, 0xBB, 0xCC]))
+    }
+
+    func test_callOffer_deviceOffers_roundTrips() throws {
+        var entryOne = Sanchr_Calling_DeviceCallOffer()
+        entryOne.deviceID = 1
+        entryOne.encryptedSdpPayload = Data([0x01])
+
+        var entryTwo = Sanchr_Calling_DeviceCallOffer()
+        entryTwo.deviceID = 7
+        entryTwo.encryptedSdpPayload = Data([0x07])
+
+        var original = Sanchr_Calling_CallOffer()
+        original.recipientID = "bob"
+        original.callType = "voice"
+        original.encryptedSdpPayload = Data([0x01])  // legacy mirror
+        original.deviceOffers = [entryOne, entryTwo]
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Calling_CallOffer(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.deviceOffers.count, 2)
+        XCTAssertEqual(decoded.deviceOffers.map(\.deviceID), [1, 7])
+        XCTAssertEqual(decoded.deviceOffers.map(\.encryptedSdpPayload), [Data([0x01]), Data([0x07])])
+    }
+
+    func test_callSignal_peerDevice_roundTrips_withControl() throws {
+        var control = Sanchr_Calling_CallControl()
+        control.action = "accepted"
+        var original = Sanchr_Calling_CallSignal()
+        original.callID = "call-1"
+        original.control = control
+        original.peerDevice = 9
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Calling_CallSignal(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded, original, "peer_device must coexist with the oneof signal variant")
+        XCTAssertEqual(decoded.peerDevice, 9)
+        XCTAssertEqual(decoded.control.action, "accepted")
+    }
+
+    func test_callJoin_answererDevice_roundTrips() throws {
+        var original = Sanchr_Calling_CallJoin()
+        original.role = "callee"
+        original.answererDevice = 4
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Calling_CallJoin(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.role, "callee")
+        XCTAssertEqual(decoded.answererDevice, 4)
+    }
+
+    /// Pins the wire-format invariant that an unset Int32 field (value 0)
+    /// produces a zero-byte encoding for that field — this is the basis of
+    /// iOS's "0 means absent → fall back to device 1" convention.
+    func test_callerDevice_zero_isAbsentOnTheWire() throws {
+        var original = Sanchr_Messaging_CallOfferEvent()
+        original.callID = "call-1"
+        original.callerDevice = 0  // absent
+
+        let bytes = try original.serializedData()
+        let decoded = try Sanchr_Messaging_CallOfferEvent(serializedBytes: bytes)
+
+        XCTAssertEqual(decoded.callerDevice, 0,
+            "default-valued scalar must decode back to its default — proto3 wire convention")
+    }
+}
+```
+
+- [ ] **Step 2: Regenerate the Xcode project (new test file under a new subdirectory)**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodegen
+```
+
+XcodeGen's directory-scan covers `Tests/UnitTests/` recursively, so the new `Proto/` subdirectory and the new file are picked up automatically.
+
+- [ ] **Step 3: Run the round-trip tests**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodebuild -workspace Sanchr.xcworkspace -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:SanchrTests/CallProtoRoundTripTests \
+  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES test 2>&1 | tail -30
+```
+
+Expected: 6 tests pass. If any fails with `decoded != original`, the most likely culprit is:
+- A missing decoder `case` (the field encodes but doesn't decode → loses value)
+- A missing visitor entry in `traverse` (the field doesn't encode → both serializations differ)
+- An incorrect wire type (`decodeSingularStringField` instead of `decodeSingularInt32Field`)
+
+Compare your edit against commit `6a3d51c` and against an existing field of the same wire type in the same file.
+
+- [ ] **Step 4: Full unit suite to confirm no regression**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodebuild -workspace Sanchr.xcworkspace -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES test 2>&1 | tail -10
+```
+
+Expected: 360 tests / 0 failures / 2 skipped (354 from end of Sub-phase A + 6 new round-trip tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+git add Tests/UnitTests/Proto/CallProtoRoundTripTests.swift Sanchr.xcodeproj
+git commit -m "test(proto): round-trip coverage for hand-edited call fields
+
+Verifies that callerDevice, deviceOffers, peerDevice, and answererDevice
+serialize and deserialize correctly. Catches the class of hand-edit bugs
+where a struct compiles but loses its field value through encode/decode
+because the decoder switch, the traverse visitor, or the nameMap was missed."
+```
+
+(Only stage `Sanchr.xcodeproj` if XcodeGen actually changed it — diff first.)
 
 ---
 
