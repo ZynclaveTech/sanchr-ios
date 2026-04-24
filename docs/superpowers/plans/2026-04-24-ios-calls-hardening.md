@@ -161,6 +161,194 @@ removes a misleading configuration surface and the stale production TODO."
 
 ---
 
+### Task A1.5: Wire `AppConfiguration.stunServers` into `CallManager.buildIceServers`
+
+**Files:**
+- Modify: `Platform/Calls/CallManager.swift` (`buildIceServers`)
+- Add: `Tests/UnitTests/Platform/Calls/CallManagerStunConfigTests.swift`
+
+**Rationale:** Surfaced by the code-review of Task A1. `AppConfiguration.stunServers` is declared and populated in every factory (lines 138-141 in `.production` are non-empty) but never read by any call-path. `CallManager.buildIceServers` (`Platform/Calls/CallManager.swift:1670`) hard-codes `"stun:stun.l.google.com:19302"` and ignores the configured list entirely. This is the same dead-code pattern that A1 just removed, so leaving it for later would invalidate A1's doc-comment ("STUN-only fallback list baked into the client") which currently misrepresents reality.
+
+The right fix is to *use* the configured list (validating the field's intent) rather than delete it. Per-environment STUN configurability is genuinely useful (staging can point at a private STUN server for diagnostics) and the change is local to `CallManager`.
+
+- [ ] **Step 1: Re-read source first**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+sed -n '1650,1680p' Platform/Calls/CallManager.swift
+```
+
+Confirm the current `buildIceServers` signature and body. The plan was written against `1656-1673`; if it has drifted, work from the actual line numbers.
+
+- [ ] **Step 2: Write the failing tests**
+
+Create `Tests/UnitTests/Platform/Calls/CallManagerStunConfigTests.swift`:
+
+```swift
+import XCTest
+import SanchrShared
+@testable import Sanchr
+
+/// Verifies that CallManager's STUN fallback list comes from
+/// AppConfiguration, not from a hard-coded constant.
+final class CallManagerStunConfigTests: XCTestCase {
+
+    /// When the gRPC TurnCredentials response carries no TURN URLs, the
+    /// resulting RTCIceServer list must contain every STUN URL from
+    /// AppConfiguration.current.stunServers — not just the default Google STUN.
+    func test_buildIceServers_withoutTurn_emitsConfiguredStunList() {
+        let credentials = Sanchr_Calling_TurnCredentials()  // empty — no TURN
+        let configured = AppConfiguration.current.stunServers
+        XCTAssertFalse(configured.isEmpty,
+            "AppConfiguration.current must declare at least one STUN server")
+
+        let servers = CallManager.testOnly_buildIceServers(from: credentials)
+
+        // Every configured STUN URL must appear in the returned servers.
+        let emitted: [String] = servers.flatMap { $0.urlStrings }
+        for stun in configured {
+            XCTAssertTrue(emitted.contains(stun),
+                "expected configured STUN '\(stun)' in iceServers, got \(emitted)")
+        }
+    }
+
+    /// When the gRPC response includes TURN credentials, both the TURN entry
+    /// and the configured STUN entries must be present.
+    func test_buildIceServers_withTurn_emitsTurnPlusConfiguredStun() {
+        var credentials = Sanchr_Calling_TurnCredentials()
+        credentials.urls = ["turn:turn.example.com:3478"]
+        credentials.username = "user"
+        credentials.credential = "pass"
+
+        let servers = CallManager.testOnly_buildIceServers(from: credentials)
+        let emitted: [String] = servers.flatMap { $0.urlStrings }
+
+        XCTAssertTrue(emitted.contains("turn:turn.example.com:3478"),
+            "TURN entry must be present, got \(emitted)")
+        for stun in AppConfiguration.current.stunServers {
+            XCTAssertTrue(emitted.contains(stun),
+                "configured STUN '\(stun)' must still be present alongside TURN")
+        }
+    }
+}
+```
+
+- [ ] **Step 3: Add the test-only static accessor on `CallManager`**
+
+`buildIceServers` is `private`. Expose it for tests via a static `testOnly_` shim that doesn't require a `CallManager` instance. Add to `Platform/Calls/CallManager.swift` near the bottom of the primary class body (just before the `CXProviderDelegate` extension):
+
+```swift
+#if DEBUG
+    /// Test-only entry point for `buildIceServers`. Static so unit tests do not
+    /// need to stand up a full CallManager (which requires CallKit + WebRTC).
+    /// Do not call from production code.
+    static func testOnly_buildIceServers(
+        from credentials: Sanchr_Calling_TurnCredentials
+    ) -> [RTCIceServer] {
+        Self.buildIceServersImpl(from: credentials)
+    }
+#endif
+```
+
+Refactor `buildIceServers` to delegate to a new static `buildIceServersImpl`:
+
+```swift
+    private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
+        Self.buildIceServersImpl(from: credentials)
+    }
+
+    private static func buildIceServersImpl(
+        from credentials: Sanchr_Calling_TurnCredentials
+    ) -> [RTCIceServer] {
+        var servers: [RTCIceServer] = []
+
+        if !credentials.urls.isEmpty {
+            servers.append(RTCIceServer(
+                urlStrings: credentials.urls,
+                username: credentials.username,
+                credential: credentials.credential
+            ))
+        }
+
+        // STUN comes from AppConfiguration so each environment can point at
+        // its own STUN host. We always include at least one fallback even if
+        // the configured list is empty so calls degrade rather than fail.
+        let stun = AppConfiguration.current.stunServers
+        if !stun.isEmpty {
+            servers.append(RTCIceServer(urlStrings: stun))
+        } else {
+            servers.append(RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"]))
+        }
+
+        return servers
+    }
+```
+
+- [ ] **Step 4: Regenerate the Xcode project (new test file)**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodegen
+```
+
+- [ ] **Step 5: Run the new tests — expect failure on the bare configured-only check**
+
+The `_withoutTurn` case should pass (the configured list IS used now), but if Step 3 was done in a single pass, both should pass on first run. Run them and capture the actual output:
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodebuild -workspace Sanchr.xcworkspace -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:SanchrTests/CallManagerStunConfigTests \
+  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES test 2>&1 | tail -30
+```
+
+Expected: both tests PASS. (TDD-purist note: the proper red→green cycle for this task is "write the tests *before* refactoring `buildIceServers`, watch them fail because the configured STUN list is ignored, then refactor and watch them pass." If you implement Steps 2 and 3 simultaneously, you skip the red phase. Reviewer will check for this — prefer to land Step 2 first, run and capture the failure, then Step 3.)
+
+- [ ] **Step 6: Update the doc comment on `stunServers` to reflect actual behavior**
+
+In `SanchrShared/Config/AppConfiguration.swift`, the doc comment added by Task A1 said "STUN-only fallback list baked into the client". That phrasing was correct under the old behavior (the field was never read) but is now misleading. Replace with:
+
+```swift
+/// STUN servers used by `CallManager.buildIceServers` as the always-on
+/// fallback alongside any TURN credentials returned from the server. Each
+/// environment may declare its own list. TURN credentials remain server-issued
+/// via `CallSignalingService.GetTurnCredentials` and MUST NOT be hard-coded.
+public let stunServers: [String]
+```
+
+- [ ] **Step 7: Full unit suite**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+xcodebuild -workspace Sanchr.xcworkspace -scheme Sanchr \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -skipPackagePluginValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=YES test 2>&1 | tail -40
+```
+
+Expected: 353 tests / 0 failures / 2 skipped (351 from before + the 2 new STUN-config tests).
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /Users/soorajpandey/Projects/zynclave/sanchr/ios/Sanchr-iOS
+git add Platform/Calls/CallManager.swift \
+        SanchrShared/Config/AppConfiguration.swift \
+        Tests/UnitTests/Platform/Calls/CallManagerStunConfigTests.swift \
+        Sanchr.xcodeproj
+git commit -m "fix(calls): read STUN fallback from AppConfiguration
+
+CallManager.buildIceServers was hard-coding stun.l.google.com and ignoring
+AppConfiguration.stunServers entirely — the field had been dead since it was
+introduced. Wire it up so each environment's configured STUN list is actually
+used, with the Google STUN as a last-resort fallback only when the configured
+list is empty. Updates the doc comment on the field to match the new behavior."
+```
+
+(Stage `Sanchr.xcodeproj` only if XcodeGen produced relevant churn.)
+
+---
+
 ### Task A2: Note `isVideoCallEnabled` as unwired dead code
 
 **Files:**
