@@ -559,7 +559,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             // caller_device is populated by multi-device-aware servers; legacy
             // servers leave it at 0. Fall back to device 1 so pre-multi-device
             // deployments keep working exactly as before.
-            let resolvedDevice: Int32 = callerDevice > 0 ? callerDevice : 1
+            let resolvedDevice = Self.resolveSenderDevice(callerDevice)
             do {
                 let plaintext = try await self.signalManager.decrypt(
                     ciphertext: encryptedSdpPayload,
@@ -1325,7 +1325,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             } catch {
                 SanchrLogger.calls.error(
                     "Stream: SDP decryption failed for pending call \(offer.callID): \(error) [\(type(of: error))]")
-                let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+                let resetDevice = Self.resolveSenderDevice(offer.callerDevice)
                 try? self.signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
                 return .transientFailure
             }
@@ -1363,7 +1363,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         } catch {
             SanchrLogger.calls.error(
                 "Failed to decrypt incoming call offer from \(offer.callerID.prefix(8))...: \(error) [\(type(of: error))]")
-            let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+            let resetDevice = Self.resolveSenderDevice(offer.callerDevice)
             try? signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
             return .transientFailure
         }
@@ -1657,10 +1657,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         guard !offer.encryptedSdpPayload.isEmpty else {
             throw AppError.decryptionFailed(reason: "encrypted call offer payload is empty")
         }
-        // caller_device is populated by multi-device-aware servers; legacy
-        // servers leave it at 0. When absent, fall back to device 1 so pre-
-        // multi-device deployments keep working exactly as before.
-        let senderDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+        let senderDevice = Self.resolveSenderDevice(offer.callerDevice)
         let plaintext = try await signalManager.decrypt(
             ciphertext: offer.encryptedSdpPayload,
             from: offer.callerID,
@@ -1684,6 +1681,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     // MARK: - Helpers
+
+    /// Resolves a peer's Signal device id, falling back to device 1 (the
+    /// primary device) when the wire-level value is absent (zero). The
+    /// fallback exists for backward compatibility with pre-multi-device
+    /// servers — once the backend reliably populates `caller_device` /
+    /// `peer_device` / `answerer_device`, the `else 1` branch can be removed
+    /// in a single place. See Sub-phase C of the calls-hardening plan.
+    static func resolveSenderDevice(_ raw: Int32) -> Int32 {
+        raw > 0 ? raw : 1
+    }
 
     private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
         Self.buildIceServersImpl(
