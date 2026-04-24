@@ -91,7 +91,12 @@ final class CallProtoRoundTripTests: XCTestCase {
 
     /// Pins the wire-format invariant that an unset Int32 field (value 0)
     /// produces a zero-byte encoding for that field — this is the basis of
-    /// iOS's "0 means absent → fall back to device 1" convention.
+    /// iOS's "0 means absent → fall back to device 1" convention. Tests both
+    /// halves: (a) zero round-trips to zero, (b) the field tag does not
+    /// appear in the serialized bytes at all. The fallback logic in
+    /// CallManager.decryptAndValidateOffer relies specifically on absence,
+    /// not just on the zero round-trip property — proto3 default semantics
+    /// guarantee (a) even if the visitor guard were broken.
     func test_callerDevice_zero_isAbsentOnTheWire() throws {
         var original = Sanchr_Messaging_CallOfferEvent()
         original.callID = "call-1"
@@ -102,5 +107,9 @@ final class CallProtoRoundTripTests: XCTestCase {
 
         XCTAssertEqual(decoded.callerDevice, 0,
             "default-valued scalar must decode back to its default — proto3 wire convention")
+        // Tag for caller_device (field 7, varint wire type 0): (7 << 3) | 0 = 0x38.
+        // SwiftProtobuf must omit the field entirely when it equals its default.
+        XCTAssertFalse(bytes.contains(0x38),
+            "callerDevice=0 must produce no wire bytes — iOS's device-1 fallback depends on this")
     }
 }
