@@ -17,7 +17,17 @@ message CallOffer {
   reserved 4;                 // was srtp_key_params — do not reuse
   reserved "srtp_key_params";
   bytes delivery_token = 5;         // sealed sender routing token
-  bytes encrypted_sdp_payload = 6;  // Signal-encrypt(SealedCallPayload JSON)
+  bytes encrypted_sdp_payload = 6 [deprecated = true];  // legacy single-device path
+  // One encrypted payload per recipient device. Preferred over
+  // `encrypted_sdp_payload` when non-empty. Server fans each entry out to the
+  // matching device. If empty, server falls back to `encrypted_sdp_payload`
+  // addressed to device 1.
+  repeated DeviceCallOffer device_offers = 7;
+}
+
+message DeviceCallOffer {
+  int32 device_id = 1;
+  bytes encrypted_sdp_payload = 2;  // Signal-encrypt(SealedCallPayload JSON) for this device
 }
 
 message CallResponse {
@@ -35,10 +45,19 @@ message CallSignal {
     bytes encrypted_sdp_answer = 5;   // Signal-encrypt(SealedCallPayload JSON)
     CallJoin join = 6;                // stream join; consumed by server, not relayed
   }
+  // Device id of the peer whose message this signal carries. For
+  // encrypted_sdp_answer, this is the answerer's device (populated by server
+  // from CallJoin.answerer_device). For ice_candidate and control, this is
+  // informational. When zero/absent, iOS falls back to device 1.
+  int32 peer_device = 7;
 }
 
 message CallJoin {
   string role = 1;             // "caller" or "callee"
+  // Device id the joining client is answering from. Server mirrors this onto
+  // CallSignal.peer_device for the caller side so the caller can decrypt
+  // answers with the correct Signal session.
+  int32 answerer_device = 2;
 }
 
 message CallControl {

@@ -70,6 +70,11 @@ message CallOfferEvent {
   bytes sdp_offer = 4;
   bytes srtp_key_params = 5;
   bytes encrypted_sdp_payload = 6;  // Signal-encrypt(SealedCallPayload JSON)
+  // Device id of the caller for Signal session addressing. When zero/absent,
+  // iOS falls back to device 1 for backward compatibility with pre-multi-device
+  // servers. Populated by the server from the sender_device of the underlying
+  // EncryptedEnvelope that carried the offer.
+  int32 caller_device = 7;
 }
 
 message CallLifecycleEvent {
