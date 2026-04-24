@@ -1654,23 +1654,45 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Helpers
 
     private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
+        Self.buildIceServersImpl(from: credentials)
+    }
+
+    private static func buildIceServersImpl(
+        from credentials: Sanchr_Calling_TurnCredentials
+    ) -> [RTCIceServer] {
         var servers: [RTCIceServer] = []
 
-        // Add TURN servers with credentials
         if !credentials.urls.isEmpty {
-            let turnServer = RTCIceServer(
+            servers.append(RTCIceServer(
                 urlStrings: credentials.urls,
                 username: credentials.username,
                 credential: credentials.credential
-            )
-            servers.append(turnServer)
+            ))
         }
 
-        // Always include a public STUN server as fallback
-        servers.append(RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"]))
+        // STUN comes from AppConfiguration so each environment can point at
+        // its own STUN host. We always include at least one fallback even if
+        // the configured list is empty so calls degrade rather than fail.
+        let stun = AppConfiguration.current.stunServers
+        if !stun.isEmpty {
+            servers.append(RTCIceServer(urlStrings: stun))
+        } else {
+            servers.append(RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"]))
+        }
 
         return servers
     }
+
+#if DEBUG
+    /// Test-only entry point for `buildIceServers`. Static so unit tests do not
+    /// need to stand up a full CallManager (which requires CallKit + WebRTC).
+    /// Do not call from production code.
+    static func testOnly_buildIceServers(
+        from credentials: Sanchr_Calling_TurnCredentials
+    ) -> [RTCIceServer] {
+        Self.buildIceServersImpl(from: credentials)
+    }
+#endif
 }
 
 // MARK: - CXProviderDelegate

@@ -17,9 +17,10 @@ public struct AppConfiguration: Sendable {
     public let callPort: Int
     public let useTLS: Bool
     public let mediaBaseURL: URL
-    /// STUN-only fallback list baked into the client. TURN credentials are fetched
-    /// per-call via `CallSignalingService.GetTurnCredentials` and MUST NOT be
-    /// hard-coded here — rotating credentials in a release is a server ops failure.
+    /// STUN servers used by `CallManager.buildIceServers` as the always-on
+    /// fallback alongside any TURN credentials returned from the server. Each
+    /// environment may declare its own list. TURN credentials remain server-issued
+    /// via `CallSignalingService.GetTurnCredentials` and MUST NOT be hard-coded.
     public let stunServers: [String]
 
     // MARK: - TLS Certificate Pinning
