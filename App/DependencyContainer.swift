@@ -401,7 +401,7 @@ final class DependencyContainer: @unchecked Sendable {
 
             return syncedCount > 0 ? .newData : (payload.badge == nil ? .noData : .newData)
         }
-        manager.incomingVoIPCallHandler = { callId, callerId, callType, encryptedSdpPayload in
+        manager.incomingVoIPCallHandler = { callId, callerId, callerDevice, callType, encryptedSdpPayload in
             guard let container = weakSelf else { return }
             // handleVoIPPushIncomingCall must be called synchronously in the PushKit callback.
             // Since this closure is invoked directly from pushRegistry(_:didReceiveIncomingPushWith:),
@@ -409,6 +409,7 @@ final class DependencyContainer: @unchecked Sendable {
             container.callManager.handleVoIPPushIncomingCall(
                 callId: callId,
                 callerId: callerId,
+                callerDevice: callerDevice,
                 callType: callType,
                 encryptedSdpPayload: encryptedSdpPayload
             )

@@ -340,6 +340,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "different-incoming-call",
             callerId: "carol",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
@@ -363,6 +364,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "new-incoming-call",
             callerId: "dave",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
@@ -387,6 +389,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "call-B",
             callerId: "bob",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
@@ -708,6 +711,74 @@ final class CallManagerE2EETests: XCTestCase {
         XCTAssertEqual(outcome, .accepted)
         XCTAssertEqual(callManager.remoteCallerDevice, 1,
             "must fall back to device 1 when caller_device is absent (0)")
+    }
+
+    /// VoIP push arrives with the caller's device id — the async SDP decrypt
+    /// Task must use it instead of hardcoding device 1.
+    func test_handleVoIPPushIncomingCall_usesCallerDeviceForDecrypt() async throws {
+        final class RecordingSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
+            let localUserId: String = "test-local-user"
+            var lastSenderDevice: Int32 = -1
+            func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data { plaintext }
+            func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
+                lastSenderDevice = senderDevice
+                // Return a valid SealedCallPayload JSON so the async decrypt Task completes
+                // without throwing — we only care about capturing senderDevice.
+                let payload = SealedCallPayload(
+                    sdp: "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n",
+                    dtlsFingerprint: "sha-256 DE:AD:BE:EF",
+                    timestamp: Date().timeIntervalSince1970
+                )
+                return try JSONEncoder().encode(payload)
+            }
+            func establishSession(with userId: String, deviceId: Int32) async throws {}
+            func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
+            func hasSession(with userId: String) -> Bool { true }
+            func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
+            func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
+            func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+                throw AppError.decryptionFailed(reason: "not used")
+            }
+            func resetSession(with userId: String, deviceId: Int32) throws {}
+            func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
+            func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
+            func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
+            func markIdentityVerified(userId: String) {}
+            func isIdentityVerified(userId: String) -> Bool { false }
+            func localIdentityKeyData() throws -> Data { Data() }
+            func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
+        }
+        let signalManager = RecordingSignalManager()
+        let callService = MockCallSignalingService()
+        let webRTCClient = WebRTCClient()
+        let callManager = await MainActor.run {
+            CallManager(
+                webRTCClient: webRTCClient,
+                callService: callService,
+                signalManager: signalManager
+            )
+        }
+
+        let payload = try makeSealedPayload(
+            payloadFingerprint: "sha-256 DE:AD:BE:EF",
+            sdpBody: "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        )
+
+        await MainActor.run {
+            callManager.handleVoIPPushIncomingCall(
+                callId: "push-call-id",
+                callerId: "alice",
+                callerDevice: 9,
+                callType: "voice",
+                encryptedSdpPayload: payload
+            )
+        }
+
+        // Give the async decrypt Task a chance to run.
+        try await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertEqual(signalManager.lastSenderDevice, 9,
+            "VoIP push decrypt must address the caller's device id, not hardcode 1")
     }
 }
 
