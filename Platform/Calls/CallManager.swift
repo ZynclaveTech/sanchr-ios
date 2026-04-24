@@ -115,6 +115,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     private var callUUID: UUID?
     private var pendingSdpOffer: Data?
+    /// Signal device id of the current peer for decrypt/encrypt addressing.
+    /// Set during incoming-offer decrypt from `CallOfferEvent.callerDevice`;
+    /// read during outgoing-answer encrypt and during in-call signal decrypt.
+    /// Zero means "not yet known" — callers must substitute a sensible default
+    /// (today: device 1) when building a `ProtocolAddress`.
+    private(set) var remoteCallerDevice: Int32 = 0
     private var paddingManager = CallDurationPaddingManager()
     private var callStartTime: Date?
     private var durationTask: Task<Void, Never>?

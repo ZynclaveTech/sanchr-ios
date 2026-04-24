@@ -653,6 +653,62 @@ final class CallManagerE2EETests: XCTestCase {
             updatedAt: Date()
         )
     }
+
+    // MARK: - Multi-device decrypt
+
+    /// After a successful incoming-offer decrypt, the CallManager must remember
+    /// which sender device the ciphertext came from so subsequent answer
+    /// ciphertext can be encrypted for that exact Signal session.
+    func test_handleIncomingCallOffer_persistsRemoteCallerDevice() async throws {
+        let signalManager = MockSignalManager()
+        let callService = MockCallSignalingService()
+        let webRTCClient = WebRTCClient()
+        let callManager = CallManager(
+            webRTCClient: webRTCClient,
+            callService: callService,
+            signalManager: signalManager
+        )
+
+        // Build an offer event with caller_device = 7 — the field added in sub-phase B.
+        let payload = try makeSealedPayload(
+            payloadFingerprint: "sha-256 DE:AD:BE:EF",
+            sdpBody: "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        )
+        var offerEvent = makeOfferEvent(payload: payload, callerId: "alice")
+        offerEvent.callerDevice = 7
+
+        let outcome = await callManager.handleIncomingCallOffer(offerEvent)
+
+        XCTAssertEqual(outcome, .accepted)
+        XCTAssertEqual(callManager.remoteCallerDevice, 7,
+            "remoteCallerDevice must hold the sender device id after a decrypt succeeds")
+    }
+
+    /// When the server hasn't populated caller_device yet (value = 0), iOS must
+    /// fall back to device 1 so legacy offers still round-trip.
+    func test_handleIncomingCallOffer_fallsBackToDeviceOneWhenCallerDeviceAbsent() async throws {
+        let signalManager = MockSignalManager()
+        let callService = MockCallSignalingService()
+        let webRTCClient = WebRTCClient()
+        let callManager = CallManager(
+            webRTCClient: webRTCClient,
+            callService: callService,
+            signalManager: signalManager
+        )
+
+        let payload = try makeSealedPayload(
+            payloadFingerprint: "sha-256 DE:AD:BE:EF",
+            sdpBody: "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        )
+        let offerEvent = makeOfferEvent(payload: payload, callerId: "alice")
+        // offerEvent.callerDevice stays 0 (default) — simulates legacy server.
+
+        let outcome = await callManager.handleIncomingCallOffer(offerEvent)
+
+        XCTAssertEqual(outcome, .accepted)
+        XCTAssertEqual(callManager.remoteCallerDevice, 1,
+            "must fall back to device 1 when caller_device is absent (0)")
+    }
 }
 
 private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked Sendable {
