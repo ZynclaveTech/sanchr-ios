@@ -67,7 +67,8 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
     /// Called when a VoIP push arrives with an incoming call.
     /// Wired in DependencyContainer to forward to CallManager.
-    var incomingVoIPCallHandler: ((_ callId: String, _ callerId: String, _ callType: String, _ encryptedSdpPayload: Data) -> Void)?
+    /// Parameters: callId, callerId, callerDevice, callType, encryptedSdpPayload.
+    var incomingVoIPCallHandler: ((_ callId: String, _ callerId: String, _ callerDevice: Int32, _ callType: String, _ encryptedSdpPayload: Data) -> Void)?
 
     /// Returns true if the user currently has an authenticated session.
     /// Wired in DependencyContainer to SessionService.isAuthenticated.
@@ -597,11 +598,25 @@ extension PushManager: PKPushRegistryDelegate {
         // Pass empty Data — CallManager will wait for the SDP via MessageStream replay.
         let encSdpData = Data(base64Encoded: encSdpB64) ?? Data()
 
+        // caller_device may arrive as an NSNumber, an Int, or a numeric string
+        // depending on how the server serializes the payload. Accept all three;
+        // fall back to 0 when absent so CallManager's own fallback logic applies.
+        let callerDevice: Int32
+        if let n = dict["caller_device"] as? NSNumber {
+            callerDevice = n.int32Value
+        } else if let i = dict["caller_device"] as? Int {
+            callerDevice = Int32(i)
+        } else if let s = dict["caller_device"] as? String, let parsed = Int32(s) {
+            callerDevice = parsed
+        } else {
+            callerDevice = 0
+        }
+
         SanchrLogger.push.info(
-            "VoIP push: incoming \(callType) call \(callId) from \(callerId) sdp_in_push=\(!encSdpData.isEmpty)")
+            "VoIP push: incoming \(callType) call \(callId) from \(callerId) device=\(callerDevice) sdp_in_push=\(!encSdpData.isEmpty)")
 
         // Forward to CallManager — this MUST call reportNewIncomingCall synchronously.
-        incomingVoIPCallHandler?(callId, callerId, callType, encSdpData)
+        incomingVoIPCallHandler?(callId, callerId, callerDevice, callType, encSdpData)
     }
 
     public func pushRegistry(

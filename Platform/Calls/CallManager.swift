@@ -451,11 +451,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     /// - Parameters:
     ///   - callId: The call identifier from the push payload.
     ///   - callerId: The caller's user ID (used as display name placeholder until contacts sync).
+    ///   - callerDevice: The Signal device id of the calling device (0 when absent; fallback to 1).
     ///   - callType: "voice" or "video".
     ///   - encryptedSdpPayload: Raw bytes of the Signal-encrypted SDP offer.
     func handleVoIPPushIncomingCall(
         callId: String,
         callerId: String,
+        callerDevice: Int32,
         callType: String,
         encryptedSdpPayload: Data
     ) {
@@ -554,12 +556,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
+            // caller_device is populated by multi-device-aware servers; legacy
+            // servers leave it at 0. Fall back to device 1 so pre-multi-device
+            // deployments keep working exactly as before.
+            let resolvedDevice: Int32 = callerDevice > 0 ? callerDevice : 1
             do {
-                // FIXME: senderDevice hard-coded to 1 — multi-device accounts not handled.
                 let plaintext = try await self.signalManager.decrypt(
                     ciphertext: encryptedSdpPayload,
                     from: callerId,
-                    senderDevice: 1
+                    senderDevice: resolvedDevice
                 )
                 let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
 
@@ -582,6 +587,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     return
                 }
 
+                self.remoteCallerDevice = resolvedDevice
                 self.pendingSdpOffer = Data(sealedPayload.sdp.utf8)
                 SanchrLogger.calls.info(
                     "VoIP push: SDP decrypted and stored for call \(callId)")
@@ -589,7 +595,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 SanchrLogger.calls.error(
                     "VoIP push: SDP decryption failed for call \(callId): \(error) [\(type(of: error))]")
                 // Self-heal: reset session so caller's next attempt starts fresh.
-                try? self.signalManager.resetSession(with: callerId, deviceId: 1)
+                try? self.signalManager.resetSession(with: callerId, deviceId: resolvedDevice)
                 // Don't end the call — give the user a chance to answer.
                 // answerCall() will fail gracefully if SDP is still nil.
             }
