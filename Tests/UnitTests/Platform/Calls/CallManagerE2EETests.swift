@@ -340,6 +340,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "different-incoming-call",
             callerId: "carol",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
@@ -363,6 +364,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "new-incoming-call",
             callerId: "dave",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
@@ -387,6 +389,7 @@ final class CallManagerE2EETests: XCTestCase {
         callManager.handleVoIPPushIncomingCall(
             callId: "call-B",
             callerId: "bob",
+            callerDevice: 0,
             callType: "voice",
             encryptedSdpPayload: Data()
         )
