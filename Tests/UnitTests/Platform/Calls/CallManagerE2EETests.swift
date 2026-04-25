@@ -827,6 +827,165 @@ final class CallManagerE2EETests: XCTestCase {
             "VoIP push decrypt must address the caller's device id, not hardcode 1")
     }
 
+    // MARK: - Sub-phase E: outgoing answer encrypt (Commit 2)
+
+    /// Callee encrypts the SDP answer for the caller's actual device, not device 1.
+    func test_buildEncryptedAnswerPayload_usesRemoteCallerDevice() async throws {
+        let signalManager = TargetRecordingSignalManager()
+        let sdp = "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        let fingerprint = "sha-256 DE:AD:BE:EF"
+
+        _ = try await CallManager.buildEncryptedAnswerPayload(
+            sdp: sdp,
+            fingerprint: fingerprint,
+            type: "answer",
+            remoteCallerDevice: 9,
+            recipientId: "alice",
+            signalManager: signalManager
+        )
+
+        XCTAssertEqual(signalManager.lastEncryptDeviceId, 9,
+            "answer ciphertext must be encrypted for the caller's recovered device (9), not device 1")
+    }
+
+    /// When remoteCallerDevice is zero (legacy offer path), fall back to device 1.
+    func test_buildEncryptedAnswerPayload_fallsBackToDeviceOneWhenRemoteCallerDeviceIsZero() async throws {
+        let signalManager = TargetRecordingSignalManager()
+        let sdp = "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        let fingerprint = "sha-256 DE:AD:BE:EF"
+
+        _ = try await CallManager.buildEncryptedAnswerPayload(
+            sdp: sdp,
+            fingerprint: fingerprint,
+            type: "answer",
+            remoteCallerDevice: 0,
+            recipientId: "alice",
+            signalManager: signalManager
+        )
+
+        XCTAssertEqual(signalManager.lastEncryptDeviceId, 1,
+            "must fall back to device 1 when remoteCallerDevice is zero (legacy offer path)")
+    }
+
+    // MARK: - Sub-phase E: caller-side SDP answer decrypt (Commit 3)
+
+    /// Caller decrypts the incoming SDP answer using `CallSignal.peerDevice`
+    /// (the callee's actual device, mirrored by the server), not device 1.
+    func test_decryptIncomingAnswer_usesPeerDeviceFromSignal() async throws {
+        let signalManager = TargetRecordingDecryptSignalManager()
+        let sdp = "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        let fingerprint = "sha-256 DE:AD:BE:EF"
+
+        let payload = SealedCallPayload(
+            sdp: sdp,
+            dtlsFingerprint: fingerprint,
+            timestamp: Date().timeIntervalSince1970
+        )
+        let plaintext = try JSONEncoder().encode(payload)
+
+        let decrypted = try await CallManager.decryptIncomingAnswer(
+            ciphertext: plaintext,
+            peerDevice: 7,
+            senderId: "bob",
+            signalManager: signalManager
+        )
+
+        XCTAssertEqual(signalManager.lastSenderDevice, 7,
+            "caller must decrypt the SDP answer using the callee's peerDevice (7), not device 1")
+        XCTAssertEqual(decrypted.dtlsFingerprint, fingerprint)
+    }
+
+    /// When the server hasn't populated peerDevice yet (value = 0), fall back to device 1.
+    func test_decryptIncomingAnswer_fallsBackToDeviceOneWhenPeerDeviceIsZero() async throws {
+        let signalManager = TargetRecordingDecryptSignalManager()
+        let sdp = "v=0\r\na=fingerprint:sha-256 DE:AD:BE:EF\r\n"
+        let fingerprint = "sha-256 DE:AD:BE:EF"
+
+        let payload = SealedCallPayload(
+            sdp: sdp,
+            dtlsFingerprint: fingerprint,
+            timestamp: Date().timeIntervalSince1970
+        )
+        let plaintext = try JSONEncoder().encode(payload)
+
+        _ = try await CallManager.decryptIncomingAnswer(
+            ciphertext: plaintext,
+            peerDevice: 0,
+            senderId: "bob",
+            signalManager: signalManager
+        )
+
+        XCTAssertEqual(signalManager.lastSenderDevice, 1,
+            "must fall back to device 1 when peerDevice is zero (legacy callee path)")
+    }
+
+}
+
+// MARK: - TargetRecordingSignalManager
+
+/// Identity-cipher mock that records the `deviceId` passed to `encrypt` so
+/// tests can assert the callee encrypts the SDP answer for the correct device.
+private final class TargetRecordingSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
+    let localUserId: String = "test-local-user"
+    /// The deviceId argument from the most recent `encrypt` call. Starts at -1.
+    var lastEncryptDeviceId: Int32 = -1
+
+    func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data {
+        lastEncryptDeviceId = deviceId
+        return plaintext
+    }
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data { ciphertext }
+    func establishSession(with userId: String, deviceId: Int32) async throws {}
+    func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
+    func hasSession(with userId: String) -> Bool { true }
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] { [] }
+    func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
+    func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+        throw AppError.decryptionFailed(reason: "not used")
+    }
+    func resetSession(with userId: String, deviceId: Int32) throws {}
+    func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
+    func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
+    func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
+    func markIdentityVerified(userId: String) {}
+    func isIdentityVerified(userId: String) -> Bool { false }
+    func localIdentityKeyData() throws -> Data { Data() }
+    func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
+}
+
+// MARK: - TargetRecordingDecryptSignalManager
+
+/// Identity-cipher mock that records the `senderDevice` passed to `decrypt`
+/// and returns a valid `SealedCallPayload` JSON so tests can assert the
+/// caller-side decrypt uses the callee's actual device, not hardcoded 1.
+private final class TargetRecordingDecryptSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
+    let localUserId: String = "test-local-user"
+    /// The senderDevice argument from the most recent `decrypt` call. Starts at -1.
+    var lastSenderDevice: Int32 = -1
+
+    func encrypt(plaintext: Data, for userId: String, deviceId: Int32) async throws -> Data { plaintext }
+    func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data {
+        lastSenderDevice = senderDevice
+        return ciphertext
+    }
+    func establishSession(with userId: String, deviceId: Int32) async throws {}
+    func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
+    func hasSession(with userId: String) -> Bool { true }
+    func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] { [] }
+    func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
+    func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+        throw AppError.decryptionFailed(reason: "not used")
+    }
+    func resetSession(with userId: String, deviceId: Int32) throws {}
+    func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
+    func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
+    func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
+    func markIdentityVerified(userId: String) {}
+    func isIdentityVerified(userId: String) -> Bool { false }
+    func localIdentityKeyData() throws -> Data { Data() }
+    func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
 
 private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked Sendable {

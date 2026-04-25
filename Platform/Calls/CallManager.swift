@@ -896,20 +896,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             throw AppError.callConnectionFailed
         }
 
-        let payload = SealedCallPayload(
+        // Delegate encrypt + payload construction to the pure static helper so
+        // the device-selection logic is unit-testable without a WebRTC pipeline.
+        let encryptedPayload = try await Self.buildEncryptedAnswerPayload(
             sdp: description.sdp,
-            dtlsFingerprint: fingerprint,
-            timestamp: Date().timeIntervalSince1970,
-            type: type
-        )
-        let payloadData = try JSONEncoder().encode(payload)
-        // FIXME(calls/Sub-phase E): video-upgrade answer is encrypted for recipient
-        // device 1. Sub-phase E threads remoteCallerDevice through this path so
-        // the answer addresses the actual peer device that initiated the call.
-        let encryptedPayload = try await signalManager.encrypt(
-            plaintext: payloadData,
-            for: recipientId,
-            deviceId: 1
+            fingerprint: fingerprint,
+            type: type,
+            remoteCallerDevice: remoteCallerDevice,
+            recipientId: recipientId,
+            signalManager: signalManager
         )
 
         var signal = Sanchr_Calling_CallSignal()
@@ -1000,13 +995,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     SanchrLogger.calls.info("Received encrypted SDP answer for call \(callId)")
                     guard let senderId = self.peerId else { continue }
                     do {
-                        // FIXME(calls/Sub-phase E): caller-side answer decrypt assumes
-                        // the answerer is on device 1. Sub-phase E reads
-                        // CallSignal.peerDevice (server-populated from CallJoin.answererDevice)
-                        // and decrypts against that device, falling back to 1.
-                        let plaintext = try await self.signalManager.decrypt(
-                            ciphertext: ciphertext, from: senderId, senderDevice: 1)
-                        let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+                        // Decrypt using the callee's device id from CallSignal.peerDevice
+                        // (server-mirrored from CallJoin.answererDevice). Falls back to
+                        // device 1 via resolveSenderDevice for legacy callee paths.
+                        let sealedPayload = try await Self.decryptIncomingAnswer(
+                            ciphertext: ciphertext,
+                            peerDevice: signal.peerDevice,
+                            senderId: senderId,
+                            signalManager: self.signalManager
+                        )
                         let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
                         guard age <= 30 else {
                             SanchrLogger.calls.error("Rejecting stale SDP payload (age=\(Int(age))s)")
@@ -1773,6 +1770,61 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         offer.deviceOffers = deviceOffers
         offer.encryptedSdpPayload = legacyEntry.encryptedSdpPayload
         return offer
+    }
+
+    /// Pure helper — testable without standing up a full WebRTC/CallKit pipeline.
+    /// Encodes the SDP payload as a `SealedCallPayload`, then encrypts it for
+    /// `recipientId` on `remoteCallerDevice` (falls back to device 1 via
+    /// `resolveSenderDevice` when the caller device is not yet known).
+    ///
+    /// Extracted from `sendEncryptedSessionDescription` so the device-selection
+    /// logic can be exercised directly in unit tests (see Sub-phase E, Commit 2).
+    static func buildEncryptedAnswerPayload(
+        sdp: String,
+        fingerprint: String,
+        type: String,
+        remoteCallerDevice: Int32,
+        recipientId: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> Data {
+        let payload = SealedCallPayload(
+            sdp: sdp,
+            dtlsFingerprint: fingerprint,
+            timestamp: Date().timeIntervalSince1970,
+            type: type
+        )
+        let payloadData = try JSONEncoder().encode(payload)
+        // Encrypt for the exact caller device recovered during offer decrypt.
+        // Falls back to device 1 when remoteCallerDevice is zero (legacy path).
+        let targetDevice = Self.resolveSenderDevice(remoteCallerDevice)
+        return try await signalManager.encrypt(
+            plaintext: payloadData,
+            for: recipientId,
+            deviceId: targetDevice
+        )
+    }
+
+    /// Pure helper — testable without standing up a signaling loop.
+    /// Decrypts an incoming encrypted SDP answer using the callee's device id
+    /// from `CallSignal.peerDevice` (falls back to device 1 via
+    /// `resolveSenderDevice` when the field is absent/zero).
+    ///
+    /// Extracted from `handleSignalingStream`'s `encryptedSdpAnswer` branch so
+    /// the peerDevice selection logic can be verified directly in unit tests
+    /// (see Sub-phase E, Commit 3).
+    static func decryptIncomingAnswer(
+        ciphertext: Data,
+        peerDevice: Int32,
+        senderId: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> SealedCallPayload {
+        let resolvedDevice = Self.resolveSenderDevice(peerDevice)
+        let plaintext = try await signalManager.decrypt(
+            ciphertext: ciphertext,
+            from: senderId,
+            senderDevice: resolvedDevice
+        )
+        return try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
     }
 }
 
