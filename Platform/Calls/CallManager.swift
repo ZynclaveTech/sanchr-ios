@@ -952,7 +952,13 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         joinSignal.peerDevice = localDeviceIdProvider()
         var join = Sanchr_Calling_CallJoin()
         join.role = role
-        join.answererDevice = localDeviceIdProvider()
+        // Only the callee populates answererDevice — the server reads it to
+        // know which callee device to mirror onto the caller's stream as
+        // CallSignal.peerDevice. If the caller also set this field, the
+        // server would have to role-filter to avoid using the wrong value.
+        if role == "callee" {
+            join.answererDevice = localDeviceIdProvider()
+        }
         joinSignal.join = join
         continuation.yield(joinSignal)
         flushLocalIceCandidates(callId: callId)
@@ -1778,7 +1784,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     /// `resolveSenderDevice` when the caller device is not yet known).
     ///
     /// Extracted from `sendEncryptedSessionDescription` so the device-selection
-    /// logic can be exercised directly in unit tests (see Sub-phase E, Commit 2).
+    /// logic can be exercised directly in unit tests (see Sub-phase E of the
+    /// calls-hardening plan).
     static func buildEncryptedAnswerPayload(
         sdp: String,
         fingerprint: String,
@@ -1811,7 +1818,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     ///
     /// Extracted from `handleSignalingStream`'s `encryptedSdpAnswer` branch so
     /// the peerDevice selection logic can be verified directly in unit tests
-    /// (see Sub-phase E, Commit 3).
+    /// (see Sub-phase E of the calls-hardening plan).
     static func decryptIncomingAnswer(
         ciphertext: Data,
         peerDevice: Int32,
