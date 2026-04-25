@@ -201,7 +201,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let offer = try await webRTCClient.createOffer()
         try await webRTCClient.setLocalDescription(offer)
 
-        // 5. Encrypt offer for E2EE
+        // 5. Encrypt offer for E2EE — one ciphertext per recipient device.
         guard let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) else {
             throw AppError.callConnectionFailed
         }
@@ -211,28 +211,36 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             timestamp: Date().timeIntervalSince1970
         )
         let payloadData = try JSONEncoder().encode(payload)
-        // Always force a fresh PreKeySignalMessage for call offers.  Reusing an existing
-        // session can produce a type-0x02 SignalMessage that the recipient cannot decrypt
-        // if their session was cleared (e.g., after a fresh install).  Resetting first
-        // guarantees the next encrypt() call triggers processPreKeyBundle and produces a
-        // type-0x01 PreKeySignalMessage that self-heals across any session state mismatch.
-        // Side effect: the shared messaging session is refreshed, which is harmless.
-        // FIXME(calls/Sub-phase D): outgoing offer is encrypted only for recipient
-        // device 1. Sub-phase D fans this out via signalManager.encryptCallOffers
-        // and ships the result as CallOffer.device_offers. Until then, recipients
-        // on non-primary devices will not receive this call.
-        try? signalManager.resetSession(with: recipientId, deviceId: 1)
-        let encryptedPayload = try await signalManager.encrypt(
-            plaintext: payloadData, for: recipientId, deviceId: 1)
+
+        // Fresh PreKeySignalMessage per device is handled inside
+        // encryptCallOffers (it resets each per-device session before encrypt).
+        let deviceOffers = try await signalManager.encryptCallOffers(
+            plaintext: payloadData,
+            recipientId: recipientId
+        )
+        guard !deviceOffers.isEmpty else {
+            SanchrLogger.calls.error(
+                "startCall: no recipient devices for \(recipientId.prefix(8))... — cannot route offer")
+            throw AppError.callConnectionFailed
+        }
+
+        // Pick the device-1 entry (or the smallest device id if 1 isn't in the
+        // set) for the legacy encrypted_sdp_payload field so pre-multi-device
+        // servers still route the call to the recipient's primary device.
+        let legacyEntry: Sanchr_Calling_DeviceCallOffer =
+            deviceOffers.first(where: { $0.deviceID == 1 })
+            ?? deviceOffers.min(by: { $0.deviceID < $1.deviceID })!
+
         // NOTE: delivery_token (sealed-sender call routing) is not yet implemented on the server.
         // sanchr-call routes via recipient_id and ignores the token field. Do not acquire a token
         // here — the acquisition is a blocking gRPC round-trip that fails and kills the call setup.
 
-        // 6. Send the encrypted offer to the server
+        // 6. Send the encrypted offer to the server.
         var callOffer = Sanchr_Calling_CallOffer()
         callOffer.recipientID = recipientId
         callOffer.callType = isVideo ? "video" : "voice"
-        callOffer.encryptedSdpPayload = encryptedPayload
+        callOffer.deviceOffers = deviceOffers
+        callOffer.encryptedSdpPayload = legacyEntry.encryptedSdpPayload
 
         let response = try await callService.initiateCall(callOffer)
         let callId = response.callID

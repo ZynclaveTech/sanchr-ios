@@ -26,7 +26,12 @@ private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked
     func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
     func hasSession(with userId: String) -> Bool { true }
     func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
-    func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] { [] }
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] {
+        var entry = Sanchr_Calling_DeviceCallOffer()
+        entry.deviceID = 1
+        entry.encryptedSdpPayload = plaintext
+        return [entry]
+    }
     func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
     func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
         // Not called in call-path tests; throw to satisfy the protocol.
