@@ -707,19 +707,27 @@ final class CallManagerE2EETests: XCTestCase {
         }
     }
 
-    /// Voice calls are unaffected by the video gate.
-    func test_startCall_allowsVoiceWhenVideoDisabled() async throws {
-        let callManager = makeCallManager(isVideoCallEnabled: false)
-        do {
-            try await callManager.startCall(recipientId: "bob", recipientName: "Bob", isVideo: false)
-        } catch {
-            throw XCTSkip("WebRTC/CallKit unavailable: \(error.localizedDescription)")
-        }
-        if case .outgoing = callManager.callState {
-            // expected
-        } else {
-            XCTFail("Voice startCall must succeed regardless of video gate; got \(callManager.callState)")
-        }
+    /// Truth table for the gate. Drives the static helper directly so the
+    /// signal is real CI evidence — the previous integration variant always
+    /// skipped on simulator because `getTurnCredentials` failed before the
+    /// caller could observe the gate's outcome.
+    func test_shouldBlockVideoCall_truthTable() {
+        XCTAssertTrue(
+            CallManager.shouldBlockVideoCall(isVideo: true, isVideoCallEnabled: false),
+            "video request must be blocked when feature is disabled"
+        )
+        XCTAssertFalse(
+            CallManager.shouldBlockVideoCall(isVideo: true, isVideoCallEnabled: true),
+            "video request is allowed when feature is enabled"
+        )
+        XCTAssertFalse(
+            CallManager.shouldBlockVideoCall(isVideo: false, isVideoCallEnabled: false),
+            "voice request is never blocked, regardless of video flag"
+        )
+        XCTAssertFalse(
+            CallManager.shouldBlockVideoCall(isVideo: false, isVideoCallEnabled: true),
+            "voice request is never blocked when both flags are on"
+        )
     }
 
     /// requestVideoUpgrade on an active call is a no-op when the flag is off.

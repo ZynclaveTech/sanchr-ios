@@ -196,7 +196,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             throw AppError.callAlreadyInProgress
         }
 
-        if isVideo && !isVideoCallEnabled {
+        if Self.shouldBlockVideoCall(isVideo: isVideo, isVideoCallEnabled: isVideoCallEnabled) {
             SanchrLogger.calls.warning("startCall: video requested but feature is disabled — blocking")
             throw AppError.featureDisabled(feature: "video_call")
         }
@@ -1716,6 +1716,14 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     // MARK: - Helpers
+
+    /// Returns `true` when the configured video gate would block a call
+    /// attempt. Voice requests are never blocked. Split out of `startCall`
+    /// so the gate's truth table can be exercised in unit tests without
+    /// standing up WebRTC. See Sub-phase F of the calls-hardening plan.
+    static func shouldBlockVideoCall(isVideo: Bool, isVideoCallEnabled: Bool) -> Bool {
+        isVideo && !isVideoCallEnabled
+    }
 
     /// Resolves a peer's Signal device id, falling back to device 1 (the
     /// primary device) when the wire-level value is absent (zero). The
