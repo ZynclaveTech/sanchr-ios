@@ -303,6 +303,7 @@ private final class StubSignalProtocol: SignalProtocolManagerProtocol, @unchecke
     func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
         throw AppError.decryptionFailed(reason: "not used")
     }
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] { [] }
     func establishSession(with userId: String, deviceId: Int32) async throws {}
     func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
     func hasSession(with userId: String) -> Bool { true }

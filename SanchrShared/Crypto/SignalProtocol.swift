@@ -25,6 +25,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
         -> [Sanchr_Messaging_DeviceMessage]
 
+    /// Encrypts `plaintext` once per known recipient device and returns a
+    /// ready-to-ship `DeviceCallOffer` list. Caller sets the resulting list
+    /// as `CallOffer.device_offers`; the server fans each entry to the
+    /// matching device's inbox.
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws
+        -> [Sanchr_Calling_DeviceCallOffer]
+
     /// Decrypts an incoming ciphertext from a sender device.
     func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
 
@@ -198,6 +205,30 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         }
 
         return deviceMessages
+    }
+
+    public func encryptCallOffers(plaintext: Data, recipientId: String) async throws
+        -> [Sanchr_Calling_DeviceCallOffer]
+    {
+        let deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+        SanchrLogger.crypto.info(
+            "encryptCallOffers: fanning out to \(deviceIds.count) device(s) for \(recipientId.prefix(8))...: \(deviceIds)")
+
+        var results: [Sanchr_Calling_DeviceCallOffer] = []
+        results.reserveCapacity(deviceIds.count)
+        for deviceId in deviceIds {
+            // Call offers MUST always use a fresh PreKeySignalMessage so an
+            // out-of-sync session on either side self-heals. Reset the
+            // per-device session before encrypting — same rationale as the
+            // existing single-device path.
+            try? resetSession(with: recipientId, deviceId: deviceId)
+            let ct = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
+            var entry = Sanchr_Calling_DeviceCallOffer()
+            entry.deviceID = deviceId
+            entry.encryptedSdpPayload = ct
+            results.append(entry)
+        }
+        return results
     }
 
     // MARK: - Message Decryption
