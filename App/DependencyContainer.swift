@@ -461,7 +461,8 @@ final class DependencyContainer: @unchecked Sendable {
             },
             localDeviceIdProvider: { [weak self] in
                 Int32(self?.sessionService.currentDeviceId ?? "") ?? 1
-            }
+            },
+            isVideoCallEnabled: AppConfiguration.current.isVideoCallEnabled
         )
     }()
 

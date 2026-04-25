@@ -114,6 +114,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     /// `CallJoin.answererDevice` are stamped with the sender's actual device.
     /// Defaults to `{ 1 }` so existing tests need no changes.
     private let localDeviceIdProvider: @Sendable () -> Int32
+    /// When `false`, `startCall(isVideo:true)` throws `AppError.featureDisabled`
+    /// and `requestVideoUpgrade()` becomes a no-op. Mirrors
+    /// `AppConfiguration.isVideoCallEnabled` — this is the single enforcement
+    /// point; do not add duplicate checks in higher layers.
+    /// Defaults to `true` so existing tests need no changes.
+    private let isVideoCallEnabled: Bool
 
     // MARK: - Internal State
 
@@ -149,7 +155,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         signalManager: SignalProtocolManagerProtocol,
         tokenRefresher: @escaping @Sendable () async throws -> Void = {},
         peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil },
-        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 }
+        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 },
+        isVideoCallEnabled: Bool = true
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
@@ -157,6 +164,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         self.tokenRefresher = tokenRefresher
         self.peerProfileResolver = peerProfileResolver
         self.localDeviceIdProvider = localDeviceIdProvider
+        self.isVideoCallEnabled = isVideoCallEnabled
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -186,6 +194,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     func startCall(recipientId: String, recipientName: String, isVideo: Bool) async throws {
         guard case .idle = callState else {
             throw AppError.callAlreadyInProgress
+        }
+
+        if isVideo && !isVideoCallEnabled {
+            SanchrLogger.calls.warning("startCall: video requested but feature is disabled — blocking")
+            throw AppError.featureDisabled(feature: "video_call")
         }
 
         SanchrLogger.calls.info("Starting \(isVideo ? "video" : "voice") call to \(recipientId)")
@@ -791,6 +804,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     func requestVideoUpgrade() {
+        guard isVideoCallEnabled else {
+            SanchrLogger.calls.warning("requestVideoUpgrade: feature disabled — ignoring")
+            return
+        }
         guard case .active(let callId, _) = callState else {
             SanchrLogger.calls.warning("Ignoring video request outside active call")
             return

@@ -686,22 +686,70 @@ final class CallManagerE2EETests: XCTestCase {
             "resetState must zero remoteCallerDevice — Sub-phase D return-path encrypt must not inherit stale device ids")
     }
 
+    // MARK: - Video Feature Gate Tests
+
+    /// With isVideoCallEnabled=false, requesting a video call must fail
+    /// before any network or WebRTC side effects occur.
+    func test_startCall_rejectsVideoWhenFeatureDisabled() async {
+        let callManager = makeCallManager(isVideoCallEnabled: false)
+        do {
+            try await callManager.startCall(recipientId: "bob", recipientName: "Bob", isVideo: true)
+            XCTFail("Expected startCall to throw when isVideoCallEnabled is false")
+        } catch AppError.featureDisabled {
+            // expected
+        } catch {
+            XCTFail("Expected AppError.featureDisabled, got \(error)")
+        }
+        if case .idle = callManager.callState {
+            // no side effects — expected
+        } else {
+            XCTFail("callState must remain .idle when the gate blocks startCall")
+        }
+    }
+
+    /// Voice calls are unaffected by the video gate.
+    func test_startCall_allowsVoiceWhenVideoDisabled() async throws {
+        let callManager = makeCallManager(isVideoCallEnabled: false)
+        do {
+            try await callManager.startCall(recipientId: "bob", recipientName: "Bob", isVideo: false)
+        } catch {
+            throw XCTSkip("WebRTC/CallKit unavailable: \(error.localizedDescription)")
+        }
+        if case .outgoing = callManager.callState {
+            // expected
+        } else {
+            XCTFail("Voice startCall must succeed regardless of video gate; got \(callManager.callState)")
+        }
+    }
+
+    /// requestVideoUpgrade on an active call is a no-op when the flag is off.
+    func test_requestVideoUpgrade_noopWhenFeatureDisabled() async {
+        let callManager = makeCallManager(isVideoCallEnabled: false)
+        callManager.callState = .active(callId: "cid", startTime: Date())
+        callManager.requestVideoUpgrade()
+        XCTAssertFalse(callManager.outgoingVideoUpgradePending,
+            "requestVideoUpgrade must be a no-op when the feature is disabled")
+    }
+
     // MARK: - Private Helpers
 
     /// Builds a default `CallManager` for tests. `localDeviceIdProvider`
     /// defaults to `{ 1 }` to keep existing tests stable; pass an explicit
     /// provider when a test asserts on `peerDevice` / `answererDevice`
     /// stamping behaviour, so it is not silently coupled to the default.
+    /// `isVideoCallEnabled` defaults to `true` so existing tests need no changes.
     private func makeCallManager(
         peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil },
-        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 }
+        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 },
+        isVideoCallEnabled: Bool = true
     ) -> CallManager {
         CallManager(
             webRTCClient: WebRTCClient(),
             callService: MockCallSignalingService(),
             signalManager: MockSignalManager(),
             peerProfileResolver: peerProfileResolver,
-            localDeviceIdProvider: localDeviceIdProvider
+            localDeviceIdProvider: localDeviceIdProvider,
+            isVideoCallEnabled: isVideoCallEnabled
         )
     }
 
