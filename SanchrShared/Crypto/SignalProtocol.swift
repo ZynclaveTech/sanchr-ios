@@ -210,9 +210,16 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     public func encryptCallOffers(plaintext: Data, recipientId: String) async throws
         -> [Sanchr_Calling_DeviceCallOffer]
     {
-        let deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
-        SanchrLogger.crypto.info(
-            "encryptCallOffers: fanning out to \(deviceIds.count) device(s) for \(recipientId.prefix(8))...: \(deviceIds)")
+        let deviceIds: [Int32]
+        do {
+            deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+            SanchrLogger.crypto.info(
+                "encryptCallOffers: fanning out to \(deviceIds.count) device(s) for \(recipientId.prefix(8))...: \(deviceIds)")
+        } catch {
+            SanchrLogger.crypto.error(
+                "encryptCallOffers: fetchUserDevices FAILED for \(recipientId.prefix(8))...: \(Self.detailedError(error))")
+            throw error
+        }
 
         var results: [Sanchr_Calling_DeviceCallOffer] = []
         results.reserveCapacity(deviceIds.count)

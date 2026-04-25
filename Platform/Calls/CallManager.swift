@@ -201,7 +201,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let offer = try await webRTCClient.createOffer()
         try await webRTCClient.setLocalDescription(offer)
 
-        // 5. Encrypt offer for E2EE — one ciphertext per recipient device.
+        // 5. Encrypt offer for E2EE — fan out per recipient device.
         guard let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) else {
             throw AppError.callConnectionFailed
         }
@@ -212,36 +212,20 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         )
         let payloadData = try JSONEncoder().encode(payload)
 
-        // Fresh PreKeySignalMessage per device is handled inside
-        // encryptCallOffers (it resets each per-device session before encrypt).
-        let deviceOffers = try await signalManager.encryptCallOffers(
+        // Fresh PreKeySignalMessage per device is handled inside encryptCallOffers
+        // (it resets each per-device session before encrypt).
+        let callOffer = try await Self.buildOutgoingCallOffer(
             plaintext: payloadData,
-            recipientId: recipientId
+            recipientId: recipientId,
+            callType: isVideo ? "video" : "voice",
+            signalManager: signalManager
         )
-        guard !deviceOffers.isEmpty else {
-            SanchrLogger.calls.error(
-                "startCall: no recipient devices for \(recipientId.prefix(8))... — cannot route offer")
-            throw AppError.callConnectionFailed
-        }
-
-        // Pick the device-1 entry (or the smallest device id if 1 isn't in the
-        // set) for the legacy encrypted_sdp_payload field so pre-multi-device
-        // servers still route the call to the recipient's primary device.
-        let legacyEntry: Sanchr_Calling_DeviceCallOffer =
-            deviceOffers.first(where: { $0.deviceID == 1 })
-            ?? deviceOffers.min(by: { $0.deviceID < $1.deviceID })!
 
         // NOTE: delivery_token (sealed-sender call routing) is not yet implemented on the server.
         // sanchr-call routes via recipient_id and ignores the token field. Do not acquire a token
         // here — the acquisition is a blocking gRPC round-trip that fails and kills the call setup.
 
         // 6. Send the encrypted offer to the server.
-        var callOffer = Sanchr_Calling_CallOffer()
-        callOffer.recipientID = recipientId
-        callOffer.callType = isVideo ? "video" : "voice"
-        callOffer.deviceOffers = deviceOffers
-        callOffer.encryptedSdpPayload = legacyEntry.encryptedSdpPayload
-
         let response = try await callService.initiateCall(callOffer)
         let callId = response.callID
 
@@ -1740,6 +1724,40 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
 
         return servers
+    }
+
+    /// Pure builder for the outgoing `CallOffer` — extracted from `startCall`
+    /// so multi-device fan-out can be tested without standing up WebRTC.
+    /// Calls `signalManager.encryptCallOffers` to encrypt the SDP payload once
+    /// per recipient device, then assembles the `CallOffer` with the full
+    /// `device_offers` list and a legacy `encrypted_sdp_payload` mirroring the
+    /// device-1 entry (or the lowest-device-id entry when device 1 is absent).
+    /// Throws `AppError.callConnectionFailed` when the recipient has no
+    /// registered devices to route the offer to.
+    static func buildOutgoingCallOffer(
+        plaintext: Data,
+        recipientId: String,
+        callType: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> Sanchr_Calling_CallOffer {
+        let deviceOffers = try await signalManager.encryptCallOffers(
+            plaintext: plaintext,
+            recipientId: recipientId
+        )
+        guard let legacyEntry = deviceOffers.first(where: { $0.deviceID == 1 })
+            ?? deviceOffers.min(by: { $0.deviceID < $1.deviceID })
+        else {
+            SanchrLogger.calls.fault(
+                "buildOutgoingCallOffer: no recipient devices for \(recipientId.prefix(8))... — cannot route offer")
+            throw AppError.callConnectionFailed
+        }
+
+        var offer = Sanchr_Calling_CallOffer()
+        offer.recipientID = recipientId
+        offer.callType = callType
+        offer.deviceOffers = deviceOffers
+        offer.encryptedSdpPayload = legacyEntry.encryptedSdpPayload
+        return offer
     }
 }
 
