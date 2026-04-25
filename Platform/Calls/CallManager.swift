@@ -110,6 +110,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let signalManager: SignalProtocolManagerProtocol
     private let tokenRefresher: @Sendable () async throws -> Void
     private let peerProfileResolver: @Sendable (String) async -> CallPeerProfile?
+    /// Returns the local Signal device id so outbound `CallSignal`s and
+    /// `CallJoin.answererDevice` are stamped with the sender's actual device.
+    /// Defaults to `{ 1 }` so existing tests need no changes.
+    private let localDeviceIdProvider: @Sendable () -> Int32
 
     // MARK: - Internal State
 
@@ -144,13 +148,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
         signalManager: SignalProtocolManagerProtocol,
         tokenRefresher: @escaping @Sendable () async throws -> Void = {},
-        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil }
+        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil },
+        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 }
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
         self.signalManager = signalManager
         self.tokenRefresher = tokenRefresher
         self.peerProfileResolver = peerProfileResolver
+        self.localDeviceIdProvider = localDeviceIdProvider
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -689,6 +695,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // 7. Send accepted control
         var controlSignal = Sanchr_Calling_CallSignal()
         controlSignal.callID = callId
+        controlSignal.peerDevice = localDeviceIdProvider()
         var acceptedControl = Sanchr_Calling_CallControl()
         acceptedControl.action = "accepted"
         controlSignal.control = acceptedControl
@@ -710,6 +717,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // Send decline via signaling
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         var declinedControl = Sanchr_Calling_CallControl()
         declinedControl.action = "declined"
         signal.control = declinedControl
@@ -732,6 +740,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // Send terminal control via signaling
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         var terminalControl = Sanchr_Calling_CallControl()
         terminalControl.action = reason.serverReason
         signal.control = terminalControl
@@ -906,6 +915,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
         signal.encryptedSdpAnswer = encryptedPayload
+        signal.peerDevice = localDeviceIdProvider()
         outboundContinuation?.yield(signal)
     }
 
@@ -944,8 +954,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var joinSignal = Sanchr_Calling_CallSignal()
         joinSignal.callID = callId
+        joinSignal.peerDevice = localDeviceIdProvider()
         var join = Sanchr_Calling_CallJoin()
         join.role = role
+        join.answererDevice = localDeviceIdProvider()
         joinSignal.join = join
         continuation.yield(joinSignal)
         flushLocalIceCandidates(callId: callId)
@@ -1492,6 +1504,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         signal.control = controlMessage(action: action)
         outboundContinuation?.yield(signal)
         SanchrLogger.calls.info("Sent call control: \(action) for call \(callId)")
@@ -1620,6 +1633,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         for candidateData in candidates {
             var signal = Sanchr_Calling_CallSignal()
             signal.callID = callId
+            signal.peerDevice = localDeviceIdProvider()
             signal.iceCandidate = candidateData
             outboundContinuation?.yield(signal)
         }
@@ -1640,6 +1654,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         signal.iceCandidate = candidateData
         outboundContinuation?.yield(signal)
     }

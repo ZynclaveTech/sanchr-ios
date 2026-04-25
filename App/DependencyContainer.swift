@@ -458,6 +458,9 @@ final class DependencyContainer: @unchecked Sendable {
                     userId: userId,
                     localDatabase: localDatabase
                 )
+            },
+            localDeviceIdProvider: { [weak self] in
+                Int32(self?.sessionService.currentDeviceId ?? "") ?? 1
             }
         )
     }()
