@@ -73,6 +73,9 @@ private final class RecordingSignalManager: SignalProtocolManagerProtocol, @unch
     func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
     func hasSession(with userId: String) -> Bool { true }
     func encryptForAllDevices(plaintext: Data, recipientId: String) async throws -> [Sanchr_Messaging_DeviceMessage] { [] }
+    // Returns [] — RecordingSignalManager is only used by VoIP-push tests
+    // that never invoke startCall, so the empty result never reaches the
+    // empty-guard inside buildOutgoingCallOffer.
     func encryptCallOffers(plaintext: Data, recipientId: String) async throws -> [Sanchr_Calling_DeviceCallOffer] { [] }
     func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data { envelope.ciphertext }
     func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {

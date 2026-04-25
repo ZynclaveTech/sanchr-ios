@@ -26,9 +26,14 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
         -> [Sanchr_Messaging_DeviceMessage]
 
     /// Encrypts `plaintext` once per known recipient device and returns a
-    /// ready-to-ship `DeviceCallOffer` list. Caller sets the resulting list
-    /// as `CallOffer.device_offers`; the server fans each entry to the
-    /// matching device's inbox.
+    /// ready-to-ship `DeviceCallOffer` list. Distinct from
+    /// `encryptForAllDevices` (which is for messaging) because call offers
+    /// require a per-device `resetSession` before encrypt to guarantee a
+    /// fresh `PreKeySignalMessage` on every call setup — see
+    /// `CallManager.startCall` for the rationale.
+    ///
+    /// Caller sets the resulting list as `CallOffer.device_offers`; the
+    /// server fans each entry to the matching device's inbox.
     func encryptCallOffers(plaintext: Data, recipientId: String) async throws
         -> [Sanchr_Calling_DeviceCallOffer]
 
@@ -224,10 +229,14 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         var results: [Sanchr_Calling_DeviceCallOffer] = []
         results.reserveCapacity(deviceIds.count)
         for deviceId in deviceIds {
-            // Call offers MUST always use a fresh PreKeySignalMessage so an
-            // out-of-sync session on either side self-heals. Reset the
-            // per-device session before encrypting — same rationale as the
-            // existing single-device path.
+            // Reset the per-device session before encrypt to force a fresh
+            // PreKeySignalMessage. A reset failure is intentionally swallowed:
+            // the subsequent encrypt() call invokes establishSession when no
+            // session exists (see SignalSessionManager.encrypt), so a transient
+            // store error here does not block call setup. The failure mode this
+            // protects against is a stale session that produces a type-0x02
+            // SignalMessage the recipient cannot decrypt — that case is
+            // self-healed by the next call's reset.
             try? resetSession(with: recipientId, deviceId: deviceId)
             let ct = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
             var entry = Sanchr_Calling_DeviceCallOffer()
