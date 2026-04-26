@@ -21,6 +21,11 @@ public protocol Sanchr_Auth_AuthServiceClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>
 
+  func requestOtp(
+    _ request: Sanchr_Auth_RequestOtpRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse>
+
   func verifyOTP(
     _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions?
@@ -67,6 +72,24 @@ extension Sanchr_Auth_AuthServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to RequestOtp
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to RequestOtp.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func requestOtp(
+    _ request: Sanchr_Auth_RequestOtpRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.requestOtp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRequestOtpInterceptors() ?? []
     )
   }
 
@@ -228,6 +251,11 @@ public protocol Sanchr_Auth_AuthServiceAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>
 
+  func makeRequestOtpCall(
+    _ request: Sanchr_Auth_RequestOtpRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse>
+
   func makeVerifyOtpCall(
     _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions?
@@ -273,6 +301,18 @@ extension Sanchr_Auth_AuthServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
+    )
+  }
+
+  public func makeRequestOtpCall(
+    _ request: Sanchr_Auth_RequestOtpRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.requestOtp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRequestOtpInterceptors() ?? []
     )
   }
 
@@ -361,6 +401,18 @@ extension Sanchr_Auth_AuthServiceAsyncClientProtocol {
     )
   }
 
+  public func requestOtp(
+    _ request: Sanchr_Auth_RequestOtpRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Auth_RequestOtpResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Auth_AuthServiceClientMetadata.Methods.requestOtp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRequestOtpInterceptors() ?? []
+    )
+  }
+
   public func verifyOTP(
     _ request: Sanchr_Auth_VerifyOTPRequest,
     callOptions: CallOptions? = nil
@@ -444,6 +496,9 @@ public protocol Sanchr_Auth_AuthServiceClientInterceptorFactoryProtocol: Sendabl
   /// - Returns: Interceptors to use when invoking 'register'.
   func makeRegisterInterceptors() -> [ClientInterceptor<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'requestOtp'.
+  func makeRequestOtpInterceptors() -> [ClientInterceptor<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse>]
+
   /// - Returns: Interceptors to use when invoking 'verifyOTP'.
   func makeVerifyOTPInterceptors() -> [ClientInterceptor<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>]
 
@@ -466,6 +521,7 @@ public enum Sanchr_Auth_AuthServiceClientMetadata {
     fullName: "sanchr.auth.AuthService",
     methods: [
       Sanchr_Auth_AuthServiceClientMetadata.Methods.register,
+      Sanchr_Auth_AuthServiceClientMetadata.Methods.requestOtp,
       Sanchr_Auth_AuthServiceClientMetadata.Methods.verifyOTP,
       Sanchr_Auth_AuthServiceClientMetadata.Methods.login,
       Sanchr_Auth_AuthServiceClientMetadata.Methods.refreshToken,
@@ -478,6 +534,12 @@ public enum Sanchr_Auth_AuthServiceClientMetadata {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/sanchr.auth.AuthService/Register",
+      type: GRPCCallType.unary
+    )
+
+    public static let requestOtp = GRPCMethodDescriptor(
+      name: "RequestOtp",
+      path: "/sanchr.auth.AuthService/RequestOtp",
       type: GRPCCallType.unary
     )
 
@@ -519,6 +581,8 @@ public protocol Sanchr_Auth_AuthServiceProvider: CallHandlerProvider {
 
   func register(request: Sanchr_Auth_RegisterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
+  func requestOtp(request: Sanchr_Auth_RequestOtpRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_RequestOtpResponse>
+
   func verifyOTP(request: Sanchr_Auth_VerifyOTPRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
 
   func login(request: Sanchr_Auth_LoginRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Auth_AuthResponse>
@@ -549,6 +613,15 @@ extension Sanchr_Auth_AuthServiceProvider {
         responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRegisterInterceptors() ?? [],
         userFunction: self.register(request:context:)
+      )
+
+    case "RequestOtp":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RequestOtpRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_RequestOtpResponse>(),
+        interceptors: self.interceptors?.makeRequestOtpInterceptors() ?? [],
+        userFunction: self.requestOtp(request:context:)
       )
 
     case "VerifyOTP":
@@ -613,6 +686,11 @@ public protocol Sanchr_Auth_AuthServiceAsyncProvider: CallHandlerProvider, Senda
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Auth_AuthResponse
 
+  func requestOtp(
+    request: Sanchr_Auth_RequestOtpRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Auth_RequestOtpResponse
+
   func verifyOTP(
     request: Sanchr_Auth_VerifyOTPRequest,
     context: GRPCAsyncServerCallContext
@@ -665,6 +743,15 @@ extension Sanchr_Auth_AuthServiceAsyncProvider {
         responseSerializer: ProtobufSerializer<Sanchr_Auth_AuthResponse>(),
         interceptors: self.interceptors?.makeRegisterInterceptors() ?? [],
         wrapping: { try await self.register(request: $0, context: $1) }
+      )
+
+    case "RequestOtp":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Auth_RequestOtpRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Auth_RequestOtpResponse>(),
+        interceptors: self.interceptors?.makeRequestOtpInterceptors() ?? [],
+        wrapping: { try await self.requestOtp(request: $0, context: $1) }
       )
 
     case "VerifyOTP":
@@ -724,6 +811,10 @@ public protocol Sanchr_Auth_AuthServiceServerInterceptorFactoryProtocol: Sendabl
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRegisterInterceptors() -> [ServerInterceptor<Sanchr_Auth_RegisterRequest, Sanchr_Auth_AuthResponse>]
 
+  /// - Returns: Interceptors to use when handling 'requestOtp'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeRequestOtpInterceptors() -> [ServerInterceptor<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse>]
+
   /// - Returns: Interceptors to use when handling 'verifyOTP'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeVerifyOTPInterceptors() -> [ServerInterceptor<Sanchr_Auth_VerifyOTPRequest, Sanchr_Auth_AuthResponse>]
@@ -751,6 +842,7 @@ public enum Sanchr_Auth_AuthServiceServerMetadata {
     fullName: "sanchr.auth.AuthService",
     methods: [
       Sanchr_Auth_AuthServiceServerMetadata.Methods.register,
+      Sanchr_Auth_AuthServiceServerMetadata.Methods.requestOtp,
       Sanchr_Auth_AuthServiceServerMetadata.Methods.verifyOTP,
       Sanchr_Auth_AuthServiceServerMetadata.Methods.login,
       Sanchr_Auth_AuthServiceServerMetadata.Methods.refreshToken,
@@ -763,6 +855,12 @@ public enum Sanchr_Auth_AuthServiceServerMetadata {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/sanchr.auth.AuthService/Register",
+      type: GRPCCallType.unary
+    )
+
+    public static let requestOtp = GRPCMethodDescriptor(
+      name: "RequestOtp",
+      path: "/sanchr.auth.AuthService/RequestOtp",
       type: GRPCCallType.unary
     )
 
