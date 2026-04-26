@@ -4,6 +4,7 @@ package sanchr.notifications;
 service NotificationService {
   rpc RegisterPushToken(RegisterPushTokenRequest) returns (RegisterPushTokenResponse);
   rpc UpdateNotificationPrefs(UpdateNotificationPrefsRequest) returns (UpdateNotificationPrefsResponse);
+  rpc SetConversationNotificationPrefs(SetConversationNotificationPrefsRequest) returns (SetConversationNotificationPrefsResponse);
 }
 
 message RegisterPushTokenRequest {
@@ -24,3 +25,10 @@ message UpdateNotificationPrefsRequest {
 }
 
 message UpdateNotificationPrefsResponse {}
+
+message SetConversationNotificationPrefsRequest {
+  string conversation_id = 1;
+  bool muted = 2;
+}
+
+message SetConversationNotificationPrefsResponse {}
