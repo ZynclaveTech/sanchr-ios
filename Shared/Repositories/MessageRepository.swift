@@ -26,6 +26,9 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 
     /// Fetches all conversations for the current user.
     func fetchConversations() async throws -> [Conversation]
+    /// Local, no-network conversation load that still joins contacts, so a
+    /// cached refresh shows resolved names instead of the raw placeholder.
+    func fetchCachedConversations() async throws -> [Conversation]
 
     /// Persists local-only conversation presentation flags.
     func setConversationPinned(conversationId: String, isPinned: Bool) async throws
@@ -412,6 +415,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             before: before,
             limit: limit
         )
+    }
+
+    func fetchCachedConversations() async throws -> [Conversation] {
+        try await normalizedLocalConversations(currentUserId: currentUserIdProvider())
     }
 
     func fetchConversations() async throws -> [Conversation] {
