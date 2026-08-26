@@ -206,6 +206,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
+    private let profileKeyStore: ProfileKeyStoreProtocol
+
+    /// Sealed-envelope content type carrying a 32-byte Profile Key.
+    static let profileKeyContentType = "profile-key/v1"
+    private static let profileKeyByteCount = 32
 
     init(
         grpcClient: GRPCClientProtocol,
@@ -217,6 +222,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         mediaDownloadManager: MediaDownloadManager,
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
         privacySettings: PrivacySettingsCache,
+        profileKeyStore: ProfileKeyStoreProtocol,
         receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
             UInt64(Double.random(in: 0...3) * 1_000_000_000)
         }
@@ -231,6 +237,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.currentUserIdProvider = currentUserIdProvider
         self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
         self.receiptDelayNanoseconds = receiptDelayNanoseconds
+        self.profileKeyStore = profileKeyStore
     }
 
     /// Returns true if the message content is something we route into
@@ -862,6 +869,54 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
     }
 
+    /// Sends the local user's Profile Key to `recipientUserId` inside a sealed
+    /// envelope, so they can decrypt our encrypted profile fields.
+    ///
+    /// The key is deliberately never uploaded to the server. It previously travelled
+    /// in `UpdateProfile` alongside the ciphertext it protects, which handed the
+    /// server both halves and made the profile encryption decorative. Distributing
+    /// it over the Signal session is what makes that encryption mean anything.
+    func sendProfileKey(recipientUserId: String) async throws {
+        guard let currentUserId = currentUserIdProvider(), !currentUserId.isEmpty else {
+            SanchrLogger.chat.warning("sendProfileKey: missing current user id")
+            return
+        }
+        guard !recipientUserId.isEmpty, recipientUserId != currentUserId else { return }
+
+        let profileKey = try profileKeyStore.ownProfileKey()
+
+        let innerPayload = try sealedSenderManager.encodeInnerPayload(
+            conversationId: "",
+            messageId: nil,
+            contentType: Self.profileKeyContentType,
+            content: profileKey,
+            isSync: false
+        )
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+        let encrypted = try await signalProtocol.encryptForAllDevices(
+            plaintext: innerPayload,
+            recipientId: recipientUserId
+        )
+        guard !encrypted.isEmpty else { return }
+
+        let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
+            var sdm = Sanchr_Messaging_SealedDeviceMessage()
+            sdm.recipientID = dm.recipientID
+            sdm.deviceID = dm.deviceID
+            sdm.sealedEnvelope = dm.ciphertext
+            return sdm
+        }
+
+        var request = Sanchr_Messaging_SendSealedMessageRequest()
+        request.deliveryToken = deliveryToken
+        request.deviceMessages = deviceMessages
+        _ = try await grpcClient.messagingService.sendSealedMessage(request)
+
+        SanchrLogger.chat.debug("Sent profile key to \(recipientUserId.prefix(8))")
+        Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
+    }
+
     func fetchPreKeyBundle(userId: String) async throws -> Data {
         SanchrLogger.crypto.info("Fetching pre-key bundle for \(userId.prefix(8))...")
 
@@ -968,6 +1023,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let response = try await grpcClient.messagingService.startDirectConversation(request)
         SanchrLogger.chat.info(
             "startDirectConversation: peer=\(peerUserId.prefix(8)) convId=\(response.id.prefix(8))")
+
+        // Hand this peer our Profile Key over the Signal session so they can read
+        // our encrypted profile. Best-effort: a failure here must not block opening
+        // the conversation, and the key is re-sent on the next profile update.
+        Task { [weak self] in
+            do {
+                try await self?.sendProfileKey(recipientUserId: peerUserId)
+            } catch {
+                SanchrLogger.chat.warning(
+                    "Profile key delivery to \(peerUserId.prefix(8)) failed: \(error.localizedDescription)"
+                )
+            }
+        }
+
         return response.id
     }
 
@@ -1185,6 +1254,29 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     "P2P presence from \(result.senderUserId.prefix(8)) status=\(presenceUpdate.status)"
                 )
                 return .event(.presence(presenceUpdate))
+            }
+
+            // 3b. Profile key distribution: store the sender's key so their encrypted
+            // profile fields become readable. Arrives only over the Signal session —
+            // a key offered by the server is never trusted.
+            if innerPayload.contentType == Self.profileKeyContentType {
+                let key = innerPayload.content
+                guard key.count == Self.profileKeyByteCount else {
+                    SanchrLogger.chat.warning(
+                        "Ignoring malformed profile key from \(result.senderUserId.prefix(8)) (\(key.count) bytes)"
+                    )
+                    return .event(.ignored)
+                }
+                do {
+                    try profileKeyStore.saveContactProfileKey(key, forUserId: result.senderUserId)
+                    SanchrLogger.chat.debug(
+                        "Stored profile key from \(result.senderUserId.prefix(8))")
+                } catch {
+                    SanchrLogger.chat.error(
+                        "Failed to store profile key from \(result.senderUserId.prefix(8)): \(error.localizedDescription)"
+                    )
+                }
+                return .event(.ignored)
             }
 
             // 4. Sealed read receipt: update local message status, no DB write for new row.
