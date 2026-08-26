@@ -62,6 +62,22 @@ enum CallState: Equatable, Sendable {
         case timeout
         case networkError
         case cancelled
+
+        /// The terminal reason to report to the server so it clears the active-call
+        /// record. Without this a locally-decided teardown (network drop, WebRTC
+        /// failure) leaves the server thinking the call is still up, and both
+        /// parties read as "busy" until the record's multi-hour TTL expires.
+        var serverReason: String {
+            switch self {
+            case .normal: "ended"
+            case .busy: "busy"
+            case .declined: "declined"
+            case .failed: "failed"
+            case .timeout: "missed"
+            case .networkError: "ended"
+            case .cancelled: "cancelled"
+            }
+        }
     }
 
     var callId: String? {
@@ -560,7 +576,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 SanchrLogger.calls.error(
                     "VoIP push: failed to report call \(callId) to CallKit: \(error.localizedDescription)")
                 Task { @MainActor in
-                    self?.endCallInternal(callId: callId, reason: .failed)
+                    self?.endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                 }
             }
         }
@@ -596,7 +612,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 guard age <= 120 else {
                     SanchrLogger.calls.error(
                         "VoIP push: rejecting stale SDP for call \(callId) (age=\(Int(age))s)")
-                    endCallInternal(callId: callId, reason: .failed)
+                    endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                     return
                 }
 
@@ -606,7 +622,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 else {
                     SanchrLogger.calls.error(
                         "VoIP push: DTLS fingerprint mismatch for call \(callId)")
-                    endCallInternal(callId: callId, reason: .failed)
+                    endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                     return
                 }
 
@@ -1013,7 +1029,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 guard attempt <= Self.maxSignalingReconnectAttempts else {
                     SanchrLogger.calls.error(
                         "Signaling stream failed \(attempt) times; ending call \(callId)")
-                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError) }
+                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError, notifyServer: true) }
                     return
                 }
 
@@ -1028,7 +1044,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                         self.reopenOutboundChannel(callId: callId, role: role)
                     })
                 else {
-                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError) }
+                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError, notifyServer: true) }
                     return
                 }
                 inbound = self.callService.callStream(reopened)
@@ -1357,13 +1373,28 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     // MARK: - Internal Cleanup
 
-    private func endCallInternal(callId: String, reason: CallState.EndReason) {
+    /// - Parameter notifyServer: pass `true` when this teardown is decided
+    ///   locally (a network drop, a WebRTC or CallKit failure) rather than in
+    ///   response to a peer/server terminal signal. The signaling stream may
+    ///   already be dead in those cases, so the server is told over the unary
+    ///   endCall RPC instead; otherwise the active-call record lingers and both
+    ///   parties stay "busy". Reacting to a received terminal signal leaves this
+    ///   `false` — the server already knows.
+    private func endCallInternal(
+        callId: String, reason: CallState.EndReason, notifyServer: Bool = false
+    ) {
         // Guard: skip if this call has already been cleaned up
         switch callState {
         case .idle, .ended: return
         default: break
         }
         SanchrLogger.calls.info("Call ended: \(callId) reason=\(String(describing: reason))")
+
+        if notifyServer {
+            Task { [weak self] in
+                await self?.endCallOnServer(callId: callId, reason: reason.serverReason)
+            }
+        }
 
         stopDurationTimer()
         signalingTask?.cancel()
@@ -1962,7 +1993,7 @@ extension CallManager: CXProviderDelegate {
             Task {
                 await endCallOnServer(callId: callId, reason: "failed")
             }
-            endCallInternal(callId: callId, reason: .failed)
+            endCallInternal(callId: callId, reason: .failed, notifyServer: true)
         } else {
             webRTCClient.close()
             callState = .idle
@@ -2094,7 +2125,7 @@ extension CallManager: WebRTCClientDelegate {
                 self.callState = .reconnecting(callId: callId)
 
             case .failed:
-                self.endCallInternal(callId: callId, reason: .failed)
+                self.endCallInternal(callId: callId, reason: .failed, notifyServer: true)
 
             case .closed:
                 break  // Handled by endCallInternal
