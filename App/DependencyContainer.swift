@@ -553,6 +553,11 @@ final class DependencyContainer: @unchecked Sendable {
 
         do {
             try storage.purgeAllKeychainItems()
+            // The Profile Key went with it, so the key every contact holds no
+            // longer opens our profile. Forget who we have told, so the new key
+            // reaches all of them.
+            ProfileKeyStore(keychain: KeychainService(accessGroup: AppGroup.keychainAccessGroup))
+                .clearOwnProfileKeyDeliveryMarkers()
             SanchrLogger.auth.info(
                 "fresh install — purged Keychain items left by a previous installation")
         } catch {
