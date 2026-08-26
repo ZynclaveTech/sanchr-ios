@@ -389,6 +389,11 @@ final class RealtimeService: @unchecked Sendable {
             // `.message`. This case is a defensive fallback that should
             // not be reached in normal operation.
             SanchrLogger.chat.warning("Received un-decoded sealed message in RealtimeService handle — this is unexpected")
+
+        case .ignored:
+            // Already fully handled during decode (e.g. a profile-key envelope).
+            // Nothing to route.
+            break
         }
     }
 

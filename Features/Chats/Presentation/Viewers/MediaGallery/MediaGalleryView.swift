@@ -169,15 +169,28 @@ struct MediaGalleryView: View {
         }
         .onDisappear {
             pageLoader.cancelAll()
-            // Fire delete-after-view for every view-once item the user
-            // actually paged onto during this gallery session.
+            // Fire delete-after-view for every view-once item the user actually
+            // paged onto during this gallery session.
+            //
+            // The set is cleared only for ids that genuinely deleted. Clearing it
+            // up front — as this previously did — meant a failed delete left the
+            // decrypted media on disk while local state recorded it as consumed,
+            // so nothing would ever retry and the plaintext survived silently.
             let toDelete = openedViewOnceItems
-            openedViewOnceItems.removeAll()
             for messageId in toDelete {
                 Task { [container] in
-                    try? await container.messageRepository.deleteViewOnceMessage(
-                        messageId: messageId
-                    )
+                    do {
+                        try await container.messageRepository.deleteViewOnceMessage(
+                            messageId: messageId
+                        )
+                        await MainActor.run {
+                            openedViewOnceItems.remove(messageId)
+                        }
+                    } catch {
+                        SanchrLogger.chat.error(
+                            "View-once delete failed for \(messageId.prefix(8)); will retry on next close: \(error.localizedDescription)"
+                        )
+                    }
                 }
             }
         }

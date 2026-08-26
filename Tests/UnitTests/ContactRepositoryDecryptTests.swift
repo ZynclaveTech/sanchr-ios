@@ -100,6 +100,10 @@ private final class StubLocalDatabaseForContacts: LocalDatabaseProtocol, @unchec
     func saveIncomingMessageAndQueueAck(_ m: Message) async throws { fatalError() }
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { fatalError() }
     func deleteMessage(id: String) async throws { fatalError() }
+    func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
+    func disappearingDuration(conversationId: String) async throws -> Int64 { 0 }
+    func setDisappearingDuration(conversationId: String, seconds: Int64) async throws {}
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { fatalError() }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { fatalError() }
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { fatalError() }
@@ -134,11 +138,21 @@ final class ContactRepositoryDecryptTests: XCTestCase {
     private let crypto = ProfileCryptor()
     private let profileKey = Data(repeating: 0xAB, count: 32)
 
-    private func makeSUT(contactsService: SpyContactsService) -> ContactRepositoryImpl {
-        ContactRepositoryImpl(
+    /// `locallyKnownKeys` seeds keys as if they had arrived over the Signal
+    /// session. Keys offered by the server in the response are deliberately not
+    /// trusted, so a test that wants decryption must seed one here.
+    private func makeSUT(
+        contactsService: SpyContactsService,
+        locallyKnownKeys: [String: Data] = [:]
+    ) -> ContactRepositoryImpl {
+        let store = ProfileKeyStore(keychain: MockKeychainService())
+        for (userId, key) in locallyKnownKeys {
+            try? store.saveContactProfileKey(key, forUserId: userId)
+        }
+        return ContactRepositoryImpl(
             grpcClient: StubGRPCClientForContacts(contactService: contactsService),
             localDatabase: StubLocalDatabaseForContacts(),
-            profileKeyStore: ProfileKeyStore(keychain: MockKeychainService()),
+            profileKeyStore: store,
             profileCrypto: crypto
         )
     }
@@ -159,7 +173,10 @@ final class ContactRepositoryDecryptTests: XCTestCase {
 
         let service = SpyContactsService()
         service.registerGetContactsResponse(response)
-        let sut = makeSUT(contactsService: service)
+        let sut = makeSUT(
+            contactsService: service,
+            locallyKnownKeys: ["user-1": profileKey]
+        )
 
         // Act
         let users = try await sut.fetchContacts()
@@ -170,8 +187,11 @@ final class ContactRepositoryDecryptTests: XCTestCase {
                        "should use decrypted value, not server-provided plaintext 'REDACTED'")
     }
 
-    func test_fetchContacts_noProfileKey_usesPlaintext() async throws {
-        // Arrange: contact with no profile key — should fall back to plaintext
+    /// Previously asserted the display name fell back to the server's plaintext,
+    /// which is exactly the leak the profile encryption exists to prevent. Until a
+    /// key arrives over the Signal session we show the phone number instead.
+    func test_fetchContacts_noLocalProfileKey_showsPhoneNumberNotServerPlaintext() async throws {
+        // Arrange: contact with no locally-known profile key
         var contact = Sanchr_Contacts_Contact()
         contact.userID      = "user-2"
         contact.phoneNumber = "+15551234567"
@@ -189,12 +209,16 @@ final class ContactRepositoryDecryptTests: XCTestCase {
         let users = try await sut.fetchContacts()
 
         // Assert
-        XCTAssertEqual(users[0].displayName, "Bob",
-                       "should use plaintext displayName when no profileKey is present")
+        XCTAssertEqual(users[0].displayName, "+15551234567",
+                       "must fall back to the phone number, never the server's plaintext")
+        XCTAssertNotEqual(users[0].displayName, "Bob",
+                          "server-supplied plaintext must never reach the UI")
     }
 
-    func test_fetchContacts_decryptionFails_fallsBackToPlaintext() async throws {
-        // Arrange: wrong profile key → decryption will throw → should fall back gracefully
+    /// A key offered by the server is ignored outright — the server also holds the
+    /// ciphertext, so honouring its key would let it choose what we decrypt.
+    func test_fetchContacts_serverSuppliedProfileKey_isIgnored() async throws {
+        // Arrange: server offers a key; no key is known locally
         let wrongKey = Data(repeating: 0xFF, count: 32)
         let encryptedWithCorrectKey = try crypto.encryptField("Alice", profileKey: profileKey, field: .displayName)
 
@@ -215,8 +239,9 @@ final class ContactRepositoryDecryptTests: XCTestCase {
         // Act — must not throw
         let users = try await sut.fetchContacts()
 
-        // Assert: graceful fallback to plaintext
-        XCTAssertEqual(users[0].displayName, "Fallback",
-                       "decryption failure must fall back to plaintext without throwing")
+        // Assert: server key ignored, server plaintext ignored
+        XCTAssertEqual(users[0].displayName, "+15559876543",
+                       "a server-offered profile key must not be used")
+        XCTAssertNotEqual(users[0].displayName, "Fallback")
     }
 }

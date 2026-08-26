@@ -67,6 +67,22 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Returns whether a contact's identity has been manually verified.
     func isIdentityVerified(userId: String) -> Bool
 
+    /// When the contact was verified, or nil if unverified or verified before
+    /// timestamps were recorded.
+    func identityVerifiedAt(userId: String) -> Date?
+
+    /// Revokes a manual verification, e.g. after a scan that did not match.
+    func unmarkIdentityVerified(userId: String)
+
+    /// Whether this contact's identity key changed and the local user has not yet
+    /// reviewed it. While true, sending to them fails with `AppError.untrustedIdentity`.
+    func hasPendingIdentityChange(userId: String) -> Bool
+
+    /// Records that the local user reviewed the identity change and chose to
+    /// continue, adopting the new key and unblocking sending. Does not mark the
+    /// identity verified — use `markIdentityVerified` when safety numbers were compared.
+    func acceptIdentityChange(userId: String)
+
     /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
 
@@ -158,13 +174,25 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             try await establishSession(with: userId, deviceId: deviceId)
         }
 
-        let ciphertext = try signalEncrypt(
-            message: plaintext,
-            for: address,
-            sessionStore: store,
-            identityStore: store,
-            context: NullContext()
-        )
+        let ciphertext: CiphertextMessage
+        do {
+            ciphertext = try signalEncrypt(
+                message: plaintext,
+                for: address,
+                sessionStore: store,
+                identityStore: store,
+                context: NullContext()
+            )
+        } catch SignalError.untrustedIdentity {
+            // The recipient's identity key changed and the local user has not reviewed
+            // it. Fail closed: encrypting anyway would hand the plaintext to whoever
+            // supplied the new key. Cleared by accepting the change or verifying the
+            // new safety number.
+            SanchrLogger.crypto.error(
+                "Refusing to encrypt for \(userId.prefix(8))... device \(deviceId) — unreviewed identity change"
+            )
+            throw AppError.untrustedIdentity
+        }
 
         // Prepend a single byte indicating the message type so the receiver can dispatch correctly.
         // 0x01 = PreKeySignalMessage (new session), 0x02 = SignalMessage (existing session)
@@ -446,6 +474,22 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
 
     public func isIdentityVerified(userId: String) -> Bool {
         store.identityStore.isIdentityVerified(userId: userId)
+    }
+
+    public func identityVerifiedAt(userId: String) -> Date? {
+        store.identityStore.identityVerifiedAt(userId: userId)
+    }
+
+    public func unmarkIdentityVerified(userId: String) {
+        store.identityStore.unmarkIdentityVerified(userId: userId)
+    }
+
+    public func hasPendingIdentityChange(userId: String) -> Bool {
+        store.identityStore.hasPendingIdentityChange(userId: userId)
+    }
+
+    public func acceptIdentityChange(userId: String) {
+        store.identityStore.acceptIdentityChange(userId: userId)
     }
 
     // MARK: - Diagnostics

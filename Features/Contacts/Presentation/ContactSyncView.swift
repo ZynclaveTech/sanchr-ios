@@ -295,12 +295,22 @@ struct ContactSyncView: View {
             grpcClient: container.grpcClient,
             localDatabase: container.localDatabase
         )
-        let useCase = ContactUseCases.SyncContacts(contactDataSource: contactDataSource)
+        let useCase = ContactUseCases.SyncContacts(
+            contactDataSource: contactDataSource,
+            discoveryRepository: container.discoveryRepository
+        )
 
         do {
             foundContacts = try await useCase.execute()
             syncComplete = true
+        } catch AppError.featureDisabled {
+            errorMessage =
+                "Contact discovery isn't available on the server yet. You can still start chats by entering a phone number."
         } catch {
+            // localizedDescription on a GRPCStatus always renders "error 1",
+            // naming neither the status code nor the message. Log the real one.
+            SanchrLogger.sync.error(
+                "Contact sync failed: \(SignalSessionManager.detailedError(error))")
             errorMessage = error.localizedDescription
         }
 

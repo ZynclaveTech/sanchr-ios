@@ -244,6 +244,10 @@ private final class StubLocalDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func deleteMessage(id: String) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
+    func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
+    func disappearingDuration(conversationId: String) async throws -> Int64 { 0 }
+    func setDisappearingDuration(conversationId: String, seconds: Int64) async throws {}
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
@@ -313,6 +317,10 @@ private final class StubSignalProtocol: SignalProtocolManagerProtocol, @unchecke
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
     func markIdentityVerified(userId: String) {}
     func isIdentityVerified(userId: String) -> Bool { false }
+    func identityVerifiedAt(userId: String) -> Date? { nil }
+    func unmarkIdentityVerified(userId: String) {}
+    func hasPendingIdentityChange(userId: String) -> Bool { false }
+    func acceptIdentityChange(userId: String) {}
     func localIdentityKeyData() throws -> Data { Data() }
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
@@ -328,7 +336,8 @@ private class StubSealedSenderManager: SealedSenderManagerProtocol, @unchecked S
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data {
         content
     }
@@ -408,7 +417,8 @@ private func makeRepo(spyService: SpyMessagingService) -> MessageRepositoryImpl 
         vaultRepository: StubVaultRepository(),
         mediaDownloadManager: makeMediaDownloadManager(grpcClient: grpcClient),
         currentUserIdProvider: { "alice" },
-        privacySettings: PrivacySettingsCache()
+        privacySettings: PrivacySettingsCache(),
+        profileKeyStore: ProfileKeyStore(keychain: MockKeychainService())
     )
 }
 
@@ -510,7 +520,8 @@ final class MessageRepositorySealedSendTests: XCTestCase {
             vaultRepository: StubVaultRepository(),
             mediaDownloadManager: makeMediaDownloadManager(grpcClient: grpcClient),
             currentUserIdProvider: { "alice" },
-            privacySettings: PrivacySettingsCache()
+            privacySettings: PrivacySettingsCache(),
+            profileKeyStore: ProfileKeyStore(keychain: MockKeychainService())
         )
         let message = Message(
             id: "msg-2",

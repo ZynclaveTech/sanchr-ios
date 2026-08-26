@@ -25,11 +25,19 @@ public struct AppConfiguration: Sendable {
 
     // MARK: - TLS Certificate Pinning
 
-    /// SHA-256 hash of the gRPC server's TLS certificate (DER format, base64-encoded)
-    public let grpcCertificateHash: String?
+    /// Base64 SHA-256 pins of accepted `SubjectPublicKeyInfo` values for the API
+    /// host. A connection is accepted when any certificate in the presented chain
+    /// matches one of these.
+    ///
+    /// Empty disables pinning. Ship at least two — the current leaf key and a
+    /// backup (an intermediate, or a pre-generated next key) — so that rotating
+    /// the server key does not require every client to update first.
+    ///
+    /// Generate with `Scripts/generate-cert-pins.sh <host>`.
+    public let grpcCertificatePins: Set<String>
 
-    /// SHA-256 hash of the call signaling server's TLS certificate (DER format, base64-encoded)
-    public let callCertificateHash: String?
+    /// Same, for the call signaling host.
+    public let callCertificatePins: Set<String>
 
     // MARK: - Feature Flags
 
@@ -55,8 +63,8 @@ public struct AppConfiguration: Sendable {
         isVideoCallEnabled: Bool,
         isDisappearingMessagesEnabled: Bool,
         maxMediaUploadSizeMB: Int,
-        grpcCertificateHash: String? = nil,
-        callCertificateHash: String? = nil
+        grpcCertificatePins: Set<String> = [],
+        callCertificatePins: Set<String> = []
     ) {
         self.environment = environment
         self.grpcHost = grpcHost
@@ -70,8 +78,8 @@ public struct AppConfiguration: Sendable {
         self.isVideoCallEnabled = isVideoCallEnabled
         self.isDisappearingMessagesEnabled = isDisappearingMessagesEnabled
         self.maxMediaUploadSizeMB = maxMediaUploadSizeMB
-        self.grpcCertificateHash = grpcCertificateHash
-        self.callCertificateHash = callCertificateHash
+        self.grpcCertificatePins = grpcCertificatePins
+        self.callCertificatePins = callCertificatePins
     }
 
     // MARK: - Factory
@@ -131,12 +139,20 @@ public struct AppConfiguration: Sendable {
 
     public static let production = AppConfiguration(
         environment: .production,
-        grpcHost: "api.sanchr.io",
+        // .com, not .io: api.sanchr.io and call.sanchr.io resolve to nothing and
+        // serve no certificate, while the deployed ingress (deploy/do/values-production.yaml)
+        // is api.sanchr.com / call.sanchr.com. Release builds were pointing at
+        // hosts that do not exist.
+        grpcHost: "api.sanchr.com",
         grpcPort: 443,
-        callHost: "call.sanchr.io",
+        callHost: "call.sanchr.com",
         callPort: 443,
         useTLS: true,
-        mediaBaseURL: URL(string: "https://media.sanchr.io")!,
+        // media.sanchr.io and media.sanchr.com both resolve to nothing. The
+        // deployed bucket is sanchr-media on sfo3 with an empty cdn_base_url
+        // (backend deploy/do/values-production.yaml), so objects are served
+        // straight from Spaces — same as dev.
+        mediaBaseURL: URL(string: "https://sanchr-media.sfo3.digitaloceanspaces.com")!,
         stunServers: [
             "stun:stun.l.google.com:19302",
             "stun:stun1.l.google.com:19302",
@@ -145,9 +161,20 @@ public struct AppConfiguration: Sendable {
         isVideoCallEnabled: false,  // TODO: Enable after beta testing
         isDisappearingMessagesEnabled: true,
         maxMediaUploadSizeMB: 25,
-        // TODO: Obtain actual certificate hashes from backend certificates
-        // openssl s_client -connect api.sanchr.io:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform DER | openssl dgst -sha256 -binary | base64
-        grpcCertificateHash: nil,
-        callCertificateHash: nil
+        // Captured from the live chain with Scripts/generate-cert-pins.sh.
+        // Leaf first, then the Let's Encrypt intermediate and ISRG root as
+        // backups: if the server key rotates, the chain still matches a pinned
+        // CA and clients stay online instead of being locked out until they
+        // update. Re-run the script and refresh these when the chain changes.
+        grpcCertificatePins: [
+            "yd5ZAf28dpfRN+w7znX6CTeF28OpmFeDdEt0B3yQm+s=",  // leaf CN=api.sanchr.com
+            "LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=",  // Let's Encrypt YR1
+            "fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=",  // ISRG Root YR
+        ],
+        callCertificatePins: [
+            "fCNvolsAMHRlvELT9i54m9mvKvsyY2kBzATIy942jeQ=",  // leaf CN=call.sanchr.com
+            "nWN7PSep5XDQdge5zK24CnCRXHr3KvzhKEGxsdqCX9E=",  // Let's Encrypt YR2
+            "fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=",  // ISRG Root YR
+        ]
     )
 }

@@ -9,6 +9,19 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message]
     func deleteMessage(id: String) async throws
+
+    /// Deletes every message whose disappearing-message deadline has passed and
+    /// returns their ids so the caller can wipe the associated media files.
+    func purgeExpiredMessages() async throws -> [String]
+
+    /// Deletes every message in a conversation while keeping the conversation
+    /// itself. Returns the deleted ids so the caller can wipe cached media.
+    func deleteAllMessages(conversationId: String) async throws -> [String]
+
+    /// Disappearing-message lifetime for a conversation, in seconds. Zero means
+    /// no timer.
+    func disappearingDuration(conversationId: String) async throws -> Int64
+    func setDisappearingDuration(conversationId: String, seconds: Int64) async throws
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
@@ -208,6 +221,10 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         try await dbPool.read { db in
             var request = MessageRecord
                 .filter(Column("conversationId") == conversationId)
+                // Never surface an expired message, even if the sweeper has not
+                // run yet. Reading is the moment it would become visible, so the
+                // filter belongs here as well as in the purge.
+                .filter(Column("expiresAt") == nil || Column("expiresAt") > Date())
 
             if let before {
                 request = request.filter(Column("timestamp") < before)
@@ -236,6 +253,79 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
+        }
+    }
+
+    public func disappearingDuration(conversationId: String) async throws -> Int64 {
+        try await dbPool.read { db in
+            let seconds = try Double.fetchOne(
+                db,
+                sql: "SELECT disappearingMessagesDuration FROM conversation WHERE id = ?",
+                arguments: [conversationId]
+            )
+            return Int64(seconds ?? 0)
+        }
+    }
+
+    public func setDisappearingDuration(conversationId: String, seconds: Int64) async throws {
+        try await dbPool.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE conversation
+                    SET disappearingMessagesDuration = ?, updatedAt = ?
+                    WHERE id = ?
+                    """,
+                arguments: [seconds > 0 ? Double(seconds) : nil, Date(), conversationId]
+            )
+        }
+    }
+
+    public func deleteAllMessages(conversationId: String) async throws -> [String] {
+        try await dbPool.write { db in
+            let rows = try MessageRecord
+                .filter(Column("conversationId") == conversationId)
+                .fetchAll(db)
+            guard !rows.isEmpty else { return [] }
+
+            let ids = rows.map(\.id)
+            _ = try MessageRecord
+                .filter(Column("conversationId") == conversationId)
+                .deleteAll(db)
+
+            // Clear the denormalised preview too, or the conversation list keeps
+            // showing the last message of a chat the user just cleared.
+            try db.execute(
+                sql: """
+                    UPDATE conversation
+                    SET lastMessageId = NULL,
+                        lastMessageContent = NULL,
+                        lastMessageTimestamp = NULL,
+                        lastMessageSenderId = NULL,
+                        lastMessageStatus = NULL,
+                        unreadCount = 0
+                    WHERE id = ?
+                    """,
+                arguments: [conversationId]
+            )
+            return ids
+        }
+    }
+
+    public func purgeExpiredMessages() async throws -> [String] {
+        try await dbPool.write { db in
+            let now = Date()
+            // Collect ids before deleting: the caller needs them to wipe cached
+            // media, and once the rows are gone the files are unreachable orphans.
+            let expired = try MessageRecord
+                .filter(Column("expiresAt") != nil && Column("expiresAt") <= now)
+                .fetchAll(db)
+            guard !expired.isEmpty else { return [] }
+
+            let ids = expired.map(\.id)
+            _ = try MessageRecord
+                .filter(ids.contains(Column("id")))
+                .deleteAll(db)
+            return ids
         }
     }
 
@@ -1437,6 +1527,10 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func saveIncomingMessageAndQueueAck(_ message: Message) async throws { throw error }
     public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { throw error }
     public func deleteMessage(id: String) async throws { throw error }
+    public func purgeExpiredMessages() async throws -> [String] { throw error }
+    public func deleteAllMessages(conversationId: String) async throws -> [String] { throw error }
+    public func disappearingDuration(conversationId: String) async throws -> Int64 { throw error }
+    public func setDisappearingDuration(conversationId: String, seconds: Int64) async throws { throw error }
     public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { throw error }
     public func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { throw error }
     public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { throw error }
@@ -1493,14 +1587,29 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
 /// Lightweight per-conversation disappearing-message duration storage.
 /// Keyed by conversation ID in UserDefaults so it survives app restarts
 /// without requiring a GRDB schema migration.
-public enum DisappearingTimerStore {
-    private static let keyPrefix = "sanchr.disappearing."
+/// Removes disappearing-message timers left in plaintext UserDefaults by earlier
+/// builds.
+///
+/// Timers now live in the encrypted conversation row. The old keys were
+/// `sanchr.disappearing.<conversationId>` in the standard defaults, which put both
+/// the conversation identifiers and the fact that a chat used ephemeral messaging
+/// into an unencrypted plist that lands in device backups.
+///
+/// The values are deleted rather than migrated, deliberately. The setting never
+/// took effect in those builds — nothing was ever deleted by it — so carrying a
+/// forgotten timer forward would silently start destroying message history the
+/// user has been able to see all along. Losing a preference is recoverable; that
+/// is not.
+public enum DisappearingTimerLegacyCleanup {
+    static let keyPrefix = "sanchr.disappearing."
 
-    public static func setDuration(conversationId: String, secs: Int64) {
-        UserDefaults.standard.set(secs, forKey: keyPrefix + conversationId)
-    }
-
-    public static func getDuration(conversationId: String) -> Int64 {
-        Int64(UserDefaults.standard.integer(forKey: keyPrefix + conversationId))
+    /// Returns how many stale keys were removed.
+    @discardableResult
+    public static func purge(defaults: UserDefaults = .standard) -> Int {
+        let stale = defaults.dictionaryRepresentation().keys.filter {
+            $0.hasPrefix(keyPrefix)
+        }
+        for key in stale { defaults.removeObject(forKey: key) }
+        return stale.count
     }
 }

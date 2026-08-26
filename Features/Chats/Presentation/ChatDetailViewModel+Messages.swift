@@ -75,14 +75,17 @@ extension ChatDetailViewModel {
         } catch {
             SanchrLogger.chat.error(
                 "Failed to decrypt incoming message: \(error.localizedDescription)")
-            // Insert a system message indicating decryption failure
+            // A decryption failure is a delivery problem, not evidence of a key
+            // change. Reporting it as "Security code changed" trained users to
+            // dismiss the one warning that should stop them — the real key-change
+            // event is emitted from the identity store's pending-change state.
             let errorMsg = Message(
                 id: envelope.messageID,
                 conversationId: envelope.conversationID,
                 senderId: envelope.senderID,
                 timestamp: Date(
                     timeIntervalSince1970: TimeInterval(envelope.serverTimestamp) / 1000),
-                content: .system(.identityKeyChanged),
+                content: .system(.decryptionFailed),
                 status: .delivered,
                 isOutgoing: false
             )

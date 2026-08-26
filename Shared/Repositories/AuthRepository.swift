@@ -49,6 +49,10 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
     private let secureStorage: SecureStorageProtocol
 
+    /// Default OTP TTL fallback (seconds) used when the server returns 0.
+    /// Mirrors the previous hardcoded value before the RequestOtp RPC existed.
+    private static let defaultOtpExpirySeconds: Int = 300
+
     init(grpcClient: GRPCClientProtocol, secureStorage: SecureStorageProtocol) {
         self.grpcClient = grpcClient
         self.secureStorage = secureStorage
@@ -58,29 +62,45 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         grpcClient.authService
     }
 
+    /// Requests an OTP via `AuthService.RequestOtp` (see
+    /// `backend/crates/sanchr-core/src/auth/handlers.rs::handle_request_otp`,
+    /// introduced in commit `bdfb5a7`). The server handles both new and existing
+    /// users uniformly: new phones are staged in `pending_registrations` with a
+    /// "Sanchr User" placeholder display name; existing users get an OTP issued
+    /// for login. User-enumeration prevention is server-side.
+    ///
+    /// The `displayName` parameter is retained for source compatibility with
+    /// callers that still pass it (e.g. `register(phoneNumber:displayName:)`),
+    /// but is intentionally ignored on the wire — the new RPC is phone-only and
+    /// the display name is collected post-OTP via `OnboardingNameStepView`.
     func requestOTP(phoneNumber: String, displayName: String? = nil) async throws -> OTPRequestResult {
         SanchrLogger.auth.info("Requesting OTP for \(phoneNumber.prefix(4))****")
         let device = try makeDeviceInfo()
 
-        // Call Register which handles both new and existing users.
-        // New users are staged; existing users get an OTP generated for login.
-        // Both paths return OK — the server handles user-enumeration prevention.
+        let response: Sanchr_Auth_RequestOtpResponse
         do {
-            var registerReq = Sanchr_Auth_RegisterRequest()
-            registerReq.phoneNumber = phoneNumber
-            registerReq.displayName = sanitizedDisplayName(displayName)
-            registerReq.password = Self.otpBootstrapPassword()
-            registerReq.device = device
-            _ = try await authService.register(registerReq)
-            SanchrLogger.auth.info("Register/OTP request succeeded")
+            var req = Sanchr_Auth_RequestOtpRequest()
+            req.phoneNumber = phoneNumber
+            req.device = device
+            response = try await authService.requestOtp(req)
+            SanchrLogger.auth.info("RequestOtp succeeded (existingUser=\(response.existingUser))")
         } catch {
             SanchrLogger.auth.error("requestOTP failed: \(Self.detailedError(error))")
             throw error
         }
 
+        // Clamp Int64 → Int and fall back to the historical 300s default if the
+        // server returned 0 (e.g. older server build pre-Phase 0).
+        let expirySeconds: Int
+        if response.expiresInSeconds > 0 {
+            expirySeconds = Int(min(Int64(Int.max), response.expiresInSeconds))
+        } else {
+            expirySeconds = Self.defaultOtpExpirySeconds
+        }
+
         return OTPRequestResult(
             requestId: phoneNumber,
-            expiresInSeconds: 300,
+            expiresInSeconds: expirySeconds,
             phoneNumber: phoneNumber
         )
     }
@@ -120,6 +140,11 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         return tokens
     }
 
+    /// Account-creation entry point. Delegates to `requestOTP` because the
+    /// backend `RequestOtp` RPC handles both new and existing users uniformly,
+    /// and the user's chosen display name is collected post-OTP in
+    /// `OnboardingNameStepView` (filtered via `hasCompletedProfileBasics` in
+    /// `SanchrApp.swift`). `displayName` is therefore ignored on the wire here.
     func register(phoneNumber: String, displayName: String) async throws -> OTPRequestResult {
         try await requestOTP(phoneNumber: phoneNumber, displayName: displayName)
     }
@@ -213,15 +238,6 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         device.installationID = try secureStorage.readOrCreateInstallationId()
         device.supportsDeliveryAck = true
         return device
-    }
-
-    private func sanitizedDisplayName(_ displayName: String?) -> String {
-        let trimmed = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? "Sanchr User" : trimmed
-    }
-
-    private static func otpBootstrapPassword() -> String {
-        UUID().uuidString.replacingOccurrences(of: "-", with: "") + "Aa1!"
     }
 
     private static func decodeJWTExpiration(from token: String) -> Date? {

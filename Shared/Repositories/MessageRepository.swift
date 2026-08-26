@@ -206,6 +206,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
+    private let profileKeyStore: ProfileKeyStoreProtocol
+
+    /// Sealed-envelope content type carrying a 32-byte Profile Key.
+    static let profileKeyContentType = "profile-key/v1"
+    private static let profileKeyByteCount = 32
 
     init(
         grpcClient: GRPCClientProtocol,
@@ -217,6 +222,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         mediaDownloadManager: MediaDownloadManager,
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
         privacySettings: PrivacySettingsCache,
+        profileKeyStore: ProfileKeyStoreProtocol,
         receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
             UInt64(Double.random(in: 0...3) * 1_000_000_000)
         }
@@ -231,6 +237,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.currentUserIdProvider = currentUserIdProvider
         self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
         self.receiptDelayNanoseconds = receiptDelayNanoseconds
+        self.profileKeyStore = profileKeyStore
     }
 
     /// Returns true if the message content is something we route into
@@ -285,12 +292,21 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         //    The server sees only delivery_token + per-device ciphertext; sender_id is
         //    never transmitted — it stays hidden behind the delivery token.
         let contentType = Self.contentTypeString(for: message.content)
+        // Read from the encrypted conversation row rather than UserDefaults.
+        let disappearingSecs =
+            (try? await localDatabase.disappearingDuration(
+                conversationId: message.conversationId)) ?? 0
+
         let innerPayload = try sealedSenderManager.encodeInnerPayload(
             conversationId: message.conversationId,
             messageId: message.id,
             contentType: contentType,
             content: plaintext,
-            isSync: false
+            isSync: false,
+            // The disappearing timer travels inside the envelope so the recipient
+            // can enforce it. SendSealedMessageRequest has no TTL field, and the
+            // server should not learn the timer in any case.
+            expiresAfterSecs: disappearingSecs > 0 ? disappearingSecs : nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -315,9 +331,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         var request = Sanchr_Messaging_SendSealedMessageRequest()
         request.deliveryToken = deliveryToken
         request.deviceMessages = sealedDeviceMessages
-        // NOTE: SendSealedMessageRequest has no expiresAfterSecs field — server-side
-        // disappearing-message enforcement is not applied on the sealed path.
-        // Client-side timers remain active. Follow-up: add expires_after_secs to proto.
+        // SendSealedMessageRequest deliberately carries no TTL field: the timer
+        // travels inside the sealed InnerPayload instead, so the server never
+        // learns it. Expiry is enforced on each device by
+        // DisappearingMessageSweeper, and fetchMessages hides anything past its
+        // deadline in the window before a sweep runs.
 
         let response = try await grpcClient.messagingService.sendSealedMessage(request)
 
@@ -532,7 +550,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 messageId: nil,
                 contentType: "receipt/v1",
                 content: content,
-                isSync: false
+                isSync: false,
+                // Control payloads carry no disappearing timer.
+                expiresAfterSecs: nil
             )
             let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -836,7 +856,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             messageId: nil,
             contentType: "presence/v1",
             content: content,
-            isSync: false
+            isSync: false,
+            // Control payloads carry no disappearing timer.
+            expiresAfterSecs: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -859,6 +881,56 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         request.deviceMessages = deviceMessages
         _ = try await grpcClient.messagingService.sendSealedMessage(request)
 
+        Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
+    }
+
+    /// Sends the local user's Profile Key to `recipientUserId` inside a sealed
+    /// envelope, so they can decrypt our encrypted profile fields.
+    ///
+    /// The key is deliberately never uploaded to the server. It previously travelled
+    /// in `UpdateProfile` alongside the ciphertext it protects, which handed the
+    /// server both halves and made the profile encryption decorative. Distributing
+    /// it over the Signal session is what makes that encryption mean anything.
+    func sendProfileKey(recipientUserId: String) async throws {
+        guard let currentUserId = currentUserIdProvider(), !currentUserId.isEmpty else {
+            SanchrLogger.chat.warning("sendProfileKey: missing current user id")
+            return
+        }
+        guard !recipientUserId.isEmpty, recipientUserId != currentUserId else { return }
+
+        let profileKey = try profileKeyStore.ownProfileKey()
+
+        let innerPayload = try sealedSenderManager.encodeInnerPayload(
+            conversationId: "",
+            messageId: nil,
+            contentType: Self.profileKeyContentType,
+            content: profileKey,
+            isSync: false,
+            // Control payloads carry no disappearing timer.
+            expiresAfterSecs: nil
+        )
+        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
+
+        let encrypted = try await signalProtocol.encryptForAllDevices(
+            plaintext: innerPayload,
+            recipientId: recipientUserId
+        )
+        guard !encrypted.isEmpty else { return }
+
+        let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
+            var sdm = Sanchr_Messaging_SealedDeviceMessage()
+            sdm.recipientID = dm.recipientID
+            sdm.deviceID = dm.deviceID
+            sdm.sealedEnvelope = dm.ciphertext
+            return sdm
+        }
+
+        var request = Sanchr_Messaging_SendSealedMessageRequest()
+        request.deliveryToken = deliveryToken
+        request.deviceMessages = deviceMessages
+        _ = try await grpcClient.messagingService.sendSealedMessage(request)
+
+        SanchrLogger.chat.debug("Sent profile key to \(recipientUserId.prefix(8))")
         Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
     }
 
@@ -968,6 +1040,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         let response = try await grpcClient.messagingService.startDirectConversation(request)
         SanchrLogger.chat.info(
             "startDirectConversation: peer=\(peerUserId.prefix(8)) convId=\(response.id.prefix(8))")
+
+        // Hand this peer our Profile Key over the Signal session so they can read
+        // our encrypted profile. Best-effort: a failure here must not block opening
+        // the conversation, and the key is re-sent on the next profile update.
+        Task { [weak self] in
+            do {
+                try await self?.sendProfileKey(recipientUserId: peerUserId)
+            } catch {
+                SanchrLogger.chat.warning(
+                    "Profile key delivery to \(peerUserId.prefix(8)) failed: \(error.localizedDescription)"
+                )
+            }
+        }
+
         return response.id
     }
 
@@ -1187,6 +1273,29 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return .event(.presence(presenceUpdate))
             }
 
+            // 3b. Profile key distribution: store the sender's key so their encrypted
+            // profile fields become readable. Arrives only over the Signal session —
+            // a key offered by the server is never trusted.
+            if innerPayload.contentType == Self.profileKeyContentType {
+                let key = innerPayload.content
+                guard key.count == Self.profileKeyByteCount else {
+                    SanchrLogger.chat.warning(
+                        "Ignoring malformed profile key from \(result.senderUserId.prefix(8)) (\(key.count) bytes)"
+                    )
+                    return .event(.ignored)
+                }
+                do {
+                    try profileKeyStore.saveContactProfileKey(key, forUserId: result.senderUserId)
+                    SanchrLogger.chat.debug(
+                        "Stored profile key from \(result.senderUserId.prefix(8))")
+                } catch {
+                    SanchrLogger.chat.error(
+                        "Failed to store profile key from \(result.senderUserId.prefix(8)): \(error.localizedDescription)"
+                    )
+                }
+                return .event(.ignored)
+            }
+
             // 4. Sealed read receipt: update local message status, no DB write for new row.
             if innerPayload.contentType == "receipt/v1" {
                 let receiptUpdate = try Sanchr_Messaging_ReceiptUpdate(
@@ -1228,6 +1337,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 innerPayloadMessageId: innerPayload.messageId
             )
 
+            // Disappearing timer travels inside the envelope. Anchor the deadline to
+            // the server timestamp rather than local arrival time, so a device that
+            // was offline for a week does not grant itself a fresh full lifetime on
+            // the messages it finally syncs.
+            let expiresAt: Date? = innerPayload.expiresAfterSecs
+                .flatMap { $0 > 0 ? $0 : nil }
+                .map { serverTimestamp.addingTimeInterval(TimeInterval($0)) }
+
             let message = Message(
                 id: messageId,
                 conversationId: innerPayload.conversationId,
@@ -1235,7 +1352,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 timestamp: serverTimestamp,
                 content: content,
                 status: isOutgoing ? .sent : .delivered,
-                isOutgoing: isOutgoing
+                isOutgoing: isOutgoing,
+                expiresAt: expiresAt
             )
 
             // 6. Ensure the conversation exists locally before saving.

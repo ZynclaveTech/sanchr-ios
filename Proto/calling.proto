@@ -54,9 +54,9 @@ message CallSignal {
 
 message CallJoin {
   string role = 1;             // "caller" or "callee"
-  // Device id the joining client is answering from. Server mirrors this onto
-  // CallSignal.peer_device for the caller side so the caller can decrypt
-  // answers with the correct Signal session.
+  // Device id the joining client is answering from. Server reads this only
+  // when role == "callee", stores it on the ActiveCall record, and mirrors
+  // it onto every CallSignal relayed from callee → caller as peer_device.
   int32 answerer_device = 2;
 }
 

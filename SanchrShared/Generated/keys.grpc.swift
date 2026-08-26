@@ -40,6 +40,11 @@ public protocol Sanchr_Keys_KeyServiceClientProtocol: GRPCClient {
     _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>
+
+  func removeDevice(
+    _ request: Sanchr_Keys_RemoveDeviceRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>
 }
 
 extension Sanchr_Keys_KeyServiceClientProtocol {
@@ -136,6 +141,24 @@ extension Sanchr_Keys_KeyServiceClientProtocol {
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
     )
   }
+
+  /// Unary call to RemoveDevice
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to RemoveDevice.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func removeDevice(
+    _ request: Sanchr_Keys_RemoveDeviceRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.removeDevice.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -224,6 +247,11 @@ public protocol Sanchr_Keys_KeyServiceAsyncClientProtocol: GRPCClient {
     _ request: Sanchr_Keys_GetUserDevicesRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>
+
+  func makeRemoveDeviceCall(
+    _ request: Sanchr_Keys_RemoveDeviceRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -295,6 +323,18 @@ extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
     )
   }
+
+  public func makeRemoveDeviceCall(
+    _ request: Sanchr_Keys_RemoveDeviceRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.removeDevice.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -358,6 +398,18 @@ extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserDevicesInterceptors() ?? []
     )
   }
+
+  public func removeDevice(
+    _ request: Sanchr_Keys_RemoveDeviceRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Keys_RemoveDeviceResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.removeDevice.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -393,6 +445,9 @@ public protocol Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol: Sendable
 
   /// - Returns: Interceptors to use when invoking 'getUserDevices'.
   func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'removeDevice'.
+  func makeRemoveDeviceInterceptors() -> [ClientInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>]
 }
 
 public enum Sanchr_Keys_KeyServiceClientMetadata {
@@ -405,6 +460,7 @@ public enum Sanchr_Keys_KeyServiceClientMetadata {
       Sanchr_Keys_KeyServiceClientMetadata.Methods.uploadOneTimePreKeys,
       Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount,
       Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.removeDevice,
     ]
   )
 
@@ -438,6 +494,12 @@ public enum Sanchr_Keys_KeyServiceClientMetadata {
       path: "/sanchr.keys.KeyService/GetUserDevices",
       type: GRPCCallType.unary
     )
+
+    public static let removeDevice = GRPCMethodDescriptor(
+      name: "RemoveDevice",
+      path: "/sanchr.keys.KeyService/RemoveDevice",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -454,6 +516,8 @@ public protocol Sanchr_Keys_KeyServiceProvider: CallHandlerProvider {
   func getPreKeyCount(request: Sanchr_Keys_GetPreKeyCountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_PreKeyCountResponse>
 
   func getUserDevices(request: Sanchr_Keys_GetUserDevicesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_GetUserDevicesResponse>
+
+  func removeDevice(request: Sanchr_Keys_RemoveDeviceRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_RemoveDeviceResponse>
 }
 
 extension Sanchr_Keys_KeyServiceProvider {
@@ -513,6 +577,15 @@ extension Sanchr_Keys_KeyServiceProvider {
         userFunction: self.getUserDevices(request:context:)
       )
 
+    case "RemoveDevice":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_RemoveDeviceRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_RemoveDeviceResponse>(),
+        interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? [],
+        userFunction: self.removeDevice(request:context:)
+      )
+
     default:
       return nil
     }
@@ -549,6 +622,11 @@ public protocol Sanchr_Keys_KeyServiceAsyncProvider: CallHandlerProvider, Sendab
     request: Sanchr_Keys_GetUserDevicesRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Keys_GetUserDevicesResponse
+
+  func removeDevice(
+    request: Sanchr_Keys_RemoveDeviceRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Keys_RemoveDeviceResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -615,6 +693,15 @@ extension Sanchr_Keys_KeyServiceAsyncProvider {
         wrapping: { try await self.getUserDevices(request: $0, context: $1) }
       )
 
+    case "RemoveDevice":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_RemoveDeviceRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_RemoveDeviceResponse>(),
+        interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? [],
+        wrapping: { try await self.removeDevice(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -642,6 +729,10 @@ public protocol Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol: Sendable
   /// - Returns: Interceptors to use when handling 'getUserDevices'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetUserDevicesInterceptors() -> [ServerInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>]
+
+  /// - Returns: Interceptors to use when handling 'removeDevice'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeRemoveDeviceInterceptors() -> [ServerInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>]
 }
 
 public enum Sanchr_Keys_KeyServiceServerMetadata {
@@ -654,6 +745,7 @@ public enum Sanchr_Keys_KeyServiceServerMetadata {
       Sanchr_Keys_KeyServiceServerMetadata.Methods.uploadOneTimePreKeys,
       Sanchr_Keys_KeyServiceServerMetadata.Methods.getPreKeyCount,
       Sanchr_Keys_KeyServiceServerMetadata.Methods.getUserDevices,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.removeDevice,
     ]
   )
 
@@ -685,6 +777,12 @@ public enum Sanchr_Keys_KeyServiceServerMetadata {
     public static let getUserDevices = GRPCMethodDescriptor(
       name: "GetUserDevices",
       path: "/sanchr.keys.KeyService/GetUserDevices",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeDevice = GRPCMethodDescriptor(
+      name: "RemoveDevice",
+      path: "/sanchr.keys.KeyService/RemoveDevice",
       type: GRPCCallType.unary
     )
   }

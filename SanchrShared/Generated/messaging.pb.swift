@@ -324,9 +324,10 @@ public struct Sanchr_Messaging_CallOfferEvent: Sendable {
   /// Signal-encrypt(SealedCallPayload JSON)
   public var encryptedSdpPayload: Data = Data()
 
-  /// Device id of the caller for Signal session addressing. Zero means absent
-  /// (legacy server) — iOS falls back to device 1 in that case. See
-  /// CallManager.decryptAndValidateOffer for the read site.
+  /// Device id of the caller for Signal session addressing. When zero/absent,
+  /// iOS falls back to device 1 for backward compatibility with pre-multi-device
+  /// servers. Populated by the server from the sender_device of the underlying
+  /// EncryptedEnvelope that carried the offer.
   public var callerDevice: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2473,6 +2474,9 @@ extension Sanchr_Messaging_DeleteConversationRequest: SwiftProtobuf.Message, Swi
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
       default: break
@@ -2500,6 +2504,9 @@ extension Sanchr_Messaging_DeleteConversationResponse: SwiftProtobuf.Message, Sw
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.success) }()
       default: break

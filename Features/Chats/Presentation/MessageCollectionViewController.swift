@@ -98,6 +98,9 @@ private struct MediaAttachmentRenderSignature: Hashable {
     let isVoiceMessage: Bool?
     let audioDurationMs: Int?
     let audioWaveform: [Float]?
+    /// Included so consuming a view-once item actually refreshes the cell.
+    /// Without it the bubble keeps rendering its pre-consumption state.
+    let isViewOnce: Bool?
 }
 
 private struct MessageReactionRenderSignature: Hashable {
@@ -169,7 +172,8 @@ private extension Message.MediaAttachment {
             filename: filename,
             isVoiceMessage: isVoiceMessage,
             audioDurationMs: audioDurationMs,
-            audioWaveform: audioWaveform
+            audioWaveform: audioWaveform,
+            isViewOnce: isViewOnce
         )
     }
 }
@@ -202,6 +206,7 @@ final class MessageCollectionViewController: UIViewController {
 
     var onReplyToMessage: ((Message) -> Void)?
     var onReactToMessage: ((String, String) -> Void)?
+    var onDeleteMessage: ((Message) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
@@ -955,7 +960,13 @@ final class MessageCollectionViewController: UIViewController {
         }
 
         if message.isOutgoing {
-            actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in })
+            actions.append(
+                UIAction(
+                    title: "Delete", image: UIImage(systemName: "trash"),
+                    attributes: .destructive
+                ) { [weak self] _ in
+                    self?.onDeleteMessage?(message)
+                })
         }
 
         return UIMenu(children: actions)
