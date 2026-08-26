@@ -74,9 +74,13 @@ struct MediaBubbleImage: View {
     }
 
     private var shouldAutoSaveToPhotos: Bool {
-        mediaAutoSave
-            && ChatMediaVisibilityStore.isVisibleInGallery(conversationId: conversationId)
-            && !isOutgoing
+        MediaAutoSavePolicy.shouldAutoSave(
+            attachment: attachment,
+            autoSaveEnabled: mediaAutoSave,
+            galleryVisible: ChatMediaVisibilityStore.isVisibleInGallery(
+                conversationId: conversationId),
+            isOutgoing: isOutgoing
+        )
     }
 
     private var mediaLoadKey: String {
@@ -423,5 +427,26 @@ enum BubbleImagePipeline {
             return nil
         }
         return UIImage(cgImage: cgImage)
+    }
+}
+
+
+/// Whether received media should be copied into the system photo library.
+///
+/// Extracted from the view so the decision is testable on its own: it writes to
+/// a location outside the app's control — for most users, iCloud — so getting it
+/// wrong is not recoverable by deleting the message afterwards.
+enum MediaAutoSavePolicy {
+    static func shouldAutoSave(
+        attachment: Message.MediaAttachment,
+        autoSaveEnabled: Bool,
+        galleryVisible: Bool,
+        isOutgoing: Bool
+    ) -> Bool {
+        // View-once media is excluded unconditionally. Saving it would preserve
+        // permanently what the sender chose to show once, and no later deletion
+        // reaches a photo library that has already synced.
+        guard attachment.isViewOnce != true else { return false }
+        return autoSaveEnabled && galleryVisible && !isOutgoing
     }
 }
