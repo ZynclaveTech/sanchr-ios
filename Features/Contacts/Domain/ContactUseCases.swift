@@ -1,4 +1,5 @@
 import Contacts
+import GRPC
 import CryptoKit
 import Foundation
 import SanchrShared
@@ -77,8 +78,19 @@ enum ContactUseCases {
             // server which numbers we asked about. Deliberately no fallback to the
             // legacy hash upload — falling back would leak the whole address book,
             // which is the thing this exists to prevent. Better to fail the sync.
-            let matched = try await discoveryRepository.discoverContacts(
-                phoneNumbers: phoneNumbers)
+            let matched: [String]
+            do {
+                matched = try await discoveryRepository.discoverContacts(
+                    phoneNumbers: phoneNumbers)
+            } catch let status as GRPCStatus where status.code == .unavailable {
+                // The server returns UNAVAILABLE when discovery.oprf_enabled is
+                // false or no OPRF secret is configured. Without this, the failure
+                // surfaced as "GRPC.GRPCStatus error 1", which names neither the
+                // real status code nor the cause.
+                SanchrLogger.sync.error(
+                    "OPRF discovery unavailable: \(SignalSessionManager.detailedError(status))")
+                throw AppError.featureDisabled(feature: "contact_discovery")
+            }
 
             SanchrLogger.sync.info(
                 "OPRF discovery matched \(matched.count) of \(phoneNumbers.count) numbers")
