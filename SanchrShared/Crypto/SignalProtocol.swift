@@ -67,6 +67,15 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Returns whether a contact's identity has been manually verified.
     func isIdentityVerified(userId: String) -> Bool
 
+    /// Whether this contact's identity key changed and the local user has not yet
+    /// reviewed it. While true, sending to them fails with `AppError.untrustedIdentity`.
+    func hasPendingIdentityChange(userId: String) -> Bool
+
+    /// Records that the local user reviewed the identity change and chose to
+    /// continue, adopting the new key and unblocking sending. Does not mark the
+    /// identity verified — use `markIdentityVerified` when safety numbers were compared.
+    func acceptIdentityChange(userId: String)
+
     /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
 
@@ -458,6 +467,14 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
 
     public func isIdentityVerified(userId: String) -> Bool {
         store.identityStore.isIdentityVerified(userId: userId)
+    }
+
+    public func hasPendingIdentityChange(userId: String) -> Bool {
+        store.identityStore.hasPendingIdentityChange(userId: userId)
+    }
+
+    public func acceptIdentityChange(userId: String) {
+        store.identityStore.acceptIdentityChange(userId: userId)
     }
 
     // MARK: - Diagnostics

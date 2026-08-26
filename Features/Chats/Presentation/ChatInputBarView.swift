@@ -257,7 +257,7 @@ struct ChatInputBarView: View {
         case .document(_): return "Document"
         case .location: return "Location"
         case .contact(let name, _): return "Contact: \(name)"
-        case .system(let event): return event.rawValue
+        case .system(let event): return event.displayLabel
         }
     }
 }

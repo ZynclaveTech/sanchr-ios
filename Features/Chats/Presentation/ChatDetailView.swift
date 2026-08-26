@@ -84,6 +84,73 @@ struct ChatDetailView: View {
         conversation.participants.first(where: { !$0.isLocalUser })
     }
 
+    /// True while this contact's identity key has changed and the local user has
+    /// not reviewed it. Sending is blocked by the identity store for as long as
+    /// this holds, so the banner is the user's only route back to a working chat.
+    @State private var hasUnreviewedIdentityChange = false
+    @State private var showIdentityReview = false
+
+    private func refreshIdentityChangeState() {
+        guard let id = recipient?.id, !id.isEmpty else {
+            hasUnreviewedIdentityChange = false
+            return
+        }
+        hasUnreviewedIdentityChange = container.signalProtocol.hasPendingIdentityChange(userId: id)
+    }
+
+    /// Persistent warning shown when the contact's safety number changed.
+    ///
+    /// Deliberately not dismissible: it is the only indication that sends are
+    /// failing closed, and it stays until the user either compares the new safety
+    /// number (Verify) or explicitly accepts the change.
+    @ViewBuilder
+    private var identityChangeBanner: some View {
+        if hasUnreviewedIdentityChange {
+            let name = recipient?.displayName ?? "This contact"
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Security code changed")
+                            .font(.subheadline.weight(.semibold))
+                        Text(
+                            "\(name)'s security code changed. This happens when they reinstall or switch devices — but it can also mean someone is intercepting this chat. Messages won't send until you review."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack(spacing: 10) {
+                    Button("Verify safety number") { showIdentityReview = true }
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    Button("Accept change") {
+                        if let id = recipient?.id, !id.isEmpty {
+                            container.signalProtocol.acceptIdentityChange(userId: id)
+                            refreshIdentityChangeState()
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.12))
+            .overlay(alignment: .bottom) {
+                Divider().overlay(Color.orange.opacity(0.35))
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(
+                "Security code changed for \(name). Messages will not send until you review.")
+        }
+    }
+
     var body: some View {
         // appearanceTick is bumped via .onReceive(.chatAppearanceDidChange)
         // below — guarantees body re-evaluation even when @Observable
@@ -204,6 +271,8 @@ struct ChatDetailView: View {
         let wallpaperId = appearance.wallpaperId
         VStack(spacing: 0) {
             header
+
+            identityChangeBanner
 
             if viewModel.searchState.isSearching {
                 chatSearchBar
@@ -466,6 +535,16 @@ struct ChatDetailView: View {
     @ViewBuilder
     private var chatViewContent: some View {
         chatBaseView
+        .task { refreshIdentityChangeState() }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrIdentityChangeStateDidChange)) {
+            _ in
+            refreshIdentityChangeState()
+        }
+        .sheet(isPresented: $showIdentityReview, onDismiss: { refreshIdentityChangeState() }) {
+            NavigationStack {
+                VerifySecurityCodeView(conversation: conversation)
+            }
+        }
         .sheet(isPresented: $showContactPicker) {
             ContactPickerHost(
                 onPick: { stripped in
