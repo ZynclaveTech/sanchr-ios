@@ -46,6 +46,7 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
     private(set) var deleteAllTokensCallCount = 0
     private(set) var deleteSessionDataCallCount = 0
     private(set) var deleteAllKeysCallCount = 0
+    private(set) var purgeAllKeychainItemsCallCount = 0
 
     func saveAccessToken(_ token: String) throws {
         accessToken = token
@@ -181,7 +182,7 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         sessionSnapshot = nil
     }
 
-    func deleteAllKeys() throws {
+    func deleteSignalStateKeys() throws {
         deleteAllKeysCallCount += 1
         identityKey = nil
         preKeys = []

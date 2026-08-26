@@ -32,7 +32,8 @@ public protocol SecureStorageProtocol: AnyObject, Sendable {
     func deleteBackupConfiguration() throws
     func deleteAllTokens() throws
     func deleteSessionData() throws
-    func deleteAllKeys() throws
+    func deleteSignalStateKeys() throws
+    func purgeAllKeychainItems() throws
     func deleteDeviceSecrets() throws
     func deleteBackupMaterial() throws
 }
@@ -219,9 +220,46 @@ public final class SecureStorage: SecureStorageProtocol, @unchecked Sendable {
         try keychain.delete(forKey: Keys.sessionSnapshot)
     }
 
-    public func deleteAllKeys() throws {
+    /// Clears Signal protocol material only — identity key and pre-keys.
+    ///
+    /// Named `deleteAllKeys` until it was mistaken for a full Keychain wipe. It
+    /// never was one: callers that re-bootstrap Signal state after a restore
+    /// depend on the session surviving this. For a genuine wipe see
+    /// `purgeAllKeychainItems`.
+    public func deleteSignalStateKeys() throws {
         try keychain.delete(forKey: Keys.identityKey)
         try keychain.delete(forKey: Keys.preKeys)
+    }
+
+    /// Removes every item this type manages, without exception.
+    ///
+    /// Listed one by one rather than composed from the narrower delete methods
+    /// so that adding a key to `Keys` and forgetting it here is visible in one
+    /// place. `mediaAccessSecret` had no delete path at all before this and
+    /// outlived logout entirely.
+    ///
+    /// Deletion continues past a failure and the first error is rethrown at the
+    /// end: a partial wipe that stops at the first stubborn item would leave
+    /// exactly the credentials this is meant to remove.
+    public func purgeAllKeychainItems() throws {
+        var firstError: Error?
+        for key in [
+            Keys.accessToken,
+            Keys.refreshToken,
+            Keys.deviceId,
+            Keys.installationId,
+            Keys.sessionSnapshot,
+            Keys.deviceMasterSecret,
+            Keys.databaseKey,
+            Keys.recoveryKey,
+            Keys.backupConfiguration,
+            Keys.identityKey,
+            Keys.preKeys,
+            Keys.mediaAccessSecret,
+        ] {
+            do { try keychain.delete(forKey: key) } catch { firstError = firstError ?? error }
+        }
+        if let firstError { throw firstError }
     }
 
     public func deleteDeviceSecrets() throws {

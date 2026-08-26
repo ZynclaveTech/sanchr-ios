@@ -519,7 +519,51 @@ final class DependencyContainer: @unchecked Sendable {
 
     // MARK: - Init
 
+    /// Absence of this key means the app container is new, so any surviving
+    /// Keychain items belong to a previous installation.
+    private static let installMarkerKey = "sanchr.install.marker"
+
+    /// Keychain items outlive app deletion on iOS — Apple's documented behaviour,
+    /// not a bug — while the app container (UserDefaults, the database, files) is
+    /// removed. A reinstall therefore starts with credentials, device secrets and
+    /// Signal state belonging to an installation that no longer exists.
+    ///
+    /// This has to run before anything else in this initialiser. The database key
+    /// provider, the Signal store and the session are all Keychain consumers, and
+    /// once any of them has read a stale value the damage is done: the database
+    /// gets created under a master secret that is about to be discarded, and the
+    /// session is restored for an account the server may never have heard of.
+    ///
+    /// UserDefaults is wiped on delete, so its emptiness is the signal that this
+    /// container is new.
+    private static func purgeKeychainIfFreshInstall() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: installMarkerKey) == nil else { return }
+
+        // Written first: if the purge throws, the next launch must not retry it
+        // forever and wipe a session established since.
+        defaults.set(true, forKey: installMarkerKey)
+
+        // Built directly rather than through the lazy `secureStorage` property:
+        // this runs before `self` is fully initialised, so the stored properties
+        // are not reachable yet. Same access group, so it addresses the same
+        // items.
+        let storage = SecureStorage(
+            keychain: KeychainService(accessGroup: AppGroup.keychainAccessGroup))
+
+        do {
+            try storage.purgeAllKeychainItems()
+            SanchrLogger.auth.info(
+                "fresh install — purged Keychain items left by a previous installation")
+        } catch {
+            SanchrLogger.auth.error(
+                "fresh install — Keychain purge failed: \(error.localizedDescription)")
+        }
+    }
+
     init() {
+        Self.purgeKeychainIfFreshInstall()
+
         // Eagerly start network monitoring if needed.
 
         // Vault share temp-file sweep. Runs detached at utility priority
@@ -748,7 +792,7 @@ final class DependencyContainer: @unchecked Sendable {
     private func wipeLocalSessionArtifacts() async {
         realtimeService.stop()
         callManager.resetState()
-        try? secureStorage.deleteAllKeys()
+        try? secureStorage.deleteSignalStateKeys()
         try? await localDatabase.purgeAllData()
         try? await mediaManager.clearCache()
         removeSignalStoreDirectory()
@@ -809,7 +853,7 @@ final class DependencyContainer: @unchecked Sendable {
     private func rebootstrapSignalStateAfterRestore() async {
         realtimeService.stop()
         callManager.resetState()
-        try? secureStorage.deleteAllKeys()
+        try? secureStorage.deleteSignalStateKeys()
         removeSignalStoreDirectory()
 
         guard let userId = sessionService.currentUserId else { return }
