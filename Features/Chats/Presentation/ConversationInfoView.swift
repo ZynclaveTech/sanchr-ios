@@ -15,7 +15,6 @@ struct ConversationInfoView: View {
     @State private var refreshedRecipient: User?
     @State private var notificationsMuted = false
     @State private var mediaVisibility = true
-    @State private var sanchrModeEnabled = false
     @State private var isConversationArchived: Bool
     @State private var showDisappearingMessages = false
     @State private var showVaultMedia = false
@@ -149,7 +148,6 @@ struct ConversationInfoView: View {
                 mediaSection
                 securitySection
                 chatPreferencesSection
-                sanchrModeSection
                 disappearingMessagesSection
                 chatActionsSection
                 dangerZoneSection
@@ -589,74 +587,6 @@ struct ConversationInfoView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
-        }
-    }
-
-    // MARK: - Section: Sanchr Mode
-
-    private var sanchrModeSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.primaryDark, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Image(systemName: "eye.slash.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sanchr Mode")
-                        .font(SanchrTypography.messageBubbleText)
-                        .fontWeight(.bold)
-                        .foregroundColor(SanchrExportColors.textPrimary)
-                    Text("Enhanced privacy & incognito")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: $sanchrModeEnabled)
-                    .labelsHidden()
-                    .tint(.sanchrPrimary)
-            }
-            .padding(.vertical, 12)
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(SanchrColors.primary)
-                    .padding(.top, 1)
-                Text(
-                    "Sanchr Mode hides notification previews, detects screenshots after capture, and shields content during screen recording or mirroring."
-                )
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrExportColors.textSecondary)
-            }
-            .padding(.top, 12)
-            .padding(.horizontal, 8)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(
-            LinearGradient(
-                colors: [
-                    SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }
