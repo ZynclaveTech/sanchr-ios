@@ -13,6 +13,10 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     /// Deletes every message whose disappearing-message deadline has passed and
     /// returns their ids so the caller can wipe the associated media files.
     func purgeExpiredMessages() async throws -> [String]
+
+    /// Deletes every message in a conversation while keeping the conversation
+    /// itself. Returns the deleted ids so the caller can wipe cached media.
+    func deleteAllMessages(conversationId: String) async throws -> [String]
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
@@ -244,6 +248,37 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
+        }
+    }
+
+    public func deleteAllMessages(conversationId: String) async throws -> [String] {
+        try await dbPool.write { db in
+            let rows = try MessageRecord
+                .filter(Column("conversationId") == conversationId)
+                .fetchAll(db)
+            guard !rows.isEmpty else { return [] }
+
+            let ids = rows.map(\.id)
+            _ = try MessageRecord
+                .filter(Column("conversationId") == conversationId)
+                .deleteAll(db)
+
+            // Clear the denormalised preview too, or the conversation list keeps
+            // showing the last message of a chat the user just cleared.
+            try db.execute(
+                sql: """
+                    UPDATE conversation
+                    SET lastMessageId = NULL,
+                        lastMessageContent = NULL,
+                        lastMessageTimestamp = NULL,
+                        lastMessageSenderId = NULL,
+                        lastMessageStatus = NULL,
+                        unreadCount = 0
+                    WHERE id = ?
+                    """,
+                arguments: [conversationId]
+            )
+            return ids
         }
     }
 
@@ -1464,6 +1499,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { throw error }
     public func deleteMessage(id: String) async throws { throw error }
     public func purgeExpiredMessages() async throws -> [String] { throw error }
+    public func deleteAllMessages(conversationId: String) async throws -> [String] { throw error }
     public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { throw error }
     public func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { throw error }
     public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { throw error }

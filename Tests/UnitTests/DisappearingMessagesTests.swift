@@ -204,3 +204,101 @@ final class DisappearingMessagesTests: XCTestCase {
             "a late-synced message past its deadline must be removed immediately")
     }
 }
+
+// MARK: - Clear chat
+
+/// "Clear All Messages" promised permanent deletion and was an empty closure.
+/// These pin the behaviour behind it.
+final class ClearChatTests: XCTestCase {
+
+    private var dbDirectory: URL!
+    private var db: LocalDatabase!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        dbDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: dbDirectory, withIntermediateDirectories: true)
+        db = try LocalDatabase(
+            path: dbDirectory.appendingPathComponent("t.sqlite").path,
+            passphraseProvider: { "unit-test-passphrase" })
+        try await db.saveConversation(Self.conversation(id: "conv-a"))
+        try await db.saveConversation(Self.conversation(id: "conv-b"))
+    }
+
+    override func tearDown() async throws {
+        db = nil
+        if let dbDirectory { try? FileManager.default.removeItem(at: dbDirectory) }
+        try await super.tearDown()
+    }
+
+    private static func conversation(id: String) -> Conversation {
+        Conversation(
+            id: id,
+            participants: [
+                User(id: "local-user", phoneNumber: "+15550000001", displayName: "Local",
+                     avatarURL: nil, bio: nil, isVerified: true, lastSeen: nil,
+                     identityKeyFingerprint: nil, status: .online, isLocalUser: true),
+                User(id: "peer-1", phoneNumber: "+15550000002", displayName: "Peer",
+                     avatarURL: nil, bio: nil, isVerified: true, lastSeen: nil,
+                     identityKeyFingerprint: nil, status: .offline, isLocalUser: false),
+            ],
+            lastMessage: nil, unreadCount: 0, isPinned: false, isMuted: false,
+            isArchived: false, type: .oneToOne, disappearingMessagesDuration: nil,
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            updatedAt: Date(timeIntervalSince1970: 1_750_000_000)
+        )
+    }
+
+    private func message(_ id: String, in conversationId: String) -> Message {
+        Message(id: id, conversationId: conversationId, senderId: "peer-1",
+                timestamp: Date(), content: .text("hi"), status: .delivered,
+                isOutgoing: false)
+    }
+
+    func test_clear_removesEveryMessageAndReturnsIds() async throws {
+        try await db.saveMessage(message("m1", in: "conv-a"))
+        try await db.saveMessage(message("m2", in: "conv-a"))
+
+        let removed = try await db.deleteAllMessages(conversationId: "conv-a")
+
+        XCTAssertEqual(Set(removed), ["m1", "m2"])
+        let remaining = try await db.fetchMessages(
+            conversationId: "conv-a", before: nil, limit: 50)
+        XCTAssertTrue(remaining.isEmpty, "the dialog promises permanent deletion")
+    }
+
+    /// Ids are returned so the caller can wipe cached media. An attachment
+    /// outliving its message leaves exactly what the user asked to be gone.
+    func test_clear_returnsIdsSoMediaCanBeWiped() async throws {
+        try await db.saveMessage(message("m1", in: "conv-a"))
+        let removed = try await db.deleteAllMessages(conversationId: "conv-a")
+        XCTAssertEqual(removed, ["m1"])
+    }
+
+    func test_clear_doesNotTouchOtherConversations() async throws {
+        try await db.saveMessage(message("a1", in: "conv-a"))
+        try await db.saveMessage(message("b1", in: "conv-b"))
+
+        _ = try await db.deleteAllMessages(conversationId: "conv-a")
+
+        let other = try await db.fetchMessages(
+            conversationId: "conv-b", before: nil, limit: 50)
+        XCTAssertEqual(other.map(\.id), ["b1"])
+    }
+
+    func test_clear_onEmptyConversation_isNoOp() async throws {
+        let removed = try await db.deleteAllMessages(conversationId: "conv-a")
+        XCTAssertTrue(removed.isEmpty)
+    }
+
+    /// The conversation row survives — clearing is not deleting the chat.
+    func test_clear_keepsTheConversationItself() async throws {
+        try await db.saveMessage(message("m1", in: "conv-a"))
+        _ = try await db.deleteAllMessages(conversationId: "conv-a")
+
+        let conversation = try await db.fetchConversation(id: "conv-a")
+        XCTAssertNotNil(conversation, "clearing messages must not delete the chat")
+    }
+}

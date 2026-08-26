@@ -90,6 +90,7 @@ private final class PresenceLocalDatabase: LocalDatabaseProtocol, @unchecked Sen
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { [] }
     func deleteMessage(id: String) async throws {}
     func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws {}
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {}
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { [] }

@@ -245,6 +245,7 @@ private final class StubLocalDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func deleteMessage(id: String) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { fatalError("StubLocalDatabase: \(#function) must not be called in this test") }
