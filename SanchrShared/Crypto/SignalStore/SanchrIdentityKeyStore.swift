@@ -32,6 +32,14 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     /// (safety number comparison completed).
     private var verifiedUserIds: Set<String> = []
 
+    /// Addresses whose identity key changed and which the local user has not yet
+    /// reviewed. While an address has an entry here, outbound encryption to it is
+    /// refused so a substituted key cannot be used to transparently intercept a
+    /// conversation. Cleared by `acceptIdentityChange(userId:)` (the user chose to
+    /// continue) or `markIdentityVerified(userId:)` (the user compared the new
+    /// safety number). The value is the new key that triggered the change.
+    private var pendingIdentityChanges: [ProtocolAddress: IdentityKey] = [:]
+
     /// Serialisation queue to make trust store mutations thread-safe.
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.identity-store", attributes: .concurrent)
@@ -41,6 +49,9 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
 
     /// File URL where verified user IDs are persisted.
     private let verifiedURL: URL
+
+    /// File URL where unreviewed identity changes are persisted.
+    private let pendingChangesURL: URL
 
     /// Directory containing the persisted trust-store artifacts.
     private let storageDirectory: URL
@@ -64,9 +75,11 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         self.persistenceURL = dir.appendingPathComponent("trusted_identities.bin")
         self.verifiedURL = dir.appendingPathComponent("verified_identities.bin")
+        self.pendingChangesURL = dir.appendingPathComponent("pending_identity_changes.bin")
 
         loadTrustedIdentitiesFromDisk()
         loadVerifiedFromDisk()
+        loadPendingChangesFromDisk()
     }
 
     // MARK: - IdentityKeyStore Protocol
@@ -103,36 +116,62 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         return change
     }
 
+    /// Decides whether `identity` may be used for `address`.
+    ///
+    /// Trust-on-first-use: an address we have never seen is trusted, and an unchanged
+    /// key stays trusted. A *changed* key is the security-relevant case, because it is
+    /// exactly what a malicious server substituting its own key would produce.
+    ///
+    /// When a change is detected it is recorded as pending review and any existing
+    /// verification is revoked. From then on the two directions diverge:
+    ///
+    /// - `.receiving` returns `true`, so already-delivered messages still decrypt and
+    ///   the conversation is not silently broken. libsignal then calls `saveIdentity`,
+    ///   which adopts the new key.
+    /// - `.sending` returns `false` while the change is unreviewed, so encryption
+    ///   fails closed rather than handing plaintext to whoever supplied the new key.
+    ///
+    /// The send block is keyed on the pending record rather than on a key comparison:
+    /// once the receiving path has adopted the new key there is no longer a difference
+    /// to compare against, and gating on comparison alone would let the block lapse.
     public func isTrustedIdentity(
         _ identity: IdentityKey,
         for address: ProtocolAddress,
         direction: Direction,
         context: StoreContext
     ) throws -> Bool {
-        var keyChanged = false
-        queue.sync {
-            if let existing = self.trustedIdentities[address], existing != identity {
-                keyChanged = true
+        var newlyChanged = false
+        var changePending = false
+
+        queue.sync(flags: .barrier) {
+            if let existing = self.trustedIdentities[address], existing != identity,
+                self.pendingIdentityChanges[address] == nil
+            {
+                // First observation of this change — record it and revoke verification.
+                self.pendingIdentityChanges[address] = identity
+                _ = self.verifiedUserIds.remove(address.name)
+                newlyChanged = true
             }
+            changePending = self.pendingIdentityChanges[address] != nil
         }
 
-        if keyChanged {
-            // Identity key changed — auto-accept for sending (Signal's default behavior).
-            // For receiving direction, also accept but log a warning.
-            // In production, surface a "safety number changed" UI notification.
+        if newlyChanged {
             SanchrLogger.crypto.warning(
-                "Identity key changed for \(address.name.prefix(8))... device \(address.deviceId) — auto-accepting new key"
+                "Identity key changed for \(address.name.prefix(8))... device \(address.deviceId) — sending blocked pending user review"
             )
-            queue.sync(flags: .barrier) {
-                self.trustedIdentities[address] = identity
-                // Identity changed — reset verification
-                _ = self.verifiedUserIds.remove(address.name)
-            }
-            saveTrustedIdentitiesToDisk()
+            savePendingChangesToDisk()
             saveVerifiedToDisk()
         }
 
-        return true
+        guard changePending else { return true }
+
+        switch direction {
+        case .sending:
+            return false
+        default:
+            // Receiving (and any future direction) stays readable.
+            return true
+        }
     }
 
     public func identity(
@@ -179,12 +218,58 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     }
 
     /// Marks a user's identity as verified after safety number comparison.
+    ///
+    /// Comparing the new safety number is a strictly stronger review than simply
+    /// acknowledging the change, so this also clears any pending change and unblocks
+    /// sending.
     public func markIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
             _ = self.verifiedUserIds.insert(userId)
+            self.adoptPendingChangesLocked(userId: userId)
         }
         saveVerifiedToDisk()
+        savePendingChangesToDisk()
+        saveTrustedIdentitiesToDisk()
         SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
+    }
+
+    // MARK: - Identity Change Review
+
+    /// Whether `userId` has an identity change the local user has not yet reviewed.
+    /// While this is `true`, sending to that user fails with `AppError.untrustedIdentity`.
+    public func hasPendingIdentityChange(userId: String) -> Bool {
+        queue.sync {
+            self.pendingIdentityChanges.keys.contains { $0.name == userId }
+        }
+    }
+
+    /// All user IDs with an unreviewed identity change.
+    public func usersWithPendingIdentityChanges() -> Set<String> {
+        queue.sync { Set(self.pendingIdentityChanges.keys.map(\.name)) }
+    }
+
+    /// Records that the local user reviewed the change for `userId` and chose to
+    /// continue, adopting the new key and unblocking sending.
+    ///
+    /// This does *not* mark the identity verified: the user acknowledged the change
+    /// without necessarily comparing safety numbers. Use `markIdentityVerified` for that.
+    public func acceptIdentityChange(userId: String) {
+        queue.sync(flags: .barrier) {
+            self.adoptPendingChangesLocked(userId: userId)
+        }
+        savePendingChangesToDisk()
+        saveTrustedIdentitiesToDisk()
+        SanchrLogger.crypto.info(
+            "Accepted identity change for \(userId.prefix(8))... — sending unblocked")
+    }
+
+    /// Moves every pending key for `userId` into the trusted set.
+    /// Caller must already hold the barrier.
+    private func adoptPendingChangesLocked(userId: String) {
+        for (address, identity) in pendingIdentityChanges where address.name == userId {
+            trustedIdentities[address] = identity
+            pendingIdentityChanges.removeValue(forKey: address)
+        }
     }
 
     /// Removes verification for a user (e.g., after unblock or manual reset).
@@ -219,7 +304,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
                     entries.append(["address": Data(addressKey.utf8), "key": keyData])
                 }
                 let archived = try JSONEncoder().encode(entries)
-                try archived.write(to: self.persistenceURL, options: .atomic)
+                try archived.write(to: self.persistenceURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             } catch {
                 SanchrLogger.crypto.error(
                     "Failed to persist trusted identities: \(error.localizedDescription)")
@@ -262,7 +347,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
             do {
                 try self.ensureStorageDirectoryExists()
                 let data = try JSONEncoder().encode(Array(self.verifiedUserIds))
-                try data.write(to: self.verifiedURL, options: .atomic)
+                try data.write(to: self.verifiedURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             } catch {
                 SanchrLogger.crypto.error("Failed to persist verified identities: \(error.localizedDescription)")
             }
@@ -278,6 +363,57 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
             SanchrLogger.crypto.info("Loaded \(self.verifiedUserIds.count) verified identities from disk")
         } catch {
             SanchrLogger.crypto.error("Failed to load verified identities: \(error.localizedDescription)")
+        }
+    }
+
+    private func savePendingChangesToDisk() {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self else { return }
+            do {
+                try self.ensureStorageDirectoryExists()
+                var entries: [[String: Data]] = []
+                for (address, identityKey) in self.pendingIdentityChanges {
+                    let addressKey = "\(address.name).\(address.deviceId)"
+                    entries.append([
+                        "address": Data(addressKey.utf8),
+                        "key": Data(identityKey.serialize()),
+                    ])
+                }
+                let archived = try JSONEncoder().encode(entries)
+                try archived.write(to: self.pendingChangesURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            } catch {
+                SanchrLogger.crypto.error(
+                    "Failed to persist pending identity changes: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func loadPendingChangesFromDisk() {
+        guard FileManager.default.fileExists(atPath: self.pendingChangesURL.path) else { return }
+        do {
+            let data = try Data(contentsOf: self.pendingChangesURL)
+            let entries = try JSONDecoder().decode([[String: Data]].self, from: data)
+            for entry in entries {
+                guard let addressData = entry["address"],
+                    let keyData = entry["key"],
+                    let addressString = String(data: addressData, encoding: .utf8)
+                else { continue }
+                let components = addressString.split(separator: ".")
+                guard components.count >= 2, let deviceId = UInt32(components.last!) else {
+                    continue
+                }
+                let name = components.dropLast().joined(separator: ".")
+                let address = try ProtocolAddress(name: name, deviceId: deviceId)
+                self.pendingIdentityChanges[address] = try IdentityKey(bytes: [UInt8](keyData))
+            }
+            if !self.pendingIdentityChanges.isEmpty {
+                SanchrLogger.crypto.warning(
+                    "Loaded \(self.pendingIdentityChanges.count) unreviewed identity change(s) — sending to those contacts is blocked"
+                )
+            }
+        } catch {
+            SanchrLogger.crypto.error(
+                "Failed to load pending identity changes: \(error.localizedDescription)")
         }
     }
 
