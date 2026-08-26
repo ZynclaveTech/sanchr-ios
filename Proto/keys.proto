@@ -7,6 +7,7 @@ service KeyService {
   rpc UploadOneTimePreKeys(UploadOneTimePreKeysRequest) returns (PreKeyCountResponse);
   rpc GetPreKeyCount(GetPreKeyCountRequest) returns (PreKeyCountResponse);
   rpc GetUserDevices(GetUserDevicesRequest) returns (GetUserDevicesResponse);
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
 }
 
 message SignedPreKey {
@@ -77,4 +78,12 @@ message DeviceInfo {
   bool supports_delivery_ack = 3;
   bool key_capable = 4;
   int64 last_active_at = 5;
+}
+
+message RemoveDeviceRequest {
+  int32 device_id = 1;
+}
+
+message RemoveDeviceResponse {
+  bool success = 1;
 }

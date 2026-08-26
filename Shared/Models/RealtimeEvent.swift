@@ -12,4 +12,8 @@ enum RealtimeEvent: Sendable {
     case callLifecycle(Sanchr_Messaging_CallLifecycleEvent)
     case reaction(Sanchr_Messaging_Reaction)
     case sealedMessage(Sanchr_Messaging_SealedInboundMessage)
+    /// Successfully decoded and fully handled inside the decode step, with nothing
+    /// for the UI layer to route (e.g. a profile-key distribution envelope).
+    /// Distinct from a decode failure, which surfaces as `.undeliverable`.
+    case ignored
 }

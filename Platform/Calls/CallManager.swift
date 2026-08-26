@@ -110,6 +110,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private let signalManager: SignalProtocolManagerProtocol
     private let tokenRefresher: @Sendable () async throws -> Void
     private let peerProfileResolver: @Sendable (String) async -> CallPeerProfile?
+    /// Returns the local Signal device id so outbound `CallSignal`s and
+    /// `CallJoin.answererDevice` are stamped with the sender's actual device.
+    /// Defaults to `{ 1 }` so existing tests need no changes.
+    private let localDeviceIdProvider: @Sendable () -> Int32
+    /// When `false`, `startCall(isVideo:true)` throws `AppError.featureDisabled`
+    /// and `requestVideoUpgrade()` becomes a no-op. Mirrors
+    /// `AppConfiguration.isVideoCallEnabled` — this is the single enforcement
+    /// point; do not add duplicate checks in higher layers.
+    /// Defaults to `true` so existing tests need no changes.
+    private let isVideoCallEnabled: Bool
 
     // MARK: - Internal State
 
@@ -144,13 +154,17 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         callService: Sanchr_Calling_CallSignalingServiceAsyncClientProtocol,
         signalManager: SignalProtocolManagerProtocol,
         tokenRefresher: @escaping @Sendable () async throws -> Void = {},
-        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil }
+        peerProfileResolver: @escaping @Sendable (String) async -> CallPeerProfile? = { _ in nil },
+        localDeviceIdProvider: @escaping @Sendable () -> Int32 = { 1 },
+        isVideoCallEnabled: Bool = true
     ) {
         self.webRTCClient = webRTCClient
         self.callService = callService
         self.signalManager = signalManager
         self.tokenRefresher = tokenRefresher
         self.peerProfileResolver = peerProfileResolver
+        self.localDeviceIdProvider = localDeviceIdProvider
+        self.isVideoCallEnabled = isVideoCallEnabled
 
         let config = CXProviderConfiguration()
         config.supportsVideo = true
@@ -182,6 +196,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             throw AppError.callAlreadyInProgress
         }
 
+        if Self.shouldBlockVideoCall(isVideo: isVideo, isVideoCallEnabled: isVideoCallEnabled) {
+            SanchrLogger.calls.warning("startCall: video requested but feature is disabled — blocking")
+            throw AppError.featureDisabled(feature: "video_call")
+        }
+
         SanchrLogger.calls.info("Starting \(isVideo ? "video" : "voice") call to \(recipientId)")
         self.callType = isVideo ? "video" : "voice"
         self.isVideoEnabled = isVideo
@@ -201,7 +220,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         let offer = try await webRTCClient.createOffer()
         try await webRTCClient.setLocalDescription(offer)
 
-        // 5. Encrypt offer for E2EE
+        // 5. Encrypt offer for E2EE — fan out per recipient device.
         guard let fingerprint = WebRTCClient.extractDtlsFingerprint(from: offer) else {
             throw AppError.callConnectionFailed
         }
@@ -211,26 +230,21 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             timestamp: Date().timeIntervalSince1970
         )
         let payloadData = try JSONEncoder().encode(payload)
-        // Always force a fresh PreKeySignalMessage for call offers.  Reusing an existing
-        // session can produce a type-0x02 SignalMessage that the recipient cannot decrypt
-        // if their session was cleared (e.g., after a fresh install).  Resetting first
-        // guarantees the next encrypt() call triggers processPreKeyBundle and produces a
-        // type-0x01 PreKeySignalMessage that self-heals across any session state mismatch.
-        // Side effect: the shared messaging session is refreshed, which is harmless.
-        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
-        try? signalManager.resetSession(with: recipientId, deviceId: 1)
-        let encryptedPayload = try await signalManager.encrypt(
-            plaintext: payloadData, for: recipientId, deviceId: 1)
+
+        // Fresh PreKeySignalMessage per device is handled inside encryptCallOffers
+        // (it resets each per-device session before encrypt).
+        let callOffer = try await Self.buildOutgoingCallOffer(
+            plaintext: payloadData,
+            recipientId: recipientId,
+            callType: isVideo ? "video" : "voice",
+            signalManager: signalManager
+        )
+
         // NOTE: delivery_token (sealed-sender call routing) is not yet implemented on the server.
         // sanchr-call routes via recipient_id and ignores the token field. Do not acquire a token
         // here — the acquisition is a blocking gRPC round-trip that fails and kills the call setup.
 
-        // 6. Send the encrypted offer to the server
-        var callOffer = Sanchr_Calling_CallOffer()
-        callOffer.recipientID = recipientId
-        callOffer.callType = isVideo ? "video" : "voice"
-        callOffer.encryptedSdpPayload = encryptedPayload
-
+        // 6. Send the encrypted offer to the server.
         let response = try await callService.initiateCall(callOffer)
         let callId = response.callID
 
@@ -559,7 +573,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             // caller_device is populated by multi-device-aware servers; legacy
             // servers leave it at 0. Fall back to device 1 so pre-multi-device
             // deployments keep working exactly as before.
-            let resolvedDevice: Int32 = callerDevice > 0 ? callerDevice : 1
+            let resolvedDevice = Self.resolveSenderDevice(callerDevice)
             do {
                 let plaintext = try await self.signalManager.decrypt(
                     ciphertext: encryptedSdpPayload,
@@ -694,6 +708,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // 7. Send accepted control
         var controlSignal = Sanchr_Calling_CallSignal()
         controlSignal.callID = callId
+        controlSignal.peerDevice = localDeviceIdProvider()
         var acceptedControl = Sanchr_Calling_CallControl()
         acceptedControl.action = "accepted"
         controlSignal.control = acceptedControl
@@ -715,6 +730,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // Send decline via signaling
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         var declinedControl = Sanchr_Calling_CallControl()
         declinedControl.action = "declined"
         signal.control = declinedControl
@@ -737,6 +753,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         // Send terminal control via signaling
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         var terminalControl = Sanchr_Calling_CallControl()
         terminalControl.action = reason.serverReason
         signal.control = terminalControl
@@ -787,6 +804,10 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     func requestVideoUpgrade() {
+        guard isVideoCallEnabled else {
+            SanchrLogger.calls.warning("requestVideoUpgrade: feature disabled — ignoring")
+            return
+        }
         guard case .active(let callId, _) = callState else {
             SanchrLogger.calls.warning("Ignoring video request outside active call")
             return
@@ -892,23 +913,21 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             throw AppError.callConnectionFailed
         }
 
-        let payload = SealedCallPayload(
+        // Delegate encrypt + payload construction to the pure static helper so
+        // the device-selection logic is unit-testable without a WebRTC pipeline.
+        let encryptedPayload = try await Self.buildEncryptedAnswerPayload(
             sdp: description.sdp,
-            dtlsFingerprint: fingerprint,
-            timestamp: Date().timeIntervalSince1970,
-            type: type
-        )
-        let payloadData = try JSONEncoder().encode(payload)
-        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
-        let encryptedPayload = try await signalManager.encrypt(
-            plaintext: payloadData,
-            for: recipientId,
-            deviceId: 1
+            fingerprint: fingerprint,
+            type: type,
+            remoteCallerDevice: remoteCallerDevice,
+            recipientId: recipientId,
+            signalManager: signalManager
         )
 
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
         signal.encryptedSdpAnswer = encryptedPayload
+        signal.peerDevice = localDeviceIdProvider()
         outboundContinuation?.yield(signal)
     }
 
@@ -947,8 +966,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var joinSignal = Sanchr_Calling_CallSignal()
         joinSignal.callID = callId
+        joinSignal.peerDevice = localDeviceIdProvider()
         var join = Sanchr_Calling_CallJoin()
         join.role = role
+        // Only the callee populates answererDevice — the server reads it to
+        // know which callee device to mirror onto the caller's stream as
+        // CallSignal.peerDevice. If the caller also set this field, the
+        // server would have to role-filter to avoid using the wrong value.
+        if role == "callee" {
+            join.answererDevice = localDeviceIdProvider()
+        }
         joinSignal.join = join
         continuation.yield(joinSignal)
         flushLocalIceCandidates(callId: callId)
@@ -991,10 +1018,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                     SanchrLogger.calls.info("Received encrypted SDP answer for call \(callId)")
                     guard let senderId = self.peerId else { continue }
                     do {
-                        // FIXME: senderDevice hard-coded to 1 — multi-device accounts will not receive calls on other devices.
-                        let plaintext = try await self.signalManager.decrypt(
-                            ciphertext: ciphertext, from: senderId, senderDevice: 1)
-                        let sealedPayload = try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
+                        // Decrypt using the callee's device id from CallSignal.peerDevice
+                        // (server-mirrored from CallJoin.answererDevice). Falls back to
+                        // device 1 via resolveSenderDevice for legacy callee paths.
+                        let sealedPayload = try await Self.decryptIncomingAnswer(
+                            ciphertext: ciphertext,
+                            peerDevice: signal.peerDevice,
+                            senderId: senderId,
+                            signalManager: self.signalManager
+                        )
                         let age = abs(Date().timeIntervalSince1970 - sealedPayload.timestamp)
                         guard age <= 30 else {
                             SanchrLogger.calls.error("Rejecting stale SDP payload (age=\(Int(age))s)")
@@ -1325,7 +1357,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             } catch {
                 SanchrLogger.calls.error(
                     "Stream: SDP decryption failed for pending call \(offer.callID): \(error) [\(type(of: error))]")
-                let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+                let resetDevice = Self.resolveSenderDevice(offer.callerDevice)
                 try? self.signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
                 return .transientFailure
             }
@@ -1363,7 +1395,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         } catch {
             SanchrLogger.calls.error(
                 "Failed to decrypt incoming call offer from \(offer.callerID.prefix(8))...: \(error) [\(type(of: error))]")
-            let resetDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+            let resetDevice = Self.resolveSenderDevice(offer.callerDevice)
             try? signalManager.resetSession(with: offer.callerID, deviceId: resetDevice)
             return .transientFailure
         }
@@ -1469,6 +1501,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         peerName = nil
         peerAvatarURL = nil
         currentVideoFilter = .none
+        // Reset the resolved sender device so the next call's return-path
+        // encrypt does not inherit a stale device id from a prior session.
+        // Sub-phase D's sendEncryptedSessionDescription reads this; without
+        // the reset, a sequential call from a different device would encrypt
+        // the answer for the wrong Signal session.
+        remoteCallerDevice = 0
     }
 
     private func controlMessage(action: String) -> Sanchr_Calling_CallControl {
@@ -1486,6 +1524,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         signal.control = controlMessage(action: action)
         outboundContinuation?.yield(signal)
         SanchrLogger.calls.info("Sent call control: \(action) for call \(callId)")
@@ -1614,6 +1653,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         for candidateData in candidates {
             var signal = Sanchr_Calling_CallSignal()
             signal.callID = callId
+            signal.peerDevice = localDeviceIdProvider()
             signal.iceCandidate = candidateData
             outboundContinuation?.yield(signal)
         }
@@ -1634,6 +1674,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         var signal = Sanchr_Calling_CallSignal()
         signal.callID = callId
+        signal.peerDevice = localDeviceIdProvider()
         signal.iceCandidate = candidateData
         outboundContinuation?.yield(signal)
     }
@@ -1651,10 +1692,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         guard !offer.encryptedSdpPayload.isEmpty else {
             throw AppError.decryptionFailed(reason: "encrypted call offer payload is empty")
         }
-        // caller_device is populated by multi-device-aware servers; legacy
-        // servers leave it at 0. When absent, fall back to device 1 so pre-
-        // multi-device deployments keep working exactly as before.
-        let senderDevice: Int32 = offer.callerDevice > 0 ? offer.callerDevice : 1
+        let senderDevice = Self.resolveSenderDevice(offer.callerDevice)
         let plaintext = try await signalManager.decrypt(
             ciphertext: offer.encryptedSdpPayload,
             from: offer.callerID,
@@ -1678,6 +1716,24 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     }
 
     // MARK: - Helpers
+
+    /// Returns `true` when the configured video gate would block a call
+    /// attempt. Voice requests are never blocked. Split out of `startCall`
+    /// so the gate's truth table can be exercised in unit tests without
+    /// standing up WebRTC. See Sub-phase F of the calls-hardening plan.
+    static func shouldBlockVideoCall(isVideo: Bool, isVideoCallEnabled: Bool) -> Bool {
+        isVideo && !isVideoCallEnabled
+    }
+
+    /// Resolves a peer's Signal device id, falling back to device 1 (the
+    /// primary device) when the wire-level value is absent (zero). The
+    /// fallback exists for backward compatibility with pre-multi-device
+    /// servers — once the backend reliably populates `caller_device` /
+    /// `peer_device` / `answerer_device`, the `else 1` branch can be removed
+    /// in a single place. See Sub-phase C of the calls-hardening plan.
+    static func resolveSenderDevice(_ raw: Int32) -> Int32 {
+        raw > 0 ? raw : 1
+    }
 
     private func buildIceServers(from credentials: Sanchr_Calling_TurnCredentials) -> [RTCIceServer] {
         Self.buildIceServersImpl(
@@ -1711,6 +1767,96 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
 
         return servers
+    }
+
+    /// Pure builder for the outgoing `CallOffer` — extracted from `startCall`
+    /// so multi-device fan-out can be tested without standing up WebRTC.
+    /// Calls `signalManager.encryptCallOffers` to encrypt the SDP payload once
+    /// per recipient device, then assembles the `CallOffer` with the full
+    /// `device_offers` list and a legacy `encrypted_sdp_payload` mirroring the
+    /// device-1 entry (or the lowest-device-id entry when device 1 is absent).
+    /// Throws `AppError.callConnectionFailed` when the recipient has no
+    /// registered devices to route the offer to.
+    static func buildOutgoingCallOffer(
+        plaintext: Data,
+        recipientId: String,
+        callType: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> Sanchr_Calling_CallOffer {
+        let deviceOffers = try await signalManager.encryptCallOffers(
+            plaintext: plaintext,
+            recipientId: recipientId
+        )
+        guard let legacyEntry = deviceOffers.first(where: { $0.deviceID == 1 })
+            ?? deviceOffers.min(by: { $0.deviceID < $1.deviceID })
+        else {
+            SanchrLogger.calls.fault(
+                "buildOutgoingCallOffer: no recipient devices for \(recipientId.prefix(8))... — cannot route offer")
+            throw AppError.callConnectionFailed
+        }
+
+        var offer = Sanchr_Calling_CallOffer()
+        offer.recipientID = recipientId
+        offer.callType = callType
+        offer.deviceOffers = deviceOffers
+        offer.encryptedSdpPayload = legacyEntry.encryptedSdpPayload
+        return offer
+    }
+
+    /// Pure helper — testable without standing up a full WebRTC/CallKit pipeline.
+    /// Encodes the SDP payload as a `SealedCallPayload`, then encrypts it for
+    /// `recipientId` on `remoteCallerDevice` (falls back to device 1 via
+    /// `resolveSenderDevice` when the caller device is not yet known).
+    ///
+    /// Extracted from `sendEncryptedSessionDescription` so the device-selection
+    /// logic can be exercised directly in unit tests (see Sub-phase E of the
+    /// calls-hardening plan).
+    static func buildEncryptedAnswerPayload(
+        sdp: String,
+        fingerprint: String,
+        type: String,
+        remoteCallerDevice: Int32,
+        recipientId: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> Data {
+        let payload = SealedCallPayload(
+            sdp: sdp,
+            dtlsFingerprint: fingerprint,
+            timestamp: Date().timeIntervalSince1970,
+            type: type
+        )
+        let payloadData = try JSONEncoder().encode(payload)
+        // Encrypt for the exact caller device recovered during offer decrypt.
+        // Falls back to device 1 when remoteCallerDevice is zero (legacy path).
+        let targetDevice = Self.resolveSenderDevice(remoteCallerDevice)
+        return try await signalManager.encrypt(
+            plaintext: payloadData,
+            for: recipientId,
+            deviceId: targetDevice
+        )
+    }
+
+    /// Pure helper — testable without standing up a signaling loop.
+    /// Decrypts an incoming encrypted SDP answer using the callee's device id
+    /// from `CallSignal.peerDevice` (falls back to device 1 via
+    /// `resolveSenderDevice` when the field is absent/zero).
+    ///
+    /// Extracted from `handleSignalingStream`'s `encryptedSdpAnswer` branch so
+    /// the peerDevice selection logic can be verified directly in unit tests
+    /// (see Sub-phase E of the calls-hardening plan).
+    static func decryptIncomingAnswer(
+        ciphertext: Data,
+        peerDevice: Int32,
+        senderId: String,
+        signalManager: SignalProtocolManagerProtocol
+    ) async throws -> SealedCallPayload {
+        let resolvedDevice = Self.resolveSenderDevice(peerDevice)
+        let plaintext = try await signalManager.decrypt(
+            ciphertext: ciphertext,
+            from: senderId,
+            senderDevice: resolvedDevice
+        )
+        return try JSONDecoder().decode(SealedCallPayload.self, from: plaintext)
     }
 }
 

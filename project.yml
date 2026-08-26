@@ -288,6 +288,8 @@ targets:
         product: GRDBSQLCipher
       - package: grpc-swift
         product: GRPC
+      - package: swift-nio-ssl
+        product: NIOSSL
       - package: swift-protobuf
         product: SwiftProtobuf
       - package: swift-log

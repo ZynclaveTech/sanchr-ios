@@ -598,9 +598,12 @@ extension PushManager: PKPushRegistryDelegate {
         // Pass empty Data — CallManager will wait for the SDP via MessageStream replay.
         let encSdpData = Data(base64Encoded: encSdpB64) ?? Data()
 
-        // caller_device may arrive as an NSNumber, an Int, or a numeric string
-        // depending on how the server serializes the payload. Accept all three;
-        // fall back to 0 when absent so CallManager's own fallback logic applies.
+        // PushKit deserializes JSON numbers as NSNumber, so the NSNumber branch
+        // covers the dominant case in practice. The Int branch is a belt-and-
+        // suspenders guard against a future iOS deserialization change; the
+        // String branch handles a server that JSON-encodes the field as a
+        // quoted number. Fall back to 0 when absent so CallManager's own
+        // fallback logic (resolveSenderDevice → device 1) applies.
         let callerDevice: Int32
         if let n = dict["caller_device"] as? NSNumber {
             callerDevice = n.int32Value

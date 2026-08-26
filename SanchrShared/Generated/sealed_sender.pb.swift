@@ -25,75 +25,75 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-struct Sanchr_SealedSender_ServerCertificate: Sendable {
+public struct Sanchr_SealedSender_ServerCertificate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var certificate: Data = Data()
+  public var certificate: Data = Data()
 
-  var signature: Data = Data()
+  public var signature: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  struct Certificate: Sendable {
+  public struct Certificate: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    var id: UInt32 = 0
+    public var id: UInt32 = 0
 
-    var key: Data = Data()
+    public var key: Data = Data()
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    public init() {}
   }
 
-  init() {}
+  public init() {}
 }
 
-struct Sanchr_SealedSender_SenderCertificate: Sendable {
+public struct Sanchr_SealedSender_SenderCertificate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var certificate: Data = Data()
+  public var certificate: Data = Data()
 
-  var signature: Data = Data()
+  public var signature: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  struct Certificate: Sendable {
+  public struct Certificate: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    var senderUuid: String = String()
+    public var senderUuid: String = String()
 
-    var senderDeviceID: UInt32 = 0
+    public var senderDeviceID: UInt32 = 0
 
-    var expires: UInt64 = 0
+    public var expires: UInt64 = 0
 
-    var identityKey: Data = Data()
+    public var identityKey: Data = Data()
 
-    var signer: Sanchr_SealedSender_ServerCertificate {
+    public var signer: Sanchr_SealedSender_ServerCertificate {
       get {_signer ?? Sanchr_SealedSender_ServerCertificate()}
       set {_signer = newValue}
     }
     /// Returns true if `signer` has been explicitly set.
-    var hasSigner: Bool {self._signer != nil}
+    public var hasSigner: Bool {self._signer != nil}
     /// Clears the value of `signer`. Subsequent reads from it will return its default value.
-    mutating func clearSigner() {self._signer = nil}
+    public mutating func clearSigner() {self._signer = nil}
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    public init() {}
 
     fileprivate var _signer: Sanchr_SealedSender_ServerCertificate? = nil
   }
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -101,10 +101,10 @@ struct Sanchr_SealedSender_SenderCertificate: Sendable {
 fileprivate let _protobuf_package = "sanchr.sealed_sender"
 
 extension Sanchr_SealedSender_ServerCertificate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ServerCertificate"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}signature\0")
+  public static let protoMessageName: String = _protobuf_package + ".ServerCertificate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}signature\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -117,7 +117,7 @@ extension Sanchr_SealedSender_ServerCertificate: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.certificate.isEmpty {
       try visitor.visitSingularBytesField(value: self.certificate, fieldNumber: 1)
     }
@@ -127,7 +127,7 @@ extension Sanchr_SealedSender_ServerCertificate: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_SealedSender_ServerCertificate, rhs: Sanchr_SealedSender_ServerCertificate) -> Bool {
+  public static func ==(lhs: Sanchr_SealedSender_ServerCertificate, rhs: Sanchr_SealedSender_ServerCertificate) -> Bool {
     if lhs.certificate != rhs.certificate {return false}
     if lhs.signature != rhs.signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -136,10 +136,10 @@ extension Sanchr_SealedSender_ServerCertificate: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_SealedSender_ServerCertificate.Certificate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Sanchr_SealedSender_ServerCertificate.protoMessageName + ".Certificate"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}key\0")
+  public static let protoMessageName: String = Sanchr_SealedSender_ServerCertificate.protoMessageName + ".Certificate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}key\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -152,7 +152,7 @@ extension Sanchr_SealedSender_ServerCertificate.Certificate: SwiftProtobuf.Messa
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.id != 0 {
       try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
     }
@@ -162,7 +162,7 @@ extension Sanchr_SealedSender_ServerCertificate.Certificate: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_SealedSender_ServerCertificate.Certificate, rhs: Sanchr_SealedSender_ServerCertificate.Certificate) -> Bool {
+  public static func ==(lhs: Sanchr_SealedSender_ServerCertificate.Certificate, rhs: Sanchr_SealedSender_ServerCertificate.Certificate) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.key != rhs.key {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -171,10 +171,10 @@ extension Sanchr_SealedSender_ServerCertificate.Certificate: SwiftProtobuf.Messa
 }
 
 extension Sanchr_SealedSender_SenderCertificate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".SenderCertificate"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}signature\0")
+  public static let protoMessageName: String = _protobuf_package + ".SenderCertificate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}certificate\0\u{1}signature\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -187,7 +187,7 @@ extension Sanchr_SealedSender_SenderCertificate: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.certificate.isEmpty {
       try visitor.visitSingularBytesField(value: self.certificate, fieldNumber: 1)
     }
@@ -197,7 +197,7 @@ extension Sanchr_SealedSender_SenderCertificate: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_SealedSender_SenderCertificate, rhs: Sanchr_SealedSender_SenderCertificate) -> Bool {
+  public static func ==(lhs: Sanchr_SealedSender_SenderCertificate, rhs: Sanchr_SealedSender_SenderCertificate) -> Bool {
     if lhs.certificate != rhs.certificate {return false}
     if lhs.signature != rhs.signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -206,10 +206,10 @@ extension Sanchr_SealedSender_SenderCertificate: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Sanchr_SealedSender_SenderCertificate.protoMessageName + ".Certificate"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sender_uuid\0\u{4}\u{2}sender_device_id\0\u{1}expires\0\u{3}identity_key\0\u{1}signer\0")
+  public static let protoMessageName: String = Sanchr_SealedSender_SenderCertificate.protoMessageName + ".Certificate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sender_uuid\0\u{4}\u{2}sender_device_id\0\u{1}expires\0\u{3}identity_key\0\u{1}signer\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -225,7 +225,7 @@ extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Messa
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -248,7 +248,7 @@ extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Sanchr_SealedSender_SenderCertificate.Certificate, rhs: Sanchr_SealedSender_SenderCertificate.Certificate) -> Bool {
+  public static func ==(lhs: Sanchr_SealedSender_SenderCertificate.Certificate, rhs: Sanchr_SealedSender_SenderCertificate.Certificate) -> Bool {
     if lhs.senderUuid != rhs.senderUuid {return false}
     if lhs.senderDeviceID != rhs.senderDeviceID {return false}
     if lhs.expires != rhs.expires {return false}

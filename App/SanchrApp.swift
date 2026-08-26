@@ -75,6 +75,19 @@ struct SanchrApp: App {
                         }
                         // One-time purge of AccessK entries derived under old HKDF params.
                         await container.accessKeyStore.migrateHKDFv2IfNeeded()
+                        // Drop disappearing-message timers left in plaintext
+                        // UserDefaults by earlier builds; they live in the
+                        // encrypted conversation row now.
+                        let purged = DisappearingTimerLegacyCleanup.purge()
+                        if purged > 0 {
+                            SanchrLogger.chat.info(
+                                "Removed \(purged) legacy plaintext disappearing timer(s)")
+                        }
+                        // Clear anything that expired while the app was closed before
+                        // the first transcript can render, then keep sweeping.
+                        let sweeper = container.disappearingSweeper
+                        await sweeper.sweep()
+                        await sweeper.start()
                         // Wire PushManager after gRPC is connected (it needs notificationService)
                         await MainActor.run {
                             configurePushManager()
@@ -205,6 +218,10 @@ struct SanchrApp: App {
             // next foreground.
             Task {
                 await container.stopVaultEKFScheduler()
+                // Sweep once more on the way out so expired content is not sitting
+                // in the database while the app is suspended.
+                await container.disappearingSweeper.sweep()
+                await container.disappearingSweeper.stop()
             }
 
         case .active:
@@ -226,6 +243,14 @@ struct SanchrApp: App {
             // Flush any messages queued while the app was backgrounded.
             Task {
                 await container.messageSender.retrySendingMessages()
+            }
+
+            // Enforce disappearing-message deadlines that elapsed while the app was
+            // away, before any transcript is drawn, then resume periodic sweeping.
+            Task {
+                let sweeper = container.disappearingSweeper
+                await sweeper.sweep()
+                await sweeper.start()
             }
 
             // Start the vault EKF scheduler (idempotent).

@@ -15,6 +15,7 @@ struct VerifySecurityCodeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedFingerprint = false
     @State private var fingerprintDigits: [[String]] = []
+    @State private var verifiedAt: Date?
     @State private var fingerprintRaw: String = ""
     @State private var qrImage: UIImage?
     @State private var scannableFingerprintData: Data?
@@ -48,6 +49,7 @@ struct VerifySecurityCodeView: View {
         .onAppear {
             if let recipientId = recipient?.id {
                 isVerified = container.signalProtocol.isIdentityVerified(userId: recipientId)
+                verifiedAt = container.signalProtocol.identityVerifiedAt(userId: recipientId)
             }
             Task { await loadFingerprint() }
         }
@@ -58,26 +60,28 @@ struct VerifySecurityCodeView: View {
                     guard let recipientId = recipient?.id else { return }
 
                     do {
-                        let myKey = try container.signalProtocol.localIdentityKeyData()
-                        let theirKey = try container.signalProtocol.remoteIdentityKeyData(
-                            for: recipientId, deviceId: 1)
-                        let localUserId = container.signalProtocol.localUserId
-
-                        let fpQR = SanchrFingerprintQR.create(
-                            myId: localUserId,
-                            myIdentityKey: myKey,
-                            theirId: recipientId,
-                            theirIdentityKey: theirKey
-                        )
-
-                        let result = fpQR.matches(scannedData: scannedData)
-                        switch result {
-                        case .match:
+                        // libsignal's own comparison. The previous hand-rolled
+                        // parser used a different version constant and iteration
+                        // structure from the digits shown above, hand-parsed the
+                        // frame with unaligned loads on attacker-supplied bytes,
+                        // and — most seriously — treated scanning your own code as
+                        // a successful match, so a user could verify a contact
+                        // without ever seeing that contact's device.
+                        let matched = try container.signalProtocol.compareFingerprint(
+                            scannedData, for: recipientId, deviceId: 1)
+                        if matched {
                             container.signalProtocol.markIdentityVerified(userId: recipientId)
                             isVerified = true
+                            verifiedAt = container.signalProtocol.identityVerifiedAt(
+                                userId: recipientId)
                             scanResult = .match
-                        case .noMatch(let reason):
-                            SanchrLogger.crypto.warning("QR verification failed: \(reason)")
+                        } else {
+                            // A mismatch invalidates any earlier verification: the
+                            // key in front of us is not the one we trusted.
+                            SanchrLogger.crypto.warning("Safety number scan did not match")
+                            container.signalProtocol.unmarkIdentityVerified(userId: recipientId)
+                            isVerified = false
+                            verifiedAt = nil
                             scanResult = .mismatch
                         }
                     } catch {
@@ -102,11 +106,16 @@ struct VerifySecurityCodeView: View {
             isVerified ? "Already Verified" : "Mark as Verified",
             isPresented: $showVerifiedAlert
         ) {
-            if !isVerified {
+            // Only offer manual confirmation when a real code is on screen. With
+            // no digits there is nothing the user could have compared, so the
+            // affirmation would be meaningless.
+            if !isVerified, !fingerprintDigits.isEmpty {
                 Button("Verify") {
                     if let recipientId = recipient?.id {
                         container.signalProtocol.markIdentityVerified(userId: recipientId)
                         isVerified = true
+                        verifiedAt = container.signalProtocol.identityVerifiedAt(
+                            userId: recipientId)
                     }
                 }
             }
@@ -126,9 +135,16 @@ struct VerifySecurityCodeView: View {
             return
         }
 
-        // Run crypto + image generation off main thread
+        // Run crypto + image generation off the main thread.
+        //
+        // There is deliberately no fallback. This previously substituted a
+        // hardcoded set of digits whenever the crypto threw, which meant both
+        // devices displayed the same constant, the codes appeared to match, and
+        // the user could mark a session verified that had never been checked —
+        // the worst possible outcome for the one screen people are told to trust.
+        // Failing visibly is the only safe behaviour.
         let signalProtocol = container.signalProtocol
-        let result: (String, [[String]], Data?, UIImage?) = await Task.detached {
+        let outcome: Result<(String, [[String]], Data, UIImage?), Error> = await Task.detached {
             do {
                 let safetyNumber = try signalProtocol.safetyNumber(for: recipientId, deviceId: 1)
 
@@ -141,41 +157,50 @@ struct VerifySecurityCodeView: View {
                     Array(digits[i..<min(i + 5, digits.count)])
                 }
 
-                // Generate Signal-compatible QR fingerprint
-                let myKey = try signalProtocol.localIdentityKeyData()
-                let theirKey = try signalProtocol.remoteIdentityKeyData(
+                // libsignal's own scannable fingerprint. The displayed digits and
+                // the QR now come from one generator, so they cannot disagree.
+                let qrData = try signalProtocol.scannableFingerprint(
                     for: recipientId, deviceId: 1)
-                let localUserId = signalProtocol.localUserId
-
-                let fpQR = SanchrFingerprintQR.create(
-                    myId: localUserId,
-                    myIdentityKey: myKey,
-                    theirId: recipientId,
-                    theirIdentityKey: theirKey
-                )
-                let qrData = fpQR.serialize()
                 let qr = makeQRCodeFromBinary(qrData)
 
-                return (safetyNumber, rows, qrData, qr)
+                return .success((safetyNumber, rows, qrData, qr))
             } catch {
-                let fallbackDigits = [
-                    ["28394", "75621", "94857", "63294", "12847"],
-                    ["58392", "67483", "92847", "38475", "84729"],
-                    ["39485", "73829", "48573", "92847", "58392"],
-                ]
-                let raw = fallbackDigits.flatMap { $0 }.joined()
-                let qr = makeQRCodeImage(from: raw)
-                return (raw, fallbackDigits, nil, qr)
+                return .failure(error)
             }
         }.value
 
-        fingerprintRaw = result.0
-        fingerprintDigits = result.1
-        scannableFingerprintData = result.2
-        qrImage = result.3
+        switch outcome {
+        case .success(let (raw, rows, qrData, qr)):
+            fingerprintRaw = raw
+            fingerprintDigits = rows
+            scannableFingerprintData = qrData
+            qrImage = qr
+            loadError = nil
+        case .failure(let error):
+            fingerprintRaw = ""
+            fingerprintDigits = []
+            scannableFingerprintData = nil
+            qrImage = nil
+            loadError =
+                "Couldn't compute this contact's security code. Exchange messages first, then try again."
+            SanchrLogger.crypto.error(
+                "Safety number unavailable for \(recipientId.prefix(8)): \(error.localizedDescription)"
+            )
+        }
     }
 
-    // makeQRCode moved to file-scope free function (makeQRCodeImage) for Sendable compliance
+
+    /// Real verification state. Previously this card rendered the literal string
+    /// "Verified on Dec 8, 2024" unconditionally, telling every user they had
+    /// verified every contact on a date that never happened.
+    private var verificationStatusText: String {
+        guard isVerified else { return "Not verified" }
+        guard let verifiedAt else { return "Verified" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return "Verified on \(formatter.string(from: verifiedAt))"
+    }
 
     private var scanResultTitle: String {
         switch scanResult {
@@ -303,7 +328,29 @@ struct VerifySecurityCodeView: View {
             }
 
             VStack(spacing: 12) {
-                if fingerprintDigits.isEmpty {
+                if let loadError {
+                    // Show the failure rather than spinning forever. There is no
+                    // safe placeholder here: any digits we invent would appear on
+                    // both devices and read as a successful match.
+                    VStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.orange)
+                        Text("Security code unavailable")
+                            .font(SanchrTypography.body)
+                            .fontWeight(.semibold)
+                            .foregroundColor(SanchrExportColors.textPrimary)
+                        Text(loadError)
+                            .font(SanchrTypography.captionSmall)
+                            .foregroundColor(SanchrExportColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .padding(.horizontal, 12)
+                    .accessibilityElement(children: .combine)
+                } else if fingerprintDigits.isEmpty {
                     ProgressView()
                         .tint(.sanchrPrimary)
                         .frame(maxWidth: .infinity)
@@ -372,7 +419,7 @@ struct VerifySecurityCodeView: View {
                 iconColor: Color(hex: 0x16A34A),
                 title: "Verification Status",
                 subtitle: nil,
-                statusText: "Verified on Dec 8, 2024",
+                statusText: verificationStatusText,
                 gradientStart: colorScheme == .dark
                     ? Color(hex: 0x16A34A).opacity(0.08) : Color(hex: 0xF0FDF4),
                 gradientEnd: colorScheme == .dark
@@ -492,158 +539,6 @@ struct VerifySecurityCodeView: View {
     }
 }
 
-// MARK: - Signal-Compatible Fingerprint (QR Verification)
-
-private struct SanchrFingerprintQR {
-    let myHash: Data  // 32 bytes
-    let theirHash: Data  // 32 bytes
-    let version: UInt32 = 2
-
-    /// Generates fingerprint hash data using Signal's algorithm:
-    /// SHA-512(version || publicKey || stableId), iterated 5200 times, take first 32 bytes.
-    static func create(
-        myId: String,
-        myIdentityKey: Data,
-        theirId: String,
-        theirIdentityKey: Data
-    ) -> SanchrFingerprintQR {
-        let myHash = computeHash(stableId: Data(myId.utf8), publicKey: myIdentityKey)
-        let theirHash = computeHash(stableId: Data(theirId.utf8), publicKey: theirIdentityKey)
-        return SanchrFingerprintQR(myHash: myHash, theirHash: theirHash)
-    }
-
-    private static func computeHash(stableId: Data, publicKey: Data, iterations: UInt32 = 5200)
-        -> Data
-    {
-        // Signal: hash = SHA512(version(2 bytes BE) || publicKey || stableId)
-        // Then iterate: hash = SHA512(hash || publicKey) × 5200
-        // Take first 32 bytes
-        let versionBytes = UInt16(0).bigEndianData
-
-        var hash = Data()
-        hash.append(versionBytes)
-        hash.append(publicKey)
-        hash.append(stableId)
-
-        for _ in 0..<iterations {
-            hash.append(publicKey)
-            let digest = SHA512.hash(data: hash)
-            hash = Data(digest)
-        }
-
-        return hash.prefix(32)
-    }
-
-    /// Serialize to protobuf-like binary format for QR encoding.
-    /// Format: [version: 4 bytes LE] [local length: 4 bytes LE] [local hash: 32 bytes] [remote length: 4 bytes LE] [remote hash: 32 bytes]
-    func serialize() -> Data {
-        var data = Data()
-        // Version
-        var v = version.littleEndian
-        data.append(Data(bytes: &v, count: 4))
-        // Local fingerprint (my hash)
-        var localLen = UInt32(myHash.count).littleEndian
-        data.append(Data(bytes: &localLen, count: 4))
-        data.append(myHash)
-        // Remote fingerprint (their hash)
-        var remoteLen = UInt32(theirHash.count).littleEndian
-        data.append(Data(bytes: &remoteLen, count: 4))
-        data.append(theirHash)
-        return data
-    }
-
-    /// Deserialize scanned data and compare.
-    /// Their local = our remote (swap perspective).
-    func matches(scannedData: Data) -> VerifyResult {
-        SanchrLogger.crypto.info("QR verify: scanned \(scannedData.count) bytes, expected 76")
-
-        guard scannedData.count >= 76 else {
-            SanchrLogger.crypto.warning("QR verify: data too short (\(scannedData.count) bytes)")
-            return .noMatch("Invalid QR code data (\(scannedData.count) bytes)")
-        }
-
-        var offset = 0
-
-        // Read version
-        let scannedVersion = scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
-            $0.load(as: UInt32.self)
-        }.littleEndian
-        offset += 4
-        SanchrLogger.crypto.info(
-            "QR verify: scanned version=\(scannedVersion), our version=\(version)")
-
-        if scannedVersion != version {
-            return .noMatch("Version mismatch: scanned=\(scannedVersion), ours=\(version)")
-        }
-
-        // Read scanned local hash
-        let scannedLocalLen = Int(
-            scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
-                $0.load(as: UInt32.self)
-            }.littleEndian)
-        offset += 4
-        guard offset + scannedLocalLen <= scannedData.count else {
-            return .noMatch("Invalid QR data")
-        }
-        let scannedLocalHash = scannedData.subdata(in: offset..<offset + scannedLocalLen)
-        offset += scannedLocalLen
-
-        // Read scanned remote hash
-        guard offset + 4 <= scannedData.count else { return .noMatch("Invalid QR data") }
-        let scannedRemoteLen = Int(
-            scannedData.subdata(in: offset..<offset + 4).withUnsafeBytes {
-                $0.load(as: UInt32.self)
-            }.littleEndian)
-        offset += 4
-        guard offset + scannedRemoteLen <= scannedData.count else {
-            return .noMatch("Invalid QR data")
-        }
-        let scannedRemoteHash = scannedData.subdata(in: offset..<offset + scannedRemoteLen)
-
-        SanchrLogger.crypto.info(
-            "QR verify: scannedLocal=\(scannedLocalHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., scannedRemote=\(scannedRemoteHash.prefix(8).map { String(format: "%02x", $0) }.joined())..."
-        )
-        SanchrLogger.crypto.info(
-            "QR verify: ourMyHash=\(myHash.prefix(8).map { String(format: "%02x", $0) }.joined())..., ourTheirHash=\(theirHash.prefix(8).map { String(format: "%02x", $0) }.joined())..."
-        )
-
-        // Cross-device verification:
-        // The scanned QR was generated by the OTHER device where:
-        //   their "local" = their identity (should match our "theirHash")
-        //   their "remote" = our identity (should match our "myHash")
-        let crossMatch = (scannedLocalHash == theirHash && scannedRemoteHash == myHash)
-
-        // Self-scan detection:
-        // If scanning your OWN QR, local/remote are NOT swapped
-        let selfMatch = (scannedLocalHash == myHash && scannedRemoteHash == theirHash)
-
-        if crossMatch || selfMatch {
-            SanchrLogger.crypto.info(
-                "QR verify: MATCH (\(selfMatch ? "self-scan" : "cross-device"))")
-            return .match
-        }
-
-        SanchrLogger.crypto.warning("QR verify: NO MATCH")
-        SanchrLogger.crypto.warning("  scannedLocal==theirHash? \(scannedLocalHash == theirHash)")
-        SanchrLogger.crypto.warning("  scannedRemote==myHash? \(scannedRemoteHash == myHash)")
-        SanchrLogger.crypto.warning("  scannedLocal==myHash? \(scannedLocalHash == myHash)")
-        SanchrLogger.crypto.warning("  scannedRemote==theirHash? \(scannedRemoteHash == theirHash)")
-        return .noMatch("Security codes do not match")
-    }
-
-    enum VerifyResult {
-        case match
-        case noMatch(String)
-    }
-}
-
-extension UInt16 {
-    fileprivate var bigEndianData: Data {
-        var value = self.bigEndian
-        return Data(bytes: &value, count: 2)
-    }
-}
-
 // MARK: - QR Code Scanner
 
 private struct QRScannerSheet: View {
@@ -693,67 +588,212 @@ private struct QRScannerRepresentable: UIViewControllerRepresentable {
 private class QRScannerViewController: UIViewController {
     private let onScanned: (Data) -> Void
     private var captureSession: AVCaptureSession?
+    private var previewLayer: AVCaptureVideoPreviewLayer?
     private var hasScanned = false
+
+    /// Held here rather than via objc_setAssociatedObject with a String key, which
+    /// only worked because of literal interning and left the delegate's lifetime
+    /// tied to an output object by accident.
+    private var metadataDelegate: QRScannerDelegate?
+
+    /// AVCaptureSession start/stop block. Doing either on the main thread stalls
+    /// the UI for as long as the camera takes to spin up or tear down.
+    private let sessionQueue = DispatchQueue(label: "io.sanchr.qr-scanner.session")
 
     init(onScanned: @escaping (Data) -> Void) {
         self.onScanned = onScanned
         super.init(nibName: nil, bundle: nil)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupCamera()
+        view.backgroundColor = .black
+        configureForCurrentAuthorization()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        if let previewLayer = view.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
-            previewLayer.frame = view.bounds
-        }
-    }
-
-    private func setupCamera() {
-        let session = AVCaptureSession()
-        guard let device = AVCaptureDevice.default(for: .video),
-            let input = try? AVCaptureDeviceInput(device: device)
-        else { return }
-
-        if session.canAddInput(input) {
-            session.addInput(input)
-        }
-
-        let output = AVCaptureMetadataOutput()
-        if session.canAddOutput(output) {
-            session.addOutput(output)
-            let delegate = QRScannerDelegate { [weak self] data in
-                guard let self, !self.hasScanned else { return }
-                self.hasScanned = true
-                self.captureSession?.stopRunning()
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                self.onScanned(data)
-            }
-            objc_setAssociatedObject(output, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
-            output.setMetadataObjectsDelegate(delegate, queue: .main)
-            output.metadataObjectTypes = [.qr]
-        }
-
-        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.frame = view.bounds
-        previewLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(previewLayer)
-
-        self.captureSession = session
-        let capturedSession = session
-        DispatchQueue.global(qos: .userInitiated).async { [weak capturedSession] in
-            capturedSession?.startRunning()
-        }
+        previewLayer?.frame = view.bounds
+        messageStack?.frame = view.bounds
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        captureSession?.stopRunning()
+        let session = captureSession
+        sessionQueue.async { session?.stopRunning() }
+    }
+
+    // MARK: - Authorization
+
+    /// Decides what the sheet shows. Previously there was no check at all: a
+    /// denied permission fell through `try?` and returned silently, leaving the
+    /// user staring at a black rectangle with no explanation and no way forward.
+    private func configureForCurrentAuthorization() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            startCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if granted {
+                        self.startCamera()
+                    } else {
+                        self.showMessage(
+                            title: "Camera access needed",
+                            body: "Sanchr needs the camera to scan your contact's security code.",
+                            showSettings: true)
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showMessage(
+                title: "Camera access is off",
+                body: "Enable camera access for Sanchr to scan your contact's security code. You can still compare the numbers by hand.",
+                showSettings: true)
+        @unknown default:
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be used for scanning. Compare the numbers by hand instead.",
+                showSettings: false)
+        }
+    }
+
+    // MARK: - Camera
+
+    private func startCamera() {
+        let session = AVCaptureSession()
+
+        guard let device = AVCaptureDevice.default(for: .video) else {
+            // Simulators and camera-less devices land here.
+            showMessage(
+                title: "No camera available",
+                body: "This device has no camera. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+
+        let input: AVCaptureDeviceInput
+        do {
+            input = try AVCaptureDeviceInput(device: device)
+        } catch {
+            SanchrLogger.crypto.error(
+                "QR scanner input failed: \(error.localizedDescription)")
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be started. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+
+        guard session.canAddInput(input) else {
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be started. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+        session.addInput(input)
+
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else {
+            showMessage(
+                title: "Scanning unavailable",
+                body: "This device cannot scan QR codes. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+        session.addOutput(output)
+
+        let delegate = QRScannerDelegate { [weak self] data in
+            guard let self, !self.hasScanned else { return }
+            self.hasScanned = true
+            let session = self.captureSession
+            self.sessionQueue.async { session?.stopRunning() }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            self.onScanned(data)
+        }
+        metadataDelegate = delegate
+        output.setMetadataObjectsDelegate(delegate, queue: .main)
+        output.metadataObjectTypes = [.qr]
+
+        let preview = AVCaptureVideoPreviewLayer(session: session)
+        preview.frame = view.bounds
+        preview.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(preview)
+        previewLayer = preview
+
+        captureSession = session
+        sessionQueue.async { session.startRunning() }
+    }
+
+    // MARK: - Explanatory state
+
+    private var messageStack: UIView?
+
+    /// Replaces the black rectangle with something that says what happened and,
+    /// where it helps, offers a way to fix it.
+    private func showMessage(title: String, body: String, showSettings: Bool) {
+        messageStack?.removeFromSuperview()
+
+        let container = UIView(frame: view.bounds)
+        container.backgroundColor = .black
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let icon = UIImageView(image: UIImage(systemName: "video.slash.fill"))
+        icon.tintColor = .white
+        icon.contentMode = .scaleAspectFit
+
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = .preferredFont(forTextStyle: .headline)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+
+        let bodyLabel = UILabel()
+        bodyLabel.text = body
+        bodyLabel.font = .preferredFont(forTextStyle: .footnote)
+        bodyLabel.textColor = .white.withAlphaComponent(0.75)
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+
+        stack.addArrangedSubview(icon)
+        stack.addArrangedSubview(titleLabel)
+        stack.addArrangedSubview(bodyLabel)
+
+        if showSettings {
+            let button = UIButton(type: .system)
+            button.setTitle("Open Settings", for: .normal)
+            button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+            button.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+            stack.addArrangedSubview(button)
+        }
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(
+                greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(
+                lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+        ])
+
+        view.addSubview(container)
+        messageStack = container
+    }
+
+    @objc private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 
@@ -875,21 +915,3 @@ private nonisolated func makeQRCodeFromBinary(_ data: Data) -> UIImage? {
 }
 
 /// Generates a QR code from a string (fallback for safety number digits).
-private nonisolated func makeQRCodeImage(from string: String) -> UIImage? {
-    guard !string.isEmpty,
-        let data = string.data(using: .utf8),
-        let filter = CIFilter(name: "CIQRCodeGenerator")
-    else { return nil }
-    filter.setValue(data, forKey: "inputMessage")
-    filter.setValue("M", forKey: "inputCorrectionLevel")
-    guard let ciImage = filter.outputImage else { return nil }
-
-    let scale = 10.0
-    let transformed = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-
-    let context = CIContext()
-    guard let cgImage = context.createCGImage(transformed, from: transformed.extent) else {
-        return nil
-    }
-    return UIImage(cgImage: cgImage)
-}

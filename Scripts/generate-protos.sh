@@ -2,6 +2,13 @@
 #
 # Regenerate Swift protobuf + grpc client files for the Sanchr iOS app.
 #
+# Source of truth:
+#   backend/crates/sanchr-proto/proto/   (canonical .proto files)
+#
+# This script first rsyncs the canonical .proto set into ./Proto/ (so the
+# directory committed in this repo always tracks backend), then runs
+# protoc-gen-swift + protoc-gen-grpc-swift-v1 over it.
+#
 # Requires:
 #   - protoc (brew install protobuf)
 #   - protoc-gen-swift (brew install swift-protobuf)
@@ -34,6 +41,10 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROTO_DIR="${REPO_ROOT}/Proto"
 OUT_DIR="${REPO_ROOT}/SanchrShared/Generated"
 
+# Canonical proto source lives in the backend crate. Path is relative to
+# the iOS repo root: ios/Sanchr-iOS/../../backend/crates/sanchr-proto/proto.
+CANONICAL_PROTO_SRC="${CANONICAL_PROTO_SRC:-${REPO_ROOT}/../../backend/crates/sanchr-proto/proto}"
+
 GRPC_PLUGIN="${SCRIPT_DIR}/bin/protoc-gen-grpc-swift-v1"
 
 if ! command -v protoc >/dev/null 2>&1; then
@@ -50,6 +61,20 @@ if [[ ! -x "${GRPC_PLUGIN}" ]]; then
     echo "error: v1 grpc plugin missing at ${GRPC_PLUGIN}" >&2
     echo "       See header comment in this script for rebuild instructions." >&2
     exit 1
+fi
+
+# Sync canonical .proto files from backend before generation. This keeps
+# Proto/ in lockstep with backend/crates/sanchr-proto/proto/ on every run.
+if [[ -d "${CANONICAL_PROTO_SRC}" ]]; then
+    echo "Syncing protos from ${CANONICAL_PROTO_SRC} -> ${PROTO_DIR}"
+    mkdir -p "${PROTO_DIR}"
+    rsync -a --delete \
+        --include='*.proto' \
+        --exclude='*' \
+        "${CANONICAL_PROTO_SRC}/" "${PROTO_DIR}/"
+else
+    echo "WARNING: canonical proto source not found at ${CANONICAL_PROTO_SRC};" >&2
+    echo "         using existing Proto/ contents as-is." >&2
 fi
 
 mkdir -p "${OUT_DIR}"
@@ -73,6 +98,7 @@ SERVICE_PROTOS=(
 MESSAGE_ONLY_PROTOS=(
     backup_payload
     ekf
+    sealed_sender
 )
 
 echo "Generating SwiftProtobuf messages..."

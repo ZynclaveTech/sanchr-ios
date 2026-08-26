@@ -265,17 +265,22 @@ struct ActiveCallView: View {
                     callManager.toggleSpeaker()
                 }
 
-                CallControlButton(
-                    icon: callManager.callType == "video" && callManager.isVideoEnabled
-                        ? "video.fill"
-                        : "video.slash.fill",
-                    label: videoButtonLabel,
-                    isActive: callManager.callType == "video" && callManager.isVideoEnabled,
-                    isDisabled: videoUpgradeDisabled,
-                    isVideoSurface: isVideoSurface,
-                    accessibilityValue: videoUpgradeDisabled ? "Waiting for response" : nil
-                ) {
-                    callManager.toggleVideo()
+                // Hide the video toggle / upgrade button when the feature is
+                // disabled. requestVideoUpgrade no-ops in that state, so a
+                // visible button would tap to nothing — see Sub-phase F.
+                if AppConfiguration.current.isVideoCallEnabled {
+                    CallControlButton(
+                        icon: callManager.callType == "video" && callManager.isVideoEnabled
+                            ? "video.fill"
+                            : "video.slash.fill",
+                        label: videoButtonLabel,
+                        isActive: callManager.callType == "video" && callManager.isVideoEnabled,
+                        isDisabled: videoUpgradeDisabled,
+                        isVideoSurface: isVideoSurface,
+                        accessibilityValue: videoUpgradeDisabled ? "Waiting for response" : nil
+                    ) {
+                        callManager.toggleVideo()
+                    }
                 }
 
                 if callManager.isVideoEnabled {

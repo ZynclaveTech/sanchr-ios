@@ -24,7 +24,8 @@ Thumbs.db
 *.p12
 *.mobileprovision
 
-Vendor/LibSignal/device/libsignal_ffi.a
-Vendor/LibSignal/simulator/libsignal_ffi.a
+# Vendored static libraries are stored in Git LFS (see .gitattributes and
+# Vendor/README.md) rather than excluded, so a clone can link without a
+# separate out-of-band copy.
 
 build/
