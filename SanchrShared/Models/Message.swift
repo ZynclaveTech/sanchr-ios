@@ -130,7 +130,13 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
     }
 
     public enum SystemEvent: String, Codable, Hashable, Sendable {
+        /// The contact's identity key actually changed. Security-relevant: this is
+        /// what a server substituting its own key produces. Distinct from
+        /// `decryptionFailed`, which is an ordinary delivery problem.
         case identityKeyChanged
+        /// A message arrived that could not be decrypted (stale session, corrupt
+        /// envelope, skipped-key overflow). Not a security signal on its own.
+        case decryptionFailed
         case disappearingTimerChanged
         case groupCreated
         case memberAdded
@@ -138,6 +144,23 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         case screenshotDetected
         case viewOnceConsumed
         case autoVaulted
+
+        /// Human-readable label. Single source of truth: the transcript, the
+        /// conversation list, and the reply banner all render from this, so a new
+        /// case cannot reach the UI as a raw enum name.
+        public var displayLabel: String {
+            switch self {
+            case .identityKeyChanged: return "Security code changed"
+            case .decryptionFailed: return "Message couldn't be decrypted"
+            case .disappearingTimerChanged: return "Disappearing timer changed"
+            case .groupCreated: return "Group created"
+            case .memberAdded: return "Member added"
+            case .memberRemoved: return "Member removed"
+            case .screenshotDetected: return "Screenshot detected"
+            case .viewOnceConsumed: return "Viewed"
+            case .autoVaulted: return "Auto-vaulted media"
+            }
+        }
     }
 
     // MARK: - Delivery Status

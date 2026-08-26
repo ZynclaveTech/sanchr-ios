@@ -69,16 +69,18 @@ struct ChatDetailHeaderView: View {
                 SanchrGlassCluster(spacing: 12) {
                     HStack(spacing: 6) {
                         if let recipient {
-                            headerActionButton(icon: "video.fill") {
-                                Task {
-                                    do {
-                                        try await container.startCallUseCase.execute(
-                                            recipientId: recipient.id,
-                                            recipientName: recipient.displayName,
-                                            isVideo: true
-                                        )
-                                    } catch {
-                                        callErrorMessage = error.localizedDescription
+                            if AppConfiguration.current.isVideoCallEnabled {
+                                headerActionButton(icon: "video.fill") {
+                                    Task {
+                                        do {
+                                            try await container.startCallUseCase.execute(
+                                                recipientId: recipient.id,
+                                                recipientName: recipient.displayName,
+                                                isVideo: true
+                                            )
+                                        } catch {
+                                            callErrorMessage = error.localizedDescription
+                                        }
                                     }
                                 }
                             }

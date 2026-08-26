@@ -25,6 +25,11 @@ public protocol Sanchr_Notifications_NotificationServiceClientProtocol: GRPCClie
     _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>
+
+  func setConversationNotificationPrefs(
+    _ request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse>
 }
 
 extension Sanchr_Notifications_NotificationServiceClientProtocol {
@@ -65,6 +70,24 @@ extension Sanchr_Notifications_NotificationServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
+    )
+  }
+
+  /// Unary call to SetConversationNotificationPrefs
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SetConversationNotificationPrefs.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func setConversationNotificationPrefs(
+    _ request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.setConversationNotificationPrefs.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetConversationNotificationPrefsInterceptors() ?? []
     )
   }
 }
@@ -140,6 +163,11 @@ public protocol Sanchr_Notifications_NotificationServiceAsyncClientProtocol: GRP
     _ request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>
+
+  func makeSetConversationNotificationPrefsCall(
+    _ request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -175,6 +203,18 @@ extension Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
     )
   }
+
+  public func makeSetConversationNotificationPrefsCall(
+    _ request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.setConversationNotificationPrefs.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetConversationNotificationPrefsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -200,6 +240,18 @@ extension Sanchr_Notifications_NotificationServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateNotificationPrefsInterceptors() ?? []
+    )
+  }
+
+  public func setConversationNotificationPrefs(
+    _ request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Notifications_SetConversationNotificationPrefsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Notifications_NotificationServiceClientMetadata.Methods.setConversationNotificationPrefs.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetConversationNotificationPrefsInterceptors() ?? []
     )
   }
 }
@@ -240,6 +292,7 @@ public enum Sanchr_Notifications_NotificationServiceClientMetadata {
     methods: [
       Sanchr_Notifications_NotificationServiceClientMetadata.Methods.registerPushToken,
       Sanchr_Notifications_NotificationServiceClientMetadata.Methods.updateNotificationPrefs,
+      Sanchr_Notifications_NotificationServiceClientMetadata.Methods.setConversationNotificationPrefs,
     ]
   )
 
@@ -255,6 +308,12 @@ public enum Sanchr_Notifications_NotificationServiceClientMetadata {
       path: "/sanchr.notifications.NotificationService/UpdateNotificationPrefs",
       type: GRPCCallType.unary
     )
+
+    public static let setConversationNotificationPrefs = GRPCMethodDescriptor(
+      name: "SetConversationNotificationPrefs",
+      path: "/sanchr.notifications.NotificationService/SetConversationNotificationPrefs",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -265,6 +324,8 @@ public protocol Sanchr_Notifications_NotificationServiceProvider: CallHandlerPro
   func registerPushToken(request: Sanchr_Notifications_RegisterPushTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Notifications_RegisterPushTokenResponse>
 
   func updateNotificationPrefs(request: Sanchr_Notifications_UpdateNotificationPrefsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Notifications_UpdateNotificationPrefsResponse>
+
+  func setConversationNotificationPrefs(request: Sanchr_Notifications_SetConversationNotificationPrefsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Notifications_SetConversationNotificationPrefsResponse>
 }
 
 extension Sanchr_Notifications_NotificationServiceProvider {
@@ -297,6 +358,15 @@ extension Sanchr_Notifications_NotificationServiceProvider {
         userFunction: self.updateNotificationPrefs(request:context:)
       )
 
+    case "SetConversationNotificationPrefs":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_SetConversationNotificationPrefsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_SetConversationNotificationPrefsResponse>(),
+        interceptors: self.interceptors?.makeSetConversationNotificationPrefsInterceptors() ?? [],
+        userFunction: self.setConversationNotificationPrefs(request:context:)
+      )
+
     default:
       return nil
     }
@@ -318,6 +388,11 @@ public protocol Sanchr_Notifications_NotificationServiceAsyncProvider: CallHandl
     request: Sanchr_Notifications_UpdateNotificationPrefsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Notifications_UpdateNotificationPrefsResponse
+
+  func setConversationNotificationPrefs(
+    request: Sanchr_Notifications_SetConversationNotificationPrefsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Notifications_SetConversationNotificationPrefsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -357,6 +432,15 @@ extension Sanchr_Notifications_NotificationServiceAsyncProvider {
         wrapping: { try await self.updateNotificationPrefs(request: $0, context: $1) }
       )
 
+    case "SetConversationNotificationPrefs":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Notifications_SetConversationNotificationPrefsRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Notifications_SetConversationNotificationPrefsResponse>(),
+        interceptors: self.interceptors?.makeSetConversationNotificationPrefsInterceptors() ?? [],
+        wrapping: { try await self.setConversationNotificationPrefs(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -372,6 +456,10 @@ public protocol Sanchr_Notifications_NotificationServiceServerInterceptorFactory
   /// - Returns: Interceptors to use when handling 'updateNotificationPrefs'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeUpdateNotificationPrefsInterceptors() -> [ServerInterceptor<Sanchr_Notifications_UpdateNotificationPrefsRequest, Sanchr_Notifications_UpdateNotificationPrefsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'setConversationNotificationPrefs'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSetConversationNotificationPrefsInterceptors() -> [ServerInterceptor<Sanchr_Notifications_SetConversationNotificationPrefsRequest, Sanchr_Notifications_SetConversationNotificationPrefsResponse>]
 }
 
 public enum Sanchr_Notifications_NotificationServiceServerMetadata {
@@ -381,6 +469,7 @@ public enum Sanchr_Notifications_NotificationServiceServerMetadata {
     methods: [
       Sanchr_Notifications_NotificationServiceServerMetadata.Methods.registerPushToken,
       Sanchr_Notifications_NotificationServiceServerMetadata.Methods.updateNotificationPrefs,
+      Sanchr_Notifications_NotificationServiceServerMetadata.Methods.setConversationNotificationPrefs,
     ]
   )
 
@@ -394,6 +483,12 @@ public enum Sanchr_Notifications_NotificationServiceServerMetadata {
     public static let updateNotificationPrefs = GRPCMethodDescriptor(
       name: "UpdateNotificationPrefs",
       path: "/sanchr.notifications.NotificationService/UpdateNotificationPrefs",
+      type: GRPCCallType.unary
+    )
+
+    public static let setConversationNotificationPrefs = GRPCMethodDescriptor(
+      name: "SetConversationNotificationPrefs",
+      path: "/sanchr.notifications.NotificationService/SetConversationNotificationPrefs",
       type: GRPCCallType.unary
     )
   }

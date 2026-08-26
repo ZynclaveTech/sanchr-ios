@@ -39,12 +39,15 @@ public struct Sanchr_Calling_CallOffer: Sendable {
   /// sealed sender routing token
   public var deliveryToken: Data = Data()
 
-  /// Signal-encrypt(SealedCallPayload JSON)
+  /// legacy single-device path
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var encryptedSdpPayload: Data = Data()
 
-  /// Per-recipient-device encrypted offers. When non-empty, the server fans
-  /// each entry to the matching device; the `encrypted_sdp_payload` field
-  /// above mirrors the device-1 entry as a fallback for legacy servers.
+  /// One encrypted payload per recipient device. Preferred over
+  /// `encrypted_sdp_payload` when non-empty. Server fans each entry out to the
+  /// matching device. If empty, server falls back to `encrypted_sdp_payload`
+  /// addressed to device 1.
   public var deviceOffers: [Sanchr_Calling_DeviceCallOffer] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -59,6 +62,7 @@ public struct Sanchr_Calling_DeviceCallOffer: Sendable {
 
   public var deviceID: Int32 = 0
 
+  /// Signal-encrypt(SealedCallPayload JSON) for this device
   public var encryptedSdpPayload: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -126,10 +130,10 @@ public struct Sanchr_Calling_CallSignal: Sendable {
     set {signal = .join(newValue)}
   }
 
-  /// Device id of the peer whose message this signal carries. Server-populated
-  /// from CallJoin.answererDevice for encrypted_sdp_answer; informational for
-  /// ice_candidate and control. Zero means absent (legacy server) — iOS falls
-  /// back to device 1.
+  /// Device id of the peer whose message this signal carries. For
+  /// encrypted_sdp_answer, this is the answerer's device (populated by server
+  /// from CallJoin.answerer_device). For ice_candidate and control, this is
+  /// informational. When zero/absent, iOS falls back to device 1.
   public var peerDevice: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -157,9 +161,9 @@ public struct Sanchr_Calling_CallJoin: Sendable {
   /// "caller" or "callee"
   public var role: String = String()
 
-  /// Device id the joining client is answering from. Server mirrors this onto
-  /// CallSignal.peerDevice for the caller's stream so the caller can decrypt
-  /// answers with the correct Signal session.
+  /// Device id the joining client is answering from. Server reads this only
+  /// when role == "callee", stores it on the ActiveCall record, and mirrors
+  /// it onto every CallSignal relayed from callee → caller as peer_device.
   public var answererDevice: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -294,7 +298,7 @@ fileprivate let _protobuf_package = "sanchr.calling"
 
 extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallOffer"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{4}\u{3}delivery_token\0\u{3}encrypted_sdp_payload\0\u{b}sdp_offer\0\u{b}srtp_key_params\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}\u{3}device_offers\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}call_type\0\u{4}\u{3}delivery_token\0\u{3}encrypted_sdp_payload\0\u{3}device_offers\0\u{b}sdp_offer\0\u{b}srtp_key_params\0\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -342,6 +346,41 @@ extension Sanchr_Calling_CallOffer: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
+extension Sanchr_Calling_DeviceCallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeviceCallOffer"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}encrypted_sdp_payload\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.encryptedSdpPayload) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 1)
+    }
+    if !self.encryptedSdpPayload.isEmpty {
+      try visitor.visitSingularBytesField(value: self.encryptedSdpPayload, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Calling_DeviceCallOffer, rhs: Sanchr_Calling_DeviceCallOffer) -> Bool {
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.encryptedSdpPayload != rhs.encryptedSdpPayload {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{1}status\0")
@@ -379,7 +418,7 @@ extension Sanchr_Calling_CallResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 extension Sanchr_Calling_CallSignal: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CallSignal"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{4}\u{2}ice_candidate\0\u{1}control\0\u{3}encrypted_sdp_answer\0\u{1}join\0\u{b}sdp_answer\0\u{c}\u{2}\u{1}\u{3}peer_device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}call_id\0\u{4}\u{2}ice_candidate\0\u{1}control\0\u{3}encrypted_sdp_answer\0\u{1}join\0\u{3}peer_device\0\u{b}sdp_answer\0\u{c}\u{2}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -786,41 +825,6 @@ extension Sanchr_Calling_TurnCredentials: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.username != rhs.username {return false}
     if lhs.credential != rhs.credential {return false}
     if lhs.ttl != rhs.ttl {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Sanchr_Calling_DeviceCallOffer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DeviceCallOffer"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}encrypted_sdp_payload\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
-      case 2: try { try decoder.decodeSingularBytesField(value: &self.encryptedSdpPayload) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.deviceID != 0 {
-      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 1)
-    }
-    if !self.encryptedSdpPayload.isEmpty {
-      try visitor.visitSingularBytesField(value: self.encryptedSdpPayload, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Sanchr_Calling_DeviceCallOffer, rhs: Sanchr_Calling_DeviceCallOffer) -> Bool {
-    if lhs.deviceID != rhs.deviceID {return false}
-    if lhs.encryptedSdpPayload != rhs.encryptedSdpPayload {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

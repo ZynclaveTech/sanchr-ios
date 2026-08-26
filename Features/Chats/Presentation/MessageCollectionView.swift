@@ -36,6 +36,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onInitialPresentation: () -> Void
     let onReply: (Message) -> Void
     let onReact: (String, String) -> Void
+    let onDeleteMessage: (Message) -> Void
     let onForward: (Message) -> Void
     let onRetry: (Message) -> Void
     let onLoadMore: () -> Void
@@ -69,6 +70,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onReactToMessage = { emoji, messageId in
             onReact(emoji, messageId)
+        }
+
+        vc.onDeleteMessage = { message in
+            onDeleteMessage(message)
         }
 
         vc.onScrolledToBottom = { atBottom in
@@ -120,6 +125,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onReactToMessage = { emoji, messageId in
             onReact(emoji, messageId)
+        }
+
+        vc.onDeleteMessage = { message in
+            onDeleteMessage(message)
         }
 
         vc.onLoadMore = {

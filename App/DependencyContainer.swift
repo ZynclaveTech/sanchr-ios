@@ -238,6 +238,14 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var vaultEKFScheduler: VaultEKFScheduler =
         VaultEKFScheduler(accessKeyStore: accessKeyStore)
 
+    /// Enforces disappearing-message deadlines on this device. Expiry is purely
+    /// local — the server only reaps undelivered ciphertext.
+    @ObservationIgnored lazy var disappearingSweeper: DisappearingMessageSweeper =
+        DisappearingMessageSweeper(
+            localDatabase: localDatabase,
+            mediaDownloadManager: mediaDownloadManager
+        )
+
     @ObservationIgnored lazy var discoveryRepository: DiscoveryRepositoryProtocol =
         DiscoveryRepository(grpcClient: grpcClient, oprfClient: oprfClient)
 
@@ -265,7 +273,8 @@ final class DependencyContainer: @unchecked Sendable {
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { weakSelf?.sessionService.currentUserId },
-            privacySettings: privacySettings
+            privacySettings: privacySettings,
+            profileKeyStore: profileKeyStore
         )
     }()
 
@@ -458,7 +467,11 @@ final class DependencyContainer: @unchecked Sendable {
                     userId: userId,
                     localDatabase: localDatabase
                 )
-            }
+            },
+            localDeviceIdProvider: { [weak self] in
+                Int32(self?.sessionService.currentDeviceId ?? "") ?? 1
+            },
+            isVideoCallEnabled: AppConfiguration.current.isVideoCallEnabled
         )
     }()
 
@@ -641,7 +654,8 @@ final class DependencyContainer: @unchecked Sendable {
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId },
-            privacySettings: privacySettings
+            privacySettings: privacySettings,
+            profileKeyStore: profileKeyStore
         )
         // Rebuild the cross-process send pipeline so it captures the freshly
         // installed `signalSessionManager`. The `MessageSender` actor itself

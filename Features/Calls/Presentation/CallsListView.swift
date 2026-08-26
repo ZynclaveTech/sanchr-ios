@@ -609,21 +609,26 @@ private struct NewCallContactPicker: View {
         } else {
             List {
                 ForEach(viewModel.filteredNewCallContacts) { contact in
-                    NewCallContactRow(contact: contact) {
-                        Task {
-                            await viewModel.startVoiceCall(
-                                contactId: contact.id,
-                                name: callDisplayName(for: contact)
-                            )
-                        }
-                    } startVideoCall: {
-                        Task {
-                            await viewModel.startVideoCall(
-                                contactId: contact.id,
-                                name: callDisplayName(for: contact)
-                            )
-                        }
-                    }
+                    NewCallContactRow(
+                        contact: contact,
+                        startVoiceCall: {
+                            Task {
+                                await viewModel.startVoiceCall(
+                                    contactId: contact.id,
+                                    name: callDisplayName(for: contact)
+                                )
+                            }
+                        },
+                        startVideoCall: {
+                            Task {
+                                await viewModel.startVideoCall(
+                                    contactId: contact.id,
+                                    name: callDisplayName(for: contact)
+                                )
+                            }
+                        },
+                        showsVideoCall: AppConfiguration.current.isVideoCallEnabled
+                    )
                     .listRowInsets(EdgeInsets())
                 }
             }
@@ -663,6 +668,11 @@ private struct NewCallContactRow: View {
     let contact: User
     let startVoiceCall: () -> Void
     let startVideoCall: () -> Void
+    /// When `false`, the "Start video call" button is hidden.
+    /// Mirrors `AppConfiguration.isVideoCallEnabled` — callers should pass
+    /// `AppConfiguration.current.isVideoCallEnabled` so the CTA disappears
+    /// in builds where video calling is disabled.
+    var showsVideoCall: Bool = true
 
     var body: some View {
         HStack(spacing: SanchrSpacing.sm) {
@@ -702,11 +712,13 @@ private struct NewCallContactRow: View {
                     action: startVoiceCall
                 )
 
-                CallPickerActionButton(
-                    systemImage: "video.fill",
-                    accessibilityLabel: "Start video call with \(contact.displayName)",
-                    action: startVideoCall
-                )
+                if showsVideoCall {
+                    CallPickerActionButton(
+                        systemImage: "video.fill",
+                        accessibilityLabel: "Start video call with \(contact.displayName)",
+                        action: startVideoCall
+                    )
+                }
             }
         }
         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)

@@ -67,6 +67,46 @@ public struct Sanchr_Auth_RegisterRequest: Sendable {
   fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
 }
 
+public struct Sanchr_Auth_RequestOtpRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var phoneNumber: String = String()
+
+  public var device: Sanchr_Auth_DeviceInfo {
+    get {_device ?? Sanchr_Auth_DeviceInfo()}
+    set {_device = newValue}
+  }
+  /// Returns true if `device` has been explicitly set.
+  public var hasDevice: Bool {self._device != nil}
+  /// Clears the value of `device`. Subsequent reads from it will return its default value.
+  public mutating func clearDevice() {self._device = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _device: Sanchr_Auth_DeviceInfo? = nil
+}
+
+public struct Sanchr_Auth_RequestOtpResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Seconds until the issued OTP expires.
+  public var expiresInSeconds: Int64 = 0
+
+  /// True if the phone is already a verified user (the OTP was issued for
+  /// login); false if a pending registration was created/refreshed.
+  public var existingUser: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Sanchr_Auth_VerifyOTPRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -326,6 +366,80 @@ extension Sanchr_Auth_RegisterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.password != rhs.password {return false}
     if lhs.email != rhs.email {return false}
     if lhs._device != rhs._device {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Auth_RequestOtpRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RequestOtpRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phone_number\0\u{1}device\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._device) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.phoneNumber.isEmpty {
+      try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 1)
+    }
+    try { if let v = self._device {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Auth_RequestOtpRequest, rhs: Sanchr_Auth_RequestOtpRequest) -> Bool {
+    if lhs.phoneNumber != rhs.phoneNumber {return false}
+    if lhs._device != rhs._device {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Auth_RequestOtpResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RequestOtpResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expires_in_seconds\0\u{3}existing_user\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt64Field(value: &self.expiresInSeconds) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.existingUser) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.expiresInSeconds != 0 {
+      try visitor.visitSingularInt64Field(value: self.expiresInSeconds, fieldNumber: 1)
+    }
+    if self.existingUser != false {
+      try visitor.visitSingularBoolField(value: self.existingUser, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Auth_RequestOtpResponse, rhs: Sanchr_Auth_RequestOtpResponse) -> Bool {
+    if lhs.expiresInSeconds != rhs.expiresInSeconds {return false}
+    if lhs.existingUser != rhs.existingUser {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

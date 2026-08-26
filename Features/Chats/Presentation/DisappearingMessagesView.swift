@@ -8,6 +8,8 @@ import SwiftUI
 struct DisappearingMessagesView: View {
     let conversationId: String
 
+    @Environment(DependencyContainer.self) private var container
+
     @State private var selectedDuration: Int = 0
 
     private let options: [(String, String, Int)] = [
@@ -29,7 +31,7 @@ struct DisappearingMessagesView: View {
                         .foregroundColor(SanchrColors.primary)
                         .padding(.top, 2)
                     Text(
-                        "When enabled, new messages will disappear after the selected time. This applies to both sides of the conversation."
+                        "Messages you send from now on will be deleted from your device and the recipient's once the timer runs out. Messages already sent are unaffected, and your contact's own timer governs the messages they send."
                     )
                     .font(SanchrTypography.messageBubbleText)
                     .foregroundColor(SanchrExportColors.textSecondary)
@@ -48,10 +50,17 @@ struct DisappearingMessagesView: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedDuration = option.2
                         }
-                        DisappearingTimerStore.setDuration(
-                            conversationId: conversationId,
-                            secs: Int64(option.2)
-                        )
+                        Task {
+                            do {
+                                try await container.localDatabase.setDisappearingDuration(
+                                    conversationId: conversationId,
+                                    seconds: Int64(option.2)
+                                )
+                            } catch {
+                                SanchrLogger.chat.error(
+                                    "Failed to save disappearing timer: \(error.localizedDescription)")
+                            }
+                        }
                     } label: {
                         HStack(spacing: 12) {
                             Circle()
@@ -109,9 +118,10 @@ struct DisappearingMessagesView: View {
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Disappearing Messages")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
+        .task {
             selectedDuration = Int(
-                DisappearingTimerStore.getDuration(conversationId: conversationId)
+                (try? await container.localDatabase.disappearingDuration(
+                    conversationId: conversationId)) ?? 0
             )
         }
     }

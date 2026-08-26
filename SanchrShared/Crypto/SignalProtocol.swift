@@ -25,6 +25,18 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     func encryptForAllDevices(plaintext: Data, recipientId: String) async throws
         -> [Sanchr_Messaging_DeviceMessage]
 
+    /// Encrypts `plaintext` once per known recipient device and returns a
+    /// ready-to-ship `DeviceCallOffer` list. Distinct from
+    /// `encryptForAllDevices` (which is for messaging) because call offers
+    /// require a per-device `resetSession` before encrypt to guarantee a
+    /// fresh `PreKeySignalMessage` on every call setup — see
+    /// `CallManager.startCall` for the rationale.
+    ///
+    /// Caller sets the resulting list as `CallOffer.device_offers`; the
+    /// server fans each entry to the matching device's inbox.
+    func encryptCallOffers(plaintext: Data, recipientId: String) async throws
+        -> [Sanchr_Calling_DeviceCallOffer]
+
     /// Decrypts an incoming ciphertext from a sender device.
     func decrypt(ciphertext: Data, from senderId: String, senderDevice: Int32) async throws -> Data
 
@@ -54,6 +66,22 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
 
     /// Returns whether a contact's identity has been manually verified.
     func isIdentityVerified(userId: String) -> Bool
+
+    /// When the contact was verified, or nil if unverified or verified before
+    /// timestamps were recorded.
+    func identityVerifiedAt(userId: String) -> Date?
+
+    /// Revokes a manual verification, e.g. after a scan that did not match.
+    func unmarkIdentityVerified(userId: String)
+
+    /// Whether this contact's identity key changed and the local user has not yet
+    /// reviewed it. While true, sending to them fails with `AppError.untrustedIdentity`.
+    func hasPendingIdentityChange(userId: String) -> Bool
+
+    /// Records that the local user reviewed the identity change and chose to
+    /// continue, adopting the new key and unblocking sending. Does not mark the
+    /// identity verified — use `markIdentityVerified` when safety numbers were compared.
+    func acceptIdentityChange(userId: String)
 
     /// Legacy compatibility shim: check session by userId only (assumes device 1).
     func hasSession(with userId: String) -> Bool
@@ -146,13 +174,25 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             try await establishSession(with: userId, deviceId: deviceId)
         }
 
-        let ciphertext = try signalEncrypt(
-            message: plaintext,
-            for: address,
-            sessionStore: store,
-            identityStore: store,
-            context: NullContext()
-        )
+        let ciphertext: CiphertextMessage
+        do {
+            ciphertext = try signalEncrypt(
+                message: plaintext,
+                for: address,
+                sessionStore: store,
+                identityStore: store,
+                context: NullContext()
+            )
+        } catch SignalError.untrustedIdentity {
+            // The recipient's identity key changed and the local user has not reviewed
+            // it. Fail closed: encrypting anyway would hand the plaintext to whoever
+            // supplied the new key. Cleared by accepting the change or verifying the
+            // new safety number.
+            SanchrLogger.crypto.error(
+                "Refusing to encrypt for \(userId.prefix(8))... device \(deviceId) — unreviewed identity change"
+            )
+            throw AppError.untrustedIdentity
+        }
 
         // Prepend a single byte indicating the message type so the receiver can dispatch correctly.
         // 0x01 = PreKeySignalMessage (new session), 0x02 = SignalMessage (existing session)
@@ -198,6 +238,41 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         }
 
         return deviceMessages
+    }
+
+    public func encryptCallOffers(plaintext: Data, recipientId: String) async throws
+        -> [Sanchr_Calling_DeviceCallOffer]
+    {
+        let deviceIds: [Int32]
+        do {
+            deviceIds = try await keyManager.fetchUserDevices(recipientId: recipientId)
+            SanchrLogger.crypto.info(
+                "encryptCallOffers: fanning out to \(deviceIds.count) device(s) for \(recipientId.prefix(8))...: \(deviceIds)")
+        } catch {
+            SanchrLogger.crypto.error(
+                "encryptCallOffers: fetchUserDevices FAILED for \(recipientId.prefix(8))...: \(Self.detailedError(error))")
+            throw error
+        }
+
+        var results: [Sanchr_Calling_DeviceCallOffer] = []
+        results.reserveCapacity(deviceIds.count)
+        for deviceId in deviceIds {
+            // Reset the per-device session before encrypt to force a fresh
+            // PreKeySignalMessage. A reset failure is intentionally swallowed:
+            // the subsequent encrypt() call invokes establishSession when no
+            // session exists (see SignalSessionManager.encrypt), so a transient
+            // store error here does not block call setup. The failure mode this
+            // protects against is a stale session that produces a type-0x02
+            // SignalMessage the recipient cannot decrypt — that case is
+            // self-healed by the next call's reset.
+            try? resetSession(with: recipientId, deviceId: deviceId)
+            let ct = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
+            var entry = Sanchr_Calling_DeviceCallOffer()
+            entry.deviceID = deviceId
+            entry.encryptedSdpPayload = ct
+            results.append(entry)
+        }
+        return results
     }
 
     // MARK: - Message Decryption
@@ -399,6 +474,22 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
 
     public func isIdentityVerified(userId: String) -> Bool {
         store.identityStore.isIdentityVerified(userId: userId)
+    }
+
+    public func identityVerifiedAt(userId: String) -> Date? {
+        store.identityStore.identityVerifiedAt(userId: userId)
+    }
+
+    public func unmarkIdentityVerified(userId: String) {
+        store.identityStore.unmarkIdentityVerified(userId: userId)
+    }
+
+    public func hasPendingIdentityChange(userId: String) -> Bool {
+        store.identityStore.hasPendingIdentityChange(userId: userId)
+    }
+
+    public func acceptIdentityChange(userId: String) {
+        store.identityStore.acceptIdentityChange(userId: userId)
     }
 
     // MARK: - Diagnostics

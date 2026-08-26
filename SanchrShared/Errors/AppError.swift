@@ -55,6 +55,13 @@ public enum AppError: LocalizedError, Equatable {
     case callPermissionDenied
     case callAlreadyInProgress
 
+    // MARK: - Feature Gates
+
+    /// Thrown when a caller attempts to use a feature that this build
+    /// configuration has disabled. `feature` is a snake_case identifier
+    /// suitable for log lines and analytics (e.g. `"video_call"`).
+    case featureDisabled(feature: String)
+
     // MARK: - General
 
     case unknown(underlying: String)
@@ -131,6 +138,8 @@ public enum AppError: LocalizedError, Equatable {
             return "Microphone permission is required for calls."
         case .callAlreadyInProgress:
             return "A call is already in progress."
+        case .featureDisabled:
+            return "This feature is not available in this build."
         case .unknown(let underlying):
             return "An unexpected error occurred: \(underlying)"
         }
