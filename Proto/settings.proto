@@ -7,6 +7,12 @@ service SettingsService {
   rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
   rpc ToggleSanchrMode(ToggleSanchrModeRequest) returns (UserSettings);
   rpc GetStorageUsage(GetStorageUsageRequest) returns (StorageUsageResponse);
+  // Fetch the encrypted profile of one or more users by id. The only way a
+  // client obtains a peer's profile ciphertext when that peer is not in its
+  // address book — a conversation started by phone number or QR code. The
+  // server returns opaque blobs; only a holder of the matching Profile Key
+  // can read them.
+  rpc GetUserProfiles(GetUserProfilesRequest) returns (GetUserProfilesResponse);
   rpc SetRegistrationLock(SetRegistrationLockRequest) returns (SetRegistrationLockResponse);
 }
 
@@ -46,11 +52,17 @@ message UpdateProfileRequest {
   string display_name = 1;
   string avatar_url   = 2;
   string status_text  = 3;
-  // Encrypted profile fields (AES-256-GCM). Server stores as opaque blobs.
-  bytes profile_key             = 4;
+  // field 4 reserved — formerly profile_key. The Profile Key is distributed
+  // to contacts over the Signal session (content type "profile-key/v1"),
+  // never through the server, which also holds the ciphertext it protects.
+  reserved 4;
   bytes encrypted_display_name  = 5;
   bytes encrypted_bio           = 6;
   bytes encrypted_avatar_url    = 7;
+  // Short hash of the Profile Key the three ciphertexts above were made with.
+  // Stored verbatim and echoed back so a client can tell whether the server's
+  // ciphertext still matches the key it currently holds.
+  bytes profile_key_version     = 8;
 }
 
 message ProfileResponse {
@@ -58,11 +70,34 @@ message ProfileResponse {
   string display_name = 2;
   string avatar_url   = 3;
   string status_text  = 4;
-  // Server echoes back the persisted encrypted fields.
-  bytes profile_key             = 5;
+  // field 5 reserved — formerly profile_key. The Profile Key is distributed
+  // to contacts over the Signal session (content type "profile-key/v1"),
+  // never through the server, which also holds the ciphertext it protects.
+  reserved 5;
   bytes encrypted_display_name  = 6;
   bytes encrypted_bio           = 7;
   bytes encrypted_avatar_url    = 8;
+  bytes profile_key_version     = 9;
+}
+
+message GetUserProfilesRequest {
+  repeated string user_ids = 1;
+}
+
+message UserProfile {
+  string user_id                = 1;
+  bytes  encrypted_display_name = 2;
+  bytes  encrypted_bio          = 3;
+  bytes  encrypted_avatar_url   = 4;
+  // Plaintext CDN URL, transitional. The avatar image is fetched from here;
+  // its bytes are not sensitive the way the display name is. Prefer
+  // encrypted_avatar_url once the peer's Profile Key is known.
+  string avatar_url             = 5;
+  bytes  profile_key_version    = 6;
+}
+
+message GetUserProfilesResponse {
+  repeated UserProfile profiles = 1;
 }
 
 message ToggleSanchrModeRequest {

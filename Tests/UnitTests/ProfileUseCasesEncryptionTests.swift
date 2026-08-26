@@ -10,17 +10,20 @@ private final class StubProfileDataSource: ProfileDataSourceProtocol, @unchecked
     var capturedEncryptedDisplayName: Data?
     var capturedEncryptedBio: Data?
     var capturedEncryptedAvatarURL: Data?
+    var capturedProfileKeyVersion: Data?
 
     func updateProfile(
         avatarURL: String,
         encryptedDisplayName: Data,
         encryptedBio: Data,
-        encryptedAvatarURL: Data
+        encryptedAvatarURL: Data,
+        profileKeyVersion: Data
     ) async throws -> Sanchr_Settings_ProfileResponse {
         capturedAvatarURL = avatarURL
         capturedEncryptedDisplayName = encryptedDisplayName
         capturedEncryptedBio = encryptedBio
         capturedEncryptedAvatarURL = encryptedAvatarURL
+        capturedProfileKeyVersion = profileKeyVersion
         return Sanchr_Settings_ProfileResponse()
     }
 

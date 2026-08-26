@@ -168,6 +168,7 @@ extension AuthInterceptorFactory: Sanchr_Settings_SettingsServiceClientIntercept
     public func makeToggleSanchrModeInterceptors() -> [ClientInterceptor<Sanchr_Settings_ToggleSanchrModeRequest, Sanchr_Settings_UserSettings>] { makeInterceptors() }
     public func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>] { makeInterceptors() }
     public func makeSetRegistrationLockInterceptors() -> [ClientInterceptor<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>] { makeInterceptors() }
+    public func makeGetUserProfilesInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse>] { makeInterceptors() }
 }
 
 // MARK: - NotificationService Interceptors

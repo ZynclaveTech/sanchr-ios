@@ -72,7 +72,13 @@ final class DependencyContainer: @unchecked Sendable {
     /// Sealed sender: certificate caching, delivery token pool, inner payload codec.
     @ObservationIgnored lazy var sealedSenderManager: SealedSenderManagerProtocol = SealedSenderManager(
         messagingService: grpcClient.messagingService,
-        keychain: keychainService
+        keychain: keychainService,
+        // Every sealed payload carries the sender's Profile Key so distribution
+        // is idempotent. Built over its own store rather than capturing the lazy
+        // property, to avoid a reference cycle through the container.
+        ownProfileKeyProvider: { [keychainService] in
+            try? ProfileKeyStore(keychain: keychainService).ownProfileKey()
+        }
     )
 
     // MARK: - Crypto (Legacy Protocols Bridged to Signal)
