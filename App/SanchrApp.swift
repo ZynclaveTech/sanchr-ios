@@ -364,7 +364,7 @@ struct RootView: View {
 
     private var hasCompletedProfileBasics: Bool {
         let name = container.sessionService.currentDisplayName ?? ""
-        return !name.isEmpty && name != "Sanchr User"
+        return !name.isEmpty && name != User.serverPlaceholderDisplayName
     }
 
     /// Whether the user still needs to complete onboarding.

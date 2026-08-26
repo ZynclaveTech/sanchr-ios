@@ -97,7 +97,19 @@ final class SessionService: @unchecked Sendable {
         tokenExpiresAt = tokens.expiresAt
         currentInstallationId = installationId
         currentUserId = tokens.userId
-        currentDisplayName = tokens.displayName.isEmpty ? currentDisplayName : tokens.displayName
+        // `tokens.displayName` comes from the server's plaintext users.display_name,
+        // which is vestigial: UpdateProfile has sent ciphertext only since profile
+        // fields became E2EE, so that column still holds the registration
+        // placeholder no matter what the user chose. Letting it win here reset the
+        // name to "Sanchr User" on every token refresh, and RootView reads an
+        // unset name as incomplete onboarding — so a refresh triggered by any
+        // ordinary action dropped the user back on the name step.
+        //
+        // The real name lives in the encrypted profile and in the session
+        // snapshot; neither is improved by anything the server can tell us here.
+        if !tokens.displayName.isEmpty, tokens.displayName != User.serverPlaceholderDisplayName {
+            currentDisplayName = tokens.displayName
+        }
         currentPhoneNumber = tokens.phoneNumber.isEmpty ? currentPhoneNumber : tokens.phoneNumber
         currentAvatarURL = tokens.avatarURL.isEmpty ? currentAvatarURL : tokens.avatarURL
         isAuthenticated = true

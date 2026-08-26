@@ -78,10 +78,19 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
 
     // MARK: - Factory
 
+    /// The display name the server writes at registration for OTP-only signups.
+    ///
+    /// It is not a name the user chose, and since profile fields became E2EE the
+    /// server never learns the real one — `UpdateProfile` sends ciphertext only,
+    /// so `users.display_name` keeps this value for the life of the account.
+    /// Anything reading a display name off a plaintext server field has to treat
+    /// this as "unset" rather than as a name.
+    public static let serverPlaceholderDisplayName = "Sanchr User"
+
     public static let placeholder = User(
         id: "placeholder",
         phoneNumber: "+1234567890",
-        displayName: "Sanchr User",
+        displayName: serverPlaceholderDisplayName,
         avatarURL: nil,
         bio: nil,
         isVerified: false,
