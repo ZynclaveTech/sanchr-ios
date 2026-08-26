@@ -158,13 +158,25 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             try await establishSession(with: userId, deviceId: deviceId)
         }
 
-        let ciphertext = try signalEncrypt(
-            message: plaintext,
-            for: address,
-            sessionStore: store,
-            identityStore: store,
-            context: NullContext()
-        )
+        let ciphertext: CiphertextMessage
+        do {
+            ciphertext = try signalEncrypt(
+                message: plaintext,
+                for: address,
+                sessionStore: store,
+                identityStore: store,
+                context: NullContext()
+            )
+        } catch SignalError.untrustedIdentity {
+            // The recipient's identity key changed and the local user has not reviewed
+            // it. Fail closed: encrypting anyway would hand the plaintext to whoever
+            // supplied the new key. Cleared by accepting the change or verifying the
+            // new safety number.
+            SanchrLogger.crypto.error(
+                "Refusing to encrypt for \(userId.prefix(8))... device \(deviceId) — unreviewed identity change"
+            )
+            throw AppError.untrustedIdentity
+        }
 
         // Prepend a single byte indicating the message type so the receiver can dispatch correctly.
         // 0x01 = PreKeySignalMessage (new session), 0x02 = SignalMessage (existing session)
