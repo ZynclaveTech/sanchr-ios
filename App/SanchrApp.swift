@@ -446,7 +446,10 @@ struct RootView: View {
                 .zIndex(100)
             }
         }
-        .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
+        .screenshotProtection(
+            isActive: container.appLockManager.isScreenshotProtectionActive
+                || container.privacySettings.sanchrModeEnabled
+        )
         .task {
             // If splash has already played this process session (e.g. we're
             // returning from background and SwiftUI re-fired this task), dismiss
