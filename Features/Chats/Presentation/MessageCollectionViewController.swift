@@ -98,6 +98,9 @@ private struct MediaAttachmentRenderSignature: Hashable {
     let isVoiceMessage: Bool?
     let audioDurationMs: Int?
     let audioWaveform: [Float]?
+    /// Included so consuming a view-once item actually refreshes the cell.
+    /// Without it the bubble keeps rendering its pre-consumption state.
+    let isViewOnce: Bool?
 }
 
 private struct MessageReactionRenderSignature: Hashable {
@@ -169,7 +172,8 @@ private extension Message.MediaAttachment {
             filename: filename,
             isVoiceMessage: isVoiceMessage,
             audioDurationMs: audioDurationMs,
-            audioWaveform: audioWaveform
+            audioWaveform: audioWaveform,
+            isViewOnce: isViewOnce
         )
     }
 }
