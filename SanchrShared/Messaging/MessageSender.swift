@@ -240,7 +240,7 @@ public actor MessageSender {
             // Route: 1:1 conversations use sealed sender when available;
             // groups always use the standard encrypted path.
             let isDirectChat = await isDirectConversation(chatId: chatId)
-            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+            let disappearingSecs = (try? await db.disappearingDuration(conversationId: chatId)) ?? 0
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
@@ -357,7 +357,7 @@ public actor MessageSender {
             )
 
             let isDirectChat = await isDirectConversation(chatId: chatId)
-            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+            let disappearingSecs = (try? await db.disappearingDuration(conversationId: chatId)) ?? 0
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
@@ -535,7 +535,7 @@ public actor MessageSender {
             // Step 4 — route: 1:1 via sealed sender when available,
             // groups via standard encrypted path.
             let isDirectChat = await isDirectConversation(chatId: chatId)
-            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+            let disappearingSecs = (try? await db.disappearingDuration(conversationId: chatId)) ?? 0
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
@@ -652,7 +652,7 @@ public actor MessageSender {
             )
 
             let isDirectChat = await isDirectConversation(chatId: chatId)
-            let disappearingSecs = DisappearingTimerStore.getDuration(conversationId: chatId)
+            let disappearingSecs = (try? await db.disappearingDuration(conversationId: chatId)) ?? 0
 
             let sendResult: EncryptedMessageSendResult
             if isDirectChat, let sealedSender {
