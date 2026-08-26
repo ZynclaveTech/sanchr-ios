@@ -40,6 +40,11 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     /// (safety number comparison completed).
     private var verifiedUserIds: Set<String> = []
 
+    /// When each verification happened, so the UI can state a real date instead of
+    /// a placeholder. Entries predating this map decode without a timestamp and
+    /// report `nil` rather than inventing one.
+    private var verifiedAtByUserId: [String: Date] = [:]
+
     /// Addresses whose identity key changed and which the local user has not yet
     /// reviewed. While an address has an entry here, outbound encryption to it is
     /// refused so a substituted key cannot be used to transparently intercept a
@@ -158,6 +163,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
                 // First observation of this change — record it and revoke verification.
                 self.pendingIdentityChanges[address] = identity
                 _ = self.verifiedUserIds.remove(address.name)
+                self.verifiedAtByUserId.removeValue(forKey: address.name)
                 newlyChanged = true
             }
             changePending = self.pendingIdentityChanges[address] != nil
@@ -226,6 +232,12 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         queue.sync { self.verifiedUserIds.contains(userId) }
     }
 
+    /// When `userId` was verified, or nil if they are unverified or were verified
+    /// before timestamps were recorded.
+    public func identityVerifiedAt(userId: String) -> Date? {
+        queue.sync { self.verifiedAtByUserId[userId] }
+    }
+
     /// Marks a user's identity as verified after safety number comparison.
     ///
     /// Comparing the new safety number is a strictly stronger review than simply
@@ -234,6 +246,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     public func markIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
             _ = self.verifiedUserIds.insert(userId)
+            self.verifiedAtByUserId[userId] = Date()
             self.adoptPendingChangesLocked(userId: userId)
         }
         saveVerifiedToDisk()
@@ -295,6 +308,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     public func unmarkIdentityVerified(userId: String) {
         queue.sync(flags: .barrier) {
             _ = self.verifiedUserIds.remove(userId)
+            self.verifiedAtByUserId.removeValue(forKey: userId)
         }
         saveVerifiedToDisk()
     }
@@ -304,6 +318,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
     public func clearAllVerifications() {
         queue.sync(flags: .barrier) {
             self.verifiedUserIds.removeAll()
+            self.verifiedAtByUserId.removeAll()
         }
         saveVerifiedToDisk()
         SanchrLogger.crypto.info("Cleared all identity verifications after key reset")
@@ -365,7 +380,13 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
             guard let self else { return }
             do {
                 try self.ensureStorageDirectoryExists()
-                let data = try JSONEncoder().encode(Array(self.verifiedUserIds))
+                // Written as a dictionary of userId -> verifiedAt. Older builds
+                // wrote a bare array; `loadVerifiedFromDisk` still reads that.
+                var payload: [String: Double] = [:]
+                for id in self.verifiedUserIds {
+                    payload[id] = self.verifiedAtByUserId[id]?.timeIntervalSince1970 ?? 0
+                }
+                let data = try JSONEncoder().encode(payload)
                 try data.write(to: self.verifiedURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             } catch {
                 SanchrLogger.crypto.error("Failed to persist verified identities: \(error.localizedDescription)")
@@ -377,8 +398,20 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         guard FileManager.default.fileExists(atPath: self.verifiedURL.path) else { return }
         do {
             let data = try Data(contentsOf: self.verifiedURL)
-            let ids = try JSONDecoder().decode([String].self, from: data)
-            self.verifiedUserIds = Set(ids)
+            if let payload = try? JSONDecoder().decode([String: Double].self, from: data) {
+                self.verifiedUserIds = Set(payload.keys)
+                // 0 marks an entry written before timestamps existed. Report it as
+                // unknown rather than claiming the epoch, so the UI can say
+                // "verified" without inventing a date.
+                self.verifiedAtByUserId = payload.compactMapValues {
+                    $0 > 0 ? Date(timeIntervalSince1970: $0) : nil
+                }
+            } else {
+                // Legacy format: a bare array of ids, no timestamps.
+                let ids = try JSONDecoder().decode([String].self, from: data)
+                self.verifiedUserIds = Set(ids)
+                self.verifiedAtByUserId = [:]
+            }
             SanchrLogger.crypto.info("Loaded \(self.verifiedUserIds.count) verified identities from disk")
         } catch {
             SanchrLogger.crypto.error("Failed to load verified identities: \(error.localizedDescription)")
