@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import Contacts
 import CoreImage.CIFilterBuiltins
 import CryptoKit
 import Kingfisher
@@ -30,6 +31,8 @@ struct ConversationInfoView: View {
     @State private var showClearChat = false
     @State private var showBlockContact = false
     @State private var conversationActionErrorMessage: String?
+    @State private var isPeerInDeviceContacts = false
+    @State private var showAddToDeviceContacts = false
 
     init(conversation: Conversation, recipient: User?) {
         self.conversation = conversation
@@ -58,10 +61,91 @@ struct ConversationInfoView: View {
         return "Encrypted conversation"
     }
 
+    // MARK: - Add to Device Contacts
+
+    /// The name to prefill the new-contact sheet with. Strips the "~" untrusted
+    /// marker the list adds to profile names, and rejects the server placeholder,
+    /// a bare user id, and the "Unknown contact" fallback — none of which are a
+    /// name worth saving to the address book.
+    private var contactPrefillName: String? {
+        let raw = (activeRecipient?.displayName ?? conversation.displayName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let name =
+            raw.hasPrefix("~")
+            ? String(raw.dropFirst()).trimmingCharacters(in: .whitespaces)
+            : raw
+        guard !name.isEmpty,
+            name != User.serverPlaceholderDisplayName,
+            name != "Unknown contact",
+            UUID(uuidString: name) == nil
+        else { return nil }
+        return name
+    }
+
+    private var contactPrefillPhone: String {
+        activeRecipient?.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    /// Offer "Add to Contacts" only for a 1:1 peer who isn't already in the device
+    /// address book and for whom we have something worth saving (a real name or a
+    /// phone number).
+    private var canAddPeerToDeviceContacts: Bool {
+        guard conversation.type == .oneToOne, !isPeerInDeviceContacts else { return false }
+        return contactPrefillName != nil || !contactPrefillPhone.isEmpty
+    }
+
+    /// Checks whether the peer is already in the device address book. Only a
+    /// phone number can be matched, and only when read access is already granted
+    /// — we never prompt for Contacts access just to decide whether to show the
+    /// button. When we can't tell, we default to offering it (adding a duplicate
+    /// is recoverable; hiding the option when it's needed is not).
+    private func refreshDeviceContactMembership() async {
+        let phone = contactPrefillPhone
+        guard !phone.isEmpty,
+            CNContactStore.authorizationStatus(for: .contacts) == .authorized
+        else {
+            isPeerInDeviceContacts = false
+            return
+        }
+        let store = CNContactStore()
+        let predicate = CNContact.predicateForContacts(matching: CNPhoneNumber(stringValue: phone))
+        let matches =
+            (try? store.unifiedContacts(
+                matching: predicate,
+                keysToFetch: [CNContactIdentifierKey as CNKeyDescriptor])) ?? []
+        isPeerInDeviceContacts = !matches.isEmpty
+    }
+
+    @ViewBuilder
+    private var addToContactsSection: some View {
+        if canAddPeerToDeviceContacts {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    showAddToDeviceContacts = true
+                } label: {
+                    settingsRow(
+                        icon: "person.crop.circle.badge.plus",
+                        iconBg: SanchrExportColors.surfaceSoft,
+                        iconColor: SanchrColors.accent,
+                        title: "Add to Contacts",
+                        subtitle: "Save this person to your device address book"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+            }
+        }
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 profileSection
+                addToContactsSection
                 mediaSection
                 securitySection
                 chatPreferencesSection
@@ -91,6 +175,20 @@ struct ConversationInfoView: View {
         }
         .task {
             await loadConversationPreferences()
+        }
+        .task(id: contactPrefillPhone) {
+            // Re-check once the server refresh fills in the phone number.
+            await refreshDeviceContactMembership()
+        }
+        .sheet(isPresented: $showAddToDeviceContacts) {
+            ContactViewControllerHost(
+                mode: .newContact(name: contactPrefillName ?? "", phone: contactPrefillPhone),
+                onDismiss: {
+                    showAddToDeviceContacts = false
+                    Task { await refreshDeviceContactMembership() }
+                }
+            )
+            .ignoresSafeArea()
         }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView(conversationId: conversation.id)

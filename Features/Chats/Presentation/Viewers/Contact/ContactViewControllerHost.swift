@@ -22,12 +22,17 @@ struct ContactViewControllerHost: UIViewControllerRepresentable {
             let components = name.split(separator: " ", maxSplits: 1).map(String.init)
             contact.givenName = components.first ?? name
             contact.familyName = components.count > 1 ? components[1] : ""
-            contact.phoneNumbers = [
-                CNLabeledValue(
-                    label: CNLabelPhoneNumberMobile,
-                    value: CNPhoneNumber(stringValue: phone)
-                )
-            ]
+            // A QR-paired peer often has no phone number; adding an empty phone
+            // field would just clutter the new-contact sheet, so only prefill one
+            // when we actually have it.
+            if !phone.isEmpty {
+                contact.phoneNumbers = [
+                    CNLabeledValue(
+                        label: CNLabelPhoneNumberMobile,
+                        value: CNPhoneNumber(stringValue: phone)
+                    )
+                ]
+            }
             vc = CNContactViewController(forNewContact: contact)
         case .existing(let contact):
             vc = CNContactViewController(for: contact)
