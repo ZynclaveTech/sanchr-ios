@@ -70,22 +70,33 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
             var bio: String? = contact.statusText.isEmpty ? nil : contact.statusText
             var avatarURL: URL? = URL(string: contact.avatarURL)
 
-            if !contact.profileKey.isEmpty {
-                // Persist the contact's Profile Key for future local decryption needs.
-                try? profileKeyStore.saveContactProfileKey(contact.profileKey, forUserId: contact.userID)
-
+            // Only a Profile Key delivered over the Signal session is trusted. A key
+            // offered by the server is ignored: the server also holds the ciphertext,
+            // so accepting its key would let it choose what we decrypt and would make
+            // the encryption meaningless.
+            //
+            // Until the key arrives we deliberately do not fall back to the
+            // server-supplied plaintext — displaying it would leak exactly what the
+            // encryption exists to hide. The phone number stands in instead.
+            if let localKey = try? profileKeyStore.contactProfileKey(forUserId: contact.userID),
+                !localKey.isEmpty
+            {
                 if let decrypted = tryDecrypt(contact.encryptedDisplayName,
-                                              profileKey: contact.profileKey, field: .displayName) {
+                                              profileKey: localKey, field: .displayName) {
                     displayName = decrypted
                 }
                 if let decrypted = tryDecrypt(contact.encryptedBio,
-                                              profileKey: contact.profileKey, field: .bio) {
+                                              profileKey: localKey, field: .bio) {
                     bio = decrypted
                 }
                 if let decrypted = tryDecrypt(contact.encryptedAvatarURL,
-                                              profileKey: contact.profileKey, field: .avatarURL) {
+                                              profileKey: localKey, field: .avatarURL) {
                     avatarURL = URL(string: decrypted)
                 }
+            } else {
+                displayName = contact.phoneNumber.isEmpty ? "Unknown contact" : contact.phoneNumber
+                bio = nil
+                avatarURL = nil
             }
 
             return User(

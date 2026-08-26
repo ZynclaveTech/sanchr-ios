@@ -266,7 +266,8 @@ private func makePresenceRepo(
         vaultRepository: StubVaultRepositoryForPresence(),
         mediaDownloadManager: mediaDownload,
         currentUserIdProvider: currentUserId,
-        privacySettings: privacySettings
+        privacySettings: privacySettings,
+        profileKeyStore: ProfileKeyStore(keychain: MockKeychainService())
     )
 }
 

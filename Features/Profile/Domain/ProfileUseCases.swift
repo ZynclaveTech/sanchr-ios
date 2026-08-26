@@ -21,8 +21,9 @@ enum ProfileUseCases {
             self.profileCrypto = profileCrypto
         }
 
-        /// Encrypts name/bio/avatarURL with the local Profile Key, then sends
-        /// both plaintext (server compat) and encrypted fields to the server.
+        /// Encrypts name/bio/avatarURL with the local Profile Key and uploads only the
+        /// ciphertext. The key itself never reaches the server — it is delivered to
+        /// contacts over the Signal session by `distributeProfileKey`.
         func execute(
             name: String,
             avatarURL: String,
@@ -40,10 +41,7 @@ enum ProfileUseCases {
                 : (try profileCrypto.encryptField(avatarURL, profileKey: profileKey, field: .avatarURL))
 
             return try await profileDataSource.updateProfile(
-                name: name,
                 avatarURL: avatarURL,
-                status: status,
-                profileKey: profileKey,
                 encryptedDisplayName: encryptedName,
                 encryptedBio: encryptedBio,
                 encryptedAvatarURL: encryptedAvatarURL

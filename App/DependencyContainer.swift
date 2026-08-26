@@ -265,7 +265,8 @@ final class DependencyContainer: @unchecked Sendable {
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { weakSelf?.sessionService.currentUserId },
-            privacySettings: privacySettings
+            privacySettings: privacySettings,
+            profileKeyStore: profileKeyStore
         )
     }()
 
@@ -645,7 +646,8 @@ final class DependencyContainer: @unchecked Sendable {
             vaultRepository: vaultRepository,
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId },
-            privacySettings: privacySettings
+            privacySettings: privacySettings,
+            profileKeyStore: profileKeyStore
         )
         // Rebuild the cross-process send pipeline so it captures the freshly
         // installed `signalSessionManager`. The `MessageSender` actor itself

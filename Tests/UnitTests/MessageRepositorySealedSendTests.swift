@@ -410,7 +410,8 @@ private func makeRepo(spyService: SpyMessagingService) -> MessageRepositoryImpl 
         vaultRepository: StubVaultRepository(),
         mediaDownloadManager: makeMediaDownloadManager(grpcClient: grpcClient),
         currentUserIdProvider: { "alice" },
-        privacySettings: PrivacySettingsCache()
+        privacySettings: PrivacySettingsCache(),
+        profileKeyStore: ProfileKeyStore(keychain: MockKeychainService())
     )
 }
 
@@ -512,7 +513,8 @@ final class MessageRepositorySealedSendTests: XCTestCase {
             vaultRepository: StubVaultRepository(),
             mediaDownloadManager: makeMediaDownloadManager(grpcClient: grpcClient),
             currentUserIdProvider: { "alice" },
-            privacySettings: PrivacySettingsCache()
+            privacySettings: PrivacySettingsCache(),
+            profileKeyStore: ProfileKeyStore(keychain: MockKeychainService())
         )
         let message = Message(
             id: "msg-2",
