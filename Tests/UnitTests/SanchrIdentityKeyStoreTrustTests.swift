@@ -287,3 +287,83 @@ final class SanchrIdentityKeyStoreTrustTests: XCTestCase {
         )
     }
 }
+
+// MARK: - Verification state
+
+/// The verification screen reports state from the identity store. It previously
+/// rendered a hardcoded "Verified on Dec 8, 2024" for everyone, so the store now
+/// has to supply a real timestamp — and lose it whenever verification lapses.
+final class IdentityVerificationStateTests: XCTestCase {
+
+    private var tempDir: URL!
+    private var store: SanchrIdentityKeyStore!
+    private let alice = "alice-user-id"
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("verify-state-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        store = SanchrIdentityKeyStore(
+            userId: "local-user", keychain: MockKeychainService(), baseDirectory: tempDir)
+    }
+
+    override func tearDownWithError() throws {
+        store = nil
+        if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
+        try super.tearDownWithError()
+    }
+
+    func test_unverifiedUser_hasNoTimestamp() {
+        XCTAssertFalse(store.isIdentityVerified(userId: alice))
+        XCTAssertNil(store.identityVerifiedAt(userId: alice))
+    }
+
+    func test_verifying_recordsATimestamp() {
+        let before = Date()
+        store.markIdentityVerified(userId: alice)
+
+        let at = store.identityVerifiedAt(userId: alice)
+        XCTAssertNotNil(at)
+        XCTAssertGreaterThanOrEqual(at ?? .distantPast, before.addingTimeInterval(-1))
+        XCTAssertLessThanOrEqual(at ?? .distantFuture, Date().addingTimeInterval(1))
+    }
+
+    func test_unverifying_clearsTheTimestamp() {
+        store.markIdentityVerified(userId: alice)
+        store.unmarkIdentityVerified(userId: alice)
+
+        XCTAssertFalse(store.isIdentityVerified(userId: alice))
+        XCTAssertNil(
+            store.identityVerifiedAt(userId: alice),
+            "a revoked verification must not leave a date behind for the UI to show")
+    }
+
+    /// A key change already revokes verification; the date has to go with it, or
+    /// the screen would show a verification that no longer applies to this key.
+    func test_identityChange_clearsVerificationAndTimestamp() throws {
+        let addr = try ProtocolAddress(name: alice, deviceId: 1)
+        _ = try store.saveIdentity(
+            IdentityKeyPair.generate().identityKey, for: addr,
+            context: LibSignalClient.NullContext())
+        store.markIdentityVerified(userId: alice)
+        XCTAssertNotNil(store.identityVerifiedAt(userId: alice))
+
+        _ = try store.isTrustedIdentity(
+            IdentityKeyPair.generate().identityKey, for: addr,
+            direction: .sending, context: LibSignalClient.NullContext())
+
+        XCTAssertFalse(store.isIdentityVerified(userId: alice))
+        XCTAssertNil(store.identityVerifiedAt(userId: alice))
+    }
+
+    func test_clearAllVerifications_dropsTimestamps() {
+        store.markIdentityVerified(userId: alice)
+        store.markIdentityVerified(userId: "bob")
+
+        store.clearAllVerifications()
+
+        XCTAssertNil(store.identityVerifiedAt(userId: alice))
+        XCTAssertNil(store.identityVerifiedAt(userId: "bob"))
+    }
+}

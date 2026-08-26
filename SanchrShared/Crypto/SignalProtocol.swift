@@ -67,6 +67,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Returns whether a contact's identity has been manually verified.
     func isIdentityVerified(userId: String) -> Bool
 
+    /// When the contact was verified, or nil if unverified or verified before
+    /// timestamps were recorded.
+    func identityVerifiedAt(userId: String) -> Date?
+
+    /// Revokes a manual verification, e.g. after a scan that did not match.
+    func unmarkIdentityVerified(userId: String)
+
     /// Whether this contact's identity key changed and the local user has not yet
     /// reviewed it. While true, sending to them fails with `AppError.untrustedIdentity`.
     func hasPendingIdentityChange(userId: String) -> Bool
@@ -467,6 +474,14 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
 
     public func isIdentityVerified(userId: String) -> Bool {
         store.identityStore.isIdentityVerified(userId: userId)
+    }
+
+    public func identityVerifiedAt(userId: String) -> Date? {
+        store.identityStore.identityVerifiedAt(userId: userId)
+    }
+
+    public func unmarkIdentityVerified(userId: String) {
+        store.identityStore.unmarkIdentityVerified(userId: userId)
     }
 
     public func hasPendingIdentityChange(userId: String) -> Bool {

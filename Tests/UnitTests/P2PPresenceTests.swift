@@ -67,6 +67,8 @@ private final class MinimalSignalProtocol: SignalProtocolManagerProtocol, @unche
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
     func markIdentityVerified(userId: String) {}
     func isIdentityVerified(userId: String) -> Bool { false }
+    func identityVerifiedAt(userId: String) -> Date? { nil }
+    func unmarkIdentityVerified(userId: String) {}
     func hasPendingIdentityChange(userId: String) -> Bool { false }
     func acceptIdentityChange(userId: String) {}
     func localIdentityKeyData() throws -> Data { Data() }
