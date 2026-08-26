@@ -288,6 +288,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         guard !peerIds.isEmpty else {
             throw AppError.sessionNotEstablished
         }
+
         // 3. Wrap plaintext in InnerPayload and encrypt via sealed sender path.
         //    The server sees only delivery_token + per-device ciphertext; sender_id is
         //    never transmitted — it stays hidden behind the delivery token.
@@ -930,6 +931,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         request.deviceMessages = deviceMessages
         _ = try await grpcClient.messagingService.sendSealedMessage(request)
 
+        profileKeyStore.markOwnProfileKeySent(toUserId: recipientUserId)
         SanchrLogger.chat.debug("Sent profile key to \(recipientUserId.prefix(8))")
         Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
     }
@@ -1273,6 +1275,36 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return .event(.presence(presenceUpdate))
             }
 
+            // 3a-bis. Any sealed payload from a peer proves they are reachable, so
+            // it is the moment to make sure they hold our Profile Key. Delivery
+            // used to happen only in startDirectConversation — whoever opened the
+            // conversation sent theirs and the other side never replied, so
+            // neither could decrypt the other's name and both showed the server
+            // placeholder.
+            //
+            // Hooking inbound traffic rather than the send path is deliberate:
+            // text goes out through MessageSender, media through another path
+            // again, and a hook on one of them misses the others. Everything
+            // eventually produces an inbound payload on the far side.
+            //
+            // The sent-marker keeps this to one extra sealed message per peer per
+            // install, and stops the reciprocal reply below from ping-ponging.
+            if !result.senderUserId.isEmpty,
+                result.senderUserId != currentUserIdProvider(),
+                !profileKeyStore.hasSentOwnProfileKey(toUserId: result.senderUserId)
+            {
+                let peerId = result.senderUserId
+                Task { [weak self] in
+                    do {
+                        try await self?.sendProfileKey(recipientUserId: peerId)
+                    } catch {
+                        SanchrLogger.chat.warning(
+                            "Profile key bootstrap to \(peerId.prefix(8)) failed: \(error.localizedDescription)"
+                        )
+                    }
+                }
+            }
+
             // 3b. Profile key distribution: store the sender's key so their encrypted
             // profile fields become readable. Arrives only over the Signal session —
             // a key offered by the server is never trusted.
@@ -1288,6 +1320,28 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     try profileKeyStore.saveContactProfileKey(key, forUserId: result.senderUserId)
                     SanchrLogger.chat.debug(
                         "Stored profile key from \(result.senderUserId.prefix(8))")
+
+                    // Answer with our own key. Delivery used to happen only in
+                    // startDirectConversation, so whoever opened the conversation
+                    // sent theirs and the other side never replied — leaving both
+                    // parties unable to decrypt the other's profile, which showed
+                    // up as every contact being named "Sanchr User".
+                    //
+                    // The sent-marker is what stops this becoming a loop: we reply
+                    // only to a peer we have not already told, so the exchange
+                    // settles after one round trip.
+                    if !profileKeyStore.hasSentOwnProfileKey(toUserId: result.senderUserId) {
+                        let peerId = result.senderUserId
+                        Task { [weak self] in
+                            do {
+                                try await self?.sendProfileKey(recipientUserId: peerId)
+                            } catch {
+                                SanchrLogger.chat.warning(
+                                    "Reciprocal profile key to \(peerId.prefix(8)) failed: \(error.localizedDescription)"
+                                )
+                            }
+                        }
+                    }
                 } catch {
                     SanchrLogger.chat.error(
                         "Failed to store profile key from \(result.senderUserId.prefix(8)): \(error.localizedDescription)"
@@ -1617,12 +1671,31 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 let isLocal = participant.id == currentUserId
                 normalizedParticipant.isLocalUser = isLocal
                 if !isLocal, let contact = contactsLookup[participant.id] {
-                    if normalizedParticipant.displayName.isEmpty || normalizedParticipant.displayName == participant.id {
+                    // The server's plaintext display_name is the registration
+                    // placeholder for every account now that profile fields are
+                    // E2EE, so it has to count as unset alongside an empty name
+                    // and a name that is just the user id. Without this the
+                    // placeholder outranked the decrypted name from contacts and
+                    // every conversation was headed "Sanchr User".
+                    let name = normalizedParticipant.displayName
+                    if name.isEmpty
+                        || name == participant.id
+                        || name == User.serverPlaceholderDisplayName
+                    {
                         normalizedParticipant.displayName = contact.displayName
                     }
                     if normalizedParticipant.avatarURL == nil {
                         normalizedParticipant.avatarURL = contact.avatarURL
                     }
+                }
+
+                // Still nothing usable — the peer's Profile Key has not arrived, so
+                // their name cannot be decrypted yet. Show the phone number rather
+                // than a placeholder that looks like a real name, matching what
+                // ContactRepository already does.
+                if !isLocal, normalizedParticipant.displayName == User.serverPlaceholderDisplayName {
+                    let phone = contactsLookup[participant.id]?.phoneNumber ?? ""
+                    normalizedParticipant.displayName = phone.isEmpty ? "Unknown contact" : phone
                 }
                 return normalizedParticipant
             }

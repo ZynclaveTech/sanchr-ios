@@ -21,6 +21,16 @@ public protocol ProfileKeyStoreProtocol: AnyObject, Sendable {
 
     /// Removes a contact's stored Profile Key (e.g. when a contact is deleted).
     func deleteContactProfileKey(forUserId userId: String) throws
+
+    /// Whether our own Profile Key has already been handed to `userId`.
+    ///
+    /// Profile Key delivery is reciprocal: receiving a peer's key prompts us to
+    /// send ours back. Without a record of who we have already told, the two
+    /// sides would answer each other indefinitely.
+    func hasSentOwnProfileKey(toUserId userId: String) -> Bool
+
+    /// Records that our Profile Key has been delivered to `userId`.
+    func markOwnProfileKeySent(toUserId userId: String)
 }
 
 public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable {
@@ -31,6 +41,9 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
         static let ownKey = "profile.key.own"
         static func contactKey(for userId: String) -> String {
             "profile.key.contact.\(userId)"
+        }
+        static func sentMarker(for userId: String) -> String {
+            "profile.key.sent.\(userId)"
         }
     }
 
@@ -74,6 +87,18 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
 
     public func contactProfileKey(forUserId userId: String) throws -> Data? {
         try keychain.read(forKey: Keys.contactKey(for: userId))
+    }
+
+    /// Delivery markers live in UserDefaults rather than the Keychain: they are
+    /// not secret, and unlike the keys themselves they *should* be cleared when
+    /// the app is deleted. A reinstall has a new Profile Key, so every peer needs
+    /// telling again.
+    public func hasSentOwnProfileKey(toUserId userId: String) -> Bool {
+        UserDefaults.standard.bool(forKey: Keys.sentMarker(for: userId))
+    }
+
+    public func markOwnProfileKeySent(toUserId userId: String) {
+        UserDefaults.standard.set(true, forKey: Keys.sentMarker(for: userId))
     }
 
     public func deleteContactProfileKey(forUserId userId: String) throws {
