@@ -1893,6 +1893,30 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         switch contentType {
         case "text":
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        case "location":
+            // The sender encrypts a bare {"latitude":..,"longitude":..} object, not
+            // a MessageContent envelope, so it has to be parsed as such. Without
+            // this the coordinates fell through to the JSON-decode branch, failed,
+            // and rendered as a raw-JSON text bubble instead of a location card.
+            if let object = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Double],
+                let latitude = object["latitude"],
+                let longitude = object["longitude"]
+            {
+                return .location(latitude: latitude, longitude: longitude)
+            }
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        case "contact":
+            // Same as location: the sender encrypts a bare {"name":..,
+            // "phoneNumber":..} object rather than a MessageContent envelope, so
+            // parse it directly instead of letting it fall through to a raw-JSON
+            // text bubble.
+            if let object = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Any],
+                let name = object["name"] as? String,
+                let phoneNumber = object["phoneNumber"] as? String
+            {
+                return .contact(name: name, phoneNumber: phoneNumber)
+            }
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
         default:
             if let content = try? JSONDecoder().decode(Message.MessageContent.self, from: plaintext) {
                 return content
