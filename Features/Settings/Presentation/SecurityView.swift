@@ -264,6 +264,39 @@ struct SecurityView: View {
         }
     }
 
+    /// Real device count from the server. Previously this row was hardcoded to
+    /// "1 device connected", so a user with several linked devices — or one whose
+    /// account had been added to a device they did not recognise — was told
+    /// everything was normal.
+    @State private var activeDeviceCount: Int?
+    @State private var activeSessionsFailed = false
+
+    private var activeSessionsSubtitle: String {
+        if let activeDeviceCount {
+            return activeDeviceCount == 1
+                ? "1 device connected"
+                : "\(activeDeviceCount) devices connected"
+        }
+        return activeSessionsFailed ? "Unavailable" : "Checking…"
+    }
+
+    private func loadActiveSessionCount() async {
+        guard activeDeviceCount == nil, !activeSessionsFailed else { return }
+        guard let userId = container.sessionService.currentUserId else {
+            activeSessionsFailed = true
+            return
+        }
+        do {
+            activeDeviceCount = try await container.signalKeyManager.registeredDeviceCount(
+                userId: userId)
+        } catch {
+            // Say so rather than substituting a plausible number.
+            activeSessionsFailed = true
+            SanchrLogger.sync.error(
+                "Active session count unavailable: \(error.localizedDescription)")
+        }
+    }
+
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Account")
@@ -271,8 +304,9 @@ struct SecurityView: View {
             featureRow(
                 icon: "desktopcomputer",
                 title: "Active Sessions",
-                subtitle: "1 device connected"
+                subtitle: activeSessionsSubtitle
             )
+            .task { await loadActiveSessionCount() }
 
             Button {
                 showDeleteAccount = true

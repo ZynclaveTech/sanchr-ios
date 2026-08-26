@@ -206,6 +206,7 @@ final class MessageCollectionViewController: UIViewController {
 
     var onReplyToMessage: ((Message) -> Void)?
     var onReactToMessage: ((String, String) -> Void)?
+    var onDeleteMessage: ((Message) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
@@ -959,7 +960,13 @@ final class MessageCollectionViewController: UIViewController {
         }
 
         if message.isOutgoing {
-            actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in })
+            actions.append(
+                UIAction(
+                    title: "Delete", image: UIImage(systemName: "trash"),
+                    attributes: .destructive
+                ) { [weak self] _ in
+                    self?.onDeleteMessage?(message)
+                })
         }
 
         return UIMenu(children: actions)

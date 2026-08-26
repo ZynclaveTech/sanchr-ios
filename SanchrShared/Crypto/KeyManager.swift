@@ -322,6 +322,12 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
             .contains(where: { $0.deviceID == deviceId && $0.keyCapable })
     }
 
+    /// Devices currently registered for `userId`. Used by Settings to report a real
+    /// session count instead of a hardcoded one.
+    public func registeredDeviceCount(userId: String) async throws -> Int {
+        try await fetchDeviceInfo(recipientId: userId).count
+    }
+
     private func fetchDeviceInfo(recipientId: String) async throws -> [Sanchr_Keys_DeviceInfo] {
         var request = Sanchr_Keys_GetUserDevicesRequest()
         request.userID = recipientId

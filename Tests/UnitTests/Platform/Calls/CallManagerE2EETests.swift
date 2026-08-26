@@ -1048,6 +1048,7 @@ private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked S
     func saveMessage(_ message: Message) async throws {}
     func deleteMessage(id: String) async throws {}
     func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {}
     func fetchContacts() async throws -> [User] { contacts }
     func fetchConversations() async throws -> [Conversation] { conversations }

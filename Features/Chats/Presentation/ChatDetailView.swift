@@ -304,6 +304,18 @@ struct ChatDetailView: View {
                             chatDataSource: container.chatDataSource
                         )
                     },
+                    onDeleteMessage: { message in
+                        Task {
+                            // Local-only: deleting for everyone needs a
+                            // confirmation step this menu does not present.
+                            await viewModel.deleteMessage(
+                                message,
+                                forEveryone: false,
+                                messageRepository: container.messageRepository,
+                                chatDataSource: container.chatDataSource
+                            )
+                        }
+                    },
                     onRetry: { message in
                         await viewModel.retryMessage(
                             message,

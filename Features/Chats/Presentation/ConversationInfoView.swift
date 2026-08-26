@@ -26,9 +26,9 @@ struct ConversationInfoView: View {
     @State private var showSharedContent = false
     @State private var showSearchConversation = false
     @State private var showExportChat = false
+    @State private var exportedTranscript: ExportedTranscript?
     @State private var showClearChat = false
     @State private var showBlockContact = false
-    @State private var showReportContact = false
     @State private var conversationActionErrorMessage: String?
 
     init(conversation: Conversation, recipient: User?) {
@@ -127,14 +127,23 @@ struct ConversationInfoView: View {
             VaultMediaView(conversationId: conversation.id)
         }
         .confirmationDialog("Export Chat", isPresented: $showExportChat) {
-            Button("Export with Media") {}
-            Button("Export without Media") {}
+            Button("Export Transcript") {
+                Task { await exportTranscript() }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Choose how to export this conversation")
+            // Only the text transcript. There was previously an "Export with
+            // Media" option that did nothing; offering it again would mean
+            // bundling and re-encrypting every attachment, which this does not do.
+            Text("Saves the message text of this conversation. Media is not included.")
+        }
+        .sheet(item: $exportedTranscript) { payload in
+            ShareSheet(items: [payload.url])
         }
         .alert("Clear Chat", isPresented: $showClearChat) {
-            Button("Clear All Messages", role: .destructive) {}
+            Button("Clear All Messages", role: .destructive) {
+                Task { await clearAllMessages() }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
@@ -162,14 +171,6 @@ struct ConversationInfoView: View {
         } message: {
             Text(
                 "Blocked contacts cannot send you messages or call you. You can unblock them later from Settings."
-            )
-        }
-        .alert("Report Contact", isPresented: $showReportContact) {
-            Button("Report", role: .destructive) {}
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                "Report this contact for inappropriate behavior. We'll review your report and take appropriate action."
             )
         }
         .alert("Couldn't update conversation", isPresented: Binding(
@@ -317,6 +318,83 @@ struct ConversationInfoView: View {
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    /// Deletes every message in this conversation and wipes any cached media.
+    ///
+    /// The dialog promises permanent deletion, so this removes the rows and the
+    /// decrypted files rather than hiding them — an attachment surviving its
+    /// message would leave exactly what the user asked to be gone.
+    private func clearAllMessages() async {
+        do {
+            let ids = try await container.localDatabase.deleteAllMessages(
+                conversationId: conversation.id)
+            for id in ids {
+                await container.mediaDownloadManager.removeCachedFile(messageId: id)
+            }
+            await MainActor.run {
+                NotificationCenter.default.postConversationStateDidChange(
+                    conversationId: conversation.id)
+            }
+            SanchrLogger.chat.info("Cleared \(ids.count) message(s) from \(conversation.id.prefix(8))")
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Clear chat failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Writes the conversation's message text to a file and offers it via the
+    /// share sheet. Text only — media is deliberately excluded.
+    private func exportTranscript() async {
+        do {
+            let messages = try await container.localDatabase.fetchMessages(
+                conversationId: conversation.id, before: nil, limit: 10_000)
+            guard !messages.isEmpty else {
+                conversationActionErrorMessage = "There are no messages to export."
+                return
+            }
+
+            let localUserId = container.signalProtocol.localUserId
+            let peerName = recipient?.displayName ?? "Unknown"
+            let stamp = DateFormatter()
+            stamp.dateFormat = "yyyy-MM-dd HH:mm"
+
+            var lines = ["Sanchr conversation with \(peerName)",
+                         "Exported \(stamp.string(from: Date()))",
+                         "Text only — media is not included.",
+                         ""]
+            for message in messages {
+                let who = message.senderId == localUserId ? "You" : peerName
+                lines.append("[\(stamp.string(from: message.timestamp))] \(who): \(Self.transcriptLine(for: message))")
+            }
+
+            // Written to the temporary directory so it is not left in a
+            // user-visible container after the share sheet closes.
+            let safeName = peerName.replacingOccurrences(of: "/", with: "-")
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Sanchr-\(safeName).txt")
+            try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+
+            exportedTranscript = ExportedTranscript(url: url)
+        } catch {
+            conversationActionErrorMessage = error.localizedDescription
+            SanchrLogger.chat.error("Export failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Attachments are described rather than embedded, so an export never
+    /// contains media the user was told it would not include.
+    private static func transcriptLine(for message: Message) -> String {
+        switch message.content {
+        case .text(let text): return text
+        case .image: return "[photo]"
+        case .video: return "[video]"
+        case .audio: return "[audio]"
+        case .document(let a): return "[document: \(a.filename ?? "file")]"
+        case .location: return "[location]"
+        case .contact(let name, _): return "[contact: \(name)]"
+        case .system(let event): return "[\(event.displayLabel)]"
         }
     }
 
@@ -687,13 +765,6 @@ struct ConversationInfoView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                showReportContact = true
-            } label: {
-                dangerRow(icon: "flag.fill", title: "Report Contact")
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
@@ -819,4 +890,21 @@ struct ConversationInfoView: View {
         let pair = gradients[index % gradients.count]
         return LinearGradient(colors: pair, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
+}
+
+/// Identifiable wrapper so the export share sheet can be presented with `.sheet(item:)`.
+struct ExportedTranscript: Identifiable {
+    let url: URL
+    var id: String { url.path }
+}
+
+/// Presents the system share sheet for an exported transcript.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
