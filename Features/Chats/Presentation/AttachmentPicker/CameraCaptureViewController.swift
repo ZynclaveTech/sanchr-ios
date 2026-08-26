@@ -115,6 +115,15 @@ final class CameraCaptureViewController: UIViewController {
         requestAccessAndConfigure()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
+        if let pending = pendingAlert {
+            pendingAlert = nil
+            presentAlert(for: pending)
+        }
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer.frame = previewContainer.bounds
@@ -238,7 +247,18 @@ final class CameraCaptureViewController: UIViewController {
     }
 
     @MainActor
+    /// Set once the controller is actually on screen. Presenting before that is
+    /// unreliable — an alert raised from viewDidLoad can simply never appear,
+    /// which left a denied-permission user looking at a black screen whose only
+    /// control was Cancel.
+    private var hasAppeared = false
+    private var pendingAlert: CameraAlertKind?
+
     private func presentAlert(for kind: CameraAlertKind) {
+        guard hasAppeared else {
+            pendingAlert = kind
+            return
+        }
         guard presentedViewController == nil else { return }
 
         let alert: UIAlertController
