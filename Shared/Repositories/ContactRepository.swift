@@ -7,9 +7,6 @@ protocol ContactRepositoryProtocol: AnyObject, Sendable {
     /// Fetches the user's contact list from the server.
     func fetchContacts() async throws -> [User]
 
-    /// Syncs device contacts with the server to discover Sanchr users.
-    func syncDeviceContacts(phoneNumbers: [String]) async throws -> [User]
-
     /// Searches for a user by phone number.
     func searchUser(phoneNumber: String) async throws -> User?
 
@@ -118,64 +115,6 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         }
 
         return users
-    }
-
-    func syncDeviceContacts(phoneNumbers: [String]) async throws -> [User] {
-        SanchrLogger.sync.info("Syncing \(phoneNumbers.count) device contacts")
-
-        // Hash phone numbers with SHA256 before sending to server
-        let hashes = phoneNumbers.map { phone -> Data in
-            let normalized = phone.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
-            return Data(SHA256.hash(data: Data(normalized.utf8)))
-        }
-
-        var request = Sanchr_Contacts_SyncContactsRequest()
-        request.phoneHashes = hashes
-
-        let response = try await grpcClient.contactService.syncContacts(request)
-
-        let matchedUsers = response.matches.map { match -> User in
-            var displayName = match.displayName
-            var bio: String? = match.statusText.isEmpty ? nil : match.statusText
-            var avatarURL: URL? = URL(string: match.avatarURL)
-
-            if !match.profileKey.isEmpty {
-                try? profileKeyStore.saveContactProfileKey(match.profileKey, forUserId: match.userID)
-
-                if let decrypted = tryDecrypt(match.encryptedDisplayName,
-                                              profileKey: match.profileKey, field: .displayName) {
-                    displayName = decrypted
-                }
-                if let decrypted = tryDecrypt(match.encryptedBio,
-                                              profileKey: match.profileKey, field: .bio) {
-                    bio = decrypted
-                }
-                if let decrypted = tryDecrypt(match.encryptedAvatarURL,
-                                              profileKey: match.profileKey, field: .avatarURL) {
-                    avatarURL = URL(string: decrypted)
-                }
-            }
-
-            return User(
-                id: match.userID,
-                phoneNumber: match.phoneNumber,
-                displayName: displayName,
-                avatarURL: avatarURL,
-                bio: bio,
-                isVerified: false,
-                lastSeen: nil,
-                identityKeyFingerprint: nil,
-                status: .offline
-            )
-        }
-
-        // Cache matched contacts locally
-        for user in matchedUsers {
-            try? await localDatabase.saveContact(user)
-        }
-
-        SanchrLogger.sync.info("Found \(matchedUsers.count) Sanchr users from device contacts")
-        return matchedUsers
     }
 
     func searchUser(phoneNumber: String) async throws -> User? {

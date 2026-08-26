@@ -295,7 +295,10 @@ struct ContactSyncView: View {
             grpcClient: container.grpcClient,
             localDatabase: container.localDatabase
         )
-        let useCase = ContactUseCases.SyncContacts(contactDataSource: contactDataSource)
+        let useCase = ContactUseCases.SyncContacts(
+            contactDataSource: contactDataSource,
+            discoveryRepository: container.discoveryRepository
+        )
 
         do {
             foundContacts = try await useCase.execute()
