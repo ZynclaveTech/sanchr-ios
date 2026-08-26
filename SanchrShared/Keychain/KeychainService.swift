@@ -29,6 +29,14 @@ public final class KeychainService: KeychainServiceProtocol, @unchecked Sendable
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
         let status = SecItemAdd(query as CFDictionary, nil)
+        // The delete above and this add are not atomic, so a concurrent writer
+        // (many presence envelopes each store the sender's Profile Key) can leave
+        // the item present when SecItemAdd runs — errSecDuplicateItem (-25299).
+        // Update in place rather than failing; the value is what matters.
+        if status == errSecDuplicateItem {
+            try update(data, forKey: key)
+            return
+        }
         guard status == errSecSuccess else {
             SanchrLogger.crypto.error("Keychain save failed: \(status)")
             throw AppError.keychainWriteFailed

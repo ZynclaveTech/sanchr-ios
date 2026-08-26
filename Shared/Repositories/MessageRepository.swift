@@ -170,6 +170,41 @@ actor MessageEnvelopeReplayGate {
     }
 }
 
+/// Gates profile-name resolution so it runs until it succeeds, then stops.
+///
+/// Resolution used to run only when a peer's Profile Key was *new*. But if an
+/// earlier attempt stored the key without resolving the name — a failed fetch, a
+/// decrypt miss, a stale build — every later message saw the key as "not new"
+/// and skipped resolution forever, so the name never appeared. This retries on
+/// each message while a peer is unresolved, coalesces concurrent attempts, and
+/// stops once resolved.
+private actor ProfileResolutionCoordinator {
+    private var resolved: Set<String> = []
+    private var inFlight: Set<String> = []
+
+    /// Returns true (and marks in-flight) if a resolution should start for `id`.
+    func begin(_ id: String) -> Bool {
+        guard !resolved.contains(id), !inFlight.contains(id) else { return false }
+        inFlight.insert(id)
+        return true
+    }
+
+    func succeed(_ id: String) {
+        inFlight.remove(id)
+        resolved.insert(id)
+    }
+
+    /// Allow a later message to retry.
+    func fail(_ id: String) {
+        inFlight.remove(id)
+    }
+
+    /// A changed key means the peer may have a new name; clear the resolved mark.
+    func invalidate(_ id: String) {
+        resolved.remove(id)
+    }
+}
+
 private actor SealedDropLogLimiter {
     private let interval: Int
     private var droppedCount = 0
@@ -203,6 +238,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
     private let sealedEnvelopeReplayGate = MessageEnvelopeReplayGate()
+    private let profileResolutionCoordinator = ProfileResolutionCoordinator()
     private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
@@ -915,20 +951,30 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 "Failed to store profile key from \(userId.prefix(8)): \(error.localizedDescription)")
             return
         }
-        guard isNewKey else { return }
-        Task { [weak self] in await self?.resolveProfile(userId: userId, profileKey: key) }
+        Task { [weak self] in
+            guard let self else { return }
+            // A rotated key may carry a new name — let it re-resolve.
+            if isNewKey { await self.profileResolutionCoordinator.invalidate(userId) }
+            guard await self.profileResolutionCoordinator.begin(userId) else { return }
+            let ok = await self.resolveProfile(userId: userId, profileKey: key)
+            if ok {
+                await self.profileResolutionCoordinator.succeed(userId)
+            } else {
+                await self.profileResolutionCoordinator.fail(userId)
+            }
+        }
     }
 
     /// Fetches a peer's encrypted profile, decrypts the display name with their
     /// Profile Key, and writes it onto the local contact row so the conversation
     /// list and header show a real name instead of the server placeholder.
-    private func resolveProfile(userId: String, profileKey: Data) async {
+    private func resolveProfile(userId: String, profileKey: Data) async -> Bool {
         do {
             var request = Sanchr_Settings_GetUserProfilesRequest()
             request.userIds = [userId]
             let response = try await grpcClient.settingsService.getUserProfiles(request)
             guard let profile = response.profiles.first(where: { $0.userID == userId }) else {
-                return
+                return false
             }
 
             let crypto = ProfileCryptor()
@@ -938,10 +984,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     profile.encryptedDisplayName, profileKey: profileKey, field: .displayName)
             }
             guard let name = resolvedName, !name.isEmpty else {
-                // Key does not open this ciphertext (peer's profile predates the key
-                // we hold, or was never uploaded). Nothing to show; the phone-number
+                // The key does not open this ciphertext: the peer's profile
+                // predates the key we hold, or was never uploaded. The phone-number
                 // fallback in the normalizer stands.
-                return
+                return false
             }
 
             var avatar: URL?
@@ -968,11 +1014,19 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 profileKey: profileKey
             )
             try? await localDatabase.saveContact(merged)
-            NotificationCenter.default.postConversationStateDidChange()
+            // Hop to the main thread: this runs inside a detached Task, and posting
+            // a change that drives SwiftUI updates off the main thread is ignored
+            // ("Publishing changes from background threads is not allowed"), so the
+            // name was written but the list never refreshed.
+            await MainActor.run {
+                NotificationCenter.default.postConversationStateDidChange()
+            }
             SanchrLogger.chat.info("Resolved profile name for \(userId.prefix(8))")
+            return true
         } catch {
             SanchrLogger.chat.warning(
                 "Profile resolve for \(userId.prefix(8)) failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -1339,6 +1393,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
 
+            // Every sealed payload carries the sender's Profile Key
+            // (InnerPayload.senderProfileKey). Extract it FIRST — before any
+            // content-type branch returns — because the most frequent envelopes
+            // (presence, typing, receipts) return early, and those are the best
+            // carriers precisely because they are frequent. Storing it here makes
+            // key distribution idempotent and self-healing regardless of what the
+            // payload turns out to be.
+            if let key = innerPayload.senderProfileKey,
+                !result.senderUserId.isEmpty,
+                result.senderUserId != currentUserIdProvider()
+            {
+                handleReceivedProfileKey(key, from: result.senderUserId)
+            }
+
             // 3. P2P Presence: route without touching message storage.
             if innerPayload.contentType == "presence/v1" {
                 var presenceUpdate = try Sanchr_Messaging_PresenceUpdate(
@@ -1359,18 +1427,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return .event(.presence(presenceUpdate))
             }
 
-            // 3a-bis. Every sealed payload carries the sender's Profile Key
-            // (InnerPayload.senderProfileKey). Store it whenever it is present, so
-            // distribution is idempotent — any message re-delivers the current
-            // key, a rotated key propagates on the next message, and there is no
-            // separate control message to lose. This is what replaced the fragile
-            // one-directional delivery that left every peer named "Sanchr User".
-            if let key = innerPayload.senderProfileKey,
-                !result.senderUserId.isEmpty,
-                result.senderUserId != currentUserIdProvider()
-            {
-                handleReceivedProfileKey(key, from: result.senderUserId)
-            }
 
             // 3b. Profile key distribution: store the sender's key so their encrypted
             // profile fields become readable. Arrives only over the Signal session —
