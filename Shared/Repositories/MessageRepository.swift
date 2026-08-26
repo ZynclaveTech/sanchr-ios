@@ -418,7 +418,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     func fetchCachedConversations() async throws -> [Conversation] {
-        try await normalizedLocalConversations(currentUserId: currentUserIdProvider())
+        let conversations = try await normalizedLocalConversations(
+            currentUserId: currentUserIdProvider())
+        // Resolution is otherwise only driven by inbound envelopes, so a peer we
+        // already hold a Profile Key for stays "Unknown" on a cold launch until
+        // they happen to send something. Kick off a proactive pass from the
+        // stored keys — the coordinator dedupes, so this is a no-op once resolved.
+        Task { [weak self] in await self?.resolveStoredProfilesIfNeeded() }
+        return conversations
     }
 
     func fetchConversations() async throws -> [Conversation] {
@@ -972,6 +979,44 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         }
     }
 
+    /// Resolves display names from Profile Keys we already hold, without waiting
+    /// for the peer to send an envelope.
+    ///
+    /// `handleReceivedProfileKey` only fires on inbound traffic, so a QR-paired
+    /// contact — whose key arrived once when the session was set up — reverts to
+    /// the placeholder on every cold launch until they next message. This walks
+    /// the stored conversations, and for any peer whose key is in the Keychain,
+    /// re-runs resolution through the same coordinator. The coordinator's
+    /// resolved/in-flight sets make it idempotent: a name that is already
+    /// resolved this launch costs nothing, and a stored key that no longer opens
+    /// the ciphertext simply fails and is retried on a later load.
+    func resolveStoredProfilesIfNeeded() async {
+        guard let conversations = try? await localDatabase.fetchConversations() else { return }
+        let localUserId = currentUserIdProvider()
+        var visited = Set<String>()
+        for conversation in conversations {
+            for participant in conversation.participants
+            where participant.id != localUserId && visited.insert(participant.id).inserted {
+                guard
+                    let key = try? profileKeyStore.contactProfileKey(forUserId: participant.id),
+                    key.count == Self.profileKeyByteCount
+                else { continue }
+                Task { [weak self] in
+                    guard let self else { return }
+                    guard await self.profileResolutionCoordinator.begin(participant.id) else {
+                        return
+                    }
+                    let ok = await self.resolveProfile(userId: participant.id, profileKey: key)
+                    if ok {
+                        await self.profileResolutionCoordinator.succeed(participant.id)
+                    } else {
+                        await self.profileResolutionCoordinator.fail(participant.id)
+                    }
+                }
+            }
+        }
+    }
+
     /// Fetches a peer's encrypted profile, decrypts the display name with their
     /// Profile Key, and writes it onto the local contact row so the conversation
     /// list and header show a real name instead of the server placeholder.
@@ -1021,13 +1066,31 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 profileKey: profileKey
             )
             try? await localDatabase.saveContact(merged)
+
+            // Persist the resolved name onto the stored conversation participants,
+            // not just the separate contact row. The conversation list, the chat
+            // header, and several refresh paths read the participant name straight
+            // from the conversation without joining contacts, so writing it here is
+            // what makes the name show — and stay — everywhere, rather than only in
+            // the one path that runs the contact-join normalizer.
+            if let convs = try? await localDatabase.fetchConversations() {
+                for var conv in convs
+                where conv.participants.contains(where: { $0.id == userId }) {
+                    conv.participants = conv.participants.map { p in
+                        guard p.id == userId else { return p }
+                        var updated = p
+                        updated.displayName = name
+                        if updated.avatarURL == nil { updated.avatarURL = avatar }
+                        return updated
+                    }
+                    try? await localDatabase.saveConversation(conv)
+                }
+            }
+
             // Hop to the main thread: this runs inside a detached Task, and posting
             // a change that drives SwiftUI updates off the main thread is ignored
-            // ("Publishing changes from background threads is not allowed"), so the
-            // name was written but the list never refreshed.
+            // ("Publishing changes from background threads is not allowed").
             await MainActor.run {
-                // A resolved name changes the contact join, not a single
-                // conversation's state, so drive the normalizing reload.
                 NotificationCenter.default.postContactProfileResolved(userId: userId)
             }
             SanchrLogger.chat.info("Resolved profile name for \(userId.prefix(8))")
@@ -1776,37 +1839,54 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 var normalizedParticipant = participant
                 let isLocal = participant.id == currentUserId
                 normalizedParticipant.isLocalUser = isLocal
-                if !isLocal, let contact = contactsLookup[participant.id] {
-                    // The server's plaintext display_name is the registration
-                    // placeholder for every account now that profile fields are
-                    // E2EE, so it has to count as unset alongside an empty name
-                    // and a name that is just the user id. Without this the
-                    // placeholder outranked the decrypted name from contacts and
-                    // every conversation was headed "Sanchr User".
-                    let name = normalizedParticipant.displayName
-                    if name.isEmpty
-                        || name == participant.id
-                        || name == User.serverPlaceholderDisplayName
-                    {
-                        normalizedParticipant.displayName = contact.displayName
-                    }
-                    if normalizedParticipant.avatarURL == nil {
-                        normalizedParticipant.avatarURL = contact.avatarURL
-                    }
-                }
+                guard !isLocal else { return normalizedParticipant }
 
-                // Still nothing usable — the peer's Profile Key has not arrived, so
-                // their name cannot be decrypted yet. Show the phone number rather
-                // than a placeholder that looks like a real name, matching what
-                // ContactRepository already does.
-                if !isLocal, normalizedParticipant.displayName == User.serverPlaceholderDisplayName {
-                    let phone = contactsLookup[participant.id]?.phoneNumber ?? ""
-                    normalizedParticipant.displayName = phone.isEmpty ? "Unknown contact" : phone
+                let contact = contactsLookup[participant.id]
+                if normalizedParticipant.avatarURL == nil {
+                    normalizedParticipant.avatarURL = contact?.avatarURL
                 }
+                normalizedParticipant.displayName = Self.displayTitle(
+                    for: participant, contact: contact)
                 return normalizedParticipant
             }
             return normalizedConversation
         }
+    }
+
+    /// The single rule for what a 1:1 peer is labelled as, so the list, header and
+    /// every refresh path agree. Priority, highest first:
+    ///
+    /// 1. A name saved in the local address book — trusted, shown verbatim.
+    ///    (Not wired yet: device-contact names are not captured, so this never
+    ///    fires today; it is the reserved top slot for that feature.)
+    /// 2. A known phone number for an unsaved peer — shown raw, WhatsApp-style, so
+    ///    an unverified stranger reads as a number and not as a trusted name.
+    /// 3. A decrypted Profile-Key name — prefixed with "~" to mark it as the
+    ///    peer's self-asserted name rather than one the user verified.
+    /// 4. "Unknown contact" — never the server's "Sanchr User" placeholder.
+    private static func displayTitle(for participant: User, contact: User?) -> String {
+        func isPlaceholder(_ name: String) -> Bool {
+            name.isEmpty
+                || name == participant.id
+                || name == User.serverPlaceholderDisplayName
+        }
+
+        // A real, decrypted name from either the contact row or the participant.
+        let profileName: String? = {
+            if let name = contact?.displayName, !isPlaceholder(name) { return name }
+            if !isPlaceholder(participant.displayName) { return participant.displayName }
+            return nil
+        }()
+
+        let phone: String? = {
+            if let p = contact?.phoneNumber, !p.isEmpty { return p }
+            if !participant.phoneNumber.isEmpty { return participant.phoneNumber }
+            return nil
+        }()
+
+        if let phone { return phone }
+        if let profileName { return "~\(profileName)" }
+        return "Unknown contact"
     }
 
     private func decodeContent(_ plaintext: Data, contentType: String) -> Message.MessageContent {
