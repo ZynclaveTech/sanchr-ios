@@ -297,7 +297,15 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             messageId: message.id,
             contentType: contentType,
             content: plaintext,
-            isSync: false
+            isSync: false,
+            // The disappearing timer travels inside the envelope so the recipient
+            // can enforce it. SendSealedMessageRequest has no TTL field, and the
+            // server should not learn the timer in any case.
+            expiresAfterSecs: {
+                let secs = DisappearingTimerStore.getDuration(
+                    conversationId: message.conversationId)
+                return secs > 0 ? secs : nil
+            }()
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -322,9 +330,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         var request = Sanchr_Messaging_SendSealedMessageRequest()
         request.deliveryToken = deliveryToken
         request.deviceMessages = sealedDeviceMessages
-        // NOTE: SendSealedMessageRequest has no expiresAfterSecs field — server-side
-        // disappearing-message enforcement is not applied on the sealed path.
-        // Client-side timers remain active. Follow-up: add expires_after_secs to proto.
+        // SendSealedMessageRequest deliberately carries no TTL field: the timer
+        // travels inside the sealed InnerPayload instead, so the server never
+        // learns it. Expiry is enforced on each device by
+        // DisappearingMessageSweeper, and fetchMessages hides anything past its
+        // deadline in the window before a sweep runs.
 
         let response = try await grpcClient.messagingService.sendSealedMessage(request)
 
@@ -539,7 +549,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 messageId: nil,
                 contentType: "receipt/v1",
                 content: content,
-                isSync: false
+                isSync: false,
+                // Control payloads carry no disappearing timer.
+                expiresAfterSecs: nil
             )
             let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -843,7 +855,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             messageId: nil,
             contentType: "presence/v1",
             content: content,
-            isSync: false
+            isSync: false,
+            // Control payloads carry no disappearing timer.
+            expiresAfterSecs: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -890,7 +904,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             messageId: nil,
             contentType: Self.profileKeyContentType,
             content: profileKey,
-            isSync: false
+            isSync: false,
+            // Control payloads carry no disappearing timer.
+            expiresAfterSecs: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -1320,6 +1336,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 innerPayloadMessageId: innerPayload.messageId
             )
 
+            // Disappearing timer travels inside the envelope. Anchor the deadline to
+            // the server timestamp rather than local arrival time, so a device that
+            // was offline for a week does not grant itself a fresh full lifetime on
+            // the messages it finally syncs.
+            let expiresAt: Date? = innerPayload.expiresAfterSecs
+                .flatMap { $0 > 0 ? $0 : nil }
+                .map { serverTimestamp.addingTimeInterval(TimeInterval($0)) }
+
             let message = Message(
                 id: messageId,
                 conversationId: innerPayload.conversationId,
@@ -1327,7 +1351,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 timestamp: serverTimestamp,
                 content: content,
                 status: isOutgoing ? .sent : .delivered,
-                isOutgoing: isOutgoing
+                isOutgoing: isOutgoing,
+                expiresAt: expiresAt
             )
 
             // 6. Ensure the conversation exists locally before saving.

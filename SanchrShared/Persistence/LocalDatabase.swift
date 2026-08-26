@@ -9,6 +9,10 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message]
     func deleteMessage(id: String) async throws
+
+    /// Deletes every message whose disappearing-message deadline has passed and
+    /// returns their ids so the caller can wipe the associated media files.
+    func purgeExpiredMessages() async throws -> [String]
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
@@ -208,6 +212,10 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         try await dbPool.read { db in
             var request = MessageRecord
                 .filter(Column("conversationId") == conversationId)
+                // Never surface an expired message, even if the sweeper has not
+                // run yet. Reading is the moment it would become visible, so the
+                // filter belongs here as well as in the purge.
+                .filter(Column("expiresAt") == nil || Column("expiresAt") > Date())
 
             if let before {
                 request = request.filter(Column("timestamp") < before)
@@ -236,6 +244,24 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
+        }
+    }
+
+    public func purgeExpiredMessages() async throws -> [String] {
+        try await dbPool.write { db in
+            let now = Date()
+            // Collect ids before deleting: the caller needs them to wipe cached
+            // media, and once the rows are gone the files are unreachable orphans.
+            let expired = try MessageRecord
+                .filter(Column("expiresAt") != nil && Column("expiresAt") <= now)
+                .fetchAll(db)
+            guard !expired.isEmpty else { return [] }
+
+            let ids = expired.map(\.id)
+            _ = try MessageRecord
+                .filter(ids.contains(Column("id")))
+                .deleteAll(db)
+            return ids
         }
     }
 
@@ -1437,6 +1463,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func saveIncomingMessageAndQueueAck(_ message: Message) async throws { throw error }
     public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { throw error }
     public func deleteMessage(id: String) async throws { throw error }
+    public func purgeExpiredMessages() async throws -> [String] { throw error }
     public func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { throw error }
     public func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { throw error }
     public func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { throw error }

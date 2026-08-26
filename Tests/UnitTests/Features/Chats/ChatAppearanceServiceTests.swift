@@ -160,6 +160,7 @@ private final class StubDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws { fatalError() }
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { fatalError() }
     func deleteMessage(id: String) async throws { fatalError() }
+    func purgeExpiredMessages() async throws -> [String] { [] }
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { fatalError() }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { fatalError() }
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { fatalError() }

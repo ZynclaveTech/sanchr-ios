@@ -276,7 +276,13 @@ public actor MessageSender {
                 timestamp: serverTimestamp,
                 content: .text(text),
                 status: .sent,
-                isOutgoing: true
+                isOutgoing: true,
+                // Our own copy must expire too — otherwise the sender keeps
+                // a permanent transcript of a conversation the recipient
+                // was told would disappear.
+                expiresAt: disappearingSecs > 0
+                    ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
+                    : nil
             )
             try await markMessageAsSent(
                 localMessageId: localId,
@@ -387,7 +393,13 @@ public actor MessageSender {
                 timestamp: serverTimestamp,
                 content: .location(latitude: latitude, longitude: longitude),
                 status: .sent,
-                isOutgoing: true
+                isOutgoing: true,
+                // Our own copy must expire too — otherwise the sender keeps
+                // a permanent transcript of a conversation the recipient
+                // was told would disappear.
+                expiresAt: disappearingSecs > 0
+                    ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
+                    : nil
             )
             try await markMessageAsSent(
                 localMessageId: localId,
@@ -561,7 +573,13 @@ public actor MessageSender {
                 timestamp: serverTimestamp,
                 content: contentForWire,
                 status: .sent,
-                isOutgoing: true
+                isOutgoing: true,
+                // Our own copy must expire too — otherwise the sender keeps
+                // a permanent transcript of a conversation the recipient
+                // was told would disappear.
+                expiresAt: disappearingSecs > 0
+                    ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
+                    : nil
             )
             try await markMessageAsSent(
                 localMessageId: localId,
@@ -670,7 +688,13 @@ public actor MessageSender {
                 timestamp: serverTimestamp,
                 content: .contact(name: name, phoneNumber: phoneNumber),
                 status: .sent,
-                isOutgoing: true
+                isOutgoing: true,
+                // Our own copy must expire too — otherwise the sender keeps
+                // a permanent transcript of a conversation the recipient
+                // was told would disappear.
+                expiresAt: disappearingSecs > 0
+                    ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
+                    : nil
             )
             try await markMessageAsSent(
                 localMessageId: localId,
@@ -829,7 +853,8 @@ public actor MessageSender {
                     conversationId: conversationId,
                     messageId: localMessageId,
                     recipientIds: recipientIds,
-                    senderId: senderId
+                    senderId: senderId,
+                    expiresAfterSecs: expiresAfterSecs
                 )
             }
             logger.info(

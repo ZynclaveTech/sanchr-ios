@@ -238,6 +238,14 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var vaultEKFScheduler: VaultEKFScheduler =
         VaultEKFScheduler(accessKeyStore: accessKeyStore)
 
+    /// Enforces disappearing-message deadlines on this device. Expiry is purely
+    /// local — the server only reaps undelivered ciphertext.
+    @ObservationIgnored lazy var disappearingSweeper: DisappearingMessageSweeper =
+        DisappearingMessageSweeper(
+            localDatabase: localDatabase,
+            mediaDownloadManager: mediaDownloadManager
+        )
+
     @ObservationIgnored lazy var discoveryRepository: DiscoveryRepositoryProtocol =
         DiscoveryRepository(grpcClient: grpcClient, oprfClient: oprfClient)
 

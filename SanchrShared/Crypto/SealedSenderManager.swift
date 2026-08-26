@@ -27,6 +27,14 @@ public struct InnerPayload: Codable, Sendable {
     public let contentType: String
     public let content: Data
     public let isSync: Bool
+    /// Disappearing-message lifetime in seconds, or nil when the conversation has
+    /// no timer set.
+    ///
+    /// This rides inside the sealed envelope rather than on the request, because
+    /// `SendSealedMessageRequest` has no TTL field and the server must not learn
+    /// the timer anyway. Optional so that payloads from clients predating this
+    /// field still decode, and so older clients ignore the extra key.
+    public let expiresAfterSecs: Int64?
 
     enum CodingKeys: String, CodingKey {
         case v
@@ -35,6 +43,7 @@ public struct InnerPayload: Codable, Sendable {
         case contentType = "content_type"
         case content
         case isSync = "is_sync"
+        case expiresAfterSecs = "expires_after_secs"
     }
 
     public init(
@@ -43,8 +52,10 @@ public struct InnerPayload: Codable, Sendable {
         messageId: String? = nil,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64? = nil
     ) {
+        self.expiresAfterSecs = expiresAfterSecs
         self.v = v
         self.conversationId = conversationId
         self.messageId = messageId
@@ -73,7 +84,8 @@ public protocol SealedSenderManagerProtocol: Sendable {
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data
 
     /// Decodes a JSON-encoded `InnerPayload`.
@@ -258,14 +270,16 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data {
         let payload = InnerPayload(
             conversationId: conversationId,
             messageId: messageId,
             contentType: contentType,
             content: content,
-            isSync: isSync
+            isSync: isSync,
+            expiresAfterSecs: expiresAfterSecs
         )
         do {
             return try JSONEncoder().encode(payload)
