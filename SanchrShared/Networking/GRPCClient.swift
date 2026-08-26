@@ -82,7 +82,8 @@ public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
             group: elg,
             host: configuration.grpcHost,
             port: configuration.grpcPort,
-            useTLS: configuration.useTLS
+            useTLS: configuration.useTLS,
+            pins: configuration.grpcCertificatePins
         )
         self.coreChannel = coreConn
 
@@ -90,7 +91,8 @@ public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
             group: elg,
             host: configuration.callHost,
             port: configuration.callPort,
-            useTLS: configuration.useTLS
+            useTLS: configuration.useTLS,
+            pins: configuration.callCertificatePins
         )
         self.callChannel = callConn
 
@@ -178,11 +180,38 @@ public final class SanchrGRPCClient: GRPCClientProtocol, @unchecked Sendable {
         group: EventLoopGroup,
         host: String,
         port: Int,
-        useTLS: Bool
+        useTLS: Bool,
+        pins: Set<String>
     ) -> ClientConnection {
         let builder: ClientConnection.Builder
         if useTLS {
-            builder = ClientConnection.usingPlatformAppropriateTLS(for: group)
+            if pins.isEmpty {
+                // No pins configured. The channel still gets ordinary system trust,
+                // but it is not pinned — a CA-level adversary can substitute a
+                // certificate, and this channel carries pre-key bundles. Loud
+                // because a release build reaching this line is a shipping defect.
+                SanchrLogger.security.critical(
+                    "TLS certificate pinning is NOT active for \(host) — no pins configured"
+                )
+                builder = ClientConnection.usingPlatformAppropriateTLS(for: group)
+            } else {
+                // NIOSSL rather than the platform TLS stack, because only the
+                // NIOSSL path exposes a verification callback we can pin in.
+                // Ordinary chain and hostname verification still runs first; the
+                // callback narrows what is acceptable, it does not replace it.
+                builder = ClientConnection.usingTLSBackedByNIOSSL(on: group)
+                    .withTLSCustomVerificationCallback { certificates, promise in
+                        do {
+                            try CertificatePinning.validate(chain: certificates, against: pins)
+                            promise.succeed(.certificateVerified)
+                        } catch {
+                            SanchrLogger.security.critical(
+                                "Rejecting TLS connection to \(host): \(error.localizedDescription)"
+                            )
+                            promise.succeed(.failed)
+                        }
+                    }
+            }
         } else {
             builder = ClientConnection.insecure(group: group)
         }

@@ -108,6 +108,7 @@ extension AuthInterceptorFactory: Sanchr_Auth_AuthServiceClientInterceptorFactor
     public func makeRefreshTokenInterceptors() -> [ClientInterceptor<Sanchr_Auth_RefreshTokenRequest, Sanchr_Auth_AuthResponse>] { makeInterceptors() }
     public func makeLogoutInterceptors() -> [ClientInterceptor<Sanchr_Auth_LogoutRequest, Sanchr_Auth_LogoutResponse>] { makeInterceptors() }
     public func makeDeleteAccountInterceptors() -> [ClientInterceptor<Sanchr_Auth_DeleteAccountRequest, Sanchr_Auth_DeleteAccountResponse>] { makeInterceptors() }
+    public func makeRequestOtpInterceptors() -> [ClientInterceptor<Sanchr_Auth_RequestOtpRequest, Sanchr_Auth_RequestOtpResponse>] { makeInterceptors() }
 }
 
 // MARK: - MessagingService Interceptors
@@ -147,6 +148,7 @@ extension AuthInterceptorFactory: Sanchr_Keys_KeyServiceClientInterceptorFactory
     public func makeUploadOneTimePreKeysInterceptors() -> [ClientInterceptor<Sanchr_Keys_UploadOneTimePreKeysRequest, Sanchr_Keys_PreKeyCountResponse>] { makeInterceptors() }
     public func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>] { makeInterceptors() }
     public func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>] { makeInterceptors() }
+    public func makeRemoveDeviceInterceptors() -> [ClientInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>] { makeInterceptors() }
 }
 
 // MARK: - MediaService Interceptors

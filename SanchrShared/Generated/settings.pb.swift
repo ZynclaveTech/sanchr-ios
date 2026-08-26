@@ -194,7 +194,7 @@ public struct Sanchr_Settings_UpdateProfileRequest: Sendable {
 
   public var statusText: String = String()
 
-  /// Encrypted profile fields (AES-256-GCM; server stores as opaque blobs).
+  /// Encrypted profile fields (AES-256-GCM). Server stores as opaque blobs.
   public var profileKey: Data = Data()
 
   public var encryptedDisplayName: Data = Data()
@@ -221,7 +221,7 @@ public struct Sanchr_Settings_ProfileResponse: Sendable {
 
   public var statusText: String = String()
 
-  /// Server echoes back the encrypted fields so the caller can verify persistence.
+  /// Server echoes back the persisted encrypted fields.
   public var profileKey: Data = Data()
 
   public var encryptedDisplayName: Data = Data()

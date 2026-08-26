@@ -6,10 +6,7 @@ import SanchrShared
 
 protocol ProfileDataSourceProtocol: AnyObject, Sendable {
     func updateProfile(
-        name: String,
         avatarURL: String,
-        status: String,
-        profileKey: Data,
         encryptedDisplayName: Data,
         encryptedBio: Data,
         encryptedAvatarURL: Data
@@ -43,24 +40,24 @@ final class ProfileDataSource: ProfileDataSourceProtocol, @unchecked Sendable {
     /// Updates the user's display name, avatar URL, and status text via SettingsService.UpdateProfile.
     /// Also sends encrypted profile fields (AES-256-GCM); server stores them as opaque blobs.
     func updateProfile(
-        name: String,
         avatarURL: String,
-        status: String,
-        profileKey: Data,
         encryptedDisplayName: Data,
         encryptedBio: Data,
         encryptedAvatarURL: Data
     ) async throws -> Sanchr_Settings_ProfileResponse {
         var request = Sanchr_Settings_UpdateProfileRequest()
-        request.displayName = name
+        // Only ciphertext leaves the device. The Profile Key is distributed to
+        // contacts over the Signal session (MessageRepository.sendProfileKey); it is
+        // never uploaded, because sending it alongside the ciphertext it protects
+        // handed the server both halves. displayName and statusText are likewise no
+        // longer sent in the clear — doing so made the encryption decorative
+        // regardless of how the key travelled.
         request.avatarURL = avatarURL
-        request.statusText = status
-        request.profileKey = profileKey
         request.encryptedDisplayName = encryptedDisplayName
         request.encryptedBio = encryptedBio
         request.encryptedAvatarURL = encryptedAvatarURL
 
-        SanchrLogger.network.info("ProfileDataSource: updateProfile name=\(name.prefix(10))...")
+        SanchrLogger.network.info("ProfileDataSource: updateProfile (encrypted fields only)")
         return try await settingsClient.updateProfile(request)
     }
 

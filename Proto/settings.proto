@@ -46,7 +46,7 @@ message UpdateProfileRequest {
   string display_name = 1;
   string avatar_url   = 2;
   string status_text  = 3;
-  // Encrypted profile fields (AES-256-GCM; server stores as opaque blobs).
+  // Encrypted profile fields (AES-256-GCM). Server stores as opaque blobs.
   bytes profile_key             = 4;
   bytes encrypted_display_name  = 5;
   bytes encrypted_bio           = 6;
@@ -58,7 +58,7 @@ message ProfileResponse {
   string display_name = 2;
   string avatar_url   = 3;
   string status_text  = 4;
-  // Server echoes back the encrypted fields so the caller can verify persistence.
+  // Server echoes back the persisted encrypted fields.
   bytes profile_key             = 5;
   bytes encrypted_display_name  = 6;
   bytes encrypted_bio           = 7;

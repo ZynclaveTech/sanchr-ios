@@ -244,9 +244,6 @@ struct ChatShareActivityView: UIViewControllerRepresentable {
 /// `fetchContacts` so a misuse is loud.
 final class BootstrapContactRepository: ContactRepositoryProtocol, @unchecked Sendable {
     func fetchContacts() async throws -> [User] { [] }
-    func syncDeviceContacts(phoneNumbers: [String]) async throws -> [User] {
-        fatalError("ChatDetailView bootstrap repo should never be called")
-    }
     func searchUser(phoneNumber: String) async throws -> User? {
         fatalError("ChatDetailView bootstrap repo should never be called")
     }

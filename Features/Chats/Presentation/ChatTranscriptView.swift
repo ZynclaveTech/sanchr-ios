@@ -29,6 +29,7 @@ struct ChatTranscriptView: View {
     /// `viewModel` (see ChatDetailView.chatBaseView).
     var onReply: (Message) -> Void
     var onReact: (String, String) -> Void
+    var onDeleteMessage: (Message) -> Void
     var onRetry: (Message) async -> Void
     var onLoadMore: () async -> Void
     var onRouteInteraction: (MessageInteraction) -> Void
@@ -45,6 +46,9 @@ struct ChatTranscriptView: View {
             onReply: onReply,
             onReact: { emoji, messageId in
                 onReact(emoji, messageId)
+            },
+            onDeleteMessage: { message in
+                onDeleteMessage(message)
             },
             onForward: { message in
                 messageToForward = message

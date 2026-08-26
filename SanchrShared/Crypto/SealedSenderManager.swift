@@ -27,6 +27,14 @@ public struct InnerPayload: Codable, Sendable {
     public let contentType: String
     public let content: Data
     public let isSync: Bool
+    /// Disappearing-message lifetime in seconds, or nil when the conversation has
+    /// no timer set.
+    ///
+    /// This rides inside the sealed envelope rather than on the request, because
+    /// `SendSealedMessageRequest` has no TTL field and the server must not learn
+    /// the timer anyway. Optional so that payloads from clients predating this
+    /// field still decode, and so older clients ignore the extra key.
+    public let expiresAfterSecs: Int64?
 
     enum CodingKeys: String, CodingKey {
         case v
@@ -35,6 +43,7 @@ public struct InnerPayload: Codable, Sendable {
         case contentType = "content_type"
         case content
         case isSync = "is_sync"
+        case expiresAfterSecs = "expires_after_secs"
     }
 
     public init(
@@ -43,8 +52,10 @@ public struct InnerPayload: Codable, Sendable {
         messageId: String? = nil,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64? = nil
     ) {
+        self.expiresAfterSecs = expiresAfterSecs
         self.v = v
         self.conversationId = conversationId
         self.messageId = messageId
@@ -73,7 +84,8 @@ public protocol SealedSenderManagerProtocol: Sendable {
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data
 
     /// Decodes a JSON-encoded `InnerPayload`.
@@ -108,9 +120,27 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
     /// Minimum remaining validity before forcing a certificate refresh (1 hour).
     private static let certRefreshMarginSeconds: TimeInterval = 3600
 
-    /// Server trust root public key bytes.
-    /// TODO: Replace with real server trust root key before production.
-    static let serverTrustRootBytes: [UInt8] = Array(repeating: 0, count: 32)
+    /// Server trust-root public key — 33 bytes, type-prefixed Curve25519
+    /// (`[0x05, ...32 bytes...]`) — derived from the backend's
+    /// `auth.sealed_sender_key` via
+    /// `cargo run -p sanchr-server-crypto --bin print-trust-root`.
+    ///
+    /// Currently unused in iOS's send path (which uses Signal-encrypt +
+    /// delivery tokens rather than libsignal sealed-sender envelopes — see
+    /// `EncryptedMessageSendingClient.sendSealedMessage` line 225-229 where
+    /// the cert fetch result is discarded). Kept here so the constant is in
+    /// place when iOS migrates to libsignal sealed-sender, and as parity
+    /// with the Android `BuildConfig.SEALED_SENDER_TRUST_ROOT` baked in by
+    /// `core/crypto/build.gradle.kts`. Rotation: when the backend's
+    /// `sealed-sender-key` changes, regenerate this value alongside the
+    /// Android default.
+    static let serverTrustRootBytes: [UInt8] = [
+        0x05, 0x91, 0x44, 0x97, 0x06, 0x98, 0x51, 0x42,
+        0xe7, 0xc8, 0xc1, 0x5f, 0x0e, 0xb4, 0x00, 0x76,
+        0xe3, 0x46, 0xce, 0x5f, 0x57, 0x30, 0x63, 0x68,
+        0xfd, 0xb0, 0x88, 0xb8, 0xfd, 0x8d, 0xf0, 0x34,
+        0x36,
+    ]
 
     // MARK: - Keychain Keys
 
@@ -240,14 +270,16 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data {
         let payload = InnerPayload(
             conversationId: conversationId,
             messageId: messageId,
             contentType: contentType,
             content: content,
-            isSync: isSync
+            isSync: isSync,
+            expiresAfterSecs: expiresAfterSecs
         )
         do {
             return try JSONEncoder().encode(payload)

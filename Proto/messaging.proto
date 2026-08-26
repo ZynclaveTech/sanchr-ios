@@ -15,6 +15,7 @@ service MessagingService {
   rpc GetSenderCertificate(SenderCertificateRequest) returns (SenderCertificateResponse);
   rpc GetDeliveryTokens(DeliveryTokenRequest) returns (DeliveryTokenResponse);
   rpc SendSealedMessage(SendSealedMessageRequest) returns (SendSealedMessageResponse);
+  rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
 }
 
 message StartDirectConversationRequest {
@@ -253,6 +254,10 @@ message SealedDeviceMessage {
   string recipient_id = 1;
   int32 device_id = 2;
   bytes sealed_envelope = 3;
+  // Optional cleartext routing metadata. It lets the server honor
+  // per-device conversation notification mutes before sending silent APNs,
+  // while the sealed envelope remains opaque.
+  string conversation_id = 4;
 }
 
 message SendSealedMessageResponse {
@@ -263,4 +268,12 @@ message SealedInboundMessage {
   bytes sealed_envelope = 1;
   int64 server_timestamp = 2;
   string message_id = 3;
+}
+
+message DeleteConversationRequest {
+  string conversation_id = 1;
+}
+
+message DeleteConversationResponse {
+  bool success = 1;
 }

@@ -43,6 +43,10 @@ private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
     func markIdentityVerified(userId: String) {}
     func isIdentityVerified(userId: String) -> Bool { false }
+    func identityVerifiedAt(userId: String) -> Date? { nil }
+    func unmarkIdentityVerified(userId: String) {}
+    func hasPendingIdentityChange(userId: String) -> Bool { false }
+    func acceptIdentityChange(userId: String) {}
     func localIdentityKeyData() throws -> Data { Data() }
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
@@ -87,6 +91,10 @@ private final class RecordingSignalManager: SignalProtocolManagerProtocol, @unch
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
     func markIdentityVerified(userId: String) {}
     func isIdentityVerified(userId: String) -> Bool { false }
+    func identityVerifiedAt(userId: String) -> Date? { nil }
+    func unmarkIdentityVerified(userId: String) {}
+    func hasPendingIdentityChange(userId: String) -> Bool { false }
+    func acceptIdentityChange(userId: String) {}
     func localIdentityKeyData() throws -> Data { Data() }
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
@@ -1020,6 +1028,10 @@ private final class DeviceRecordingSignalManager: SignalProtocolManagerProtocol,
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
     func markIdentityVerified(userId: String) {}
     func isIdentityVerified(userId: String) -> Bool { false }
+    func identityVerifiedAt(userId: String) -> Date? { nil }
+    func unmarkIdentityVerified(userId: String) {}
+    func hasPendingIdentityChange(userId: String) -> Bool { false }
+    func acceptIdentityChange(userId: String) {}
     func localIdentityKeyData() throws -> Data { Data() }
     func remoteIdentityKeyData(for userId: String, deviceId: Int32) throws -> Data { Data() }
 }
@@ -1035,6 +1047,10 @@ private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked S
 
     func saveMessage(_ message: Message) async throws {}
     func deleteMessage(id: String) async throws {}
+    func purgeExpiredMessages() async throws -> [String] { [] }
+    func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
+    func disappearingDuration(conversationId: String) async throws -> Int64 { 0 }
+    func setDisappearingDuration(conversationId: String, seconds: Int64) async throws {}
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {}
     func fetchContacts() async throws -> [User] { contacts }
     func fetchConversations() async throws -> [Conversation] { conversations }

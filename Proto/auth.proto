@@ -3,6 +3,7 @@ package sanchr.auth;
 
 service AuthService {
   rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse);
   rpc VerifyOTP(VerifyOTPRequest) returns (AuthResponse);
   rpc Login(LoginRequest) returns (AuthResponse);
   rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
@@ -23,6 +24,19 @@ message RegisterRequest {
   string password = 3;
   string email = 4;
   DeviceInfo device = 5;
+}
+
+message RequestOtpRequest {
+  string phone_number = 1;
+  DeviceInfo device   = 2;
+}
+
+message RequestOtpResponse {
+  // Seconds until the issued OTP expires.
+  int64 expires_in_seconds = 1;
+  // True if the phone is already a verified user (the OTP was issued for
+  // login); false if a pending registration was created/refreshed.
+  bool existing_user = 2;
 }
 
 message VerifyOTPRequest {

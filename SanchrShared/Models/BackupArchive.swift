@@ -559,24 +559,7 @@ public enum BackupArchiveContentCodec {
     }
 
     private static func previewText(for event: Message.SystemEvent) -> String {
-        switch event {
-        case .identityKeyChanged:
-            return "Safety number changed"
-        case .disappearingTimerChanged:
-            return "Disappearing timer updated"
-        case .groupCreated:
-            return "Group created"
-        case .memberAdded:
-            return "Member added"
-        case .memberRemoved:
-            return "Member removed"
-        case .screenshotDetected:
-            return "Screenshot detected"
-        case .viewOnceConsumed:
-            return "Viewed"
-        case .autoVaulted:
-            return "Auto-vaulted media"
-        }
+        event.displayLabel
     }
 
     private static func encode<T: Encodable>(_ value: T) throws -> String {

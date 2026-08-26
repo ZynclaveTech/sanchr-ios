@@ -117,16 +117,7 @@ struct MessageBubble: View {
     }
 
     private func systemEventLabel(_ event: Message.SystemEvent) -> String {
-        switch event {
-        case .identityKeyChanged: return "Security code changed"
-        case .disappearingTimerChanged: return "Disappearing timer changed"
-        case .groupCreated: return "Group created"
-        case .memberAdded: return "Member added"
-        case .memberRemoved: return "Member removed"
-        case .screenshotDetected: return "Screenshot detected"
-        case .viewOnceConsumed: return "Viewed"
-        case .autoVaulted: return "Auto-vaulted media"
-        }
+        event.displayLabel
     }
 
     @ViewBuilder
@@ -167,28 +158,57 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
-            MediaBubbleImage(
-                attachment: attachment,
-                messageId: message.id,
-                conversationId: message.conversationId,
-                isOutgoing: message.isOutgoing,
-                uploadProgress: uploadProgress,
-                uploadLabel: uploadLabel
-            )
+            // View-once media must not render its contents in the transcript.
+            // Showing a thumbnail defeats the feature before the recipient ever
+            // taps: the image is on screen indefinitely, and the delete-after-view
+            // step only removes something already seen.
+            if attachment.isViewOnce == true {
+                ViewOnceBubble(
+                    attachment: attachment,
+                    isVideo: false,
+                    isOutgoing: message.isOutgoing,
+                    isConsumed: false
+                )
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+            } else {
+                MediaBubbleImage(
+                    attachment: attachment,
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                    isOutgoing: message.isOutgoing,
+                    uploadProgress: uploadProgress,
+                    uploadLabel: uploadLabel
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openMedia(messageId: message.id))
+                }
+            }
 
         case .video(let attachment):
-            MediaBubbleImage(
-                attachment: attachment,
-                messageId: message.id,
-                conversationId: message.conversationId,
-                isOutgoing: message.isOutgoing,
-                uploadProgress: uploadProgress,
-                uploadLabel: uploadLabel
-            )
+            if attachment.isViewOnce == true {
+                ViewOnceBubble(
+                    attachment: attachment,
+                    isVideo: true,
+                    isOutgoing: message.isOutgoing,
+                    isConsumed: false
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openMedia(messageId: message.id))
+                }
+            } else {
+                MediaBubbleImage(
+                    attachment: attachment,
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                    isOutgoing: message.isOutgoing,
+                    uploadProgress: uploadProgress,
+                    uploadLabel: uploadLabel
+                )
                 .overlay {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 44))
@@ -199,6 +219,7 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+            }
 
         case .audio(let attachment):
             if attachment.isVoiceMessage == true,
