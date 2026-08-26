@@ -1,6 +1,14 @@
 import Foundation
 import LibSignalClient
 
+extension Notification.Name {
+    /// Posted when an identity change is first detected, or when one is resolved.
+    /// The UI observes this so a key change surfaces while the chat is open rather
+    /// than only on next appearance.
+    public static let sanchrIdentityChangeStateDidChange = Notification.Name(
+        "io.sanchr.crypto.identityChangeStateDidChange")
+}
+
 /// Manages identity key storage and trust decisions for the Signal Protocol.
 ///
 /// The local identity key pair is persisted in the iOS Keychain via `KeychainServiceProtocol`.
@@ -161,6 +169,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
             )
             savePendingChangesToDisk()
             saveVerifiedToDisk()
+            postIdentityChangeStateChanged(userId: address.name)
         }
 
         guard changePending else { return true }
@@ -230,6 +239,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         saveVerifiedToDisk()
         savePendingChangesToDisk()
         saveTrustedIdentitiesToDisk()
+        postIdentityChangeStateChanged(userId: userId)
         SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
     }
 
@@ -259,6 +269,7 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         }
         savePendingChangesToDisk()
         saveTrustedIdentitiesToDisk()
+        postIdentityChangeStateChanged(userId: userId)
         SanchrLogger.crypto.info(
             "Accepted identity change for \(userId.prefix(8))... — sending unblocked")
     }
@@ -270,6 +281,14 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
             trustedIdentities[address] = identity
             pendingIdentityChanges.removeValue(forKey: address)
         }
+    }
+
+    private func postIdentityChangeStateChanged(userId: String) {
+        NotificationCenter.default.post(
+            name: .sanchrIdentityChangeStateDidChange,
+            object: nil,
+            userInfo: ["userId": userId]
+        )
     }
 
     /// Removes verification for a user (e.g., after unblock or manual reset).

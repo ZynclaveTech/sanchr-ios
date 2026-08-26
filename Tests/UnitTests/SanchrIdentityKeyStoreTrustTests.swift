@@ -236,6 +236,38 @@ final class SanchrIdentityKeyStoreTrustTests: XCTestCase {
 
     // MARK: - Persistence
 
+    // MARK: - Warning copy
+
+    /// A decryption failure and a real key change previously produced the *same*
+    /// "Security code changed" message, which trained users to dismiss the one
+    /// warning that matters. They must stay distinguishable.
+    func test_decryptionFailureAndKeyChange_haveDistinctLabels() {
+        XCTAssertNotEqual(
+            Message.SystemEvent.identityKeyChanged.displayLabel,
+            Message.SystemEvent.decryptionFailed.displayLabel
+        )
+        XCTAssertEqual(
+            Message.SystemEvent.identityKeyChanged.displayLabel, "Security code changed")
+    }
+
+    /// Guards the reply banner, which previously rendered `event.rawValue` and so
+    /// showed raw enum names like "identityKeyChanged" to users.
+    func test_everySystemEvent_hasNonIdentifierLabel() {
+        let events: [Message.SystemEvent] = [
+            .identityKeyChanged, .decryptionFailed, .disappearingTimerChanged, .groupCreated,
+            .memberAdded, .memberRemoved, .screenshotDetected, .viewOnceConsumed, .autoVaulted,
+        ]
+        for event in events {
+            XCTAssertNotEqual(
+                event.displayLabel, event.rawValue,
+                "\(event.rawValue) is rendering its raw identifier as user-facing copy")
+            XCTAssertFalse(event.displayLabel.isEmpty, "\(event.rawValue) has no label")
+            XCTAssertTrue(
+                event.displayLabel.first?.isUppercase == true,
+                "\(event.rawValue) label is not sentence-cased user-facing copy")
+        }
+    }
+
     func test_pendingChange_survivesRestart() throws {
         let addr = try address(alice)
         try seed(identity(), for: addr)
