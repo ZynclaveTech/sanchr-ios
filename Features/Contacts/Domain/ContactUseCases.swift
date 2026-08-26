@@ -115,16 +115,40 @@ enum ContactUseCases {
             self.localDatabase = localDatabase
         }
 
-        /// Fetches contacts from the server. Falls back to local cache on failure.
+        /// Returns the user's full contact list: phone-discovered contacts from
+        /// the server AND peers that only exist locally — QR-paired contacts, whom
+        /// the server's phone-number discovery never returns but who were resolved
+        /// from a conversation and saved to the local table.
         func execute() async throws -> [User] {
+            // Refresh from the server. This also persists server contacts into the
+            // local table; the saveContact guard keeps any locally-resolved name
+            // from being overwritten by the server's "Sanchr User" placeholder. On
+            // failure the local cache already holds the last good server sync.
             do {
-                let serverContacts = try await contactDataSource.getContacts()
-                return serverContacts
+                _ = try await contactDataSource.getContacts()
             } catch {
                 SanchrLogger.sync.warning(
-                    "Server fetch failed, falling back to local cache: \(error.localizedDescription)"
+                    "Server contact fetch failed, using local cache: \(error.localizedDescription)"
                 )
-                return try await localDatabase.fetchContacts()
+            }
+            let localContacts = (try? await localDatabase.fetchContacts()) ?? []
+            return Self.presentableContacts(localContacts)
+        }
+
+        /// Keeps only entries worth listing — one with a real name or a phone
+        /// number. Drops rows that are just a bare placeholder with nothing to
+        /// show (e.g. an unresolved participant with neither).
+        private static func presentableContacts(_ users: [User]) -> [User] {
+            users.filter { user in
+                let name = user.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let hasRealName =
+                    !name.isEmpty
+                    && name != User.serverPlaceholderDisplayName
+                    && name != user.id
+                    && UUID(uuidString: name) == nil
+                let hasPhone = !user.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty
+                return hasRealName || hasPhone
             }
         }
     }
