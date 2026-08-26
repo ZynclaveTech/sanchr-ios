@@ -6,15 +6,31 @@ import SanchrShared
 /// Domain use cases for contact operations.
 enum ContactUseCases {
 
-    /// Syncs device contacts with the Sanchr server using SHA-256 hashed phone numbers.
+    /// Discovers which device contacts are Sanchr users via OPRF-PSI, then resolves
+    /// only the matches to user records.
+    ///
+    /// The address book previously went to the server as unsalted `SHA-256(e164)`
+    /// hashes. Phone numbers are a small, structured space, so those hashes are
+    /// trivially reversible: the server learned the caller's entire contact list.
+    ///
+    /// Now the whole address book is evaluated through the OPRF, where the server
+    /// sees only blinded Ristretto255 points and learns nothing about which numbers
+    /// were queried. Only the numbers that actually matched are then resolved to
+    /// user records, so the server observes the intersection — the people you are
+    /// about to be able to message — instead of everyone you have ever met.
     struct SyncContacts: Sendable {
         private let contactDataSource: ContactDataSource
+        private let discoveryRepository: DiscoveryRepositoryProtocol
 
-        init(contactDataSource: ContactDataSource) {
+        init(
+            contactDataSource: ContactDataSource,
+            discoveryRepository: DiscoveryRepositoryProtocol
+        ) {
             self.contactDataSource = contactDataSource
+            self.discoveryRepository = discoveryRepository
         }
 
-        /// Requests contact access, hashes phone numbers with SHA-256, and calls SyncContacts RPC.
+        /// Requests contact access, runs OPRF discovery, and resolves matches.
         func execute() async throws -> [User] {
             // 1. Request Contacts permission
             let store = CNContactStore()
@@ -37,25 +53,42 @@ enum ContactUseCases {
 
             try store.enumerateContacts(with: request) { contact, _ in
                 for number in contact.phoneNumbers {
-                    let normalized = number.value.stringValue
-                        .replacingOccurrences(of: " ", with: "")
-                        .replacingOccurrences(of: "-", with: "")
-                        .replacingOccurrences(of: "(", with: "")
-                        .replacingOccurrences(of: ")", with: "")
+                    // Use the shared normalizer so the string we blind is byte-identical
+                    // to the one the server hashed when it built the registered set.
+                    // A second, slightly different normalizer here would silently
+                    // produce zero matches.
+                    let normalized = ContactDataSource.normalizePhoneNumber(
+                        number.value.stringValue)
                     if !normalized.isEmpty {
                         phoneNumbers.append(normalized)
                     }
                 }
             }
 
+            // De-duplicate: the same number often appears on several contact cards,
+            // and every duplicate is another point the server has to evaluate.
+            phoneNumbers = Array(Set(phoneNumbers))
+
             SanchrLogger.sync.info("Found \(phoneNumbers.count) phone numbers on device")
 
             guard !phoneNumbers.isEmpty else { return [] }
 
-            // 3. Hash phone numbers with SHA-256 for privacy
-            let hashes = phoneNumbers.map { ContactDataSource.hashPhoneNumber($0) }
+            // 3. OPRF-PSI: determine which numbers are registered without telling the
+            // server which numbers we asked about. Deliberately no fallback to the
+            // legacy hash upload — falling back would leak the whole address book,
+            // which is the thing this exists to prevent. Better to fail the sync.
+            let matched = try await discoveryRepository.discoverContacts(
+                phoneNumbers: phoneNumbers)
 
-            // 4. Send hashes to server
+            SanchrLogger.sync.info(
+                "OPRF discovery matched \(matched.count) of \(phoneNumbers.count) numbers")
+
+            guard !matched.isEmpty else { return [] }
+
+            // 4. Resolve only the matches to user records. The server necessarily
+            // learns this set — it has to, to return the accounts — but that is the
+            // intersection, not the address book.
+            let hashes = matched.map { ContactDataSource.hashPhoneNumber($0) }
             return try await contactDataSource.syncContacts(phoneHashes: hashes)
         }
     }
