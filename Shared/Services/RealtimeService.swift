@@ -10,6 +10,11 @@ extension Notification.Name {
     static let sanchrRealtimeReceiptUpdated = Notification.Name("io.sanchr.realtime.receiptUpdated")
     static let sanchrRealtimePresenceUpdated = Notification.Name("io.sanchr.realtime.presenceUpdated")
     static let sanchrRealtimeReactionReceived = Notification.Name("io.sanchr.realtime.reactionReceived")
+    /// A peer's encrypted profile was fetched and decrypted, so a cached
+    /// display name may now be stale. Unlike a conversation-state change this
+    /// affects the contact join, so the list must re-run the normalizing fetch
+    /// rather than reload raw cached rows.
+    static let sanchrContactProfileResolved = Notification.Name("io.sanchr.realtime.contactProfileResolved")
 }
 
 enum RealtimeNotificationKey {
@@ -27,6 +32,12 @@ extension NotificationCenter {
             userInfo = [RealtimeNotificationKey.conversationId: conversationId]
         }
         post(name: .sanchrConversationStateDidChange, object: nil, userInfo: userInfo)
+    }
+
+    func postContactProfileResolved(userId: String) {
+        post(
+            name: .sanchrContactProfileResolved, object: nil,
+            userInfo: [RealtimeNotificationKey.conversationId: userId])
     }
 }
 

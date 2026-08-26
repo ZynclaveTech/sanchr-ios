@@ -1019,7 +1019,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // ("Publishing changes from background threads is not allowed"), so the
             // name was written but the list never refreshed.
             await MainActor.run {
-                NotificationCenter.default.postConversationStateDidChange()
+                // A resolved name changes the contact join, not a single
+                // conversation's state, so drive the normalizing reload.
+                NotificationCenter.default.postContactProfileResolved(userId: userId)
             }
             SanchrLogger.chat.info("Resolved profile name for \(userId.prefix(8))")
             return true
