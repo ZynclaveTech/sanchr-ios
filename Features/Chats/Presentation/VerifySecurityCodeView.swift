@@ -588,67 +588,212 @@ private struct QRScannerRepresentable: UIViewControllerRepresentable {
 private class QRScannerViewController: UIViewController {
     private let onScanned: (Data) -> Void
     private var captureSession: AVCaptureSession?
+    private var previewLayer: AVCaptureVideoPreviewLayer?
     private var hasScanned = false
+
+    /// Held here rather than via objc_setAssociatedObject with a String key, which
+    /// only worked because of literal interning and left the delegate's lifetime
+    /// tied to an output object by accident.
+    private var metadataDelegate: QRScannerDelegate?
+
+    /// AVCaptureSession start/stop block. Doing either on the main thread stalls
+    /// the UI for as long as the camera takes to spin up or tear down.
+    private let sessionQueue = DispatchQueue(label: "io.sanchr.qr-scanner.session")
 
     init(onScanned: @escaping (Data) -> Void) {
         self.onScanned = onScanned
         super.init(nibName: nil, bundle: nil)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupCamera()
+        view.backgroundColor = .black
+        configureForCurrentAuthorization()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        if let previewLayer = view.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
-            previewLayer.frame = view.bounds
-        }
-    }
-
-    private func setupCamera() {
-        let session = AVCaptureSession()
-        guard let device = AVCaptureDevice.default(for: .video),
-            let input = try? AVCaptureDeviceInput(device: device)
-        else { return }
-
-        if session.canAddInput(input) {
-            session.addInput(input)
-        }
-
-        let output = AVCaptureMetadataOutput()
-        if session.canAddOutput(output) {
-            session.addOutput(output)
-            let delegate = QRScannerDelegate { [weak self] data in
-                guard let self, !self.hasScanned else { return }
-                self.hasScanned = true
-                self.captureSession?.stopRunning()
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                self.onScanned(data)
-            }
-            objc_setAssociatedObject(output, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
-            output.setMetadataObjectsDelegate(delegate, queue: .main)
-            output.metadataObjectTypes = [.qr]
-        }
-
-        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.frame = view.bounds
-        previewLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(previewLayer)
-
-        self.captureSession = session
-        let capturedSession = session
-        DispatchQueue.global(qos: .userInitiated).async { [weak capturedSession] in
-            capturedSession?.startRunning()
-        }
+        previewLayer?.frame = view.bounds
+        messageStack?.frame = view.bounds
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        captureSession?.stopRunning()
+        let session = captureSession
+        sessionQueue.async { session?.stopRunning() }
+    }
+
+    // MARK: - Authorization
+
+    /// Decides what the sheet shows. Previously there was no check at all: a
+    /// denied permission fell through `try?` and returned silently, leaving the
+    /// user staring at a black rectangle with no explanation and no way forward.
+    private func configureForCurrentAuthorization() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            startCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if granted {
+                        self.startCamera()
+                    } else {
+                        self.showMessage(
+                            title: "Camera access needed",
+                            body: "Sanchr needs the camera to scan your contact's security code.",
+                            showSettings: true)
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showMessage(
+                title: "Camera access is off",
+                body: "Enable camera access for Sanchr to scan your contact's security code. You can still compare the numbers by hand.",
+                showSettings: true)
+        @unknown default:
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be used for scanning. Compare the numbers by hand instead.",
+                showSettings: false)
+        }
+    }
+
+    // MARK: - Camera
+
+    private func startCamera() {
+        let session = AVCaptureSession()
+
+        guard let device = AVCaptureDevice.default(for: .video) else {
+            // Simulators and camera-less devices land here.
+            showMessage(
+                title: "No camera available",
+                body: "This device has no camera. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+
+        let input: AVCaptureDeviceInput
+        do {
+            input = try AVCaptureDeviceInput(device: device)
+        } catch {
+            SanchrLogger.crypto.error(
+                "QR scanner input failed: \(error.localizedDescription)")
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be started. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+
+        guard session.canAddInput(input) else {
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be started. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+        session.addInput(input)
+
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else {
+            showMessage(
+                title: "Scanning unavailable",
+                body: "This device cannot scan QR codes. Compare the security code numbers by hand instead.",
+                showSettings: false)
+            return
+        }
+        session.addOutput(output)
+
+        let delegate = QRScannerDelegate { [weak self] data in
+            guard let self, !self.hasScanned else { return }
+            self.hasScanned = true
+            let session = self.captureSession
+            self.sessionQueue.async { session?.stopRunning() }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            self.onScanned(data)
+        }
+        metadataDelegate = delegate
+        output.setMetadataObjectsDelegate(delegate, queue: .main)
+        output.metadataObjectTypes = [.qr]
+
+        let preview = AVCaptureVideoPreviewLayer(session: session)
+        preview.frame = view.bounds
+        preview.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(preview)
+        previewLayer = preview
+
+        captureSession = session
+        sessionQueue.async { session.startRunning() }
+    }
+
+    // MARK: - Explanatory state
+
+    private var messageStack: UIView?
+
+    /// Replaces the black rectangle with something that says what happened and,
+    /// where it helps, offers a way to fix it.
+    private func showMessage(title: String, body: String, showSettings: Bool) {
+        messageStack?.removeFromSuperview()
+
+        let container = UIView(frame: view.bounds)
+        container.backgroundColor = .black
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let icon = UIImageView(image: UIImage(systemName: "video.slash.fill"))
+        icon.tintColor = .white
+        icon.contentMode = .scaleAspectFit
+
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = .preferredFont(forTextStyle: .headline)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+
+        let bodyLabel = UILabel()
+        bodyLabel.text = body
+        bodyLabel.font = .preferredFont(forTextStyle: .footnote)
+        bodyLabel.textColor = .white.withAlphaComponent(0.75)
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+
+        stack.addArrangedSubview(icon)
+        stack.addArrangedSubview(titleLabel)
+        stack.addArrangedSubview(bodyLabel)
+
+        if showSettings {
+            let button = UIButton(type: .system)
+            button.setTitle("Open Settings", for: .normal)
+            button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+            button.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+            stack.addArrangedSubview(button)
+        }
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(
+                greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(
+                lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+        ])
+
+        view.addSubview(container)
+        messageStack = container
+    }
+
+    @objc private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 
