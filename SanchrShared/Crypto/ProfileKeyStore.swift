@@ -31,6 +31,19 @@ public protocol ProfileKeyStoreProtocol: AnyObject, Sendable {
 
     /// Records that our Profile Key has been delivered to `userId`.
     func markOwnProfileKeySent(toUserId userId: String)
+
+    /// Whether a Profile Key exists yet for the local user.
+    ///
+    /// `ownProfileKey()` mints one on demand, so calling it can never tell you
+    /// whether the key you got back is the one your profile on the server was
+    /// encrypted under. This does, without creating anything.
+    func hasOwnProfileKey() -> Bool
+
+    /// Forgets which peers hold our Profile Key.
+    ///
+    /// Called when the key changes: every peer now holds one that no longer opens
+    /// our ciphertext, so all of them have to be told again.
+    func clearOwnProfileKeyDeliveryMarkers()
 }
 
 public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable {
@@ -93,6 +106,18 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     /// not secret, and unlike the keys themselves they *should* be cleared when
     /// the app is deleted. A reinstall has a new Profile Key, so every peer needs
     /// telling again.
+    public func hasOwnProfileKey() -> Bool {
+        ((try? keychain.read(forKey: Keys.ownKey)) ?? nil) != nil
+    }
+
+    public func clearOwnProfileKeyDeliveryMarkers() {
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys
+        where key.hasPrefix("profile.key.sent.") {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     public func hasSentOwnProfileKey(toUserId userId: String) -> Bool {
         UserDefaults.standard.bool(forKey: Keys.sentMarker(for: userId))
     }

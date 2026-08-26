@@ -363,6 +363,23 @@ struct RootView: View {
     @MainActor private static var splashHasPlayed = false
 
     private var hasCompletedProfileBasics: Bool {
+        // A name is only meaningful if we still hold the Profile Key it was
+        // encrypted under. The key lives solely in the Keychain, and
+        // ownProfileKey() mints a fresh one whenever that is empty — so after a
+        // reinstall, or any restore that does not carry the Keychain across, we
+        // have a *different* key while the server still holds the profile
+        // ciphertext produced by the old one.
+        //
+        // Nothing can recover the name at that point: the key that opened it is
+        // gone, and no contact can read the profile either, because the key we
+        // are now handing them does not fit. Carrying on would leave the account
+        // permanently nameless to everyone.
+        //
+        // Treating it as incomplete sends the user back through name entry, and
+        // saving re-encrypts and re-uploads under the current key, which is the
+        // only way out.
+        guard container.profileKeyStore.hasOwnProfileKey() else { return false }
+
         let name = container.sessionService.currentDisplayName ?? ""
         return !name.isEmpty && name != User.serverPlaceholderDisplayName
     }
