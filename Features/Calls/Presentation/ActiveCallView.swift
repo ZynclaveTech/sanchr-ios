@@ -213,20 +213,41 @@ struct ActiveCallView: View {
     // MARK: - Top Bar
 
     private func topBar(isVideoSurface: Bool) -> some View {
-        HStack {
+        let callManager = container.callManager
+        return HStack {
             Spacer()
 
-            HStack(spacing: SanchrSpacing.xxs) {
-                Image(systemName: "lock.fill")
-                    .font(.caption2)
-                Text("End-to-end encrypted")
-                    .font(SanchrTypography.captionSmall)
+            VStack(spacing: SanchrSpacing.xxs) {
+                HStack(spacing: SanchrSpacing.xxs) {
+                    Image(systemName: "lock.fill")
+                        .font(.caption2)
+                    Text("End-to-end encrypted")
+                        .font(SanchrTypography.captionSmall)
+                }
+                .foregroundColor(SanchrColors.encryptionBadgeText)
+                .padding(.horizontal, SanchrSpacing.sm)
+                .padding(.vertical, SanchrSpacing.xxs)
+                .modifier(CallEncryptionBadgeModifier(isVideoSurface: isVideoSurface))
+                .accessibilityLabel("End-to-end encrypted call")
+
+                // On the video surface the name/duration card is replaced by the
+                // live video, so the elapsed time has nowhere else to show. Surface
+                // it here, the way FaceTime does. Monospaced digits keep the timer
+                // from shifting width as the seconds tick.
+                // Only when live remote video is on screen — the placeholder card
+                // already carries the duration in its status line, so gating here
+                // avoids showing the timer twice.
+                if isVideoSurface,
+                    isActive(callManager.callState),
+                    shouldRenderRemoteVideo(callManager)
+                {
+                    Text(Date.callDuration(seconds: callManager.callDuration))
+                        .font(SanchrTypography.captionSmall)
+                        .monospacedDigit()
+                        .foregroundColor(SanchrColors.encryptionBadgeText)
+                        .accessibilityLabel("Call duration")
+                }
             }
-            .foregroundColor(SanchrColors.encryptionBadgeText)
-            .padding(.horizontal, SanchrSpacing.sm)
-            .padding(.vertical, SanchrSpacing.xxs)
-            .modifier(CallEncryptionBadgeModifier(isVideoSurface: isVideoSurface))
-            .accessibilityLabel("End-to-end encrypted call")
 
             Spacer()
         }
