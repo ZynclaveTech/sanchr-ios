@@ -13,6 +13,8 @@ struct ContactViewControllerHost: UIViewControllerRepresentable {
 
     let mode: Mode
     let onDismiss: () -> Void
+    /// Fires when the user actually saved a new contact (as opposed to cancelling).
+    var onSaved: (() -> Void)?
 
     func makeUIViewController(context: Context) -> UINavigationController {
         let vc: CNContactViewController
@@ -45,18 +47,23 @@ struct ContactViewControllerHost: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onDismiss: onDismiss)
+        Coordinator(onDismiss: onDismiss, onSaved: onSaved)
     }
 
     final class Coordinator: NSObject, CNContactViewControllerDelegate {
         let onDismiss: () -> Void
-        init(onDismiss: @escaping () -> Void) {
+        let onSaved: (() -> Void)?
+        init(onDismiss: @escaping () -> Void, onSaved: (() -> Void)?) {
             self.onDismiss = onDismiss
+            self.onSaved = onSaved
         }
         func contactViewController(
             _ viewController: CNContactViewController,
             didCompleteWith contact: CNContact?
         ) {
+            // A non-nil contact means the user tapped Done and it was saved;
+            // cancelling delivers nil.
+            if contact != nil { onSaved?() }
             onDismiss()
         }
     }

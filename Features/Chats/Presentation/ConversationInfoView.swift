@@ -99,6 +99,13 @@ struct ConversationInfoView: View {
     /// button. When we can't tell, we default to offering it (adding a duplicate
     /// is recoverable; hiding the option when it's needed is not).
     private func refreshDeviceContactMembership() async {
+        // A peer we saved earlier through this screen stays hidden — a
+        // name-only QR peer has no phone number to match against the address
+        // book, so we remember the add ourselves rather than re-deriving it.
+        if let id = activeRecipient?.id, Self.wasAddedToDeviceContacts(id) {
+            isPeerInDeviceContacts = true
+            return
+        }
         let phone = contactPrefillPhone
         guard !phone.isEmpty,
             CNContactStore.authorizationStatus(for: .contacts) == .authorized
@@ -113,6 +120,22 @@ struct ConversationInfoView: View {
                 matching: predicate,
                 keysToFetch: [CNContactIdentifierKey as CNKeyDescriptor])) ?? []
         isPeerInDeviceContacts = !matches.isEmpty
+    }
+
+    // Records, per peer id, that the user saved them to the device address book,
+    // so the "Add to Contacts" row does not keep offering an already-saved peer.
+    private static let deviceContactsAddedKey = "sanchr.deviceContactsAdded"
+
+    private static func wasAddedToDeviceContacts(_ userId: String) -> Bool {
+        (UserDefaults.standard.array(forKey: deviceContactsAddedKey) as? [String] ?? [])
+            .contains(userId)
+    }
+
+    private static func markAddedToDeviceContacts(_ userId: String) {
+        var ids = UserDefaults.standard.array(forKey: deviceContactsAddedKey) as? [String] ?? []
+        guard !ids.contains(userId) else { return }
+        ids.append(userId)
+        UserDefaults.standard.set(ids, forKey: deviceContactsAddedKey)
     }
 
     @ViewBuilder
@@ -184,6 +207,10 @@ struct ConversationInfoView: View {
                 onDismiss: {
                     showAddToDeviceContacts = false
                     Task { await refreshDeviceContactMembership() }
+                },
+                onSaved: {
+                    if let id = activeRecipient?.id { Self.markAddedToDeviceContacts(id) }
+                    isPeerInDeviceContacts = true
                 }
             )
             .ignoresSafeArea()
