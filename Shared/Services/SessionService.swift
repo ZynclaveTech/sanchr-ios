@@ -61,8 +61,46 @@ final class SessionService: @unchecked Sendable {
         self.privacySettings = privacySettings
         self.cleanup = cleanup
         self.deepWipe = deepWipe
+        purgeKeychainIfFreshInstall()
         restorePersistedSession()
     }
+
+    /// Keychain entries outlive app deletion on iOS — that is Apple's documented
+    /// behaviour, not a bug — while everything in the app container (UserDefaults,
+    /// the database, files) is removed. A reinstall therefore starts with a
+    /// refresh token and session snapshot for an account the user may no longer
+    /// have, and `restorePersistedSession` faithfully restores it: the app comes
+    /// up believing it is signed in, and lands on the name step because the
+    /// snapshot still carries the server's placeholder display name.
+    ///
+    /// The token itself is only discovered to be dead on the first refresh, which
+    /// may be minutes later, so until then the session looks valid and every call
+    /// fails against an account the server has never heard of.
+    ///
+    /// UserDefaults is wiped on delete, so its emptiness is the signal that this
+    /// is a fresh container. If the marker is absent, any Keychain state predates
+    /// this installation and is discarded before it can be restored.
+    private func purgeKeychainIfFreshInstall() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.installMarkerKey) == nil else { return }
+
+        // Written first: if the purge throws, the next launch must not retry it
+        // forever and wipe a session the user has since established.
+        defaults.set(true, forKey: Self.installMarkerKey)
+
+        do {
+            try secureStorage.deleteAllKeys()
+            SanchrLogger.auth.info(
+                "fresh install detected — cleared Keychain state left by a previous installation")
+        } catch {
+            SanchrLogger.auth.error(
+                "fresh install detected but Keychain purge failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Absence of this key means the app container is new, so any surviving
+    /// Keychain entries belong to a previous installation.
+    private static let installMarkerKey = "sanchr.session.installMarker"
 
     // MARK: - Token Validity
 
