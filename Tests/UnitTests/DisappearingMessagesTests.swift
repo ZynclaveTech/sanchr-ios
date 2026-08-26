@@ -233,7 +233,7 @@ final class ClearChatTests: XCTestCase {
         try await super.tearDown()
     }
 
-    private static func conversation(id: String) -> Conversation {
+    static func conversation(id: String) -> Conversation {
         Conversation(
             id: id,
             participants: [
@@ -300,5 +300,103 @@ final class ClearChatTests: XCTestCase {
 
         let conversation = try await db.fetchConversation(id: "conv-a")
         XCTAssertNotNil(conversation, "clearing messages must not delete the chat")
+    }
+}
+
+// MARK: - Timer storage
+
+/// The timer used to live in plaintext UserDefaults under
+/// `sanchr.disappearing.<conversationId>`, which exposed both the conversation
+/// ids and the fact that a chat used ephemeral messaging to anything that could
+/// read the app's plist — including an unencrypted device backup.
+final class DisappearingTimerStorageTests: XCTestCase {
+
+    private var dbDirectory: URL!
+    private var db: LocalDatabase!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        dbDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: dbDirectory, withIntermediateDirectories: true)
+        db = try LocalDatabase(
+            path: dbDirectory.appendingPathComponent("t.sqlite").path,
+            passphraseProvider: { "unit-test-passphrase" })
+        try await db.saveConversation(ClearChatTests.conversation(id: "conv-a"))
+    }
+
+    override func tearDown() async throws {
+        db = nil
+        if let dbDirectory { try? FileManager.default.removeItem(at: dbDirectory) }
+        try await super.tearDown()
+    }
+
+    func test_timerDefaultsToOff() async throws {
+        let seconds = try await db.disappearingDuration(conversationId: "conv-a")
+        XCTAssertEqual(seconds, 0)
+    }
+
+    func test_timerRoundTripsThroughTheEncryptedRow() async throws {
+        try await db.setDisappearingDuration(conversationId: "conv-a", seconds: 3600)
+        let seconds = try await db.disappearingDuration(conversationId: "conv-a")
+        XCTAssertEqual(seconds, 3600)
+    }
+
+    func test_settingZeroClearsTheTimer() async throws {
+        try await db.setDisappearingDuration(conversationId: "conv-a", seconds: 300)
+        try await db.setDisappearingDuration(conversationId: "conv-a", seconds: 0)
+        let seconds = try await db.disappearingDuration(conversationId: "conv-a")
+        XCTAssertEqual(seconds, 0, "Off must mean no timer, not a zero-length one")
+    }
+
+    func test_unknownConversationReportsNoTimer() async throws {
+        let seconds = try await db.disappearingDuration(conversationId: "does-not-exist")
+        XCTAssertEqual(seconds, 0)
+    }
+
+    /// The timer must not be readable from UserDefaults any more.
+    func test_settingTheTimerWritesNothingToUserDefaults() async throws {
+        let defaults = UserDefaults(suiteName: "timer-storage-\(UUID().uuidString)")!
+        try await db.setDisappearingDuration(conversationId: "conv-a", seconds: 900)
+
+        let leaked = defaults.dictionaryRepresentation().keys.filter {
+            $0.hasPrefix(DisappearingTimerLegacyCleanup.keyPrefix)
+        }
+        XCTAssertTrue(leaked.isEmpty, "the timer must not reach plaintext defaults")
+    }
+
+    // MARK: - Legacy cleanup
+
+    func test_purgeRemovesLegacyKeysAndLeavesOthersAlone() {
+        let defaults = UserDefaults(suiteName: "timer-purge-\(UUID().uuidString)")!
+        defaults.set(300, forKey: "sanchr.disappearing.conv-a")
+        defaults.set(3600, forKey: "sanchr.disappearing.conv-b")
+        defaults.set("keep", forKey: "sanchr.someOtherSetting")
+
+        let removed = DisappearingTimerLegacyCleanup.purge(defaults: defaults)
+
+        XCTAssertEqual(removed, 2)
+        XCTAssertNil(defaults.object(forKey: "sanchr.disappearing.conv-a"))
+        XCTAssertNil(defaults.object(forKey: "sanchr.disappearing.conv-b"))
+        XCTAssertEqual(defaults.string(forKey: "sanchr.someOtherSetting"), "keep")
+    }
+
+    /// Deleting rather than migrating is deliberate: the old setting never took
+    /// effect, so carrying a forgotten timer forward would silently start
+    /// destroying history the user has been able to see all along.
+    func test_purgeDoesNotMigrateValuesIntoTheDatabase() async throws {
+        let defaults = UserDefaults(suiteName: "timer-nomigrate-\(UUID().uuidString)")!
+        defaults.set(300, forKey: "sanchr.disappearing.conv-a")
+
+        DisappearingTimerLegacyCleanup.purge(defaults: defaults)
+
+        let seconds = try await db.disappearingDuration(conversationId: "conv-a")
+        XCTAssertEqual(seconds, 0, "a stale timer must not silently activate deletion")
+    }
+
+    func test_purgeOnCleanDefaultsIsNoOp() {
+        let defaults = UserDefaults(suiteName: "timer-clean-\(UUID().uuidString)")!
+        XCTAssertEqual(DisappearingTimerLegacyCleanup.purge(defaults: defaults), 0)
     }
 }

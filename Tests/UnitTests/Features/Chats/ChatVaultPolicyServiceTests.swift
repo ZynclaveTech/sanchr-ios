@@ -100,6 +100,8 @@ private final class StubVaultDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     func deleteMessage(id: String) async throws { fatalError() }
     func purgeExpiredMessages() async throws -> [String] { [] }
     func deleteAllMessages(conversationId: String) async throws -> [String] { [] }
+    func disappearingDuration(conversationId: String) async throws -> Int64 { 0 }
+    func setDisappearingDuration(conversationId: String, seconds: Int64) async throws {}
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws { fatalError() }
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws { fatalError() }
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { fatalError() }

@@ -292,6 +292,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         //    The server sees only delivery_token + per-device ciphertext; sender_id is
         //    never transmitted — it stays hidden behind the delivery token.
         let contentType = Self.contentTypeString(for: message.content)
+        // Read from the encrypted conversation row rather than UserDefaults.
+        let disappearingSecs =
+            (try? await localDatabase.disappearingDuration(
+                conversationId: message.conversationId)) ?? 0
+
         let innerPayload = try sealedSenderManager.encodeInnerPayload(
             conversationId: message.conversationId,
             messageId: message.id,
@@ -301,11 +306,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // The disappearing timer travels inside the envelope so the recipient
             // can enforce it. SendSealedMessageRequest has no TTL field, and the
             // server should not learn the timer in any case.
-            expiresAfterSecs: {
-                let secs = DisappearingTimerStore.getDuration(
-                    conversationId: message.conversationId)
-                return secs > 0 ? secs : nil
-            }()
+            expiresAfterSecs: disappearingSecs > 0 ? disappearingSecs : nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 

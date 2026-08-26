@@ -8,6 +8,8 @@ import SwiftUI
 struct DisappearingMessagesView: View {
     let conversationId: String
 
+    @Environment(DependencyContainer.self) private var container
+
     @State private var selectedDuration: Int = 0
 
     private let options: [(String, String, Int)] = [
@@ -48,10 +50,17 @@ struct DisappearingMessagesView: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedDuration = option.2
                         }
-                        DisappearingTimerStore.setDuration(
-                            conversationId: conversationId,
-                            secs: Int64(option.2)
-                        )
+                        Task {
+                            do {
+                                try await container.localDatabase.setDisappearingDuration(
+                                    conversationId: conversationId,
+                                    seconds: Int64(option.2)
+                                )
+                            } catch {
+                                SanchrLogger.chat.error(
+                                    "Failed to save disappearing timer: \(error.localizedDescription)")
+                            }
+                        }
                     } label: {
                         HStack(spacing: 12) {
                             Circle()
@@ -109,9 +118,10 @@ struct DisappearingMessagesView: View {
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Disappearing Messages")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
+        .task {
             selectedDuration = Int(
-                DisappearingTimerStore.getDuration(conversationId: conversationId)
+                (try? await container.localDatabase.disappearingDuration(
+                    conversationId: conversationId)) ?? 0
             )
         }
     }
