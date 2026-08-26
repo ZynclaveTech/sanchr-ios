@@ -95,6 +95,8 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         queue.sync { _deletedIds.append(id) }
     }
 
+    func purgeExpiredMessages() async throws -> [String] { [] }
+
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {
         if let e = updateStatusError { throw e }
         queue.sync { _statusUpdates.append((id, status)) }

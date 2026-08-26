@@ -29,7 +29,7 @@ struct DisappearingMessagesView: View {
                         .foregroundColor(SanchrColors.primary)
                         .padding(.top, 2)
                     Text(
-                        "When enabled, new messages will disappear after the selected time. This applies to both sides of the conversation."
+                        "Messages you send from now on will be deleted from your device and the recipient's once the timer runs out. Messages already sent are unaffected, and your contact's own timer governs the messages they send."
                     )
                     .font(SanchrTypography.messageBubbleText)
                     .foregroundColor(SanchrExportColors.textSecondary)

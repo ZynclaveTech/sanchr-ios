@@ -23,7 +23,8 @@ private final class CapturingSealedSenderManager: SealedSenderManagerProtocol, @
         messageId: String?,
         contentType: String,
         content: Data,
-        isSync: Bool
+        isSync: Bool,
+        expiresAfterSecs: Int64?
     ) throws -> Data {
         capturedContentType = contentType
         capturedConversationId = conversationId
@@ -86,6 +87,7 @@ private final class PresenceLocalDatabase: LocalDatabaseProtocol, @unchecked Sen
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws {}
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { [] }
     func deleteMessage(id: String) async throws {}
+    func purgeExpiredMessages() async throws -> [String] { [] }
     func markConversationAsRead(conversationId: String, upToMessageId: String) async throws {}
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws {}
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck] { [] }
