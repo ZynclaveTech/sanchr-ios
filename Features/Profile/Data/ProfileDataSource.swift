@@ -9,7 +9,8 @@ protocol ProfileDataSourceProtocol: AnyObject, Sendable {
         avatarURL: String,
         encryptedDisplayName: Data,
         encryptedBio: Data,
-        encryptedAvatarURL: Data
+        encryptedAvatarURL: Data,
+        profileKeyVersion: Data
     ) async throws -> Sanchr_Settings_ProfileResponse
 
     func uploadAvatar(imageData: Data) async throws -> String
@@ -43,7 +44,8 @@ final class ProfileDataSource: ProfileDataSourceProtocol, @unchecked Sendable {
         avatarURL: String,
         encryptedDisplayName: Data,
         encryptedBio: Data,
-        encryptedAvatarURL: Data
+        encryptedAvatarURL: Data,
+        profileKeyVersion: Data
     ) async throws -> Sanchr_Settings_ProfileResponse {
         var request = Sanchr_Settings_UpdateProfileRequest()
         // Only ciphertext leaves the device. The Profile Key is distributed to
@@ -56,6 +58,9 @@ final class ProfileDataSource: ProfileDataSourceProtocol, @unchecked Sendable {
         request.encryptedDisplayName = encryptedDisplayName
         request.encryptedBio = encryptedBio
         request.encryptedAvatarURL = encryptedAvatarURL
+        // Records which Profile Key this ciphertext was made with, so a client
+        // can later detect that the server's copy predates the key it now holds.
+        request.profileKeyVersion = profileKeyVersion
 
         SanchrLogger.network.info("ProfileDataSource: updateProfile (encrypted fields only)")
         return try await settingsClient.updateProfile(request)

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import UIKit
 import SanchrShared
@@ -40,11 +41,17 @@ enum ProfileUseCases {
                 ? Data()
                 : (try profileCrypto.encryptField(avatarURL, profileKey: profileKey, field: .avatarURL))
 
+            // Version = first 16 bytes of SHA-256(profileKey). Lets a client later
+            // notice the server's ciphertext was encrypted under a key it no
+            // longer holds (a reinstall) and re-upload, rather than stay nameless.
+            let version = Data(SHA256.hash(data: profileKey).prefix(16))
+
             return try await profileDataSource.updateProfile(
                 avatarURL: avatarURL,
                 encryptedDisplayName: encryptedName,
                 encryptedBio: encryptedBio,
-                encryptedAvatarURL: encryptedAvatarURL
+                encryptedAvatarURL: encryptedAvatarURL,
+                profileKeyVersion: version
             )
         }
     }

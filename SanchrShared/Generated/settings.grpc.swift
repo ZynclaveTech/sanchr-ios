@@ -41,6 +41,11 @@ public protocol Sanchr_Settings_SettingsServiceClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
 
+  func getUserProfiles(
+    _ request: Sanchr_Settings_GetUserProfilesRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse>
+
   func setRegistrationLock(
     _ request: Sanchr_Settings_SetRegistrationLockRequest,
     callOptions: CallOptions?
@@ -139,6 +144,28 @@ extension Sanchr_Settings_SettingsServiceClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
+    )
+  }
+
+  /// Fetch the encrypted profile of one or more users by id. The only way a
+  /// client obtains a peer's profile ciphertext when that peer is not in its
+  /// address book — a conversation started by phone number or QR code. The
+  /// server returns opaque blobs; only a holder of the matching Profile Key
+  /// can read them.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetUserProfiles.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getUserProfiles(
+    _ request: Sanchr_Settings_GetUserProfilesRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getUserProfiles.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserProfilesInterceptors() ?? []
     )
   }
 
@@ -248,6 +275,11 @@ public protocol Sanchr_Settings_SettingsServiceAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>
 
+  func makeGetUserProfilesCall(
+    _ request: Sanchr_Settings_GetUserProfilesRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse>
+
   func makeSetRegistrationLockCall(
     _ request: Sanchr_Settings_SetRegistrationLockRequest,
     callOptions: CallOptions?
@@ -321,6 +353,18 @@ extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetStorageUsageInterceptors() ?? []
+    )
+  }
+
+  public func makeGetUserProfilesCall(
+    _ request: Sanchr_Settings_GetUserProfilesRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getUserProfiles.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserProfilesInterceptors() ?? []
     )
   }
 
@@ -399,6 +443,18 @@ extension Sanchr_Settings_SettingsServiceAsyncClientProtocol {
     )
   }
 
+  public func getUserProfiles(
+    _ request: Sanchr_Settings_GetUserProfilesRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Settings_GetUserProfilesResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Settings_SettingsServiceClientMetadata.Methods.getUserProfiles.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserProfilesInterceptors() ?? []
+    )
+  }
+
   public func setRegistrationLock(
     _ request: Sanchr_Settings_SetRegistrationLockRequest,
     callOptions: CallOptions? = nil
@@ -446,6 +502,9 @@ public protocol Sanchr_Settings_SettingsServiceClientInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when invoking 'getStorageUsage'.
   func makeGetStorageUsageInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'getUserProfiles'.
+  func makeGetUserProfilesInterceptors() -> [ClientInterceptor<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse>]
+
   /// - Returns: Interceptors to use when invoking 'setRegistrationLock'.
   func makeSetRegistrationLockInterceptors() -> [ClientInterceptor<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>]
 }
@@ -460,6 +519,7 @@ public enum Sanchr_Settings_SettingsServiceClientMetadata {
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.updateProfile,
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.toggleSanchrMode,
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceClientMetadata.Methods.getUserProfiles,
       Sanchr_Settings_SettingsServiceClientMetadata.Methods.setRegistrationLock,
     ]
   )
@@ -495,6 +555,12 @@ public enum Sanchr_Settings_SettingsServiceClientMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let getUserProfiles = GRPCMethodDescriptor(
+      name: "GetUserProfiles",
+      path: "/sanchr.settings.SettingsService/GetUserProfiles",
+      type: GRPCCallType.unary
+    )
+
     public static let setRegistrationLock = GRPCMethodDescriptor(
       name: "SetRegistrationLock",
       path: "/sanchr.settings.SettingsService/SetRegistrationLock",
@@ -516,6 +582,13 @@ public protocol Sanchr_Settings_SettingsServiceProvider: CallHandlerProvider {
   func toggleSanchrMode(request: Sanchr_Settings_ToggleSanchrModeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_UserSettings>
 
   func getStorageUsage(request: Sanchr_Settings_GetStorageUsageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_StorageUsageResponse>
+
+  /// Fetch the encrypted profile of one or more users by id. The only way a
+  /// client obtains a peer's profile ciphertext when that peer is not in its
+  /// address book — a conversation started by phone number or QR code. The
+  /// server returns opaque blobs; only a holder of the matching Profile Key
+  /// can read them.
+  func getUserProfiles(request: Sanchr_Settings_GetUserProfilesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_GetUserProfilesResponse>
 
   func setRegistrationLock(request: Sanchr_Settings_SetRegistrationLockRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Settings_SetRegistrationLockResponse>
 }
@@ -577,6 +650,15 @@ extension Sanchr_Settings_SettingsServiceProvider {
         userFunction: self.getStorageUsage(request:context:)
       )
 
+    case "GetUserProfiles":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetUserProfilesRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_GetUserProfilesResponse>(),
+        interceptors: self.interceptors?.makeGetUserProfilesInterceptors() ?? [],
+        userFunction: self.getUserProfiles(request:context:)
+      )
+
     case "SetRegistrationLock":
       return UnaryServerHandler(
         context: context,
@@ -622,6 +704,16 @@ public protocol Sanchr_Settings_SettingsServiceAsyncProvider: CallHandlerProvide
     request: Sanchr_Settings_GetStorageUsageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Settings_StorageUsageResponse
+
+  /// Fetch the encrypted profile of one or more users by id. The only way a
+  /// client obtains a peer's profile ciphertext when that peer is not in its
+  /// address book — a conversation started by phone number or QR code. The
+  /// server returns opaque blobs; only a holder of the matching Profile Key
+  /// can read them.
+  func getUserProfiles(
+    request: Sanchr_Settings_GetUserProfilesRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Settings_GetUserProfilesResponse
 
   func setRegistrationLock(
     request: Sanchr_Settings_SetRegistrationLockRequest,
@@ -693,6 +785,15 @@ extension Sanchr_Settings_SettingsServiceAsyncProvider {
         wrapping: { try await self.getStorageUsage(request: $0, context: $1) }
       )
 
+    case "GetUserProfiles":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Settings_GetUserProfilesRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Settings_GetUserProfilesResponse>(),
+        interceptors: self.interceptors?.makeGetUserProfilesInterceptors() ?? [],
+        wrapping: { try await self.getUserProfiles(request: $0, context: $1) }
+      )
+
     case "SetRegistrationLock":
       return GRPCAsyncServerHandler(
         context: context,
@@ -730,6 +831,10 @@ public protocol Sanchr_Settings_SettingsServiceServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetStorageUsageInterceptors() -> [ServerInterceptor<Sanchr_Settings_GetStorageUsageRequest, Sanchr_Settings_StorageUsageResponse>]
 
+  /// - Returns: Interceptors to use when handling 'getUserProfiles'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetUserProfilesInterceptors() -> [ServerInterceptor<Sanchr_Settings_GetUserProfilesRequest, Sanchr_Settings_GetUserProfilesResponse>]
+
   /// - Returns: Interceptors to use when handling 'setRegistrationLock'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetRegistrationLockInterceptors() -> [ServerInterceptor<Sanchr_Settings_SetRegistrationLockRequest, Sanchr_Settings_SetRegistrationLockResponse>]
@@ -745,6 +850,7 @@ public enum Sanchr_Settings_SettingsServiceServerMetadata {
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.updateProfile,
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.toggleSanchrMode,
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.getStorageUsage,
+      Sanchr_Settings_SettingsServiceServerMetadata.Methods.getUserProfiles,
       Sanchr_Settings_SettingsServiceServerMetadata.Methods.setRegistrationLock,
     ]
   )
@@ -777,6 +883,12 @@ public enum Sanchr_Settings_SettingsServiceServerMetadata {
     public static let getStorageUsage = GRPCMethodDescriptor(
       name: "GetStorageUsage",
       path: "/sanchr.settings.SettingsService/GetStorageUsage",
+      type: GRPCCallType.unary
+    )
+
+    public static let getUserProfiles = GRPCMethodDescriptor(
+      name: "GetUserProfiles",
+      path: "/sanchr.settings.SettingsService/GetUserProfiles",
       type: GRPCCallType.unary
     )
 

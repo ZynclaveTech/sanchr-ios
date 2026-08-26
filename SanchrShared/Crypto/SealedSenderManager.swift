@@ -36,6 +36,17 @@ public struct InnerPayload: Codable, Sendable {
     /// field still decode, and so older clients ignore the extra key.
     public let expiresAfterSecs: Int64?
 
+    /// The sender's 32-byte Profile Key, carried on every payload.
+    ///
+    /// Profile Key distribution used to be a separate, unacknowledged control
+    /// message sent once — if it was lost, or the conversation was opened by the
+    /// other side, the recipient could never read the sender's encrypted profile.
+    /// Riding it inside every envelope makes delivery idempotent and
+    /// self-healing: any message re-delivers the current key, and a key that
+    /// rotates (a reinstall) propagates on the sender's next message. Optional so
+    /// payloads from clients predating this field still decode.
+    public let senderProfileKey: Data?
+
     enum CodingKeys: String, CodingKey {
         case v
         case conversationId = "conversation_id"
@@ -44,6 +55,7 @@ public struct InnerPayload: Codable, Sendable {
         case content
         case isSync = "is_sync"
         case expiresAfterSecs = "expires_after_secs"
+        case senderProfileKey = "sender_profile_key"
     }
 
     public init(
@@ -53,9 +65,11 @@ public struct InnerPayload: Codable, Sendable {
         contentType: String,
         content: Data,
         isSync: Bool,
-        expiresAfterSecs: Int64? = nil
+        expiresAfterSecs: Int64? = nil,
+        senderProfileKey: Data? = nil
     ) {
         self.expiresAfterSecs = expiresAfterSecs
+        self.senderProfileKey = senderProfileKey
         self.v = v
         self.conversationId = conversationId
         self.messageId = messageId
@@ -178,12 +192,19 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
 
     // MARK: - Init
 
+    /// Returns the local user's current Profile Key, or nil if none exists yet.
+    /// Injected so every encoded payload can carry it without each call site
+    /// having to thread it through.
+    private let ownProfileKeyProvider: (@Sendable () -> Data?)?
+
     public init(
         messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol,
-        keychain: KeychainServiceProtocol
+        keychain: KeychainServiceProtocol,
+        ownProfileKeyProvider: (@Sendable () -> Data?)? = nil
     ) {
         self.messagingService = messagingService
         self.keychain = keychain
+        self.ownProfileKeyProvider = ownProfileKeyProvider
         SanchrLogger.crypto.info("SealedSenderManager initialized")
     }
 
@@ -279,7 +300,8 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
             contentType: contentType,
             content: content,
             isSync: isSync,
-            expiresAfterSecs: expiresAfterSecs
+            expiresAfterSecs: expiresAfterSecs,
+            senderProfileKey: ownProfileKeyProvider?()
         )
         do {
             return try JSONEncoder().encode(payload)

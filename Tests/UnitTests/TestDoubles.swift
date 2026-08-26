@@ -188,6 +188,22 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         preKeys = []
     }
 
+    func purgeAllKeychainItems() throws {
+        purgeAllKeychainItemsCallCount += 1
+        accessToken = nil
+        refreshToken = nil
+        deviceId = nil
+        installationId = nil
+        sessionSnapshot = nil
+        deviceMasterSecret = nil
+        databaseKey = nil
+        recoveryKey = nil
+        try? deleteBackupConfiguration()
+        identityKey = nil
+        preKeys = []
+        mediaAccessSecret = nil
+    }
+
     func deleteDeviceSecrets() throws {
         deviceMasterSecret = nil
         databaseKey = nil
