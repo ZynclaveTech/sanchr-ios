@@ -11,6 +11,9 @@ struct ChatsListView: View {
     @Environment(AppRouter.self) private var router
     @State private var viewModel = ChatsListViewModel()
     @State private var showNewConversation = false
+    /// Height of the chat list viewport, used to centre the empty state in the
+    /// space left under the header/search/chips instead of pinning it to the top.
+    @State private var listViewportHeight: CGFloat = 0
     @State private var showHomeCameraCapture = false
     @State private var showHomePhotoLibrary = false
     @State private var selectedHomePhotoItems: [PhotosPickerItem] = []
@@ -261,6 +264,15 @@ struct ChatsListView: View {
             }
         }
         .background(SanchrExportColors.background)
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { listViewportHeight = proxy.size.height }
+                    .onChange(of: proxy.size.height) { _, newValue in
+                        listViewportHeight = newValue
+                    }
+            }
+        }
     }
 
     private var loadingState: some View {
@@ -337,6 +349,13 @@ struct ChatsListView: View {
             if viewModel.isEmpty {
                 Section {
                     emptyStateContent
+                        // Fill the space left under the header/search/chips so
+                        // the message sits in the optical centre of the list
+                        // rather than clinging to the chip bar.
+                        .frame(
+                            minHeight: max(0, listViewportHeight - Self.listHeaderHeight),
+                            alignment: .center
+                        )
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
                         .listRowBackground(SanchrExportColors.background)
@@ -746,8 +765,12 @@ struct ChatsListView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-        .padding(.top, 48)
     }
+
+    /// Approximate height of the pinned header rows (app header + search bar +
+    /// chip bar and their padding), subtracted from the viewport so the empty
+    /// state centres in what is actually left.
+    private static let listHeaderHeight: CGFloat = 190
 
     private var emptyStateTitle: String {
         switch viewModel.selectedFilter {
