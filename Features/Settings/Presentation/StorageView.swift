@@ -64,7 +64,7 @@ struct StorageView: View {
                 settingsDataSource: settingsDataSource,
                 privacySettings: container.privacySettings
             )
-            await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
+            await viewModel.loadStorageUsage()
         }
     }
 
@@ -455,7 +455,7 @@ struct StorageView: View {
 
         do {
             try await container.mediaManager.clearCache()
-            await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
+            await viewModel.loadStorageUsage()
         } catch {
             viewModel.errorMessage = error.localizedDescription
         }
@@ -472,7 +472,7 @@ struct StorageView: View {
 
         do {
             try await useCase.execute()
-            await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
+            await viewModel.loadStorageUsage()
         } catch {
             viewModel.errorMessage = error.localizedDescription
         }
