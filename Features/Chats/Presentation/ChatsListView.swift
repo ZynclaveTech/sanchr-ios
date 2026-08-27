@@ -252,9 +252,7 @@ struct ChatsListView: View {
             //      (e.g., permissions prompt on first launch delayed us)
             //   3. List — default, even when empty, so the header + chrome
             //      remain stable while background loads populate rows
-            if viewModel.isEmpty {
-                emptyState
-            } else if viewModel.conversations.isEmpty
+            if viewModel.conversations.isEmpty
                         && viewModel.isLoading
                         && !viewModel.hasAttemptedInitialLoad {
                 loadingState
@@ -334,6 +332,15 @@ struct ChatsListView: View {
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(SanchrExportColors.background)
+            }
+
+            if viewModel.isEmpty {
+                Section {
+                    emptyStateContent
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(SanchrExportColors.background)
+                }
             }
 
             if let error = viewModel.errorMessage {
@@ -701,50 +708,34 @@ struct ChatsListView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 0) {
-            customHeader
+    /// Empty-state body only — no header, search bar, or chips.
+    ///
+    /// Those live in the list's header section and are rendered identically
+    /// whether or not there are results; the empty state used to duplicate them
+    /// inside a plain VStack, and the different container (VStack vs List row
+    /// insets) shifted the whole bar up whenever a filter returned nothing.
+    private var emptyStateContent: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(SanchrColors.primary.opacity(0.12))
+                    .frame(width: 106, height: 106)
 
-            // Padding mirrors the populated list exactly, so switching to a
-            // filter with no results doesn't shift the search bar and chips.
-            searchBar
-                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 2)
-
-            chipBar
-                .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
-
-            if showRegLockNudge {
-                registrationLockNudgeBanner
-                    .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                Image(systemName: "message.fill")
+                    .font(.system(size: 42))
+                    .foregroundStyle(SanchrGradients.primaryDark)
             }
 
-            Spacer()
+            Text(emptyStateTitle)
+                .font(SanchrTypography.cardTitle)
+                .foregroundColor(SanchrExportColors.textPrimary)
 
-            VStack(spacing: 18) {
-                ZStack {
-                    Circle()
-                        .fill(SanchrColors.primary.opacity(0.12))
-                        .frame(width: 106, height: 106)
+            Text(emptyStateMessage)
+                .font(SanchrTypography.body)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
 
-                    Image(systemName: "message.fill")
-                        .font(.system(size: 42))
-                        .foregroundStyle(SanchrGradients.primaryDark)
-                }
-
-                Text("No conversations yet")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(SanchrExportColors.textPrimary)
-
-                Text("Start a new conversation to begin messaging securely.")
-                    .font(SanchrTypography.body)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-                    .multilineTextAlignment(.center)
-
+            if viewModel.selectedFilter == .all {
                 Button {
                     showNewConversation = true
                 } label: {
@@ -752,12 +743,26 @@ struct ChatsListView: View {
                 }
                 .buttonStyle(SanchrPrimaryCTA())
             }
-            .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SanchrExportColors.background)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
+        .padding(.top, 48)
+    }
+
+    private var emptyStateTitle: String {
+        switch viewModel.selectedFilter {
+        case .unread: "No unread chats"
+        case .groups: "No group chats"
+        default: "No conversations yet"
+        }
+    }
+
+    private var emptyStateMessage: String {
+        switch viewModel.selectedFilter {
+        case .unread: "You're all caught up."
+        case .groups: "Group chats you join will appear here."
+        default: "Start a new conversation to begin messaging securely."
+        }
     }
 
     private var fabButton: some View {
