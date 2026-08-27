@@ -112,10 +112,17 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             return nil
         }
 
-        if !force,
-           let lastBackupAt = configuration.lastBackupAt,
-           lastBackupAt.addingTimeInterval(BackupArchive.automaticBackupInterval) > Date() {
-            return nil
+        if !force {
+            // Automatic runs honour the user's frequency: Off means manual
+            // "Back Up Now" only, Daily/Weekly gate on the time since the last
+            // successful backup. Forced (manual) backups skip this entirely.
+            guard let minimumInterval = configuration.frequency.minimumInterval else {
+                return nil
+            }
+            if let lastBackupAt = configuration.lastBackupAt,
+               lastBackupAt.addingTimeInterval(minimumInterval) > Date() {
+                return nil
+            }
         }
 
         let encryptedArchive = try Self.encryptArchive(
