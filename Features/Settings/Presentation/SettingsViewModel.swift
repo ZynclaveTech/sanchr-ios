@@ -135,20 +135,23 @@ final class SettingsViewModel {
 
     // MARK: - Load Storage Usage
 
-    func loadStorageUsage(settingsDataSource: SettingsDataSource) async {
-        do {
-            let usage = try await settingsDataSource.getStorageUsage()
-            photosBytes = usage.photosBytes
-            videosBytes = usage.videosBytes
-            documentsBytes = usage.documentsBytes
-            voiceBytes = usage.voiceBytes
-            otherBytes = usage.otherBytes
-            totalBytes = usage.totalBytes
-            limitBytes = usage.limitBytes
-        } catch {
-            SanchrLogger.network.error(
-                "Failed to load storage usage: \(error.localizedDescription)")
-        }
+    /// Measures storage on this device.
+    ///
+    /// The server's GetStorageUsage RPC returns zeros by design — media types
+    /// live inside forward-secure encrypted vault metadata, so the server cannot
+    /// compute a breakdown — which made this screen report that the app used no
+    /// storage at all. Every byte is local, so it is measured locally.
+    func loadStorageUsage() async {
+        let usage = await LocalStorageCalculator.calculate()
+        photosBytes = usage.photosBytes
+        videosBytes = usage.videosBytes
+        documentsBytes = usage.documentsBytes
+        voiceBytes = usage.voiceBytes
+        otherBytes = usage.otherBytes
+        totalBytes = usage.totalBytes
+        // The bar shows what the app occupies against what the device can still
+        // take, so "used" stays meaningful without inventing a quota.
+        limitBytes = usage.totalBytes + usage.deviceFreeBytes
     }
 
     // MARK: - Sync Settings (Debounced)

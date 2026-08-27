@@ -128,7 +128,7 @@ struct SettingsView: View {
                 privacySettings: container.privacySettings,
                 appLockManager: container.appLockManager
             )
-            await viewModel.loadStorageUsage(settingsDataSource: settingsDataSource)
+            await viewModel.loadStorageUsage()
         }
     }
 
