@@ -10,6 +10,10 @@ struct NotificationsView: View {
 
     @State private var viewModel = NotificationsViewModel()
 
+    private var settingsDataSource: SettingsDataSource {
+        SettingsDataSource(grpcClient: container.grpcClient)
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
@@ -116,6 +120,7 @@ struct NotificationsView: View {
         .sanchrSettingsSubscreenNavigation(title: "Notification Preferences")
         .task { @MainActor in
             await viewModel.checkSystemPermission()
+            await viewModel.load(using: settingsDataSource)
         }
     }
 
@@ -268,6 +273,40 @@ struct NotificationSoundPicker: View {
 
 // MARK: - NotificationsViewModel
 
+/// The six notification preferences as the screen presents them, decoded from
+/// the stored `UserSettings`.
+///
+/// Split out from the view model so the decode — chiefly the sound sentinel,
+/// where one stored string carries both "which tone" and "sound on at all" —
+/// can be tested without standing up a gRPC client.
+struct NotificationPreferences: Equatable {
+    /// Sentinel the backend stores when the user turns notification sound off.
+    static let silentSoundToken = "none"
+
+    var messageNotifications: Bool
+    var callNotifications: Bool
+    var groupNotifications: Bool
+    var showPreviews: Bool
+    var soundEnabled: Bool
+    var vibrateEnabled: Bool
+    var notificationSound: String
+
+    init(from settings: Sanchr_Settings_UserSettings) {
+        messageNotifications = settings.messageNotifications
+        callNotifications = settings.callNotifications
+        groupNotifications = settings.groupNotifications
+        showPreviews = settings.showPreview
+        vibrateEnabled = settings.notificationVibrate
+
+        // The backend stores "none" when sound is off, so it has to be mapped
+        // back to two pieces of state. Anything else — including an empty
+        // string, which means "default tone" — leaves sound enabled.
+        let sound = settings.notificationSound
+        soundEnabled = sound != Self.silentSoundToken
+        notificationSound = soundEnabled ? sound : ""
+    }
+}
+
 /// View model managing notification preference state and backend synchronization.
 @MainActor
 @Observable
@@ -293,6 +332,49 @@ final class NotificationsViewModel {
     /// Pending sync work item to debounce rapid toggle changes.
     private var syncWorkItem: DispatchWorkItem?
 
+    /// Set while `load` is writing the stored values into the published
+    /// properties. Assigning them fires each toggle's `onChange`, which would
+    /// otherwise push the values we just read straight back to the server.
+    private var isHydrating = false
+
+    // MARK: - Loading
+
+    /// Reads the stored preferences and applies them to the toggles.
+    ///
+    /// Without this the screen only ever pushed: every open rendered the
+    /// hardcoded defaults above regardless of what the user had chosen, and
+    /// touching any one toggle then synced that wrong state back, silently
+    /// re-enabling notifications the user had turned off.
+    ///
+    /// The values are read through the settings service rather than the
+    /// notification service, which is write-only — it has no "get" RPC. Both
+    /// write the same `user_settings` row, so this reads back exactly what
+    /// `UpdateNotificationPrefs` last stored.
+    func load(using settingsDataSource: SettingsDataSource) async {
+        do {
+            let prefs = NotificationPreferences(from: try await settingsDataSource.getSettings())
+            isHydrating = true
+            defer { isHydrating = false }
+
+            messageNotifications = prefs.messageNotifications
+            callNotifications = prefs.callNotifications
+            groupNotifications = prefs.groupNotifications
+            showPreviews = prefs.showPreviews
+            vibrateEnabled = prefs.vibrateEnabled
+            soundEnabled = prefs.soundEnabled
+            notificationSound = prefs.notificationSound
+        } catch {
+            // Leaving the toggles at their defaults is the safe failure: the
+            // user sees notifications as on, which is what they will actually
+            // receive until a successful load says otherwise.
+            SanchrLogger.push.error(
+                "Failed to load notification preferences: \(error.localizedDescription)"
+            )
+            errorMessage = "Couldn't load your preferences. Close and reopen this screen to try again."
+        }
+    }
+
+
     // MARK: - System Permission Check
 
     /// Check whether the user has granted notification permission at the system level.
@@ -317,6 +399,9 @@ final class NotificationsViewModel {
     /// Waits 500ms after the last toggle change before making the gRPC call,
     /// so rapid toggles do not create a storm of network requests.
     func syncPreferences(using service: Sanchr_Notifications_NotificationServiceAsyncClientProtocol) {
+        // Applying loaded values is not a user edit; syncing here would echo
+        // the server's own state back at it on every open.
+        guard !isHydrating else { return }
         syncWorkItem?.cancel()
 
         let workItem = DispatchWorkItem { [weak self] in
@@ -340,7 +425,8 @@ final class NotificationsViewModel {
         request.messageNotifications = messageNotifications
         request.groupNotifications = groupNotifications
         request.callNotifications = callNotifications
-        request.notificationSound = soundEnabled ? notificationSound : "none"
+        request.notificationSound =
+            soundEnabled ? notificationSound : NotificationPreferences.silentSoundToken
         request.vibrate = vibrateEnabled
         request.showPreview = showPreviews
 
