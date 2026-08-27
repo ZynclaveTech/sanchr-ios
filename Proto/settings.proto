@@ -107,6 +107,12 @@ message ToggleSanchrModeRequest {
 message SetRegistrationLockRequest {
   bool enabled = 1;
   string pin = 2;
+  // Required when replacing an existing PIN: the PIN currently in force.
+  // Changing the lock must prove knowledge of the old PIN, not merely that the
+  // session is authenticated, so a stolen unlocked device cannot silently
+  // re-key the lock that exists to survive exactly that situation. Empty when
+  // enabling for the first time.
+  string current_pin = 3;
 }
 
 message SetRegistrationLockResponse {

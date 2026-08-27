@@ -64,9 +64,6 @@ public struct Sanchr_Contacts_MatchedContact: Sendable {
 
   public var phoneNumber: String = String()
 
-  /// Encrypted profile fields
-  public var profileKey: Data = Data()
-
   public var encryptedDisplayName: Data = Data()
 
   public var encryptedBio: Data = Data()
@@ -118,9 +115,6 @@ public struct Sanchr_Contacts_Contact: Sendable {
   public var isFavorite: Bool = false
 
   public var phoneNumber: String = String()
-
-  /// Encrypted profile fields
-  public var profileKey: Data = Data()
 
   public var encryptedDisplayName: Data = Data()
 
@@ -265,7 +259,7 @@ extension Sanchr_Contacts_SyncContactsResponse: SwiftProtobuf.Message, SwiftProt
 
 extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MatchedContact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}phone_number\0\u{4}\u{2}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0\u{c}\u{6}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -278,7 +272,6 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
       case 3: try { try decoder.decodeSingularStringField(value: &self.avatarURL) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.statusText) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
-      case 6: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
       case 7: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
       case 8: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
       case 9: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
@@ -303,9 +296,6 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.phoneNumber.isEmpty {
       try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 5)
     }
-    if !self.profileKey.isEmpty {
-      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 6)
-    }
     if !self.encryptedDisplayName.isEmpty {
       try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 7)
     }
@@ -324,7 +314,6 @@ extension Sanchr_Contacts_MatchedContact: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.avatarURL != rhs.avatarURL {return false}
     if lhs.statusText != rhs.statusText {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
-    if lhs.profileKey != rhs.profileKey {return false}
     if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
     if lhs.encryptedBio != rhs.encryptedBio {return false}
     if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}
@@ -384,7 +373,7 @@ extension Sanchr_Contacts_GetContactsResponse: SwiftProtobuf.Message, SwiftProto
 
 extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Contact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0\u{3}profile_key\0\u{3}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}display_name\0\u{3}avatar_url\0\u{3}status_text\0\u{3}is_blocked\0\u{3}is_favorite\0\u{3}phone_number\0\u{4}\u{2}encrypted_display_name\0\u{3}encrypted_bio\0\u{3}encrypted_avatar_url\0\u{c}\u{8}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -399,7 +388,6 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isBlocked) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isFavorite) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.phoneNumber) }()
-      case 8: try { try decoder.decodeSingularBytesField(value: &self.profileKey) }()
       case 9: try { try decoder.decodeSingularBytesField(value: &self.encryptedDisplayName) }()
       case 10: try { try decoder.decodeSingularBytesField(value: &self.encryptedBio) }()
       case 11: try { try decoder.decodeSingularBytesField(value: &self.encryptedAvatarURL) }()
@@ -430,9 +418,6 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     if !self.phoneNumber.isEmpty {
       try visitor.visitSingularStringField(value: self.phoneNumber, fieldNumber: 7)
     }
-    if !self.profileKey.isEmpty {
-      try visitor.visitSingularBytesField(value: self.profileKey, fieldNumber: 8)
-    }
     if !self.encryptedDisplayName.isEmpty {
       try visitor.visitSingularBytesField(value: self.encryptedDisplayName, fieldNumber: 9)
     }
@@ -453,7 +438,6 @@ extension Sanchr_Contacts_Contact: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs.isBlocked != rhs.isBlocked {return false}
     if lhs.isFavorite != rhs.isFavorite {return false}
     if lhs.phoneNumber != rhs.phoneNumber {return false}
-    if lhs.profileKey != rhs.profileKey {return false}
     if lhs.encryptedDisplayName != rhs.encryptedDisplayName {return false}
     if lhs.encryptedBio != rhs.encryptedBio {return false}
     if lhs.encryptedAvatarURL != rhs.encryptedAvatarURL {return false}

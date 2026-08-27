@@ -69,9 +69,7 @@ public struct Sanchr_SealedSender_SenderCertificate: Sendable {
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    public var senderUuid: String = String()
-
-    public var senderDeviceID: UInt32 = 0
+    public var senderDevice: UInt32 = 0
 
     public var expires: UInt64 = 0
 
@@ -85,6 +83,8 @@ public struct Sanchr_SealedSender_SenderCertificate: Sendable {
     public var hasSigner: Bool {self._signer != nil}
     /// Clears the value of `signer`. Subsequent reads from it will return its default value.
     public mutating func clearSigner() {self._signer = nil}
+
+    public var senderUuid: String = String()
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -207,7 +207,7 @@ extension Sanchr_SealedSender_SenderCertificate: SwiftProtobuf.Message, SwiftPro
 
 extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Sanchr_SealedSender_SenderCertificate.protoMessageName + ".Certificate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}sender_uuid\0\u{4}\u{2}sender_device_id\0\u{1}expires\0\u{3}identity_key\0\u{1}signer\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}sender_device\0\u{1}expires\0\u{3}identity_key\0\u{1}signer\0\u{3}sender_uuid\0\u{b}sender\0\u{c}\u{1}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -215,11 +215,11 @@ extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Messa
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.senderUuid) }()
-      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.senderDeviceID) }()
-      case 4: try { try decoder.decodeSingularFixed64Field(value: &self.expires) }()
-      case 5: try { try decoder.decodeSingularBytesField(value: &self.identityKey) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._signer) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.senderDevice) }()
+      case 3: try { try decoder.decodeSingularFixed64Field(value: &self.expires) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.identityKey) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._signer) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.senderUuid) }()
       default: break
       }
     }
@@ -230,30 +230,30 @@ extension Sanchr_SealedSender_SenderCertificate.Certificate: SwiftProtobuf.Messa
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.senderUuid.isEmpty {
-      try visitor.visitSingularStringField(value: self.senderUuid, fieldNumber: 1)
-    }
-    if self.senderDeviceID != 0 {
-      try visitor.visitSingularUInt32Field(value: self.senderDeviceID, fieldNumber: 3)
+    if self.senderDevice != 0 {
+      try visitor.visitSingularUInt32Field(value: self.senderDevice, fieldNumber: 2)
     }
     if self.expires != 0 {
-      try visitor.visitSingularFixed64Field(value: self.expires, fieldNumber: 4)
+      try visitor.visitSingularFixed64Field(value: self.expires, fieldNumber: 3)
     }
     if !self.identityKey.isEmpty {
-      try visitor.visitSingularBytesField(value: self.identityKey, fieldNumber: 5)
+      try visitor.visitSingularBytesField(value: self.identityKey, fieldNumber: 4)
     }
     try { if let v = self._signer {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    if !self.senderUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.senderUuid, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Sanchr_SealedSender_SenderCertificate.Certificate, rhs: Sanchr_SealedSender_SenderCertificate.Certificate) -> Bool {
-    if lhs.senderUuid != rhs.senderUuid {return false}
-    if lhs.senderDeviceID != rhs.senderDeviceID {return false}
+    if lhs.senderDevice != rhs.senderDevice {return false}
     if lhs.expires != rhs.expires {return false}
     if lhs.identityKey != rhs.identityKey {return false}
     if lhs._signer != rhs._signer {return false}
+    if lhs.senderUuid != rhs.senderUuid {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

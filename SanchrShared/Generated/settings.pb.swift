@@ -306,6 +306,13 @@ public struct Sanchr_Settings_SetRegistrationLockRequest: Sendable {
 
   public var pin: String = String()
 
+  /// Required when replacing an existing PIN: the PIN currently in force.
+  /// Changing the lock must prove knowledge of the old PIN, not merely that the
+  /// session is authenticated, so a stolen unlocked device cannot silently
+  /// re-key the lock that exists to survive exactly that situation. Empty when
+  /// enabling for the first time.
+  public var currentPin: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -906,7 +913,7 @@ extension Sanchr_Settings_ToggleSanchrModeRequest: SwiftProtobuf.Message, SwiftP
 
 extension Sanchr_Settings_SetRegistrationLockRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetRegistrationLockRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}pin\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}pin\0\u{3}current_pin\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -916,6 +923,7 @@ extension Sanchr_Settings_SetRegistrationLockRequest: SwiftProtobuf.Message, Swi
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.pin) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.currentPin) }()
       default: break
       }
     }
@@ -928,12 +936,16 @@ extension Sanchr_Settings_SetRegistrationLockRequest: SwiftProtobuf.Message, Swi
     if !self.pin.isEmpty {
       try visitor.visitSingularStringField(value: self.pin, fieldNumber: 2)
     }
+    if !self.currentPin.isEmpty {
+      try visitor.visitSingularStringField(value: self.currentPin, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Sanchr_Settings_SetRegistrationLockRequest, rhs: Sanchr_Settings_SetRegistrationLockRequest) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.pin != rhs.pin {return false}
+    if lhs.currentPin != rhs.currentPin {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
