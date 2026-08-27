@@ -81,14 +81,10 @@ struct ChatSettingsView: View {
                     viewModel.debouncedSync(settingsDataSource: settingsDataSource)
                 }
 
-                optionRow(
-                    icon: "airplane",
-                    title: "When roaming",
-                    value: viewModel.autoDownloadRoaming
-                ) { option in
-                    viewModel.autoDownloadRoaming = option
-                    viewModel.debouncedSync(settingsDataSource: settingsDataSource)
-                }
+                // No "When roaming" row: iOS exposes no supported way to detect
+                // roaming — CTCarrier was deprecated in iOS 16 and reports
+                // placeholder values — so the choice could never be honoured.
+                // Roaming is cellular, and the mobile-data setting governs it.
             }
         }
     }
