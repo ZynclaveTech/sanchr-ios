@@ -286,6 +286,14 @@ struct ConversationInfoView: View {
                         SanchrLogger.sync.info("Blocked contact \(userId.prefix(8))… from ConversationInfo")
                         dismiss()
                     } catch {
+                        // Every other action on this screen reports its failures;
+                        // block silently swallowed them, so a block that never
+                        // reached the server looked identical to one that
+                        // succeeded. People block someone when they feel unsafe —
+                        // believing it worked when it did not is the worst
+                        // possible outcome here, so say so and stay on screen.
+                        conversationActionErrorMessage =
+                            "Couldn't block this contact: \(error.localizedDescription)"
                         SanchrLogger.sync.error("Failed to block contact \(userId.prefix(8))…: \(error)")
                     }
                 }
