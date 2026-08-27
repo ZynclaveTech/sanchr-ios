@@ -2,6 +2,16 @@ import Foundation
 import LocalAuthentication
 import SanchrShared
 
+/// What can be restored right after a fresh install: the newest backup on
+/// Sanchr's servers for this account, and/or the newest one in the user's
+/// iCloud container.
+struct BackupRestoreSources: Sendable {
+    let sanchrCloud: BackupListEntry?
+    let iCloud: ICloudRestoreCandidate?
+
+    var isEmpty: Bool { sanchrCloud == nil && iCloud == nil }
+}
+
 @Observable
 final class BackupCoordinator: @unchecked Sendable {
     private let backupService: BackupArchiveServiceProtocol
@@ -132,6 +142,50 @@ final class BackupCoordinator: @unchecked Sendable {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Discovers restorable backups after a fresh install. Both lookups are
+    /// best-effort: a server error or missing iCloud account yields nil for
+    /// that source rather than failing the check.
+    func availableRestoreSources() async -> BackupRestoreSources {
+        let server = (try? await backupService.listBackups())?
+            .sorted { $0.committedAt > $1.committedAt }.first
+        let iCloud = await backupService.latestICloudBackup()
+        return BackupRestoreSources(sanchrCloud: server, iCloud: iCloud)
+    }
+
+    /// Restores the newest iCloud backup using the given recovery key.
+    /// Mirrors `restoreLatestBackup` but never touches Sanchr's servers.
+    func restoreFromICloud(with recoveryKeyOverride: String?) async {
+        guard !isProcessing else { return }
+
+        do {
+            let recoveryKey = try resolvedRecoveryKey(recoveryKeyOverride)
+            let material = try backupKeyDeriver.deriveMaterial(
+                recoveryKey: recoveryKey,
+                userId: currentUserIdProvider()
+            )
+            isProcessing = true
+            errorMessage = nil
+
+            let result = try await backupService.restoreLatestICloudBackup(
+                material: material,
+                currentUserId: currentUserIdProvider()
+            )
+            _ = try recoveryKeyManager.persistRestoredBackup(
+                recoveryKey: recoveryKey,
+                lineageId: result.lineageID,
+                formatVersion: result.formatVersion,
+                lastBackupAt: result.backupDate,
+                lastBackupContentHash: result.contentHash
+            )
+            reload()
+            await postRestore()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isProcessing = false
     }
 
     func restoreLatestBackup(with recoveryKeyOverride: String?) async {

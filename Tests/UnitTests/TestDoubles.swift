@@ -490,6 +490,24 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
         return performBackupResult
     }
 
+    var latestICloudBackupResult: ICloudRestoreCandidate? = nil
+    var restoreICloudResult: BackupRestoreOutcome = BackupRestoreOutcome(
+        lineageID: "test-lineage", formatVersion: 1, backupDate: nil, contentHash: nil
+    )
+    var restoreICloudError: Error? = nil
+
+    func latestICloudBackup() async -> ICloudRestoreCandidate? {
+        latestICloudBackupResult
+    }
+
+    func restoreLatestICloudBackup(
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        if let error = restoreICloudError { throw error }
+        return restoreICloudResult
+    }
+
     func restoreLatestBackup(
         configuration: BackupConfiguration?,
         material: DerivedBackupMaterial,

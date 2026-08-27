@@ -32,6 +32,13 @@ struct BackupListEntry: Identifiable, Sendable {
     let messageCount: Int?  // from opaqueMetadata JSON counts.messages; nil if unparseable
 }
 
+/// A restorable backup discovered in the user's iCloud container.
+struct ICloudRestoreCandidate: Sendable {
+    let entry: ICloudBackupEntry
+    let messageCount: Int?
+    let exportedAt: Date?
+}
+
 private struct BackupOpaqueMetadata: Codable, Sendable {
     let formatVersion: Int32
     let ivBase64: String
@@ -60,6 +67,15 @@ protocol BackupArchiveServiceProtocol: Sendable {
     func restoreBackup(
         backupId: String,
         configuration: BackupConfiguration?,
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome
+    /// The newest backup in the user's iCloud container, or nil when iCloud is
+    /// unavailable or holds none. Never contacts Sanchr's servers.
+    func latestICloudBackup() async -> ICloudRestoreCandidate?
+    /// Restore the newest iCloud backup: verify, decrypt, load into the local
+    /// database, and best-effort restore its staged media into the cache.
+    func restoreLatestICloudBackup(
         material: DerivedBackupMaterial,
         currentUserId: String?
     ) async throws -> BackupRestoreOutcome
@@ -350,6 +366,107 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             ),
             contentHash: metadata.contentHash
         )
+    }
+
+    func latestICloudBackup() async -> ICloudRestoreCandidate? {
+        guard let entry = try? iCloudStore.latestBackup() else { return nil }
+        var messageCount: Int?
+        var exportedAt: Date?
+        if let payload = try? iCloudStore.readBackup(entry),
+            let metadata = try? JSONDecoder().decode(
+                BackupOpaqueMetadata.self, from: payload.metadataJSON)
+        {
+            messageCount = metadata.counts.messages
+            exportedAt = Date(timeIntervalSince1970: Double(metadata.exportedAtMs) / 1000)
+        }
+        return ICloudRestoreCandidate(
+            entry: entry, messageCount: messageCount, exportedAt: exportedAt)
+    }
+
+    func restoreLatestICloudBackup(
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        guard currentUserId?.isEmpty == false else {
+            throw AppError.backupFailed(reason: "You must be signed in before restoring a backup.")
+        }
+        guard let aesKey = material.aesKey, let hmacKey = material.hmacKey else {
+            throw AppError.backupFailed(reason: "Backup keys are unavailable for this account.")
+        }
+        guard let entry = try? iCloudStore.latestBackup() else {
+            throw AppError.backupUnavailable
+        }
+
+        let payload = try iCloudStore.readBackup(entry)
+        let metadata = try JSONDecoder().decode(
+            BackupOpaqueMetadata.self, from: payload.metadataJSON)
+        let iv = Data(base64Encoded: metadata.ivBase64) ?? Data()
+        let hmac = Data(base64Encoded: metadata.hmacBase64) ?? Data()
+        let computedHMAC = Self.hmac(iv: iv, ciphertext: payload.ciphertext, key: hmacKey)
+        guard computedHMAC == hmac else {
+            throw AppError.backupIntegrityCheckFailed(reason: "Backup HMAC verification failed.")
+        }
+
+        let plaintext = try Self.decryptArchive(payload.ciphertext, aesKey: aesKey, iv: iv)
+        let snapshot = try BackupArchiveSerializer.deserialize(plaintext)
+        let localFingerprint = try deviceSecretProvider.backupFingerprint()
+        try await localDatabase.restoreBackupSnapshot(
+            snapshot,
+            currentUserId: currentUserId,
+            localFingerprint: localFingerprint
+        )
+
+        restoreStagedMediaFromICloud(
+            lineageId: entry.lineageId, aesKey: aesKey, hmacKey: hmacKey)
+
+        return BackupRestoreOutcome(
+            lineageID: entry.lineageId,
+            formatVersion: metadata.formatVersion,
+            backupDate: entry.modifiedAt,
+            contentHash: metadata.contentHash
+        )
+    }
+
+    /// Decrypts the lineage's staged media files back into the local cache so
+    /// restored chats show their attachments without re-downloading. Best-effort:
+    /// a corrupt or unreadable file is skipped, never failing the chat restore
+    /// that already succeeded.
+    private func restoreStagedMediaFromICloud(lineageId: String, aesKey: Data, hmacKey: Data) {
+        guard let names = try? iCloudStore.stagedMediaFileNames(lineageId: lineageId),
+            !names.isEmpty
+        else { return }
+        let cacheDirectory = AppGroup.mediaCacheURL
+            .appendingPathComponent("MediaMessages", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: cacheDirectory, withIntermediateDirectories: true)
+
+        var restored = 0
+        for name in names {
+            let target = cacheDirectory.appendingPathComponent(name)
+            guard !FileManager.default.fileExists(atPath: target.path) else { continue }
+            do {
+                let sealed = try iCloudStore.readMediaFile(named: name, lineageId: lineageId)
+                guard sealed.count > 48 else { continue }
+                let iv = sealed.prefix(16)
+                let mac = sealed.dropFirst(16).prefix(32)
+                let ciphertext = sealed.dropFirst(48)
+                guard
+                    Self.hmac(iv: Data(iv), ciphertext: Data(ciphertext), key: hmacKey)
+                        == Data(mac)
+                else { continue }
+                let plaintext = try Self.aesCBC(
+                    operation: CCOperation(kCCDecrypt), input: Data(ciphertext), key: aesKey,
+                    iv: Data(iv))
+                try plaintext.write(to: target, options: .atomic)
+                restored += 1
+            } catch {
+                SanchrLogger.persistence.warning(
+                    "iCloud media restore skipped \(name): \(error.localizedDescription)")
+            }
+        }
+        if restored > 0 {
+            SanchrLogger.persistence.info("iCloud media restore: \(restored) file(s)")
+        }
     }
 
     /// Copies newly cached media into the iCloud media folder for the lineage.
