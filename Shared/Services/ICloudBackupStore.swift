@@ -22,6 +22,14 @@ protocol ICloudBackupStoreProtocol: Sendable {
     func readBackup(_ entry: ICloudBackupEntry) throws -> (ciphertext: Data, metadataJSON: Data)
     /// Remove every backup file this app wrote to the container.
     func deleteAllBackups() throws
+
+    /// File names (cache names) already staged in the lineage's media folder,
+    /// so unchanged media is not re-encrypted and re-written on every backup.
+    func stagedMediaFileNames(lineageId: String) throws -> Set<String>
+    /// Write one encrypted media file into the lineage's media folder.
+    func writeMediaFile(_ data: Data, named fileName: String, lineageId: String) throws
+    /// Read one encrypted media file back.
+    func readMediaFile(named fileName: String, lineageId: String) throws -> Data
 }
 
 /// Writes recovery-key-encrypted backup archives into the app's iCloud
@@ -167,15 +175,72 @@ final class ICloudBackupStore: ICloudBackupStoreProtocol, @unchecked Sendable {
         return (ciphertext, metadataJSON)
     }
 
+    private func mediaDirectoryURL(lineageId: String) -> URL? {
+        backupsDirectoryURL()?
+            .appendingPathComponent("\(lineageId)-media", isDirectory: true)
+    }
+
+    func stagedMediaFileNames(lineageId: String) throws -> Set<String> {
+        guard let directory = mediaDirectoryURL(lineageId: lineageId),
+            fileManager.fileExists(atPath: directory.path)
+        else { return [] }
+        let contents = try fileManager.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil)
+        return Set(contents.map(\.lastPathComponent))
+    }
+
+    func writeMediaFile(_ data: Data, named fileName: String, lineageId: String) throws {
+        guard let directory = mediaDirectoryURL(lineageId: lineageId) else {
+            throw AppError.backupFailed(reason: "iCloud is not available.")
+        }
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(fileName)
+        var coordinatorError: NSError?
+        var writeError: Error?
+        NSFileCoordinator().coordinate(
+            writingItemAt: url, options: .forReplacing, error: &coordinatorError
+        ) { url in
+            do { try data.write(to: url, options: .atomic) } catch { writeError = error }
+        }
+        if let error = writeError ?? coordinatorError {
+            throw AppError.backupFailed(
+                reason: "Couldn't write media to iCloud: \(error.localizedDescription)")
+        }
+    }
+
+    func readMediaFile(named fileName: String, lineageId: String) throws -> Data {
+        guard let directory = mediaDirectoryURL(lineageId: lineageId) else {
+            throw AppError.backupFailed(reason: "iCloud is not available.")
+        }
+        let url = directory.appendingPathComponent(fileName)
+        var coordinatorError: NSError?
+        var readError: Error?
+        var data = Data()
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) {
+            url in
+            do { data = try Data(contentsOf: url) } catch { readError = error }
+        }
+        if let error = readError ?? coordinatorError {
+            throw AppError.backupFailed(
+                reason: "Couldn't read media from iCloud: \(error.localizedDescription)")
+        }
+        return data
+    }
+
     func deleteAllBackups() throws {
         guard let directory = backupsDirectoryURL(),
             fileManager.fileExists(atPath: directory.path)
         else { return }
         let contents = try fileManager.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: nil)
-        for url in contents
-        where [Self.archiveExtension, Self.metadataExtension].contains(url.pathExtension) {
-            try? fileManager.removeItem(at: url)
+        for url in contents {
+            let isBackupFile = [Self.archiveExtension, Self.metadataExtension]
+                .contains(url.pathExtension)
+            let isMediaDirectory = url.hasDirectoryPath
+                && url.lastPathComponent.hasSuffix("-media")
+            if isBackupFile || isMediaDirectory {
+                try? fileManager.removeItem(at: url)
+            }
         }
     }
 }

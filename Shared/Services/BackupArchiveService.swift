@@ -71,19 +71,22 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
     private let deviceSecretProvider: DeviceSecretProviderProtocol
     private let session: URLSession
     private let iCloudStore: ICloudBackupStoreProtocol
+    private let networkMonitor: NetworkMonitorProtocol?
 
     init(
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
         deviceSecretProvider: DeviceSecretProviderProtocol,
         session: URLSession = .shared,
-        iCloudStore: ICloudBackupStoreProtocol = ICloudBackupStore()
+        iCloudStore: ICloudBackupStoreProtocol = ICloudBackupStore(),
+        networkMonitor: NetworkMonitorProtocol? = nil
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
         self.deviceSecretProvider = deviceSecretProvider
         self.session = session
         self.iCloudStore = iCloudStore
+        self.networkMonitor = networkMonitor
     }
 
     func performBackup(
@@ -171,6 +174,15 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
                 ciphertext: encryptedArchive.ciphertext,
                 metadataJSON: encryptedArchive.metadataJSON,
                 lineageId: configuration.lineageId
+            )
+            // iCloud scope is chats AND media: stage the locally cached
+            // attachment files (each re-encrypted under the backup key) next to
+            // the archive. Incremental — files already staged are skipped, and
+            // a failed or deferred media pass never fails the chat backup.
+            stageMediaFilesToICloud(
+                configuration: configuration,
+                aesKey: aesKey,
+                hmacKey: hmacKey
             )
         }
 
@@ -338,6 +350,67 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             ),
             contentHash: metadata.contentHash
         )
+    }
+
+    /// Copies newly cached media into the iCloud media folder for the lineage.
+    ///
+    /// Cache files are decrypted for display, so each is sealed with the backup
+    /// AES key (per-file random IV, HMAC over iv+ciphertext, layout
+    /// iv||hmac||ciphertext) before leaving the device. Honors the
+    /// media-over-wifi-only preference by deferring staging to a later backup
+    /// run when the connection is cellular. Media staging is best-effort by
+    /// design: an individual file failure or a deferral must not fail the chat
+    /// backup that just succeeded.
+    private func stageMediaFilesToICloud(
+        configuration: BackupConfiguration,
+        aesKey: Data,
+        hmacKey: Data
+    ) {
+        if configuration.wifiOnlyMedia,
+            let monitor = networkMonitor,
+            monitor.connectionType != .wifi
+        {
+            SanchrLogger.persistence.info("iCloud media staging deferred: waiting for Wi-Fi")
+            return
+        }
+
+        let cacheDirectory = AppGroup.mediaCacheURL
+            .appendingPathComponent("MediaMessages", isDirectory: true)
+        let fileManager = FileManager.default
+        guard
+            let cached = try? fileManager.contentsOfDirectory(
+                at: cacheDirectory, includingPropertiesForKeys: nil)
+        else { return }
+
+        let alreadyStaged =
+            (try? iCloudStore.stagedMediaFileNames(lineageId: configuration.lineageId)) ?? []
+        var staged = 0
+        for fileURL in cached where !alreadyStaged.contains(fileURL.lastPathComponent) {
+            do {
+                let plaintext = try Data(contentsOf: fileURL)
+                var ivBytes = [UInt8](repeating: 0, count: 16)
+                guard SecRandomCopyBytes(kSecRandomDefault, ivBytes.count, &ivBytes)
+                    == errSecSuccess
+                else { continue }
+                let iv = Data(ivBytes)
+                let ciphertext = try Self.aesCBC(
+                    operation: CCOperation(kCCEncrypt), input: plaintext, key: aesKey, iv: iv)
+                let mac = Self.hmac(iv: iv, ciphertext: ciphertext, key: hmacKey)
+                try iCloudStore.writeMediaFile(
+                    iv + mac + ciphertext,
+                    named: fileURL.lastPathComponent,
+                    lineageId: configuration.lineageId
+                )
+                staged += 1
+            } catch {
+                SanchrLogger.persistence.warning(
+                    "iCloud media staging skipped \(fileURL.lastPathComponent): \(error.localizedDescription)"
+                )
+            }
+        }
+        if staged > 0 {
+            SanchrLogger.persistence.info("iCloud media staging: \(staged) file(s) added")
+        }
     }
 
     private static func selectLatestBackup(
