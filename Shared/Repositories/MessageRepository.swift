@@ -26,6 +26,16 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
 
     /// Fetches all conversations for the current user.
     func fetchConversations() async throws -> [Conversation]
+    /// Local, no-network conversation load that still joins contacts, so a
+    /// cached refresh shows resolved names instead of the raw placeholder.
+    func fetchCachedConversations() async throws -> [Conversation]
+
+    /// Fetches and decrypts the current user's own profile (name, avatar) from
+    /// the encrypted server copy using the own Profile Key. Restores the profile
+    /// after a reinstall — where the Profile Key came back via iCloud Keychain but
+    /// the local name/snapshot did not — so the user is not sent back through
+    /// onboarding. Returns nil when there is nothing to restore.
+    func resolveOwnProfile() async -> (displayName: String, avatarURL: URL?)?
 
     /// Persists local-only conversation presentation flags.
     func setConversationPinned(conversationId: String, isPinned: Bool) async throws
@@ -170,6 +180,41 @@ actor MessageEnvelopeReplayGate {
     }
 }
 
+/// Gates profile-name resolution so it runs until it succeeds, then stops.
+///
+/// Resolution used to run only when a peer's Profile Key was *new*. But if an
+/// earlier attempt stored the key without resolving the name — a failed fetch, a
+/// decrypt miss, a stale build — every later message saw the key as "not new"
+/// and skipped resolution forever, so the name never appeared. This retries on
+/// each message while a peer is unresolved, coalesces concurrent attempts, and
+/// stops once resolved.
+private actor ProfileResolutionCoordinator {
+    private var resolved: Set<String> = []
+    private var inFlight: Set<String> = []
+
+    /// Returns true (and marks in-flight) if a resolution should start for `id`.
+    func begin(_ id: String) -> Bool {
+        guard !resolved.contains(id), !inFlight.contains(id) else { return false }
+        inFlight.insert(id)
+        return true
+    }
+
+    func succeed(_ id: String) {
+        inFlight.remove(id)
+        resolved.insert(id)
+    }
+
+    /// Allow a later message to retry.
+    func fail(_ id: String) {
+        inFlight.remove(id)
+    }
+
+    /// A changed key means the peer may have a new name; clear the resolved mark.
+    func invalidate(_ id: String) {
+        resolved.remove(id)
+    }
+}
+
 private actor SealedDropLogLimiter {
     private let interval: Int
     private var droppedCount = 0
@@ -203,6 +248,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let currentUserIdProvider: @Sendable () -> String?
     private let streamController = MessageStreamController()
     private let sealedEnvelopeReplayGate = MessageEnvelopeReplayGate()
+    private let profileResolutionCoordinator = ProfileResolutionCoordinator()
     private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
@@ -376,6 +422,17 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             before: before,
             limit: limit
         )
+    }
+
+    func fetchCachedConversations() async throws -> [Conversation] {
+        let conversations = try await normalizedLocalConversations(
+            currentUserId: currentUserIdProvider())
+        // Resolution is otherwise only driven by inbound envelopes, so a peer we
+        // already hold a Profile Key for stays "Unknown" on a cold launch until
+        // they happen to send something. Kick off a proactive pass from the
+        // stored keys — the coordinator dedupes, so this is a no-op once resolved.
+        Task { [weak self] in await self?.resolveStoredProfilesIfNeeded() }
+        return conversations
     }
 
     func fetchConversations() async throws -> [Conversation] {
@@ -915,20 +972,105 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 "Failed to store profile key from \(userId.prefix(8)): \(error.localizedDescription)")
             return
         }
-        guard isNewKey else { return }
-        Task { [weak self] in await self?.resolveProfile(userId: userId, profileKey: key) }
+        Task { [weak self] in
+            guard let self else { return }
+            // A rotated key may carry a new name — let it re-resolve.
+            if isNewKey { await self.profileResolutionCoordinator.invalidate(userId) }
+            guard await self.profileResolutionCoordinator.begin(userId) else { return }
+            let ok = await self.resolveProfile(userId: userId, profileKey: key)
+            if ok {
+                await self.profileResolutionCoordinator.succeed(userId)
+            } else {
+                await self.profileResolutionCoordinator.fail(userId)
+            }
+        }
+    }
+
+    /// Resolves display names from Profile Keys we already hold, without waiting
+    /// for the peer to send an envelope.
+    ///
+    /// `handleReceivedProfileKey` only fires on inbound traffic, so a QR-paired
+    /// contact — whose key arrived once when the session was set up — reverts to
+    /// the placeholder on every cold launch until they next message. This walks
+    /// the stored conversations, and for any peer whose key is in the Keychain,
+    /// re-runs resolution through the same coordinator. The coordinator's
+    /// resolved/in-flight sets make it idempotent: a name that is already
+    /// resolved this launch costs nothing, and a stored key that no longer opens
+    /// the ciphertext simply fails and is retried on a later load.
+    func resolveStoredProfilesIfNeeded() async {
+        guard let conversations = try? await localDatabase.fetchConversations() else { return }
+        let localUserId = currentUserIdProvider()
+        var visited = Set<String>()
+        for conversation in conversations {
+            for participant in conversation.participants
+            where participant.id != localUserId && visited.insert(participant.id).inserted {
+                guard
+                    let key = try? profileKeyStore.contactProfileKey(forUserId: participant.id),
+                    key.count == Self.profileKeyByteCount
+                else { continue }
+                Task { [weak self] in
+                    guard let self else { return }
+                    guard await self.profileResolutionCoordinator.begin(participant.id) else {
+                        return
+                    }
+                    let ok = await self.resolveProfile(userId: participant.id, profileKey: key)
+                    if ok {
+                        await self.profileResolutionCoordinator.succeed(participant.id)
+                    } else {
+                        await self.profileResolutionCoordinator.fail(participant.id)
+                    }
+                }
+            }
+        }
     }
 
     /// Fetches a peer's encrypted profile, decrypts the display name with their
     /// Profile Key, and writes it onto the local contact row so the conversation
     /// list and header show a real name instead of the server placeholder.
-    private func resolveProfile(userId: String, profileKey: Data) async {
+    func resolveOwnProfile() async -> (displayName: String, avatarURL: URL?)? {
+        guard let userId = currentUserIdProvider(),
+            let key = try? profileKeyStore.ownProfileKey()
+        else { return nil }
+        do {
+            var request = Sanchr_Settings_GetUserProfilesRequest()
+            request.userIds = [userId]
+            let response = try await grpcClient.settingsService.getUserProfiles(request)
+            guard let profile = response.profiles.first(where: { $0.userID == userId }),
+                !profile.encryptedDisplayName.isEmpty
+            else { return nil }
+
+            let crypto = ProfileCryptor()
+            guard
+                let name = try? crypto.decryptField(
+                    profile.encryptedDisplayName, profileKey: key, field: .displayName),
+                !name.isEmpty
+            else { return nil }
+
+            var avatar: URL?
+            if !profile.encryptedAvatarURL.isEmpty,
+                let urlString = try? crypto.decryptField(
+                    profile.encryptedAvatarURL, profileKey: key, field: .avatarURL)
+            {
+                avatar = URL(string: urlString)
+            } else if !profile.avatarURL.isEmpty {
+                avatar = URL(string: profile.avatarURL)
+            }
+            SanchrLogger.chat.info("Restored own profile from encrypted server copy")
+            return (name, avatar)
+        } catch {
+            SanchrLogger.chat.warning(
+                "resolveOwnProfile failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func resolveProfile(userId: String, profileKey: Data) async -> Bool {
         do {
             var request = Sanchr_Settings_GetUserProfilesRequest()
             request.userIds = [userId]
             let response = try await grpcClient.settingsService.getUserProfiles(request)
             guard let profile = response.profiles.first(where: { $0.userID == userId }) else {
-                return
+                return false
             }
 
             let crypto = ProfileCryptor()
@@ -938,10 +1080,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                     profile.encryptedDisplayName, profileKey: profileKey, field: .displayName)
             }
             guard let name = resolvedName, !name.isEmpty else {
-                // Key does not open this ciphertext (peer's profile predates the key
-                // we hold, or was never uploaded). Nothing to show; the phone-number
+                // The key does not open this ciphertext: the peer's profile
+                // predates the key we hold, or was never uploaded. The phone-number
                 // fallback in the normalizer stands.
-                return
+                return false
             }
 
             var avatar: URL?
@@ -968,11 +1110,39 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 profileKey: profileKey
             )
             try? await localDatabase.saveContact(merged)
-            NotificationCenter.default.postConversationStateDidChange()
+
+            // Persist the resolved name onto the stored conversation participants,
+            // not just the separate contact row. The conversation list, the chat
+            // header, and several refresh paths read the participant name straight
+            // from the conversation without joining contacts, so writing it here is
+            // what makes the name show — and stay — everywhere, rather than only in
+            // the one path that runs the contact-join normalizer.
+            if let convs = try? await localDatabase.fetchConversations() {
+                for var conv in convs
+                where conv.participants.contains(where: { $0.id == userId }) {
+                    conv.participants = conv.participants.map { p in
+                        guard p.id == userId else { return p }
+                        var updated = p
+                        updated.displayName = name
+                        if updated.avatarURL == nil { updated.avatarURL = avatar }
+                        return updated
+                    }
+                    try? await localDatabase.saveConversation(conv)
+                }
+            }
+
+            // Hop to the main thread: this runs inside a detached Task, and posting
+            // a change that drives SwiftUI updates off the main thread is ignored
+            // ("Publishing changes from background threads is not allowed").
+            await MainActor.run {
+                NotificationCenter.default.postContactProfileResolved(userId: userId)
+            }
             SanchrLogger.chat.info("Resolved profile name for \(userId.prefix(8))")
+            return true
         } catch {
             SanchrLogger.chat.warning(
                 "Profile resolve for \(userId.prefix(8)) failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -1339,6 +1509,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
 
+            // Every sealed payload carries the sender's Profile Key
+            // (InnerPayload.senderProfileKey). Extract it FIRST — before any
+            // content-type branch returns — because the most frequent envelopes
+            // (presence, typing, receipts) return early, and those are the best
+            // carriers precisely because they are frequent. Storing it here makes
+            // key distribution idempotent and self-healing regardless of what the
+            // payload turns out to be.
+            if let key = innerPayload.senderProfileKey,
+                !result.senderUserId.isEmpty,
+                result.senderUserId != currentUserIdProvider()
+            {
+                handleReceivedProfileKey(key, from: result.senderUserId)
+            }
+
             // 3. P2P Presence: route without touching message storage.
             if innerPayload.contentType == "presence/v1" {
                 var presenceUpdate = try Sanchr_Messaging_PresenceUpdate(
@@ -1359,18 +1543,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return .event(.presence(presenceUpdate))
             }
 
-            // 3a-bis. Every sealed payload carries the sender's Profile Key
-            // (InnerPayload.senderProfileKey). Store it whenever it is present, so
-            // distribution is idempotent — any message re-delivers the current
-            // key, a rotated key propagates on the next message, and there is no
-            // separate control message to lose. This is what replaced the fragile
-            // one-directional delivery that left every peer named "Sanchr User".
-            if let key = innerPayload.senderProfileKey,
-                !result.senderUserId.isEmpty,
-                result.senderUserId != currentUserIdProvider()
-            {
-                handleReceivedProfileKey(key, from: result.senderUserId)
-            }
 
             // 3b. Profile key distribution: store the sender's key so their encrypted
             // profile fields become readable. Arrives only over the Signal session —
@@ -1711,42 +1883,83 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 var normalizedParticipant = participant
                 let isLocal = participant.id == currentUserId
                 normalizedParticipant.isLocalUser = isLocal
-                if !isLocal, let contact = contactsLookup[participant.id] {
-                    // The server's plaintext display_name is the registration
-                    // placeholder for every account now that profile fields are
-                    // E2EE, so it has to count as unset alongside an empty name
-                    // and a name that is just the user id. Without this the
-                    // placeholder outranked the decrypted name from contacts and
-                    // every conversation was headed "Sanchr User".
-                    let name = normalizedParticipant.displayName
-                    if name.isEmpty
-                        || name == participant.id
-                        || name == User.serverPlaceholderDisplayName
-                    {
-                        normalizedParticipant.displayName = contact.displayName
-                    }
-                    if normalizedParticipant.avatarURL == nil {
-                        normalizedParticipant.avatarURL = contact.avatarURL
-                    }
-                }
+                guard !isLocal else { return normalizedParticipant }
 
-                // Still nothing usable — the peer's Profile Key has not arrived, so
-                // their name cannot be decrypted yet. Show the phone number rather
-                // than a placeholder that looks like a real name, matching what
-                // ContactRepository already does.
-                if !isLocal, normalizedParticipant.displayName == User.serverPlaceholderDisplayName {
-                    let phone = contactsLookup[participant.id]?.phoneNumber ?? ""
-                    normalizedParticipant.displayName = phone.isEmpty ? "Unknown contact" : phone
+                let contact = contactsLookup[participant.id]
+                if normalizedParticipant.avatarURL == nil {
+                    normalizedParticipant.avatarURL = contact?.avatarURL
                 }
+                normalizedParticipant.displayName = Self.displayTitle(
+                    for: participant, contact: contact)
                 return normalizedParticipant
             }
             return normalizedConversation
         }
     }
 
+    /// The single rule for what a 1:1 peer is labelled as, so the list, header and
+    /// every refresh path agree. Priority, highest first:
+    ///
+    /// 1. A name saved in the local address book — trusted, shown verbatim.
+    ///    (Not wired yet: device-contact names are not captured, so this never
+    ///    fires today; it is the reserved top slot for that feature.)
+    /// 2. A known phone number for an unsaved peer — shown raw, WhatsApp-style, so
+    ///    an unverified stranger reads as a number and not as a trusted name.
+    /// 3. A decrypted Profile-Key name — prefixed with "~" to mark it as the
+    ///    peer's self-asserted name rather than one the user verified.
+    /// 4. "Unknown contact" — never the server's "Sanchr User" placeholder.
+    private static func displayTitle(for participant: User, contact: User?) -> String {
+        func isPlaceholder(_ name: String) -> Bool {
+            name.isEmpty
+                || name == participant.id
+                || name == User.serverPlaceholderDisplayName
+        }
+
+        // A real, decrypted name from either the contact row or the participant.
+        let profileName: String? = {
+            if let name = contact?.displayName, !isPlaceholder(name) { return name }
+            if !isPlaceholder(participant.displayName) { return participant.displayName }
+            return nil
+        }()
+
+        let phone: String? = {
+            if let p = contact?.phoneNumber, !p.isEmpty { return p }
+            if !participant.phoneNumber.isEmpty { return participant.phoneNumber }
+            return nil
+        }()
+
+        if let phone { return phone }
+        if let profileName { return "~\(profileName)" }
+        return "Unknown contact"
+    }
+
     private func decodeContent(_ plaintext: Data, contentType: String) -> Message.MessageContent {
         switch contentType {
         case "text":
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        case "location":
+            // The sender encrypts a bare {"latitude":..,"longitude":..} object, not
+            // a MessageContent envelope, so it has to be parsed as such. Without
+            // this the coordinates fell through to the JSON-decode branch, failed,
+            // and rendered as a raw-JSON text bubble instead of a location card.
+            if let object = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Double],
+                let latitude = object["latitude"],
+                let longitude = object["longitude"]
+            {
+                return .location(latitude: latitude, longitude: longitude)
+            }
+            return .text(String(data: plaintext, encoding: .utf8) ?? "")
+        case "contact":
+            // Same as location: the sender encrypts a bare {"name":..,
+            // "phoneNumber":..} object rather than a MessageContent envelope, so
+            // parse it directly instead of letting it fall through to a raw-JSON
+            // text bubble.
+            if let object = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Any],
+                let name = object["name"] as? String,
+                let phoneNumber = object["phoneNumber"] as? String
+            {
+                return .contact(name: name, phoneNumber: phoneNumber)
+            }
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
         default:
             if let content = try? JSONDecoder().decode(Message.MessageContent.self, from: plaintext) {

@@ -148,10 +148,10 @@ struct ChatsListView: View {
             sanchrModeEnabled = container.privacySettings.sanchrModeEnabled
             // Reload cached conversations so unread counts reflect any DB changes made
             // while this view was off-screen (e.g. ChatDetailView marking messages as read).
-            Task { await viewModel.loadCachedConversations(localDatabase: container.localDatabase) }
+            Task { await viewModel.loadCachedConversations(messageRepository: container.messageRepository) }
         }
         .task {
-            await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
+            await viewModel.loadCachedConversations(messageRepository: container.messageRepository)
             updatePresenceTrackingForVisibleConversations()
             await viewModel.loadConversations(messageRepository: container.messageRepository)
             updatePresenceTrackingForVisibleConversations()
@@ -164,6 +164,11 @@ struct ChatsListView: View {
                 pendingConversationRefreshIDs.insert(conversationId)
             }
             scheduleConversationRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sanchrContactProfileResolved)) { _ in
+            // A peer's name was just decrypted; the raw cached rows do not carry
+            // it, so re-run the normalizing fetch that joins contacts.
+            Task { await viewModel.loadConversations(messageRepository: container.messageRepository) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
             guard let presence = note.userInfo?[RealtimeNotificationKey.presence]
@@ -831,7 +836,7 @@ struct ChatsListView: View {
             pendingConversationRefreshIDs.removeAll()
 
             if forceFullReload || pendingIDs.isEmpty {
-                await viewModel.loadCachedConversations(localDatabase: container.localDatabase)
+                await viewModel.loadCachedConversations(messageRepository: container.messageRepository)
             } else {
                 for conversationId in pendingIDs {
                     await viewModel.refreshConversation(

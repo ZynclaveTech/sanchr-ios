@@ -114,7 +114,10 @@ struct MediaGalleryView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: UIApplication.userDidTakeScreenshotNotification
         )) { _ in
-            guard anyViewOnceVisible,
+            // Notify the peer on screenshot for view-once media AND whenever the
+            // chat's Capture Protection is on — the toggle's copy promises exactly
+            // this, but the notification previously fired for view-once only.
+            guard anyViewOnceVisible || perChatScreenshotProtection,
                   let cid = presentation.items.first?.message.conversationId else { return }
             screenshotToast = "Sender notified"
             Task {

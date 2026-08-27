@@ -249,6 +249,11 @@ final class MockAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
 }
 
 final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendable {
+    var resolveOwnProfileResult: (displayName: String, avatarURL: URL?)?
+    func resolveOwnProfile() async -> (displayName: String, avatarURL: URL?)? {
+        resolveOwnProfileResult
+    }
+
     var syncResult = MessageSyncResult(
         appliedCount: 0,
         latestTimestamp: 0,

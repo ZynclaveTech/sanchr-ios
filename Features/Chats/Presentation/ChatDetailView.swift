@@ -223,6 +223,20 @@ struct ChatDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
                 handleRealtimePresenceUpdated(note)
             }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIApplication.userDidTakeScreenshotNotification)
+            ) { _ in
+                // Sanchr Mode: iOS can't block a screenshot, but it surfaces one
+                // after the fact — mirror the view-once behaviour and notify the
+                // peer so a screenshot of the conversation is never silent.
+                guard container.privacySettings.sanchrModeEnabled else { return }
+                let conversationId = conversation.id
+                Task {
+                    try? await container.messageRepository.sendSystemEvent(
+                        .screenshotDetected, conversationId: conversationId)
+                }
+            }
             .onChange(of: isInputFocused) { _, focused in
                 if !focused {
                     // Keyboard dismissed — stop typing indicator

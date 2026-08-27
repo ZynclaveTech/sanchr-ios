@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import Contacts
 import CoreImage.CIFilterBuiltins
 import CryptoKit
 import Kingfisher
@@ -14,7 +15,6 @@ struct ConversationInfoView: View {
     @State private var refreshedRecipient: User?
     @State private var notificationsMuted = false
     @State private var mediaVisibility = true
-    @State private var sanchrModeEnabled = false
     @State private var isConversationArchived: Bool
     @State private var showDisappearingMessages = false
     @State private var showVaultMedia = false
@@ -30,6 +30,8 @@ struct ConversationInfoView: View {
     @State private var showClearChat = false
     @State private var showBlockContact = false
     @State private var conversationActionErrorMessage: String?
+    @State private var isPeerInDeviceContacts = false
+    @State private var showAddToDeviceContacts = false
 
     init(conversation: Conversation, recipient: User?) {
         self.conversation = conversation
@@ -58,14 +60,117 @@ struct ConversationInfoView: View {
         return "Encrypted conversation"
     }
 
+    // MARK: - Add to Device Contacts
+
+    /// The name to prefill the new-contact sheet with. Strips the "~" untrusted
+    /// marker the list adds to profile names, and rejects the server placeholder,
+    /// a bare user id, and the "Unknown contact" fallback — none of which are a
+    /// name worth saving to the address book.
+    private var contactPrefillName: String? {
+        let raw = (activeRecipient?.displayName ?? conversation.displayName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let name =
+            raw.hasPrefix("~")
+            ? String(raw.dropFirst()).trimmingCharacters(in: .whitespaces)
+            : raw
+        guard !name.isEmpty,
+            name != User.serverPlaceholderDisplayName,
+            name != "Unknown contact",
+            UUID(uuidString: name) == nil
+        else { return nil }
+        return name
+    }
+
+    private var contactPrefillPhone: String {
+        activeRecipient?.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    /// Offer "Add to Contacts" only for a 1:1 peer who isn't already in the device
+    /// address book and for whom we have something worth saving (a real name or a
+    /// phone number).
+    private var canAddPeerToDeviceContacts: Bool {
+        guard conversation.type == .oneToOne, !isPeerInDeviceContacts else { return false }
+        return contactPrefillName != nil || !contactPrefillPhone.isEmpty
+    }
+
+    /// Checks whether the peer is already in the device address book. Only a
+    /// phone number can be matched, and only when read access is already granted
+    /// — we never prompt for Contacts access just to decide whether to show the
+    /// button. When we can't tell, we default to offering it (adding a duplicate
+    /// is recoverable; hiding the option when it's needed is not).
+    private func refreshDeviceContactMembership() async {
+        // A peer we saved earlier through this screen stays hidden — a
+        // name-only QR peer has no phone number to match against the address
+        // book, so we remember the add ourselves rather than re-deriving it.
+        if let id = activeRecipient?.id, Self.wasAddedToDeviceContacts(id) {
+            isPeerInDeviceContacts = true
+            return
+        }
+        let phone = contactPrefillPhone
+        guard !phone.isEmpty,
+            CNContactStore.authorizationStatus(for: .contacts) == .authorized
+        else {
+            isPeerInDeviceContacts = false
+            return
+        }
+        let store = CNContactStore()
+        let predicate = CNContact.predicateForContacts(matching: CNPhoneNumber(stringValue: phone))
+        let matches =
+            (try? store.unifiedContacts(
+                matching: predicate,
+                keysToFetch: [CNContactIdentifierKey as CNKeyDescriptor])) ?? []
+        isPeerInDeviceContacts = !matches.isEmpty
+    }
+
+    // Records, per peer id, that the user saved them to the device address book,
+    // so the "Add to Contacts" row does not keep offering an already-saved peer.
+    private static let deviceContactsAddedKey = "sanchr.deviceContactsAdded"
+
+    private static func wasAddedToDeviceContacts(_ userId: String) -> Bool {
+        (UserDefaults.standard.array(forKey: deviceContactsAddedKey) as? [String] ?? [])
+            .contains(userId)
+    }
+
+    private static func markAddedToDeviceContacts(_ userId: String) {
+        var ids = UserDefaults.standard.array(forKey: deviceContactsAddedKey) as? [String] ?? []
+        guard !ids.contains(userId) else { return }
+        ids.append(userId)
+        UserDefaults.standard.set(ids, forKey: deviceContactsAddedKey)
+    }
+
+    @ViewBuilder
+    private var addToContactsSection: some View {
+        if canAddPeerToDeviceContacts {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    showAddToDeviceContacts = true
+                } label: {
+                    settingsRow(
+                        icon: "person.crop.circle.badge.plus",
+                        iconBg: SanchrExportColors.surfaceSoft,
+                        iconColor: SanchrColors.accent,
+                        title: "Add to Contacts",
+                        subtitle: "Save this person to your device address book"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+            }
+        }
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 profileSection
+                addToContactsSection
                 mediaSection
                 securitySection
                 chatPreferencesSection
-                sanchrModeSection
                 disappearingMessagesSection
                 chatActionsSection
                 dangerZoneSection
@@ -91,6 +196,24 @@ struct ConversationInfoView: View {
         }
         .task {
             await loadConversationPreferences()
+        }
+        .task(id: contactPrefillPhone) {
+            // Re-check once the server refresh fills in the phone number.
+            await refreshDeviceContactMembership()
+        }
+        .sheet(isPresented: $showAddToDeviceContacts) {
+            ContactViewControllerHost(
+                mode: .newContact(name: contactPrefillName ?? "", phone: contactPrefillPhone),
+                onDismiss: {
+                    showAddToDeviceContacts = false
+                    Task { await refreshDeviceContactMembership() }
+                },
+                onSaved: {
+                    if let id = activeRecipient?.id { Self.markAddedToDeviceContacts(id) }
+                    isPeerInDeviceContacts = true
+                }
+            )
+            .ignoresSafeArea()
         }
         .navigationDestination(isPresented: $showWallpaper) {
             WallpaperThemeView(conversationId: conversation.id)
@@ -491,74 +614,6 @@ struct ConversationInfoView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(SanchrExportColors.line).frame(height: 1)
-        }
-    }
-
-    // MARK: - Section: Sanchr Mode
-
-    private var sanchrModeSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SanchrColors.primaryDark, SanchrColors.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Image(systemName: "eye.slash.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sanchr Mode")
-                        .font(SanchrTypography.messageBubbleText)
-                        .fontWeight(.bold)
-                        .foregroundColor(SanchrExportColors.textPrimary)
-                    Text("Enhanced privacy & incognito")
-                        .font(SanchrTypography.captionSmall)
-                        .foregroundColor(SanchrExportColors.textSecondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: $sanchrModeEnabled)
-                    .labelsHidden()
-                    .tint(.sanchrPrimary)
-            }
-            .padding(.vertical, 12)
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(SanchrColors.primary)
-                    .padding(.top, 1)
-                Text(
-                    "Sanchr Mode hides notification previews, detects screenshots after capture, and shields content during screen recording or mirroring."
-                )
-                .font(SanchrTypography.captionSmall)
-                .foregroundColor(SanchrExportColors.textSecondary)
-            }
-            .padding(.top, 12)
-            .padding(.horizontal, 8)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(
-            LinearGradient(
-                colors: [
-                    SanchrColors.primaryDark.opacity(0.05), SanchrColors.primary.opacity(0.05),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
         }

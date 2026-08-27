@@ -472,9 +472,10 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 .deleteAll(db)
 
             for participant in conversation.participants {
-                // Ensure user exists
-                let userRecord = UserRecord(from: participant)
-                try userRecord.save(db, onConflict: Database.ConflictResolution.replace)
+                // Ensure user exists. Goes through the shared guard so a server
+                // conversation refresh (placeholder participants) cannot overwrite
+                // a name already resolved from the peer's Profile Key.
+                try Self.upsertUserPreservingResolvedName(participant, into: db)
 
                 // Link participant
                 let link = ConversationParticipantRecord(
@@ -674,10 +675,34 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     // MARK: - Contacts
 
+    /// Upserts a user row without letting the server's plaintext placeholder
+    /// overwrite a name that was already resolved.
+    ///
+    /// The `user` table is shared by contacts and conversation participants, and
+    /// several paths write it: `saveContact` (contact sync) and `saveConversation`
+    /// (which persists each participant). Both receive `display_name = "Sanchr
+    /// User"` from the server for every E2EE account, so a routine conversation
+    /// refresh or contact sync would clobber the name decrypted from the peer's
+    /// Profile Key and the list would revert to the placeholder. Routing every
+    /// user upsert through here keeps a resolved name pinned: an incoming
+    /// placeholder yields to an existing real name (and avatar), while a real
+    /// incoming name always wins.
+    static func upsertUserPreservingResolvedName(_ user: User, into db: Database) throws {
+        var record = UserRecord(from: user)
+        if user.displayName == User.serverPlaceholderDisplayName,
+            let existing = try UserRecord.fetchOne(db, key: user.id),
+            existing.displayName != User.serverPlaceholderDisplayName,
+            !existing.displayName.isEmpty
+        {
+            record.displayName = existing.displayName
+            if record.avatarURL == nil { record.avatarURL = existing.avatarURL }
+        }
+        try record.save(db, onConflict: Database.ConflictResolution.replace)
+    }
+
     public func saveContact(_ user: User) async throws {
-        let record = UserRecord(from: user)
         try await dbPool.write { db in
-            try record.save(db, onConflict: Database.ConflictResolution.replace)
+            try Self.upsertUserPreservingResolvedName(user, into: db)
         }
     }
 

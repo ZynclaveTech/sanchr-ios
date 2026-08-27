@@ -446,7 +446,10 @@ struct RootView: View {
                 .zIndex(100)
             }
         }
-        .screenshotProtection(isActive: container.appLockManager.isScreenshotProtectionActive)
+        .screenshotProtection(
+            isActive: container.appLockManager.isScreenshotProtectionActive
+                || container.privacySettings.sanchrModeEnabled
+        )
         .task {
             // If splash has already played this process session (e.g. we're
             // returning from background and SwiftUI re-fired this task), dismiss
@@ -533,6 +536,22 @@ struct RootView: View {
             } catch {
                 SanchrLogger.settings.warning(
                     "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
+                )
+            }
+
+            // Restore the profile after a reinstall. The Profile Key comes back
+            // via iCloud Keychain, but the local name/snapshot does not, so the
+            // session has no display name and RootView would send the user back
+            // through onboarding. Recover the name (and avatar) by decrypting the
+            // encrypted server copy with the restored key, before that decision.
+            let localName = container.sessionService.currentDisplayName ?? ""
+            if container.profileKeyStore.hasOwnProfileKey(),
+                localName.isEmpty || localName == User.serverPlaceholderDisplayName,
+                let restored = await container.messageRepository.resolveOwnProfile()
+            {
+                container.sessionService.updateProfile(
+                    displayName: restored.displayName,
+                    avatarURL: restored.avatarURL?.absoluteString
                 )
             }
         } else {

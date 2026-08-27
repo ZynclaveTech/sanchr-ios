@@ -62,6 +62,22 @@ enum CallState: Equatable, Sendable {
         case timeout
         case networkError
         case cancelled
+
+        /// The terminal reason to report to the server so it clears the active-call
+        /// record. Without this a locally-decided teardown (network drop, WebRTC
+        /// failure) leaves the server thinking the call is still up, and both
+        /// parties read as "busy" until the record's multi-hour TTL expires.
+        var serverReason: String {
+            switch self {
+            case .normal: "ended"
+            case .busy: "busy"
+            case .declined: "declined"
+            case .failed: "failed"
+            case .timeout: "missed"
+            case .networkError: "ended"
+            case .cancelled: "cancelled"
+            }
+        }
     }
 
     var callId: String? {
@@ -135,7 +151,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     private var callStartTime: Date?
     private var durationTask: Task<Void, Never>?
     private var signalingTask: Task<Void, Never>?
+    /// Keeps the idle signaling stream alive. See `startKeepAlive`.
+    private var keepAliveTask: Task<Void, Never>?
     private var signalingReadyCallId: String?
+
+    /// How often to ping on the signaling stream to keep it from idling out.
+    /// Comfortably under a typical 60s load-balancer idle timeout.
+    private static let keepAliveIntervalSeconds: UInt64 = 20
+    /// Consecutive quick signaling-stream reconnects before giving up and ending
+    /// the call as a network error.
+    private static let maxSignalingReconnectAttempts = 5
     private var pendingLocalIceCandidates: [Data] = []
     private var shouldIgnoreOutgoingCallKitEnd = false
     private var answeringCallId: String?
@@ -551,7 +576,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 SanchrLogger.calls.error(
                     "VoIP push: failed to report call \(callId) to CallKit: \(error.localizedDescription)")
                 Task { @MainActor in
-                    self?.endCallInternal(callId: callId, reason: .failed)
+                    self?.endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                 }
             }
         }
@@ -587,7 +612,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 guard age <= 120 else {
                     SanchrLogger.calls.error(
                         "VoIP push: rejecting stale SDP for call \(callId) (age=\(Int(age))s)")
-                    endCallInternal(callId: callId, reason: .failed)
+                    endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                     return
                 }
 
@@ -597,7 +622,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
                 else {
                     SanchrLogger.calls.error(
                         "VoIP push: DTLS fingerprint mismatch for call \(callId)")
-                    endCallInternal(callId: callId, reason: .failed)
+                    endCallInternal(callId: callId, reason: .failed, notifyServer: true)
                     return
                 }
 
@@ -964,6 +989,72 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         self.outboundContinuation = continuation
         self.signalingReadyCallId = callId
 
+        continuation.yield(makeJoinSignal(callId: callId, role: role))
+        flushLocalIceCandidates(callId: callId)
+        sendLocalStatusControls(callId: callId)
+        startKeepAlive(callId: callId)
+
+        signalingTask = Task { [weak self] in
+            guard let self else { return }
+            // Check cancellation before opening the gRPC stream — endCall() may have
+            // already cancelled this task between openSignalingStream() returning and
+            // this Task body executing on the cooperative thread pool.
+            guard !Task.isCancelled else {
+                SanchrLogger.calls.debug("Signaling task cancelled before stream open for call \(callId)")
+                return
+            }
+            var inbound = self.callService.callStream(outboundStream)
+            // Second check: endCall() may cancel during the synchronous stream setup above.
+            guard !Task.isCancelled else {
+                SanchrLogger.calls.debug("Signaling task cancelled after stream setup for call \(callId)")
+                return
+            }
+
+            // Reconnect loop. An intermediary can close the signaling stream mid-call
+            // (e.g. a load-balancer idle timeout on the otherwise-silent post-connect
+            // stream). The keepalive above is the primary defence; this reopens the
+            // stream if one is closed anyway, and only ends the call after several
+            // rapid failures, rather than dropping a live call on the first close.
+            var attempt = 0
+            while true {
+                let startedAt = Date()
+                await self.handleSignalingStream(inbound, callId: callId)
+
+                if Task.isCancelled || self.callState.callId != callId { return }
+
+                // A stream that stayed up a while before dropping is a fresh incident,
+                // not part of a failing burst — reset the give-up counter.
+                if Date().timeIntervalSince(startedAt) > 30 { attempt = 0 }
+                attempt += 1
+                guard attempt <= Self.maxSignalingReconnectAttempts else {
+                    SanchrLogger.calls.error(
+                        "Signaling stream failed \(attempt) times; ending call \(callId)")
+                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError, notifyServer: true) }
+                    return
+                }
+
+                SanchrLogger.calls.warning(
+                    "Signaling stream ended mid-call; reconnecting (attempt \(attempt)/\(Self.maxSignalingReconnectAttempts))")
+                try? await Task.sleep(
+                    nanoseconds: UInt64(Double(min(attempt, 4)) * 0.5 * 1_000_000_000))
+                if Task.isCancelled || self.callState.callId != callId { return }
+
+                guard
+                    let reopened = await MainActor.run(body: {
+                        self.reopenOutboundChannel(callId: callId, role: role)
+                    })
+                else {
+                    await MainActor.run { self.endCallInternal(callId: callId, reason: .networkError, notifyServer: true) }
+                    return
+                }
+                inbound = self.callService.callStream(reopened)
+            }
+        }
+    }
+
+    /// Builds the CallJoin signal that associates this stream with the call on the
+    /// server. Shared by the initial open and every reconnect.
+    private func makeJoinSignal(callId: String, role: String) -> Sanchr_Calling_CallSignal {
         var joinSignal = Sanchr_Calling_CallSignal()
         joinSignal.callID = callId
         joinSignal.peerDevice = localDeviceIdProvider()
@@ -977,29 +1068,42 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             join.answererDevice = localDeviceIdProvider()
         }
         joinSignal.join = join
-        continuation.yield(joinSignal)
+        return joinSignal
+    }
+
+    /// Rebuilds the outbound half of the signaling stream after a mid-call close
+    /// and returns the fresh outbound stream to open a new gRPC call with. Runs on
+    /// the main actor: it swaps the shared outbound continuation and re-sends the
+    /// join so the server re-associates this device with the call. Returns nil if
+    /// the call is no longer current, meaning the caller should stop reconnecting.
+    @MainActor
+    private func reopenOutboundChannel(callId: String, role: String)
+        -> AsyncStream<Sanchr_Calling_CallSignal>?
+    {
+        guard callState.callId == callId else { return nil }
+        outboundContinuation?.finish()
+        let (outboundStream, continuation) = AsyncStream<Sanchr_Calling_CallSignal>.makeStream()
+        outboundContinuation = continuation
+        signalingReadyCallId = callId
+        continuation.yield(makeJoinSignal(callId: callId, role: role))
         flushLocalIceCandidates(callId: callId)
         sendLocalStatusControls(callId: callId)
+        return outboundStream
+    }
 
-        signalingTask = Task { [weak self] in
-            guard let self else { return }
-            // Check cancellation before opening the gRPC stream — endCall() may have
-            // already cancelled this task between openSignalingStream() returning and
-            // this Task body executing on the cooperative thread pool.
-            guard !Task.isCancelled else {
-                SanchrLogger.calls.debug("Signaling task cancelled before stream open for call \(callId)")
-                return
-            }
-            let inboundStream = self.callService.callStream(outboundStream)
-            // Second check: endCall() may cancel during the synchronous stream setup above.
-            guard !Task.isCancelled else {
-                SanchrLogger.calls.debug("Signaling task cancelled after stream setup for call \(callId)")
-                return
-            }
-            await self.handleSignalingStream(inboundStream, callId: callId)
-            if !Task.isCancelled, self.callState.callId == callId {
+    /// Pings the signaling stream on an interval so an idle-timeout in front of the
+    /// call service cannot close a connected call's otherwise-silent stream — after
+    /// connect all media is peer-to-peer, so nothing else travels here. The server
+    /// consumes "ping" without persisting or mirroring it to the peer.
+    private func startKeepAlive(callId: String) {
+        keepAliveTask?.cancel()
+        keepAliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: Self.keepAliveIntervalSeconds * 1_000_000_000)
+                if Task.isCancelled { break }
                 await MainActor.run {
-                    self.endCallInternal(callId: callId, reason: .networkError)
+                    guard let self, self.callState.callId == callId else { return }
+                    self.sendControlAction("ping", callId: callId)
                 }
             }
         }
@@ -1269,7 +1373,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     // MARK: - Internal Cleanup
 
-    private func endCallInternal(callId: String, reason: CallState.EndReason) {
+    /// - Parameter notifyServer: pass `true` when this teardown is decided
+    ///   locally (a network drop, a WebRTC or CallKit failure) rather than in
+    ///   response to a peer/server terminal signal. The signaling stream may
+    ///   already be dead in those cases, so the server is told over the unary
+    ///   endCall RPC instead; otherwise the active-call record lingers and both
+    ///   parties stay "busy". Reacting to a received terminal signal leaves this
+    ///   `false` — the server already knows.
+    private func endCallInternal(
+        callId: String, reason: CallState.EndReason, notifyServer: Bool = false
+    ) {
         // Guard: skip if this call has already been cleaned up
         switch callState {
         case .idle, .ended: return
@@ -1277,9 +1390,17 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
         SanchrLogger.calls.info("Call ended: \(callId) reason=\(String(describing: reason))")
 
+        if notifyServer {
+            Task { [weak self] in
+                await self?.endCallOnServer(callId: callId, reason: reason.serverReason)
+            }
+        }
+
         stopDurationTimer()
         signalingTask?.cancel()
         signalingTask = nil
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         outboundContinuation?.finish()
         outboundContinuation = nil
         signalingReadyCallId = nil
@@ -1472,6 +1593,8 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         stopDurationTimer()
         signalingTask?.cancel()
         signalingTask = nil
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         outboundContinuation?.finish()
         outboundContinuation = nil
         signalingReadyCallId = nil
@@ -1870,7 +1993,7 @@ extension CallManager: CXProviderDelegate {
             Task {
                 await endCallOnServer(callId: callId, reason: "failed")
             }
-            endCallInternal(callId: callId, reason: .failed)
+            endCallInternal(callId: callId, reason: .failed, notifyServer: true)
         } else {
             webRTCClient.close()
             callState = .idle
@@ -2002,7 +2125,7 @@ extension CallManager: WebRTCClientDelegate {
                 self.callState = .reconnecting(callId: callId)
 
             case .failed:
-                self.endCallInternal(callId: callId, reason: .failed)
+                self.endCallInternal(callId: callId, reason: .failed, notifyServer: true)
 
             case .closed:
                 break  // Handled by endCallInternal

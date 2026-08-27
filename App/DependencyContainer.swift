@@ -638,7 +638,14 @@ final class DependencyContainer: @unchecked Sendable {
 
     private static func callDisplayName(for user: User, userId: String) -> String? {
         let displayName = user.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !displayName.isEmpty, displayName != userId, UUID(uuidString: displayName) == nil {
+        // The server placeholder is not a real name — it must fall through to the
+        // phone number, exactly as the conversation list does, rather than being
+        // shown on the call screen (or, once filtered, collapsing to "Unknown").
+        if !displayName.isEmpty,
+            displayName != userId,
+            displayName != User.serverPlaceholderDisplayName,
+            UUID(uuidString: displayName) == nil
+        {
             return displayName
         }
 

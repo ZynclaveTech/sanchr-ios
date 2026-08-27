@@ -172,9 +172,11 @@ final class ChatsListViewModel {
 
     /// Fast local refresh used after realtime/local persistence updates so the list
     /// reflects new previews immediately without waiting on a server roundtrip.
-    func loadCachedConversations(localDatabase: LocalDatabaseProtocol) async {
+    func loadCachedConversations(messageRepository: MessageRepositoryProtocol) async {
         do {
-            conversations = try await localDatabase.fetchConversations()
+            // Normalizing local fetch: joins contacts so resolved names survive a
+            // cache reload instead of reverting to the "Sanchr User" placeholder.
+            conversations = try await messageRepository.fetchCachedConversations()
             errorMessage = nil
             SanchrLogger.chat.info("Loaded \(self.conversations.count) cached conversations")
         } catch {
