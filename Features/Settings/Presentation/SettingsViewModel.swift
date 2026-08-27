@@ -158,6 +158,10 @@ final class SettingsViewModel {
 
     /// Debounced sync that waits 500ms after the last change before pushing to server.
     func debouncedSync(settingsDataSource: SettingsDataSource) {
+        // Mirror straight away rather than waiting for the round trip, so
+        // enforcement matches the picker the user is looking at even while
+        // the sync is still in flight or the network is down.
+        mirrorAutoDownloadSettings()
         syncWorkItem?.cancel()
 
         let workItem = DispatchWorkItem { [weak self] in
@@ -235,6 +239,17 @@ final class SettingsViewModel {
         autoDownloadMobile = settings.autoDownloadMobile
         autoDownloadRoaming = settings.autoDownloadRoaming
         lowDataMode = settings.lowDataMode
+        mirrorAutoDownloadSettings()
+    }
+
+    /// Publishes the enforceable auto-download choices where message bubbles
+    /// can read them synchronously. Without this the pickers only ever reached
+    /// the server, and `AutoDownloadPolicy` had nothing to enforce.
+    private func mirrorAutoDownloadSettings() {
+        AutoDownloadSettingsStore.store(
+            wifi: autoDownloadWifi,
+            mobile: autoDownloadMobile
+        )
     }
 
     private func buildSettings() -> Sanchr_Settings_UserSettings {

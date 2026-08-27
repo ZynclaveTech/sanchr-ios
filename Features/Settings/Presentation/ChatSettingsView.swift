@@ -11,7 +11,7 @@ struct ChatSettingsView: View {
     @AppStorage("sanchr.enterSendsMessage") private var enterSendsMessage = true
     @AppStorage("sanchr.linkPreviews") private var linkPreviews = true
     @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
-    @AppStorage("sanchr.defaultDisappearingTimer") private var defaultDisappearingTimer = "off"
+    @AppStorage(DefaultDisappearingTimer.storageKey) private var defaultDisappearingTimer = "off"
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
     }
@@ -23,14 +23,16 @@ struct ChatSettingsView: View {
     ]
 
     private let disappearingTimerOptions = [
+        // Kept in step with the per-conversation options in
+        // `DisappearingMessagesView`: the previous list offered defaults
+        // (5 seconds, 30 seconds, 1 minute) that no conversation could
+        // actually be set to.
         ("Off", "off"),
-        ("5 seconds", "5s"),
-        ("30 seconds", "30s"),
-        ("1 minute", "1m"),
         ("5 minutes", "5m"),
         ("1 hour", "1h"),
         ("24 hours", "24h"),
         ("7 days", "7d"),
+        ("30 days", "30d"),
     ]
 
     var body: some View {
