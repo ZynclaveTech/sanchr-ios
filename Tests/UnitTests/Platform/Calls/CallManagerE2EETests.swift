@@ -38,6 +38,10 @@ private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked
         throw AppError.decryptionFailed(reason: "not used in CallManager E2EE smoke tests")
     }
     func resetSession(with userId: String, deviceId: Int32) throws {}
+    func resetSessions(with userId: String) async {}
+    func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    ) {}
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
     func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
@@ -86,6 +90,10 @@ private final class RecordingSignalManager: SignalProtocolManagerProtocol, @unch
         throw AppError.decryptionFailed(reason: "not used")
     }
     func resetSession(with userId: String, deviceId: Int32) throws {}
+    func resetSessions(with userId: String) async {}
+    func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    ) {}
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
     func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }
@@ -1023,6 +1031,10 @@ private final class DeviceRecordingSignalManager: SignalProtocolManagerProtocol,
         throw AppError.decryptionFailed(reason: "not used")
     }
     func resetSession(with userId: String, deviceId: Int32) throws {}
+    func resetSessions(with userId: String) async {}
+    func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    ) {}
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
     func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }

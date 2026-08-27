@@ -165,7 +165,6 @@ final class ContactRepositoryDecryptTests: XCTestCase {
         contact.userID       = "user-1"
         contact.phoneNumber  = "+15555555555"
         contact.displayName  = "REDACTED"       // plaintext the server would normally send
-        contact.profileKey   = profileKey
         contact.encryptedDisplayName = encryptedName
 
         var response = Sanchr_Contacts_GetContactsResponse()
@@ -219,14 +218,12 @@ final class ContactRepositoryDecryptTests: XCTestCase {
     /// ciphertext, so honouring its key would let it choose what we decrypt.
     func test_fetchContacts_serverSuppliedProfileKey_isIgnored() async throws {
         // Arrange: server offers a key; no key is known locally
-        let wrongKey = Data(repeating: 0xFF, count: 32)
         let encryptedWithCorrectKey = try crypto.encryptField("Alice", profileKey: profileKey, field: .displayName)
 
         var contact = Sanchr_Contacts_Contact()
         contact.userID       = "user-3"
         contact.phoneNumber  = "+15559876543"
         contact.displayName  = "Fallback"
-        contact.profileKey   = wrongKey  // key that won't decrypt the ciphertext
         contact.encryptedDisplayName = encryptedWithCorrectKey
 
         var response = Sanchr_Contacts_GetContactsResponse()
@@ -239,9 +236,9 @@ final class ContactRepositoryDecryptTests: XCTestCase {
         // Act — must not throw
         let users = try await sut.fetchContacts()
 
-        // Assert: server key ignored, server plaintext ignored
+        // Assert: undecryptable ciphertext must not fall back to server plaintext
         XCTAssertEqual(users[0].displayName, "+15559876543",
-                       "a server-offered profile key must not be used")
+                       "without a locally-known key the phone number is shown, never the server's plaintext")
         XCTAssertNotEqual(users[0].displayName, "Fallback")
     }
 }

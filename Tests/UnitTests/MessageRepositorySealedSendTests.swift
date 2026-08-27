@@ -312,6 +312,10 @@ private final class StubSignalProtocol: SignalProtocolManagerProtocol, @unchecke
     func hasSession(with userId: String, deviceId: Int32) throws -> Bool { true }
     func hasSession(with userId: String) -> Bool { true }
     func resetSession(with userId: String, deviceId: Int32) throws {}
+    func resetSessions(with userId: String) async {}
+    func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    ) {}
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String { "" }
     func scannableFingerprint(for userId: String, deviceId: Int32) throws -> Data { Data() }
     func compareFingerprint(_ scannedData: Data, for userId: String, deviceId: Int32) throws -> Bool { true }

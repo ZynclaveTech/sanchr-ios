@@ -290,6 +290,10 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         []
     }
 
+    func fetchCachedConversations() async throws -> [Conversation] {
+        []
+    }
+
     private(set) var pinUpdates: [(conversationId: String, isPinned: Bool)] = []
     func setConversationPinned(conversationId: String, isPinned: Bool) async throws {
         pinUpdates.append((conversationId: conversationId, isPinned: isPinned))
