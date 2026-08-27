@@ -23,12 +23,18 @@ enum ContactUseCases {
         private let contactDataSource: ContactDataSource
         private let discoveryRepository: DiscoveryRepositoryProtocol
 
+        /// The local user's own calling code (e.g. "+91"), used to expand
+        /// address-book numbers saved without one into E.164.
+        private let defaultCallingCode: @Sendable () -> String
+
         init(
             contactDataSource: ContactDataSource,
-            discoveryRepository: DiscoveryRepositoryProtocol
+            discoveryRepository: DiscoveryRepositoryProtocol,
+            defaultCallingCode: @escaping @Sendable () -> String = { "" }
         ) {
             self.contactDataSource = contactDataSource
             self.discoveryRepository = discoveryRepository
+            self.defaultCallingCode = defaultCallingCode
         }
 
         /// Requests contact access, runs OPRF discovery, and resolves matches.
@@ -52,15 +58,25 @@ enum ContactUseCases {
             let request = CNContactFetchRequest(keysToFetch: keysToFetch)
             var phoneNumbers: [String] = []
 
+            // Accounts are registered in E.164 ("+919569740653"), so that is the
+            // only form that can match. Address-book entries are frequently
+            // local ("9569740653", "095697 40653"), which is why a saved contact
+            // could previously fail to match its own account and the sync
+            // reported zero results.
+            let callingCode = defaultCallingCode()
             try store.enumerateContacts(with: request) { contact, _ in
                 for number in contact.phoneNumbers {
-                    // Use the shared normalizer so the string we blind is byte-identical
-                    // to the one the server hashed when it built the registered set.
-                    // A second, slightly different normalizer here would silently
-                    // produce zero matches.
-                    let normalized = ContactDataSource.normalizePhoneNumber(
-                        number.value.stringValue)
-                    if !normalized.isEmpty {
+                    let raw = number.value.stringValue
+                    if let e164 = ContactDataSource.e164PhoneNumber(
+                        raw, defaultCallingCode: callingCode)
+                    {
+                        phoneNumbers.append(e164)
+                    }
+                    // Also try the raw normalized form: it costs one extra
+                    // blinded point and covers contacts already stored in the
+                    // exact registered format when no calling code is known.
+                    let normalized = ContactDataSource.normalizePhoneNumber(raw)
+                    if !normalized.isEmpty, normalized.hasPrefix("+") {
                         phoneNumbers.append(normalized)
                     }
                 }
