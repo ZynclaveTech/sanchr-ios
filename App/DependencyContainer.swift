@@ -78,6 +78,16 @@ final class DependencyContainer: @unchecked Sendable {
         // property, to avoid a reference cycle through the container.
         ownProfileKeyProvider: { [keychainService] in
             try? ProfileKeyStore(keychain: keychainService).ownProfileKey()
+        },
+        // Declares our true (userId, deviceId) inside every sealed payload so
+        // receivers can store the session under the correct address instead of
+        // a trial-decrypt guess.
+        senderAddressProvider: { [weak self] in
+            guard let self,
+                let userId = self.sessionService.currentUserId, !userId.isEmpty
+            else { return nil }
+            let deviceId = Int32(self.sessionService.currentDeviceId ?? "") ?? 1
+            return (userId: userId, deviceId: deviceId)
         }
     )
 

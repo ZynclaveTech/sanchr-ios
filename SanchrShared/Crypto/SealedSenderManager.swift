@@ -47,6 +47,20 @@ public struct InnerPayload: Codable, Sendable {
     /// payloads from clients predating this field still decode.
     public let senderProfileKey: Data?
 
+    /// The sender's own user id and device id, declared inside the sealed
+    /// payload.
+    ///
+    /// Sealed envelopes carry no outer sender, so the receiver trial-decrypts
+    /// against its known session addresses — but a PreKeySignalMessage processes
+    /// successfully against ANY guessed address, so the receiver could store the
+    /// new session under the wrong device id. That mislabeled ratchet then keeps
+    /// decrypting (so inbound looks fine) while the receiver's outbound to the
+    /// sender's REAL device stays on a dead session forever. Declaring the true
+    /// address lets the receiver relocate the session record to the right key.
+    /// Optional so payloads from clients predating these fields still decode.
+    public let senderUserId: String?
+    public let senderDeviceId: Int32?
+
     enum CodingKeys: String, CodingKey {
         case v
         case conversationId = "conversation_id"
@@ -56,6 +70,8 @@ public struct InnerPayload: Codable, Sendable {
         case isSync = "is_sync"
         case expiresAfterSecs = "expires_after_secs"
         case senderProfileKey = "sender_profile_key"
+        case senderUserId = "sender_user_id"
+        case senderDeviceId = "sender_device_id"
     }
 
     public init(
@@ -66,10 +82,14 @@ public struct InnerPayload: Codable, Sendable {
         content: Data,
         isSync: Bool,
         expiresAfterSecs: Int64? = nil,
-        senderProfileKey: Data? = nil
+        senderProfileKey: Data? = nil,
+        senderUserId: String? = nil,
+        senderDeviceId: Int32? = nil
     ) {
         self.expiresAfterSecs = expiresAfterSecs
         self.senderProfileKey = senderProfileKey
+        self.senderUserId = senderUserId
+        self.senderDeviceId = senderDeviceId
         self.v = v
         self.conversationId = conversationId
         self.messageId = messageId
@@ -197,14 +217,21 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
     /// having to thread it through.
     private let ownProfileKeyProvider: (@Sendable () -> Data?)?
 
+    /// The local user's (userId, deviceId), declared inside every payload so the
+    /// receiver can label the session under the true address. See
+    /// `InnerPayload.senderUserId`.
+    private let senderAddressProvider: (@Sendable () -> (userId: String, deviceId: Int32)?)?
+
     public init(
         messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol,
         keychain: KeychainServiceProtocol,
-        ownProfileKeyProvider: (@Sendable () -> Data?)? = nil
+        ownProfileKeyProvider: (@Sendable () -> Data?)? = nil,
+        senderAddressProvider: (@Sendable () -> (userId: String, deviceId: Int32)?)? = nil
     ) {
         self.messagingService = messagingService
         self.keychain = keychain
         self.ownProfileKeyProvider = ownProfileKeyProvider
+        self.senderAddressProvider = senderAddressProvider
         SanchrLogger.crypto.info("SealedSenderManager initialized")
     }
 
@@ -294,6 +321,7 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
         isSync: Bool,
         expiresAfterSecs: Int64?
     ) throws -> Data {
+        let senderAddress = senderAddressProvider?()
         let payload = InnerPayload(
             conversationId: conversationId,
             messageId: messageId,
@@ -301,7 +329,9 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
             content: content,
             isSync: isSync,
             expiresAfterSecs: expiresAfterSecs,
-            senderProfileKey: ownProfileKeyProvider?()
+            senderProfileKey: ownProfileKeyProvider?(),
+            senderUserId: senderAddress?.userId,
+            senderDeviceId: senderAddress?.deviceId
         )
         do {
             return try JSONEncoder().encode(payload)
