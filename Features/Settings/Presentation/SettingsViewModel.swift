@@ -40,6 +40,10 @@ final class SettingsViewModel {
 
     var autoDownloadWifi: String = "all"
     var autoDownloadMobile: String = "photos"
+    /// No longer surfaced on iOS: the OS exposes no supported way to detect
+    /// roaming, so the setting could never be enforced and its picker was
+    /// removed. Still loaded and sent back unchanged so that saving settings
+    /// from this client does not overwrite a value another platform stored.
     var autoDownloadRoaming: String = "none"
     var lowDataMode: Bool = false
 
