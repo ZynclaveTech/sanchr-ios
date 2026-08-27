@@ -538,6 +538,22 @@ struct RootView: View {
                     "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
                 )
             }
+
+            // Restore the profile after a reinstall. The Profile Key comes back
+            // via iCloud Keychain, but the local name/snapshot does not, so the
+            // session has no display name and RootView would send the user back
+            // through onboarding. Recover the name (and avatar) by decrypting the
+            // encrypted server copy with the restored key, before that decision.
+            let localName = container.sessionService.currentDisplayName ?? ""
+            if container.profileKeyStore.hasOwnProfileKey(),
+                localName.isEmpty || localName == User.serverPlaceholderDisplayName,
+                let restored = await container.messageRepository.resolveOwnProfile()
+            {
+                container.sessionService.updateProfile(
+                    displayName: restored.displayName,
+                    avatarURL: restored.avatarURL?.absoluteString
+                )
+            }
         } else {
             container.realtimeService.stop()
         }

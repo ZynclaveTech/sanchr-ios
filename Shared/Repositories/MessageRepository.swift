@@ -30,6 +30,13 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// cached refresh shows resolved names instead of the raw placeholder.
     func fetchCachedConversations() async throws -> [Conversation]
 
+    /// Fetches and decrypts the current user's own profile (name, avatar) from
+    /// the encrypted server copy using the own Profile Key. Restores the profile
+    /// after a reinstall — where the Profile Key came back via iCloud Keychain but
+    /// the local name/snapshot did not — so the user is not sent back through
+    /// onboarding. Returns nil when there is nothing to restore.
+    func resolveOwnProfile() async -> (displayName: String, avatarURL: URL?)?
+
     /// Persists local-only conversation presentation flags.
     func setConversationPinned(conversationId: String, isPinned: Bool) async throws
     func setConversationMuted(conversationId: String, isMuted: Bool) async throws
@@ -1020,6 +1027,43 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// Fetches a peer's encrypted profile, decrypts the display name with their
     /// Profile Key, and writes it onto the local contact row so the conversation
     /// list and header show a real name instead of the server placeholder.
+    func resolveOwnProfile() async -> (displayName: String, avatarURL: URL?)? {
+        guard let userId = currentUserIdProvider(),
+            let key = try? profileKeyStore.ownProfileKey()
+        else { return nil }
+        do {
+            var request = Sanchr_Settings_GetUserProfilesRequest()
+            request.userIds = [userId]
+            let response = try await grpcClient.settingsService.getUserProfiles(request)
+            guard let profile = response.profiles.first(where: { $0.userID == userId }),
+                !profile.encryptedDisplayName.isEmpty
+            else { return nil }
+
+            let crypto = ProfileCryptor()
+            guard
+                let name = try? crypto.decryptField(
+                    profile.encryptedDisplayName, profileKey: key, field: .displayName),
+                !name.isEmpty
+            else { return nil }
+
+            var avatar: URL?
+            if !profile.encryptedAvatarURL.isEmpty,
+                let urlString = try? crypto.decryptField(
+                    profile.encryptedAvatarURL, profileKey: key, field: .avatarURL)
+            {
+                avatar = URL(string: urlString)
+            } else if !profile.avatarURL.isEmpty {
+                avatar = URL(string: profile.avatarURL)
+            }
+            SanchrLogger.chat.info("Restored own profile from encrypted server copy")
+            return (name, avatar)
+        } catch {
+            SanchrLogger.chat.warning(
+                "resolveOwnProfile failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     private func resolveProfile(userId: String, profileKey: Data) async -> Bool {
         do {
             var request = Sanchr_Settings_GetUserProfilesRequest()

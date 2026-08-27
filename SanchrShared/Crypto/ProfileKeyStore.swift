@@ -71,15 +71,21 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     // MARK: - ProfileKeyStoreProtocol
 
     public func ownProfileKey() throws -> Data {
+        // The own Profile Key is stored in the iCloud-synchronized namespace so it
+        // survives a reinstall and reaches the user's other devices — this is what
+        // makes the profile (name, avatar) recoverable rather than lost the moment
+        // the app is deleted. Regenerating it would orphan the profile ciphertext
+        // the old key produced, which is exactly the situation this avoids.
+
         // Fast path: read outside the queue (Keychain reads are concurrent-safe).
-        if let existing = try keychain.read(forKey: Keys.ownKey) {
+        if let existing = try ownProfileKeyFromKeychain() {
             return existing
         }
         // Slow path: generate-and-save is serialised so concurrent first callers
         // cannot produce two different keys.
         return try queue.sync {
             // Re-check inside the queue in case another caller already wrote it.
-            if let existing = try keychain.read(forKey: Keys.ownKey) {
+            if let existing = try ownProfileKeyFromKeychain() {
                 return existing
             }
             var bytes = [UInt8](repeating: 0, count: profileKeyLength)
@@ -89,9 +95,23 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
                 throw AppError.keyGenerationFailed
             }
             let key = Data(bytes)
-            try keychain.save(key, forKey: Keys.ownKey)
+            try keychain.saveSynchronized(key, forKey: Keys.ownKey)
             return key
         }
+    }
+
+    /// Reads the own Profile Key, preferring the synchronized copy and migrating a
+    /// legacy device-only key up into the synchronized namespace so it, too, will
+    /// survive future reinstalls.
+    private func ownProfileKeyFromKeychain() throws -> Data? {
+        if let synced = try keychain.readSynchronized(forKey: Keys.ownKey) {
+            return synced
+        }
+        if let legacy = try keychain.read(forKey: Keys.ownKey) {
+            try? keychain.saveSynchronized(legacy, forKey: Keys.ownKey)
+            return legacy
+        }
+        return nil
     }
 
     public func saveContactProfileKey(_ key: Data, forUserId userId: String) throws {
@@ -107,7 +127,7 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     /// the app is deleted. A reinstall has a new Profile Key, so every peer needs
     /// telling again.
     public func hasOwnProfileKey() -> Bool {
-        ((try? keychain.read(forKey: Keys.ownKey)) ?? nil) != nil
+        ((try? ownProfileKeyFromKeychain()) ?? nil) != nil
     }
 
     public func clearOwnProfileKeyDeliveryMarkers() {
