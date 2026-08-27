@@ -1314,6 +1314,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         SanchrLogger.chat.info(
             "startDirectConversation: peer=\(peerUserId.prefix(8)) convId=\(response.id.prefix(8))")
 
+        await applyDefaultDisappearingTimerIfNewChat(
+            conversationId: response.id,
+            peerUserId: peerUserId
+        )
+
         // Hand this peer our Profile Key over the Signal session so they can read
         // our encrypted profile. Best-effort: a failure here must not block opening
         // the conversation, and the key is re-sent on the next profile update.
@@ -1328,6 +1333,51 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         }
 
         return response.id
+    }
+
+    /// Seeds a newly started chat with the user's default disappearing-messages
+    /// timer from Settings › Chats.
+    ///
+    /// The preference had no consumer at all, so picking a default changed
+    /// nothing anywhere. Scoped to chats the user starts and that are new on
+    /// this device, matching the WhatsApp behaviour the picker implies:
+    /// conversations that already exist keep whatever timer they were given,
+    /// and a chat hydrated from the server with a timer already set is left
+    /// alone rather than being overwritten by the local default.
+    private func applyDefaultDisappearingTimerIfNewChat(
+        conversationId: String,
+        peerUserId: String
+    ) async {
+        let defaultSeconds = DefaultDisappearingTimer.seconds
+        guard defaultSeconds > 0 else { return }
+
+        do {
+            guard try await localDatabase.fetchConversation(id: conversationId) == nil else {
+                return
+            }
+            // The row has to exist before its timer can be set; this hydrates
+            // from the server when possible and falls back to a local shell.
+            try await ensureConversationShellExists(
+                conversationId: conversationId,
+                senderId: peerUserId,
+                serverTimestamp: Date()
+            )
+            guard try await localDatabase.disappearingDuration(conversationId: conversationId) == 0
+            else { return }
+
+            try await localDatabase.setDisappearingDuration(
+                conversationId: conversationId,
+                seconds: defaultSeconds
+            )
+            SanchrLogger.chat.info(
+                "Applied default disappearing timer (\(defaultSeconds)s) to new conversation \(conversationId.prefix(8))"
+            )
+        } catch {
+            // A missing default timer must never block opening the chat.
+            SanchrLogger.chat.warning(
+                "Could not apply default disappearing timer to \(conversationId.prefix(8)): \(error.localizedDescription)"
+            )
+        }
     }
 
     // MARK: - Helpers

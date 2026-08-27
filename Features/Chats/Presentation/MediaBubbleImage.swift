@@ -19,6 +19,12 @@ struct MediaBubbleImage: View {
     @State private var isDownloading = false
     @State private var loadFailed = false
     @State private var retryTick: Int = 0
+    /// Set when the auto-download settings say this attachment must not be
+    /// fetched on the current network. Distinct from `loadFailed`: nothing has
+    /// gone wrong, we are simply waiting for the user to ask.
+    @State private var deferredByPolicy = false
+    /// A tap on the placeholder overrides the policy for this bubble only.
+    @State private var userRequestedDownload = false
     @AppStorage("sanchr.mediaAutoSave") private var mediaAutoSave = false
 
     private static let imageCache: NSCache<NSString, UIImage> = {
@@ -93,6 +99,37 @@ struct MediaBubbleImage: View {
         ].joined(separator: "|")
     }
 
+    /// Outcome of a load attempt. `deferred` is deliberately separate from a
+    /// nil/failed result so the bubble can offer "Tap to download" instead of
+    /// the "Tap to retry" affordance, which would misreport a settings choice
+    /// as an error.
+    private enum MediaLoadOutcome {
+        case image(UIImage)
+        case deferred
+        case failed
+    }
+
+    /// Whether the auto-download settings permit fetching this attachment on
+    /// the connection we are on right now. Outgoing media is ours and already
+    /// local, and an explicit tap overrides the policy for this bubble.
+    private var shouldDeferDownload: Bool {
+        guard !isOutgoing, !userRequestedDownload else { return false }
+        return AutoDownloadPolicy.decision(
+            mimeType: attachment.mimeType,
+            connection: container.networkMonitor.connectionType,
+            wifi: AutoDownloadSettingsStore.wifi,
+            mobile: AutoDownloadSettingsStore.mobile
+        ) == .manual
+    }
+
+    private var deferredPlaceholderLabel: String {
+        guard attachment.sizeBytes > 0 else { return "Tap to download" }
+        return ByteCountFormatter.string(
+            fromByteCount: attachment.sizeBytes,
+            countStyle: .file
+        )
+    }
+
     var body: some View {
         ZStack {
             if let image = resolvedImage ?? placeholderImage {
@@ -121,6 +158,27 @@ struct MediaBubbleImage: View {
                                         .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
                                 }
                             }
+                        } else if deferredByPolicy {
+                            // Auto-download is off for this media type on this
+                            // network. Nothing failed — the user just has to
+                            // opt in, the same way WhatsApp gates media on
+                            // metered connections.
+                            VStack(spacing: 4) {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.85) : .sanchrPrimary)
+                                Text(deferredPlaceholderLabel)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                userRequestedDownload = true
+                                deferredByPolicy = false
+                                retryTick &+= 1
+                            }
+                            .accessibilityLabel("Media not downloaded. Tap to download.")
+                            .accessibilityAddTraits(.isButton)
                         } else if loadFailed {
                             // Tap-to-retry: replaces the silent placeholder that
                             // used to leave receivers stuck when the first
@@ -157,6 +215,7 @@ struct MediaBubbleImage: View {
         // Reset the retry-error state on each attempt; the .task(id:) modifier
         // re-runs this on every retryTick bump so we always restart clean.
         loadFailed = false
+        deferredByPolicy = false
         if let cached = Self.imageCache.object(forKey: messageId as NSString) {
             resolvedImage = cached
             return
@@ -181,10 +240,13 @@ struct MediaBubbleImage: View {
         isDownloading = true
         defer { isDownloading = false }
 
-        if let image = await loadResolvedImage() {
+        switch await loadResolvedImage() {
+        case .image(let image):
             Self.cacheImage(image, forKey: messageId)
             resolvedImage = image
-        } else {
+        case .deferred:
+            deferredByPolicy = true
+        case .failed:
             // Only surface the retry affordance for remote attachments
             // (sanchr-media:// or https://). A missing local file URL on
             // the sender side is expected transiently while the picker
@@ -196,7 +258,7 @@ struct MediaBubbleImage: View {
         }
     }
 
-    private func loadResolvedImage() async -> UIImage? {
+    private func loadResolvedImage() async -> MediaLoadOutcome {
         let scale = await MainActor.run { UIScreen.main.scale }
         let targetSize = displaySize
 
@@ -205,25 +267,17 @@ struct MediaBubbleImage: View {
         }
 
         if let localURL = localImageCandidateURL() {
-            return await Task.detached(priority: .utility) {
-                BubbleImagePipeline.downsampleImage(
-                    at: localURL,
-                    to: targetSize,
-                    scale: scale
-                )
-            }.value
+            return await Self.downsampledOutcome(at: localURL, to: targetSize, scale: scale)
         }
 
         let ext = mediaCacheExtension
         if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
-            return await Task.detached(priority: .utility) {
-                BubbleImagePipeline.downsampleImage(
-                    at: cached,
-                    to: targetSize,
-                    scale: scale
-                )
-            }.value
+            return await Self.downsampledOutcome(at: cached, to: targetSize, scale: scale)
         }
+
+        // Everything above was already on disk and costs no data. Only a real
+        // network fetch is subject to the auto-download settings.
+        if shouldDeferDownload { return .deferred }
 
         do {
             let url = try await container.mediaDownloadManager.download(
@@ -235,28 +289,30 @@ struct MediaBubbleImage: View {
                 let kind: SaveToPhotos.MediaKind = attachment.mimeType.hasPrefix("video/") ? .video : .image
                 try? await SaveToPhotos.save(fileURL: url, kind: kind)
             }
-            return await Task.detached(priority: .utility) {
-                BubbleImagePipeline.downsampleImage(
-                    at: url,
-                    to: targetSize,
-                    scale: scale
-                )
-            }.value
+            return await Self.downsampledOutcome(at: url, to: targetSize, scale: scale)
         } catch {
             SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
-            return nil
+            return .failed
         }
     }
 
-    private func loadResolvedVideoThumbnail(scale: CGFloat, targetSize: CGSize) async -> UIImage? {
+    private static func downsampledOutcome(
+        at url: URL,
+        to targetSize: CGSize,
+        scale: CGFloat
+    ) async -> MediaLoadOutcome {
+        let image = await Task.detached(priority: .utility) {
+            BubbleImagePipeline.downsampleImage(at: url, to: targetSize, scale: scale)
+        }.value
+        return image.map { .image($0) } ?? .failed
+    }
+
+    private func loadResolvedVideoThumbnail(
+        scale: CGFloat,
+        targetSize: CGSize
+    ) async -> MediaLoadOutcome {
         if let thumbURL = localVideoThumbnailCandidateURL() {
-            return await Task.detached(priority: .utility) {
-                BubbleImagePipeline.downsampleImage(
-                    at: thumbURL,
-                    to: targetSize,
-                    scale: scale
-                )
-            }.value
+            return await Self.downsampledOutcome(at: thumbURL, to: targetSize, scale: scale)
         }
 
         let ext = mediaCacheExtension
@@ -264,6 +320,10 @@ struct MediaBubbleImage: View {
         if let cached = await container.mediaDownloadManager.cachedURL(for: messageId, ext: ext) {
             cachedVideoURL = cached
         } else {
+            // A video thumbnail is generated from the video itself, so there is
+            // no cheap preview to fetch — producing one means pulling the whole
+            // file, which is exactly what "Photos only" exists to prevent.
+            if shouldDeferDownload { return .deferred }
             do {
                 cachedVideoURL = try await container.mediaDownloadManager.download(
                     messageId: messageId,
@@ -275,12 +335,17 @@ struct MediaBubbleImage: View {
                 }
             } catch {
                 SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
-                return nil
+                return .failed
             }
         }
 
-        guard let cachedVideoURL else { return nil }
-        return await generateAndCacheThumb(from: cachedVideoURL, scale: scale, targetSize: targetSize)
+        guard let cachedVideoURL else { return .failed }
+        let thumb = await generateAndCacheThumb(
+            from: cachedVideoURL,
+            scale: scale,
+            targetSize: targetSize
+        )
+        return thumb.map { .image($0) } ?? .failed
     }
 
     private func localImageCandidateURL() -> URL? {
