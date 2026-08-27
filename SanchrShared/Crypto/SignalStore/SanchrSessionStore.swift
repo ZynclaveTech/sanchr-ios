@@ -78,9 +78,14 @@ public final class SanchrSessionStore: SessionStore {
 
     /// Returns `true` if a session exists for the given address.
     public func hasSession(for address: ProtocolAddress) -> Bool {
-        var exists = false
-        queue.sync { exists = sessions[address] != nil }
-        return exists
+        var record: SessionRecord?
+        queue.sync { record = sessions[address] }
+        // A record whose states are all archived (post-heal) cannot encrypt —
+        // libsignal fails with "session not found" — but its archived ratchets
+        // still decrypt inbound. "Has a session" here answers the sender's
+        // question, so require a current state; callers then re-establish from
+        // a fresh pre-key bundle, which is exactly what the heal intends.
+        return record?.hasCurrentState ?? false
     }
 
     /// Removes the session for a given address (used for session reset / identity change).
