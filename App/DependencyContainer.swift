@@ -362,7 +362,8 @@ final class DependencyContainer: @unchecked Sendable {
     @ObservationIgnored lazy var backupArchiveService: BackupArchiveServiceProtocol = BackupArchiveService(
         grpcClient: grpcClient,
         localDatabase: localDatabase,
-        deviceSecretProvider: deviceSecretProvider
+        deviceSecretProvider: deviceSecretProvider,
+        networkMonitor: networkMonitor
     )
 
     @ObservationIgnored lazy var backupCoordinator: BackupCoordinator = BackupCoordinator(

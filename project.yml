@@ -274,6 +274,15 @@ targets:
           - group.io.sanchr.shared
         keychain-access-groups:
           - $(AppIdentifierPrefix)io.sanchr.shared
+        # iCloud Documents container for user-owned encrypted backups. The
+        # archive is encrypted with the recovery key before it is written, and
+        # Sanchr's servers are never told these backups exist.
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.sanchr.app
+        com.apple.developer.icloud-services:
+          - CloudDocuments
+        com.apple.developer.ubiquity-container-identifiers:
+          - iCloud.com.sanchr.app
 
   SanchrTests:
     type: bundle.unit-test

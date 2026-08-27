@@ -100,6 +100,22 @@ private enum SealedDecodeOutcome {
     case undeliverable(Error)
 }
 
+/// Per-peer cooldown for session self-healing, so a burst of undeliverable
+/// envelopes triggers one heal per peer, not one per dropped message.
+private actor SessionHealLimiter {
+    private var lastHealAt: [String: Date] = [:]
+    private let cooldown: TimeInterval = 10 * 60
+
+    func begin(_ peerId: String) -> Bool {
+        let now = Date()
+        if let last = lastHealAt[peerId], now.timeIntervalSince(last) < cooldown {
+            return false
+        }
+        lastHealAt[peerId] = now
+        return true
+    }
+}
+
 actor MessageStreamController {
     private let bufferLimit = 64
     private var continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation?
@@ -250,6 +266,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let sealedEnvelopeReplayGate = MessageEnvelopeReplayGate()
     private let profileResolutionCoordinator = ProfileResolutionCoordinator()
     private let sealedDropLogLimiter = SealedDropLogLimiter()
+    private let sessionHealLimiter = SessionHealLimiter()
     private let privacyGate: MessagingPrivacyGate
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
     private let profileKeyStore: ProfileKeyStoreProtocol
@@ -1417,7 +1434,43 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 "Dropped \(droppedCount) undeliverable sealed message(s); latest=\(messageId.prefix(8))"
             )
         }
+        if acked {
+            // A dropped sealed message means some peer is encrypting to a
+            // session this device no longer has (typically after a reinstall
+            // rebuilt our Signal state). Sealed sender hides who, so heal by
+            // re-keying every 1:1 peer — cooldown-limited per peer.
+            Task { [weak self] in await self?.healStaleSessions() }
+        }
         return acked
+    }
+
+    /// Self-heal after undeliverable sealed messages: for each 1:1 conversation
+    /// peer (cooldown-limited), reset our sessions with all their devices and
+    /// send a profile-key control message. The reset forces the next encrypt to
+    /// fetch fresh pre-key bundles, so the peer receives PreKeySignalMessages,
+    /// adopts a session with our current identity, and their subsequent sends
+    /// decrypt again — without either user doing anything.
+    private func healStaleSessions() async {
+        guard let conversations = try? await localDatabase.fetchConversations() else { return }
+        let localUserId = currentUserIdProvider()
+        var peers = Set<String>()
+        for conversation in conversations where conversation.type == .oneToOne {
+            for participant in conversation.participants
+            where participant.id != localUserId && !participant.id.isEmpty {
+                peers.insert(participant.id)
+            }
+        }
+        for peer in peers where await sessionHealLimiter.begin(peer) {
+            SanchrLogger.chat.info("Healing stale sessions with \(peer.prefix(8))")
+            await signalProtocol.resetSessions(with: peer)
+            do {
+                try await sendProfileKey(recipientUserId: peer)
+            } catch {
+                SanchrLogger.chat.warning(
+                    "Session heal send failed for \(peer.prefix(8)): \(error.localizedDescription)"
+                )
+            }
+        }
     }
 
     static func shouldAckUndeliverableSealedMessage(_ error: Error) -> Bool {

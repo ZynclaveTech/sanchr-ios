@@ -355,6 +355,8 @@ struct RootView: View {
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.activeOnboardingFlow") private var activeOnboardingFlow = false
     @State private var sessionReady = false
+    @State private var restoreSources: BackupRestoreSources?
+    @State private var restoreOfferChecked = false
 
     /// Process-lifetime flag — stored in the type's memory, not in SwiftUI's
     /// state system. SwiftUI cannot reset this on view reconciliation or scene
@@ -470,6 +472,54 @@ struct RootView: View {
             router.routeNotificationAction(action)
             container.pushManager.pendingAction = .none
         }
+        .task(id: sessionReady && container.sessionService.isAuthenticated && !needsOnboarding) {
+            await offerRestoreIfFreshInstall()
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { restoreSources != nil },
+                set: { if !$0 { restoreSources = nil } }
+            )
+        ) {
+            if let restoreSources {
+                BackupRestoreOfferView(sources: restoreSources) { _ in
+                    markRestoreOfferHandled()
+                    self.restoreSources = nil
+                }
+                .environment(container)
+            }
+        }
+    }
+
+    /// After signing in on a fresh install (no local history yet), look for an
+    /// encrypted backup on Sanchr Cloud and in the user's iCloud, and offer to
+    /// restore it. Asked once per account per install — skipping is remembered,
+    /// so the offer does not nag on every launch.
+    private func offerRestoreIfFreshInstall() async {
+        guard sessionReady,
+            container.sessionService.isAuthenticated,
+            !needsOnboarding,
+            !restoreOfferChecked
+        else { return }
+        restoreOfferChecked = true
+
+        guard let userId = container.sessionService.currentUserId,
+            !UserDefaults.standard.bool(forKey: Self.restoreOfferKey(for: userId)),
+            (try? await container.localDatabase.hasLocalHistory()) == false
+        else { return }
+
+        let sources = await container.backupCoordinator.availableRestoreSources()
+        guard !sources.isEmpty else { return }
+        restoreSources = sources
+    }
+
+    private func markRestoreOfferHandled() {
+        guard let userId = container.sessionService.currentUserId else { return }
+        UserDefaults.standard.set(true, forKey: Self.restoreOfferKey(for: userId))
+    }
+
+    private static func restoreOfferKey(for userId: String) -> String {
+        "sanchr.restoreOfferHandled.\(userId)"
     }
 
     /// Refreshes the session token before showing the main UI.

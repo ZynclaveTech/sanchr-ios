@@ -2,6 +2,16 @@ import Foundation
 import LocalAuthentication
 import SanchrShared
 
+/// What can be restored right after a fresh install: the newest backup on
+/// Sanchr's servers for this account, and/or the newest one in the user's
+/// iCloud container.
+struct BackupRestoreSources: Sendable {
+    let sanchrCloud: BackupListEntry?
+    let iCloud: ICloudRestoreCandidate?
+
+    var isEmpty: Bool { sanchrCloud == nil && iCloud == nil }
+}
+
 @Observable
 final class BackupCoordinator: @unchecked Sendable {
     private let backupService: BackupArchiveServiceProtocol
@@ -33,6 +43,26 @@ final class BackupCoordinator: @unchecked Sendable {
 
     var isEnabled: Bool {
         configuration?.isEnabled ?? false
+    }
+
+    /// Update destination/frequency/wifi-only preferences and refresh the
+    /// published configuration. No-op when backups have not been enabled yet.
+    func updatePreferences(
+        destinations: Set<BackupDestination>? = nil,
+        frequency: BackupFrequency? = nil,
+        wifiOnlyMedia: Bool? = nil
+    ) {
+        do {
+            if let updated = try recoveryKeyManager.updatePreferences(
+                destinations: destinations,
+                frequency: frequency,
+                wifiOnlyMedia: wifiOnlyMedia
+            ) {
+                configuration = updated
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func reload() {
@@ -114,6 +144,50 @@ final class BackupCoordinator: @unchecked Sendable {
         }
     }
 
+    /// Discovers restorable backups after a fresh install. Both lookups are
+    /// best-effort: a server error or missing iCloud account yields nil for
+    /// that source rather than failing the check.
+    func availableRestoreSources() async -> BackupRestoreSources {
+        let server = (try? await backupService.listBackups())?
+            .sorted { $0.committedAt > $1.committedAt }.first
+        let iCloud = await backupService.latestICloudBackup()
+        return BackupRestoreSources(sanchrCloud: server, iCloud: iCloud)
+    }
+
+    /// Restores the newest iCloud backup using the given recovery key.
+    /// Mirrors `restoreLatestBackup` but never touches Sanchr's servers.
+    func restoreFromICloud(with recoveryKeyOverride: String?) async {
+        guard !isProcessing else { return }
+
+        do {
+            let recoveryKey = try resolvedRecoveryKey(recoveryKeyOverride)
+            let material = try backupKeyDeriver.deriveMaterial(
+                recoveryKey: recoveryKey,
+                userId: currentUserIdProvider()
+            )
+            isProcessing = true
+            errorMessage = nil
+
+            let result = try await backupService.restoreLatestICloudBackup(
+                material: material,
+                currentUserId: currentUserIdProvider()
+            )
+            _ = try recoveryKeyManager.persistRestoredBackup(
+                recoveryKey: recoveryKey,
+                lineageId: result.lineageID,
+                formatVersion: result.formatVersion,
+                lastBackupAt: result.backupDate,
+                lastBackupContentHash: result.contentHash
+            )
+            reload()
+            await postRestore()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isProcessing = false
+    }
+
     func restoreLatestBackup(with recoveryKeyOverride: String?) async {
         guard !isProcessing else { return }
 
@@ -154,7 +228,8 @@ final class BackupCoordinator: @unchecked Sendable {
 
         do {
             try await backupService.deleteRemoteBackups(lineageID: configuration?.lineageId)
-            try recoveryKeyManager.updateBackupState(lastBackupAt: nil, lastBackupContentHash: nil)
+            try recoveryKeyManager.updateBackupState(
+                lastBackupAt: nil, lastBackupContentHash: nil, lastICloudBackupAt: nil)
             reload()
             errorMessage = nil
         } catch {
@@ -232,7 +307,8 @@ final class BackupCoordinator: @unchecked Sendable {
         ) {
             try recoveryKeyManager.updateBackupState(
                 lastBackupAt: outcome.backupDate,
-                lastBackupContentHash: outcome.contentHash
+                lastBackupContentHash: outcome.contentHash,
+                lastICloudBackupAt: outcome.iCloudBackupDate
             )
             reload()
         }
@@ -240,8 +316,21 @@ final class BackupCoordinator: @unchecked Sendable {
     }
 
     private func resolvedRecoveryKey(_ override: String?) throws -> String {
-        if let override, !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return override.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let override {
+            // A recovery key is 64 characters of [a-z0-9] — anything else the
+            // user typed is a separator. Displays wrap the long key and can even
+            // hyphenate it, so keys are routinely transcribed with spaces,
+            // hyphens, or line breaks that are not part of the key. Strip all of
+            // that (and fold case) instead of failing on a faithful transcription
+            // of what the screen showed.
+            let normalized = String(
+                override.lowercased().unicodeScalars.filter {
+                    ("a"..."z").contains($0) || ("0"..."9").contains($0)
+                }
+            )
+            if !normalized.isEmpty {
+                return normalized
+            }
         }
 
         guard let stored = try recoveryKeyManager.readRecoveryKey(), !stored.isEmpty else {

@@ -490,6 +490,24 @@ final class MockBackupArchiveService: BackupArchiveServiceProtocol, @unchecked S
         return performBackupResult
     }
 
+    var latestICloudBackupResult: ICloudRestoreCandidate? = nil
+    var restoreICloudResult: BackupRestoreOutcome = BackupRestoreOutcome(
+        lineageID: "test-lineage", formatVersion: 1, backupDate: nil, contentHash: nil
+    )
+    var restoreICloudError: Error? = nil
+
+    func latestICloudBackup() async -> ICloudRestoreCandidate? {
+        latestICloudBackupResult
+    }
+
+    func restoreLatestICloudBackup(
+        material: DerivedBackupMaterial,
+        currentUserId: String?
+    ) async throws -> BackupRestoreOutcome {
+        if let error = restoreICloudError { throw error }
+        return restoreICloudResult
+    }
+
     func restoreLatestBackup(
         configuration: BackupConfiguration?,
         material: DerivedBackupMaterial,
@@ -539,6 +557,17 @@ final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Senda
     func loadConfiguration() throws -> BackupConfiguration? { storedConfiguration }
     func readRecoveryKey() throws -> String? { storedRecoveryKey }
     func generateRecoveryKey() throws -> String { generateKeyResult }
+    func updatePreferences(
+        destinations: Set<BackupDestination>?,
+        frequency: BackupFrequency?,
+        wifiOnlyMedia: Bool?
+    ) throws -> BackupConfiguration? {
+        guard let current = storedConfiguration else { return nil }
+        let updated = current.updatingPreferences(
+            destinations: destinations, frequency: frequency, wifiOnlyMedia: wifiOnlyMedia)
+        storedConfiguration = updated
+        return updated
+    }
     func enableBackups(with recoveryKey: String, lineageId: String) throws -> BackupConfiguration {
         storedRecoveryKey = recoveryKey
         storedConfiguration = enableBackupsResult
@@ -548,7 +577,9 @@ final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Senda
         storedConfiguration = nil
         storedRecoveryKey = nil
     }
-    func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws {}
+    func updateBackupState(
+        lastBackupAt: Date?, lastBackupContentHash: String?, lastICloudBackupAt: Date?
+    ) throws {}
     func persistRestoredBackup(
         recoveryKey: String,
         lineageId: String,

@@ -2,7 +2,6 @@ import Foundation
 
 public enum BackupArchive {
     public static let formatVersion: Int32 = 1
-    public static let automaticBackupInterval: TimeInterval = 6 * 60 * 60
 }
 
 public enum BackupArchiveFrameType: String, Codable, Sendable {
