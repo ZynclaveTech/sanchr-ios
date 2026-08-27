@@ -333,17 +333,25 @@ public struct SanchrFilterChip: View {
     public var body: some View {
         Button(action: action) {
             if #available(iOS 26.0, *) {
-                Text(title)
-                    .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
-                    .foregroundColor(isSelected ? .white : SanchrExportColors.textSecondary)
-                    .padding(.horizontal, SanchrSpacing.filterTabHPadding)
-                    .frame(height: SanchrSpacing.filterTabHeight)
-                    .sanchrGlass(
-                        role: .chip,
-                        interactive: true,
-                        prominence: isSelected ? .prominent : .regular,
-                        tint: isSelected ? SanchrColors.primary.opacity(0.24) : nil
-                    )
+                // Selected gets a solid primary capsule, not tinted glass: the
+                // 24% tint over the glass material read as washed-out, and the
+                // glass showed through as a second background behind the pill.
+                if isSelected {
+                    Text(title)
+                        .font(SanchrTypography.filterTabActive)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                        .frame(height: SanchrSpacing.filterTabHeight)
+                        .background(SanchrColors.primary)
+                        .clipShape(Capsule())
+                } else {
+                    Text(title)
+                        .font(SanchrTypography.filterTab)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                        .frame(height: SanchrSpacing.filterTabHeight)
+                        .sanchrGlass(role: .chip, interactive: true, prominence: .regular)
+                }
             } else {
                 Text(title)
                     .font(isSelected ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
@@ -371,32 +379,41 @@ public struct SanchrModeChip: View {
     public var body: some View {
         Button(action: action) {
             if #available(iOS 26.0, *) {
-                HStack(spacing: 8) {
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("Sanchr Mode")
-                        .font(SanchrTypography.filterTab)
+                if isActive {
+                    HStack(spacing: 8) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Sanchr Mode")
+                            .font(SanchrTypography.filterTabActive)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                    .frame(height: SanchrSpacing.filterTabHeight)
+                    .background(SanchrColors.primary)
+                    .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Sanchr Mode")
+                            .font(SanchrTypography.filterTab)
+                    }
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .padding(.horizontal, SanchrSpacing.filterTabHPadding)
+                    .frame(height: SanchrSpacing.filterTabHeight)
+                    .sanchrGlass(role: .chip, interactive: true, prominence: .regular)
                 }
-                .foregroundColor(isActive ? SanchrColors.primary : SanchrExportColors.textSecondary)
-                .padding(.horizontal, SanchrSpacing.filterTabHPadding)
-                .frame(height: SanchrSpacing.filterTabHeight)
-                .sanchrGlass(
-                    role: .chip,
-                    interactive: true,
-                    prominence: isActive ? .prominent : .regular,
-                    tint: isActive ? SanchrColors.primary.opacity(0.18) : nil
-                )
             } else {
                 HStack(spacing: 8) {
                     Image(systemName: "shield.fill")
                         .font(.system(size: 12, weight: .semibold))
                     Text("Sanchr Mode")
-                        .font(SanchrTypography.filterTab)
+                        .font(isActive ? SanchrTypography.filterTabActive : SanchrTypography.filterTab)
                 }
-                .foregroundColor(isActive ? SanchrColors.primary : SanchrExportColors.textSecondary)
+                .foregroundColor(isActive ? .white : SanchrExportColors.textSecondary)
                 .padding(.horizontal, SanchrSpacing.filterTabHPadding)
                 .frame(height: SanchrSpacing.filterTabHeight)
-                .background(Color.sanchrChipInactive(colorScheme))
+                .background(isActive ? SanchrColors.primary : Color.sanchrChipInactive(colorScheme))
                 .clipShape(Capsule())
             }
         }
