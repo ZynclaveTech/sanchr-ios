@@ -558,9 +558,10 @@ struct ChatsListView: View {
                         title: filter.rawValue,
                         isSelected: viewModel.selectedFilter == filter
                     ) {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            viewModel.selectedFilter = filter
-                        }
+                        // No implicit animation: wrapping the filter change in
+                        // withAnimation animated the entire list swap, which read
+                        // as a full-screen flicker on every chip tap.
+                        viewModel.selectedFilter = filter
                     }
                 }
 
@@ -704,14 +705,16 @@ struct ChatsListView: View {
         VStack(spacing: 0) {
             customHeader
 
+            // Padding mirrors the populated list exactly, so switching to a
+            // filter with no results doesn't shift the search bar and chips.
             searchBar
                 .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
-                .padding(.top, 8)
+                .padding(.top, 2)
 
             chipBar
                 .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
                 .padding(.top, 8)
-                .padding(.bottom, showRegLockNudge ? 8 : 16)
+                .padding(.bottom, 12)
 
             if showRegLockNudge {
                 registrationLockNudgeBanner

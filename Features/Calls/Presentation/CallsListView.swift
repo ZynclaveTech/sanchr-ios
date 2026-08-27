@@ -241,9 +241,9 @@ struct CallsListView: View {
                         title: filter.rawValue,
                         isSelected: viewModel.selectedFilter == filter
                     ) {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            viewModel.selectedFilter = filter
-                        }
+                        // Matches the chats list: no implicit animation, which
+                        // otherwise animates the whole list swap as a flicker.
+                        viewModel.selectedFilter = filter
                     }
                 }
             }
