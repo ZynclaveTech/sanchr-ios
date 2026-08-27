@@ -554,6 +554,16 @@ struct RootView: View {
                     avatarURL: restored.avatarURL?.absoluteString
                 )
             }
+
+            // Authenticating latches activeOnboardingFlow on while the name is
+            // still unknown; once the profile is complete — whether restored just
+            // now or already present in the session snapshot — the user is fully
+            // onboarded, so clear the latch or RootView keeps routing them to the
+            // name step. A genuinely new user has no complete profile here, so this
+            // leaves their onboarding intact.
+            if hasCompletedProfileBasics {
+                activeOnboardingFlow = false
+            }
         } else {
             container.realtimeService.stop()
         }
