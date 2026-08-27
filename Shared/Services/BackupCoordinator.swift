@@ -174,7 +174,8 @@ final class BackupCoordinator: @unchecked Sendable {
 
         do {
             try await backupService.deleteRemoteBackups(lineageID: configuration?.lineageId)
-            try recoveryKeyManager.updateBackupState(lastBackupAt: nil, lastBackupContentHash: nil)
+            try recoveryKeyManager.updateBackupState(
+                lastBackupAt: nil, lastBackupContentHash: nil, lastICloudBackupAt: nil)
             reload()
             errorMessage = nil
         } catch {
@@ -252,7 +253,8 @@ final class BackupCoordinator: @unchecked Sendable {
         ) {
             try recoveryKeyManager.updateBackupState(
                 lastBackupAt: outcome.backupDate,
-                lastBackupContentHash: outcome.contentHash
+                lastBackupContentHash: outcome.contentHash,
+                lastICloudBackupAt: outcome.iCloudBackupDate
             )
             reload()
         }

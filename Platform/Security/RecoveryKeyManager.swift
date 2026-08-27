@@ -8,7 +8,9 @@ protocol RecoveryKeyManagerProtocol: AnyObject, Sendable {
     func generateRecoveryKey() throws -> String
     func enableBackups(with recoveryKey: String, lineageId: String) throws -> BackupConfiguration
     func disableBackups() throws
-    func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws
+    func updateBackupState(
+        lastBackupAt: Date?, lastBackupContentHash: String?, lastICloudBackupAt: Date?
+    ) throws
     /// Persist changed backup preferences (destinations/frequency/wifi-only),
     /// leaving the recovery-key identity untouched. Returns the updated
     /// configuration, or nil when backups are not configured.
@@ -72,7 +74,9 @@ final class RecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Sendable 
         try secureStorage.deleteBackupMaterial()
     }
 
-    func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws {
+    func updateBackupState(
+        lastBackupAt: Date?, lastBackupContentHash: String?, lastICloudBackupAt: Date?
+    ) throws {
         guard let current = try loadConfiguration() else { return }
         // Carry the preference fields through — reconstructing without them
         // would silently reset the user's destination/frequency choices on
@@ -87,7 +91,8 @@ final class RecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Sendable 
             destinations: current.destinations,
             frequency: current.frequency,
             wifiOnlyMedia: current.wifiOnlyMedia,
-            lastICloudBackupAt: current.lastICloudBackupAt
+            // A backup that skipped iCloud keeps the previous iCloud timestamp.
+            lastICloudBackupAt: lastICloudBackupAt ?? current.lastICloudBackupAt
         )
         try secureStorage.saveBackupConfiguration(updated)
     }

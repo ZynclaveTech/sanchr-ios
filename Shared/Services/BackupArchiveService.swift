@@ -7,6 +7,15 @@ import SanchrShared
 struct BackupUploadOutcome: Sendable {
     let backupDate: Date
     let contentHash: String
+    /// When the archive was also written to the user's iCloud container; nil
+    /// when iCloud was not an enabled destination or the write was skipped.
+    let iCloudBackupDate: Date?
+
+    init(backupDate: Date, contentHash: String, iCloudBackupDate: Date? = nil) {
+        self.backupDate = backupDate
+        self.contentHash = contentHash
+        self.iCloudBackupDate = iCloudBackupDate
+    }
 }
 
 struct BackupRestoreOutcome: Sendable {
@@ -61,17 +70,20 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
     private let localDatabase: LocalDatabaseProtocol
     private let deviceSecretProvider: DeviceSecretProviderProtocol
     private let session: URLSession
+    private let iCloudStore: ICloudBackupStoreProtocol
 
     init(
         grpcClient: GRPCClientProtocol,
         localDatabase: LocalDatabaseProtocol,
         deviceSecretProvider: DeviceSecretProviderProtocol,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        iCloudStore: ICloudBackupStoreProtocol = ICloudBackupStore()
     ) {
         self.grpcClient = grpcClient
         self.localDatabase = localDatabase
         self.deviceSecretProvider = deviceSecretProvider
         self.session = session
+        self.iCloudStore = iCloudStore
     }
 
     func performBackup(
@@ -114,31 +126,56 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
             contentHash: contentHash
         )
 
-        var createRequest = Sanchr_Backup_CreateBackupUploadRequest()
-        createRequest.byteSize = Int64(encryptedArchive.ciphertext.count)
-        createRequest.sha256Hash = Self.sha256Hex(encryptedArchive.ciphertext)
-        createRequest.opaqueMetadata = encryptedArchive.metadataJSON
-        createRequest.reservedForwardSecrecyMetadata = Data()
-        createRequest.lineageID = configuration.lineageId
-        createRequest.formatVersion = BackupArchive.formatVersion
+        // Fan out the same encrypted archive to every enabled destination. When
+        // only iCloud is enabled, Sanchr's servers are never contacted — that is
+        // the privacy promise the iCloud option makes.
+        let destinations = configuration.destinations
+        var serverDate: Date?
+        var iCloudDate: Date?
 
-        let upload = try await grpcClient.backupService.createBackupUpload(createRequest)
-        try await Self.uploadObject(
-            data: encryptedArchive.ciphertext,
-            to: upload.uploadURL,
-            session: session
+        if destinations.contains(.sanchrCloud) {
+            var createRequest = Sanchr_Backup_CreateBackupUploadRequest()
+            createRequest.byteSize = Int64(encryptedArchive.ciphertext.count)
+            createRequest.sha256Hash = Self.sha256Hex(encryptedArchive.ciphertext)
+            createRequest.opaqueMetadata = encryptedArchive.metadataJSON
+            createRequest.reservedForwardSecrecyMetadata = Data()
+            createRequest.lineageID = configuration.lineageId
+            createRequest.formatVersion = BackupArchive.formatVersion
+
+            let upload = try await grpcClient.backupService.createBackupUpload(createRequest)
+            try await Self.uploadObject(
+                data: encryptedArchive.ciphertext,
+                to: upload.uploadURL,
+                session: session
+            )
+
+            var commitRequest = Sanchr_Backup_CommitBackupRequest()
+            commitRequest.backupID = upload.backupID
+            commitRequest.byteSize = createRequest.byteSize
+            commitRequest.sha256Hash = createRequest.sha256Hash
+            let committed = try await grpcClient.backupService.commitBackup(commitRequest)
+            serverDate = Self.parseServerDate(
+                committed.backup.committedAt.isEmpty ? committed.backup.createdAt : committed.backup.committedAt
+            ) ?? Date()
+        }
+
+        if destinations.contains(.iCloud) {
+            iCloudDate = try iCloudStore.writeBackup(
+                ciphertext: encryptedArchive.ciphertext,
+                metadataJSON: encryptedArchive.metadataJSON,
+                lineageId: configuration.lineageId
+            )
+        }
+
+        guard let backupDate = serverDate ?? iCloudDate else {
+            throw AppError.backupFailed(
+                reason: "No backup destination is enabled. Turn on Sanchr Cloud or iCloud.")
+        }
+        return BackupUploadOutcome(
+            backupDate: backupDate,
+            contentHash: contentHash,
+            iCloudBackupDate: iCloudDate
         )
-
-        var commitRequest = Sanchr_Backup_CommitBackupRequest()
-        commitRequest.backupID = upload.backupID
-        commitRequest.byteSize = createRequest.byteSize
-        commitRequest.sha256Hash = createRequest.sha256Hash
-        let committed = try await grpcClient.backupService.commitBackup(commitRequest)
-        let committedAt = Self.parseServerDate(
-            committed.backup.committedAt.isEmpty ? committed.backup.createdAt : committed.backup.committedAt
-        ) ?? Date()
-
-        return BackupUploadOutcome(backupDate: committedAt, contentHash: contentHash)
     }
 
     func restoreLatestBackup(
@@ -196,6 +233,10 @@ actor BackupArchiveService: BackupArchiveServiceProtocol {
     }
 
     func deleteRemoteBackups(lineageID: String?) async throws {
+        // "Delete All Backups" means everywhere the app wrote one — clear the
+        // user's iCloud copies alongside the server-side ones.
+        try? iCloudStore.deleteAllBackups()
+
         let response = try await grpcClient.backupService.listBackups(Sanchr_Backup_ListBackupsRequest())
         let candidates = response.backups.filter { backup in
             guard let lineageID, !lineageID.isEmpty else { return true }

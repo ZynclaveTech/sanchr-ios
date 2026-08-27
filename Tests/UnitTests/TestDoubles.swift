@@ -559,7 +559,9 @@ final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Senda
         storedConfiguration = nil
         storedRecoveryKey = nil
     }
-    func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws {}
+    func updateBackupState(
+        lastBackupAt: Date?, lastBackupContentHash: String?, lastICloudBackupAt: Date?
+    ) throws {}
     func persistRestoredBackup(
         recoveryKey: String,
         lineageId: String,
