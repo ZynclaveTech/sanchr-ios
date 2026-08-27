@@ -1120,7 +1120,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 id: userId,
                 phoneNumber: existing?.phoneNumber ?? "",
                 displayName: name,
-                avatarURL: avatar ?? existing?.avatarURL,
+                // Authoritative: we just fetched this peer's profile, so no
+                // avatar in the response means they have none or their
+                // profile-photo-visibility setting excludes us. Falling back to
+                // a previously stored URL made the setting un-turn-off-able —
+                // the photo kept showing from local state long after the server
+                // stopped serving it.
+                avatarURL: avatar,
                 bio: existing?.bio,
                 isVerified: existing?.isVerified ?? false,
                 status: existing?.status ?? .offline,
@@ -1141,7 +1147,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         guard p.id == userId else { return p }
                         var updated = p
                         updated.displayName = name
-                        if updated.avatarURL == nil { updated.avatarURL = avatar }
+                        // Assign unconditionally for the same reason: a nil
+                        // avatar must be able to clear a stale one.
+                        updated.avatarURL = avatar
                         return updated
                     }
                     try? await localDatabase.saveConversation(conv)
