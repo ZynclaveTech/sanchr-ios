@@ -233,17 +233,35 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         var deviceMessages: [Sanchr_Messaging_DeviceMessage] = []
         deviceMessages.reserveCapacity(deviceIds.count)
 
+        // Per-device fault tolerance. Accounts accumulate dead device
+        // registrations (every reinstall adds one), and any of them can fail to
+        // encrypt — a stale session, an unreviewed identity change, an exhausted
+        // pre-key bundle. One broken carcass must not stop the message from
+        // reaching the recipient's live devices, so failures are skipped and
+        // logged; only when EVERY device fails is the error surfaced, because
+        // then nothing was sent at all.
+        var lastError: Error?
         for deviceId in deviceIds {
-            let ciphertext = try await encrypt(
-                plaintext: plaintext, for: recipientId, deviceId: deviceId)
+            do {
+                let ciphertext = try await encrypt(
+                    plaintext: plaintext, for: recipientId, deviceId: deviceId)
 
-            var dm = Sanchr_Messaging_DeviceMessage()
-            dm.recipientID = recipientId
-            dm.deviceID = deviceId
-            dm.ciphertext = ciphertext
-            deviceMessages.append(dm)
+                var dm = Sanchr_Messaging_DeviceMessage()
+                dm.recipientID = recipientId
+                dm.deviceID = deviceId
+                dm.ciphertext = ciphertext
+                deviceMessages.append(dm)
+            } catch {
+                lastError = error
+                SanchrLogger.crypto.warning(
+                    "Skipping device \(deviceId) of \(recipientId.prefix(8))...: encrypt failed: \(Self.detailedError(error))"
+                )
+            }
         }
 
+        if deviceMessages.isEmpty, let lastError {
+            throw lastError
+        }
         return deviceMessages
     }
 
