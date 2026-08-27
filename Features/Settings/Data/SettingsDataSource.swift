@@ -69,10 +69,15 @@ final class SettingsDataSource: @unchecked Sendable {
 
     /// Enables or disables registration lock with the supplied PIN.
     /// The PIN is sent over TLS; the backend hashes it before storing.
-    func setRegistrationLock(enabled: Bool, pin: String) async throws -> Sanchr_Settings_SetRegistrationLockResponse {
+    /// - Parameter currentPin: the PIN currently in force, required by the
+    ///   server when replacing an existing one. Empty for a first-time enable.
+    func setRegistrationLock(
+        enabled: Bool, pin: String, currentPin: String = ""
+    ) async throws -> Sanchr_Settings_SetRegistrationLockResponse {
         var request = Sanchr_Settings_SetRegistrationLockRequest()
         request.enabled = enabled
         request.pin = pin
+        request.currentPin = currentPin
 
         SanchrLogger.network.info("SettingsDataSource: setRegistrationLock enabled=\(enabled)")
         return try await settingsClient.setRegistrationLock(request)

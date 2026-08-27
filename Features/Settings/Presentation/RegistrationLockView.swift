@@ -19,12 +19,16 @@ struct RegistrationLockView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var phase: Phase = .idle
     @State private var pendingPIN: String? = nil
+    /// The current PIN, captured when changing so the server can verify it.
+    @State private var currentPINForChange: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
     @State private var showSuccess = false
 
     private enum Phase {
         case idle
+        /// Prove knowledge of the PIN in force before choosing a replacement.
+        case verifyCurrentForChange
         case enterNew
         case confirmNew
         case enterCurrent
@@ -39,6 +43,20 @@ struct RegistrationLockView: View {
             switch phase {
             case .idle:
                 idleScreen
+            case .verifyCurrentForChange:
+                PINEntryView(
+                    title: "Enter Current PIN",
+                    subtitle: "Confirm the PIN you use today before choosing a new one.",
+                    isConfirmation: false,
+                    onComplete: { pin in
+                        currentPINForChange = pin
+                        phase = .enterNew
+                    },
+                    onCancel: {
+                        currentPINForChange = ""
+                        phase = .idle
+                    }
+                )
             case .enterNew:
                 PINEntryView(
                     title: "Create PIN",
@@ -212,7 +230,8 @@ struct RegistrationLockView: View {
         VStack(spacing: 12) {
             if viewModel.registrationLockEnabled {
                 Button {
-                    phase = .enterNew
+                    currentPINForChange = ""
+                    phase = .verifyCurrentForChange
                 } label: {
                     actionLabel("Change PIN", icon: "pencil", role: .primary)
                 }
@@ -284,15 +303,23 @@ struct RegistrationLockView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            let resp = try await settingsDataSource.setRegistrationLock(enabled: true, pin: pin)
+            let resp = try await settingsDataSource.setRegistrationLock(
+                enabled: true, pin: pin, currentPin: currentPINForChange)
             if resp.success {
                 viewModel.registrationLockEnabled = true
                 pendingPIN = nil
+                currentPINForChange = ""
                 phase = .idle
                 withAnimation { showSuccess = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                     withAnimation { showSuccess = false }
                 }
+            } else if !currentPINForChange.isEmpty {
+                // The only rejection on a change is a wrong current PIN.
+                currentPINForChange = ""
+                pendingPIN = nil
+                errorMessage = "That current PIN is incorrect. Please try again."
+                phase = .idle
             } else {
                 errorMessage = "The server couldn't enable the lock. Please try again."
                 phase = .idle

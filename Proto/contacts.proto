@@ -23,8 +23,10 @@ message MatchedContact {
   string avatar_url   = 3;
   string status_text  = 4;
   string phone_number = 5;
-  // Encrypted profile fields
-  bytes profile_key             = 6;
+  // field 6 reserved — formerly profile_key. The Profile Key is distributed
+  // to contacts over the Signal session (content type "profile-key/v1"),
+  // never through the server, which also holds the ciphertext it protects.
+  reserved 6;
   bytes encrypted_display_name  = 7;
   bytes encrypted_bio           = 8;
   bytes encrypted_avatar_url    = 9;
@@ -44,8 +46,10 @@ message Contact {
   bool   is_blocked   = 5;
   bool   is_favorite  = 6;
   string phone_number = 7;
-  // Encrypted profile fields
-  bytes profile_key             = 8;
+  // field 8 reserved — formerly profile_key. The Profile Key is distributed
+  // to contacts over the Signal session (content type "profile-key/v1"),
+  // never through the server, which also holds the ciphertext it protects.
+  reserved 8;
   bytes encrypted_display_name  = 9;
   bytes encrypted_bio           = 10;
   bytes encrypted_avatar_url    = 11;
