@@ -1557,10 +1557,36 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) async -> SealedDecodeOutcome {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
-            let result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
+            var result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
 
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
+
+            // 2b. Correct the sender address. Trial-decrypt guesses which session
+            // an envelope belongs to, and a PreKeySignalMessage will process
+            // against ANY guessed address — storing the new ratchet under the
+            // wrong device id, where our outbound encryption never finds it.
+            // The payload's declared sender is authoritative (it decrypted under
+            // the sender's ratchet); relocate the session and use the true
+            // address from here on.
+            if let declaredUserId = innerPayload.senderUserId,
+                !declaredUserId.isEmpty,
+                declaredUserId == result.senderUserId,
+                let declaredDeviceId = innerPayload.senderDeviceId,
+                declaredDeviceId != result.senderDeviceId
+            {
+                signalProtocol.relocateSession(
+                    fromUserId: result.senderUserId,
+                    fromDeviceId: result.senderDeviceId,
+                    toUserId: declaredUserId,
+                    toDeviceId: declaredDeviceId
+                )
+                result = SealedDecryptResult(
+                    plaintext: result.plaintext,
+                    senderUserId: declaredUserId,
+                    senderDeviceId: declaredDeviceId
+                )
+            }
 
             // Every sealed payload carries the sender's Profile Key
             // (InnerPayload.senderProfileKey). Extract it FIRST — before any

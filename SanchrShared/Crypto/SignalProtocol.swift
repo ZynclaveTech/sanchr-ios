@@ -8,6 +8,12 @@ public struct SealedDecryptResult: Sendable {
     public let plaintext: Data
     public let senderUserId: String
     public let senderDeviceId: Int32
+
+    public init(plaintext: Data, senderUserId: String, senderDeviceId: Int32) {
+        self.plaintext = plaintext
+        self.senderUserId = senderUserId
+        self.senderDeviceId = senderDeviceId
+    }
 }
 
 /// Protocol for Signal Protocol session management and message encryption/decryption.
@@ -62,6 +68,15 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// peer had just adopted from the previous heal, so each heal invalidated
     /// the peer's next message and the two devices oscillated forever.
     func resetSessions(with userId: String) async
+
+    /// Moves a session record from the address it was stored under to the
+    /// sender's true address. Trial-decrypting a sealed PreKeySignalMessage can
+    /// succeed against any guessed address, storing the new session under the
+    /// wrong device id; once the payload reveals the sender's declared address,
+    /// this puts the ratchet where outbound encryption will actually find it.
+    func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    )
 
     /// Generates a displayable safety number for identity verification.
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String
@@ -435,6 +450,30 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
                     "resetSessions: archive failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
                 )
             }
+        }
+    }
+
+    public func relocateSession(
+        fromUserId: String, fromDeviceId: Int32, toUserId: String, toDeviceId: Int32
+    ) {
+        guard fromUserId != toUserId || fromDeviceId != toDeviceId else { return }
+        do {
+            let from = try ProtocolAddress(name: fromUserId, deviceId: UInt32(fromDeviceId))
+            let to = try ProtocolAddress(name: toUserId, deviceId: UInt32(toDeviceId))
+            guard let record = try store.loadSession(for: from, context: NullContext()) else {
+                return
+            }
+            // If the true address already holds a session, keep the freshly
+            // decrypted ratchet as its current state — it is the one the peer is
+            // sending on right now.
+            try store.storeSession(record, for: to, context: NullContext())
+            try store.sessionStore.deleteSession(for: from)
+            SanchrLogger.crypto.info(
+                "Relocated session \(fromUserId.prefix(8)) d\(fromDeviceId) -> \(toUserId.prefix(8)) d\(toDeviceId)"
+            )
+        } catch {
+            SanchrLogger.crypto.warning(
+                "relocateSession failed: \(error.localizedDescription)")
         }
     }
 
