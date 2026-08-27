@@ -5,7 +5,28 @@ import SanchrShared
 // MARK: - Section & Item Models
 
 enum MessageListSection: Hashable {
-    case messages(date: String)
+    /// Identity is the calendar day, which is stable and unique. The display
+    /// title ("Today", "Yesterday", a formatted date) is deliberately NOT part
+    /// of identity: it is relative to the current date, so when midnight passes
+    /// while the chat is open, yesterday's messages and today's new ones would
+    /// both title "Today" — two sections with identical identifiers, which
+    /// crashes the diffable data source. Excluded from Hashable/Equatable so a
+    /// title change (Today -> Yesterday) never churns section identity either.
+    case messages(day: Date, title: String)
+
+    static func == (lhs: MessageListSection, rhs: MessageListSection) -> Bool {
+        switch (lhs, rhs) {
+        case (.messages(let a, _), .messages(let b, _)):
+            return a == b
+        }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .messages(let day, _):
+            hasher.combine(day)
+        }
+    }
 }
 
 struct MessageItem: Hashable {
@@ -454,8 +475,8 @@ final class MessageCollectionViewController: UIViewController {
 
             let title: String
             switch sectionIdentifier {
-            case .messages(let date):
-                title = date
+            case .messages(_, let sectionTitle):
+                title = sectionTitle
             }
 
             supplementaryView.contentConfiguration = UIHostingConfiguration {
@@ -507,7 +528,7 @@ final class MessageCollectionViewController: UIViewController {
         let groupingThreshold: TimeInterval = 180
 
         for section in sections {
-            let sectionId = MessageListSection.messages(date: section.title)
+            let sectionId = MessageListSection.messages(day: section.id, title: section.title)
             snapshot.appendSections([sectionId])
 
             var sectionItems: [MessageItem] = []
