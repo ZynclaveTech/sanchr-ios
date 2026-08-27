@@ -161,6 +161,65 @@ struct BackupView: View {
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
+            // Destinations
+            Section {
+                destinationRow(
+                    icon: "externaldrive.badge.icloud",
+                    title: "Sanchr Cloud",
+                    subtitle: "Chats only · encrypted before upload",
+                    destination: .sanchrCloud
+                )
+                destinationRow(
+                    icon: "icloud",
+                    title: "iCloud",
+                    subtitle: "Chats & media · stored in your iCloud",
+                    destination: .iCloud
+                )
+            } header: {
+                Text("BACK UP TO")
+            } footer: {
+                Text(
+                    "iCloud backups are encrypted on your device and saved to your own iCloud storage. Sanchr never sees, stores, or tracks them — our servers are not contacted at all."
+                )
+                .font(SanchrTypography.captionSmall)
+            }
+            .listRowBackground(Color.sanchrSurface(colorScheme))
+
+            // Automatic backup
+            Section {
+                Picker("Frequency", selection: frequencyBinding) {
+                    Text("Off").tag(BackupFrequency.off)
+                    Text("Daily").tag(BackupFrequency.daily)
+                    Text("Weekly").tag(BackupFrequency.weekly)
+                }
+                .font(SanchrTypography.body)
+                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+
+                if destinationsBinding.wrappedValue.contains(.iCloud) {
+                    Toggle(isOn: wifiOnlyMediaBinding) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Media over Wi-Fi only")
+                                .font(SanchrTypography.body)
+                                .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                            Text("Photos & videos wait for Wi-Fi")
+                                .font(SanchrTypography.captionSmall)
+                                .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                        }
+                    }
+                    .tint(.sanchrPrimary)
+                }
+            } header: {
+                Text("AUTOMATIC BACKUP")
+            } footer: {
+                Text(
+                    frequencyBinding.wrappedValue == .off
+                        ? "Automatic backup is off. Your chats are only backed up when you tap Back Up Now."
+                        : "Backs up automatically once \(frequencyBinding.wrappedValue == .daily ? "a day" : "a week") when you use the app."
+                )
+                .font(SanchrTypography.captionSmall)
+            }
+            .listRowBackground(Color.sanchrSurface(colorScheme))
+
             // Recovery Key
             Section {
                 Button {
@@ -191,8 +250,10 @@ struct BackupView: View {
             } header: {
                 Text("RECOVERY KEY")
             } footer: {
-                Text("Save your recovery key somewhere safe. Without it you cannot restore your backup on a new device.")
-                    .font(SanchrTypography.captionSmall)
+                Text(
+                    "Your recovery key is the only thing that can unlock a backup. Every backup — Sanchr Cloud or iCloud — is encrypted with it before it leaves this device, so when you reinstall or move to a new phone, you will be asked for this key to bring your chats back. Sanchr cannot reset it or recover it for you: without the key, no one (including us) can read your backup. Write it down and keep it somewhere safe."
+                )
+                .font(SanchrTypography.captionSmall)
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
@@ -387,6 +448,60 @@ struct BackupView: View {
         }
         .buttonStyle(.plain)
         .disabled(container.backupCoordinator.isProcessing)
+    }
+
+    // MARK: - Backup Preferences
+
+    private var destinationsBinding: Binding<Set<BackupDestination>> {
+        Binding(
+            get: { container.backupCoordinator.configuration?.destinations ?? [.sanchrCloud] },
+            set: { container.backupCoordinator.updatePreferences(destinations: $0) }
+        )
+    }
+
+    private var frequencyBinding: Binding<BackupFrequency> {
+        Binding(
+            get: { container.backupCoordinator.configuration?.frequency ?? .daily },
+            set: { container.backupCoordinator.updatePreferences(frequency: $0) }
+        )
+    }
+
+    private var wifiOnlyMediaBinding: Binding<Bool> {
+        Binding(
+            get: { container.backupCoordinator.configuration?.wifiOnlyMedia ?? true },
+            set: { container.backupCoordinator.updatePreferences(wifiOnlyMedia: $0) }
+        )
+    }
+
+    private func destinationRow(
+        icon: String, title: String, subtitle: String, destination: BackupDestination
+    ) -> some View {
+        Toggle(
+            isOn: Binding(
+                get: { destinationsBinding.wrappedValue.contains(destination) },
+                set: { enabled in
+                    var set = destinationsBinding.wrappedValue
+                    if enabled { set.insert(destination) } else { set.remove(destination) }
+                    destinationsBinding.wrappedValue = set
+                }
+            )
+        ) {
+            HStack(spacing: SanchrSpacing.sm) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(.sanchrPrimary)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(SanchrTypography.body)
+                        .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    Text(subtitle)
+                        .font(SanchrTypography.captionSmall)
+                        .foregroundColor(Color.sanchrTextSecondary(colorScheme))
+                }
+            }
+        }
+        .tint(.sanchrPrimary)
     }
 
     private func backupContentRow(icon: String, title: String, subtitle: String) -> some View {

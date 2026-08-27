@@ -539,6 +539,17 @@ final class MockRecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Senda
     func loadConfiguration() throws -> BackupConfiguration? { storedConfiguration }
     func readRecoveryKey() throws -> String? { storedRecoveryKey }
     func generateRecoveryKey() throws -> String { generateKeyResult }
+    func updatePreferences(
+        destinations: Set<BackupDestination>?,
+        frequency: BackupFrequency?,
+        wifiOnlyMedia: Bool?
+    ) throws -> BackupConfiguration? {
+        guard let current = storedConfiguration else { return nil }
+        let updated = current.updatingPreferences(
+            destinations: destinations, frequency: frequency, wifiOnlyMedia: wifiOnlyMedia)
+        storedConfiguration = updated
+        return updated
+    }
     func enableBackups(with recoveryKey: String, lineageId: String) throws -> BackupConfiguration {
         storedRecoveryKey = recoveryKey
         storedConfiguration = enableBackupsResult

@@ -35,6 +35,26 @@ final class BackupCoordinator: @unchecked Sendable {
         configuration?.isEnabled ?? false
     }
 
+    /// Update destination/frequency/wifi-only preferences and refresh the
+    /// published configuration. No-op when backups have not been enabled yet.
+    func updatePreferences(
+        destinations: Set<BackupDestination>? = nil,
+        frequency: BackupFrequency? = nil,
+        wifiOnlyMedia: Bool? = nil
+    ) {
+        do {
+            if let updated = try recoveryKeyManager.updatePreferences(
+                destinations: destinations,
+                frequency: frequency,
+                wifiOnlyMedia: wifiOnlyMedia
+            ) {
+                configuration = updated
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func reload() {
         do {
             configuration = try recoveryKeyManager.loadConfiguration()

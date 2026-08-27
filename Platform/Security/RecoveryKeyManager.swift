@@ -9,6 +9,14 @@ protocol RecoveryKeyManagerProtocol: AnyObject, Sendable {
     func enableBackups(with recoveryKey: String, lineageId: String) throws -> BackupConfiguration
     func disableBackups() throws
     func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws
+    /// Persist changed backup preferences (destinations/frequency/wifi-only),
+    /// leaving the recovery-key identity untouched. Returns the updated
+    /// configuration, or nil when backups are not configured.
+    func updatePreferences(
+        destinations: Set<BackupDestination>?,
+        frequency: BackupFrequency?,
+        wifiOnlyMedia: Bool?
+    ) throws -> BackupConfiguration?
     func persistRestoredBackup(
         recoveryKey: String,
         lineageId: String,
@@ -66,15 +74,37 @@ final class RecoveryKeyManager: RecoveryKeyManagerProtocol, @unchecked Sendable 
 
     func updateBackupState(lastBackupAt: Date?, lastBackupContentHash: String?) throws {
         guard let current = try loadConfiguration() else { return }
+        // Carry the preference fields through — reconstructing without them
+        // would silently reset the user's destination/frequency choices on
+        // every completed backup.
         let updated = BackupConfiguration(
             isEnabled: current.isEnabled,
             lineageId: current.lineageId,
             formatVersion: current.formatVersion,
             recoveryKeyConfirmedAt: current.recoveryKeyConfirmedAt,
             lastBackupAt: lastBackupAt,
-            lastBackupContentHash: lastBackupContentHash
+            lastBackupContentHash: lastBackupContentHash,
+            destinations: current.destinations,
+            frequency: current.frequency,
+            wifiOnlyMedia: current.wifiOnlyMedia,
+            lastICloudBackupAt: current.lastICloudBackupAt
         )
         try secureStorage.saveBackupConfiguration(updated)
+    }
+
+    func updatePreferences(
+        destinations: Set<BackupDestination>?,
+        frequency: BackupFrequency?,
+        wifiOnlyMedia: Bool?
+    ) throws -> BackupConfiguration? {
+        guard let current = try loadConfiguration() else { return nil }
+        let updated = current.updatingPreferences(
+            destinations: destinations,
+            frequency: frequency,
+            wifiOnlyMedia: wifiOnlyMedia
+        )
+        try secureStorage.saveBackupConfiguration(updated)
+        return updated
     }
 
     func persistRestoredBackup(
