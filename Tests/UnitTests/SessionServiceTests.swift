@@ -85,7 +85,17 @@ final class SessionServiceTests: XCTestCase {
         XCTAssertEqual(cleanupValue, 1)
     }
 
-    func testRefreshFailureExpiresSessionAndPurgesSnapshot() async {
+    /// An involuntary expiry — the server rejected the refresh token — must
+    /// drop the tokens and the in-memory auth state but leave every local
+    /// artifact alone, so re-authenticating on the same device restores the
+    /// account instead of costing the user their history. The destructive
+    /// `deleteSessionData()`/`cleanup()` wipe belongs to a deliberate logout
+    /// or account deletion only.
+    ///
+    /// This test previously asserted the opposite and was left behind when
+    /// that behaviour was intentionally reversed; it went unnoticed because
+    /// the test target had stopped compiling.
+    func testRefreshFailureExpiresSessionButKeepsLocalData() async {
         let storage = MockSecureStorage()
         storage.accessToken = "expired-access"
         storage.refreshToken = "refresh-token"
@@ -124,12 +134,27 @@ final class SessionServiceTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
 
+        // The session is over: auth state is gone and the rejected tokens are
+        // deleted so nothing retries with them.
         XCTAssertFalse(service.isAuthenticated)
         XCTAssertNil(service.currentUserId)
-        XCTAssertNil(storage.sessionSnapshot)
-        XCTAssertEqual(storage.deleteSessionDataCallCount, 1)
+        XCTAssertEqual(storage.deleteAllTokensCallCount, 1)
+
+        // ...but the user's data survives, ready for re-authentication on this
+        // same device.
+        XCTAssertNotNil(
+            storage.sessionSnapshot,
+            "an involuntary expiry must not purge the session snapshot"
+        )
+        XCTAssertEqual(
+            storage.deleteSessionDataCallCount, 0,
+            "deleteSessionData is reserved for a deliberate logout"
+        )
         let cleanupValue = await cleanupCounter.value
-        XCTAssertEqual(cleanupValue, 1)
+        XCTAssertEqual(
+            cleanupValue, 0,
+            "the destructive local-data cleanup must not run on a token timeout"
+        )
     }
 
     // MARK: - Reset Message Sync High-Water Mark

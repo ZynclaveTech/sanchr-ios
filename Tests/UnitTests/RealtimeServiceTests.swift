@@ -127,7 +127,11 @@ final class RealtimeServiceTests: XCTestCase {
 
         service.start()
         try await waitUntil { messageRepository.openStreamCallCount == 1 }
-        XCTAssertEqual(messageRepository.flushPendingAcksCallCount, 1)
+        // At least one flush must happen before the stream opens, to drain acks
+        // queued while the app was offline. `start()` also kicks off a catch-up
+        // sync on its own task, and that flushes again to ack whatever the sync
+        // just applied — so the exact count here is a race, not an invariant.
+        XCTAssertGreaterThanOrEqual(messageRepository.flushPendingAcksCallCount, 1)
 
         messageRepository.emit(.message(message))
         messageRepository.emit(.typing(typing))
