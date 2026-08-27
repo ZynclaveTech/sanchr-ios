@@ -74,8 +74,25 @@ public final class MediaEncryptor: MediaEncryptionProtocol, @unchecked Sendable 
 
     public func decrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {
         let symmetricKey = SymmetricKey(data: key)
-        let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
-        return try AES.GCM.open(sealedBox, using: symmetricKey)
+        do {
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            return try AES.GCM.open(sealedBox, using: symmetricKey)
+        } catch {
+            // Files over 1 MB are uploaded in the chunked format (encryptFile
+            // chunks at 1 MB, per-chunk nonce+tag framing), which a single-shot
+            // SealedBox rejects with an authentication failure. Receivers only
+            // ever called this single-shot path, so every cross-device file
+            // larger than one chunk failed to open. Fall back to chunked
+            // decryption when the ciphertext is big enough to be multi-chunk;
+            // a genuinely wrong key still fails there and the error surfaces.
+            let fullChunkCombinedSize = 12 + Self.chunkSize + 16
+            guard ciphertext.count > fullChunkCombinedSize else { throw error }
+            return try decryptFileChunked(
+                ciphertext: ciphertext,
+                key: symmetricKey,
+                expectedDigest: Data()
+            )
+        }
     }
 
     // MARK: - File-Based Encryption
