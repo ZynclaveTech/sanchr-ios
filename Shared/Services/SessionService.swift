@@ -204,9 +204,7 @@ final class SessionService: @unchecked Sendable {
 
             guard let storedRefreshToken = try? secureStorage.readRefreshToken(),
                   !storedRefreshToken.isEmpty else {
-                try? secureStorage.deleteSessionData()
-                await clearSessionState()
-                await cleanup()
+                await clearSessionForReauth()
                 throw AppError.sessionExpired
             }
 
@@ -223,9 +221,7 @@ final class SessionService: @unchecked Sendable {
                     SanchrLogger.auth.error(
                         "Token refresh reported session expiration — clearing session"
                     )
-                    try? secureStorage.deleteSessionData()
-                    await clearSessionState()
-                    await cleanup()
+                    await clearSessionForReauth()
                     throw appError
                 } catch let grpcError as GRPCStatus where grpcError.code == .unauthenticated {
                     // Server explicitly rejected the token — it is revoked or invalid.
@@ -233,9 +229,7 @@ final class SessionService: @unchecked Sendable {
                     SanchrLogger.auth.error(
                         "Token refresh rejected by server (UNAUTHENTICATED) — clearing session"
                     )
-                    try? secureStorage.deleteSessionData()
-                    await clearSessionState()
-                    await cleanup()
+                    await clearSessionForReauth()
                     throw AppError.sessionExpired
                 } catch {
                     if attempt < 2 {
@@ -346,6 +340,21 @@ final class SessionService: @unchecked Sendable {
         currentInstallationId = nil
         lastMessageSyncTimestamp = 0
         tokenExpiresAt = nil
+    }
+
+    /// Clears the session for an *involuntary* expiry (the refresh token was
+    /// rejected) without destroying any local data.
+    ///
+    /// An expired session must never cost the user their history. This drops only
+    /// the now-invalid access/refresh tokens and the in-memory auth state, so the
+    /// app returns to sign-in — but the message database, Signal sessions, device
+    /// identity (deviceId/installationId), and Profile Key are all left intact, so
+    /// re-authenticating as the same device restores the account seamlessly. The
+    /// destructive `cleanup()`/`deleteSessionData()` wipe is reserved for a
+    /// deliberate logout or account deletion, never a token timeout.
+    private func clearSessionForReauth() async {
+        try? secureStorage.deleteAllTokens()
+        await clearSessionState()
     }
 
     private func restorePersistedSession() {
