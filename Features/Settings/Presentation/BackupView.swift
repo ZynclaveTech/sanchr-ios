@@ -577,6 +577,14 @@ struct BackupView: View {
 // MARK: - BackupRecoveryKeySheet
 
 private struct BackupRecoveryKeySheet: View {
+    static func grouped(_ key: String) -> String {
+        stride(from: 0, to: key.count, by: 4).map { start in
+            let lower = key.index(key.startIndex, offsetBy: start)
+            let upper = key.index(lower, offsetBy: 4, limitedBy: key.endIndex) ?? key.endIndex
+            return String(key[lower..<upper])
+        }.joined(separator: " ")
+    }
+
     @Environment(\.colorScheme) private var colorScheme
     let recoveryKey: String
     let displayOnly: Bool
@@ -591,7 +599,11 @@ private struct BackupRecoveryKeySheet: View {
                         .font(SanchrTypography.body)
                 }
 
-                Text(recoveryKey)
+                // Grouped display: broken into short chunks with real spaces so
+                // the renderer never hyphenates the key mid-group — a wrapped
+                // display once showed phantom hyphens that users then typed
+                // back in as part of the key.
+                Text(Self.grouped(recoveryKey))
                     .font(.system(.body, design: .monospaced))
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)

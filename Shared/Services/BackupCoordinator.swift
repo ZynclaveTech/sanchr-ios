@@ -316,8 +316,21 @@ final class BackupCoordinator: @unchecked Sendable {
     }
 
     private func resolvedRecoveryKey(_ override: String?) throws -> String {
-        if let override, !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return override.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let override {
+            // A recovery key is 64 characters of [a-z0-9] — anything else the
+            // user typed is a separator. Displays wrap the long key and can even
+            // hyphenate it, so keys are routinely transcribed with spaces,
+            // hyphens, or line breaks that are not part of the key. Strip all of
+            // that (and fold case) instead of failing on a faithful transcription
+            // of what the screen showed.
+            let normalized = String(
+                override.lowercased().unicodeScalars.filter {
+                    ("a"..."z").contains($0) || ("0"..."9").contains($0)
+                }
+            )
+            if !normalized.isEmpty {
+                return normalized
+            }
         }
 
         guard let stored = try recoveryKeyManager.readRecoveryKey(), !stored.isEmpty else {
