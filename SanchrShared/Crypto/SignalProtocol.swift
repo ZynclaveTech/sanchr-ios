@@ -52,11 +52,15 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Resets (deletes) the session with a specific user/device for session recovery.
     func resetSession(with userId: String, deviceId: Int32) throws
 
-    /// Resets the sessions with every device of a user, so the next encrypt
-    /// fetches fresh pre-key bundles and produces PreKeySignalMessages that
-    /// force the peer to adopt a new session. Used to self-heal after this
-    /// account's Signal state was rebuilt (reinstall) and peers still encrypt
-    /// to the dead sessions. Individual device failures are swallowed.
+    /// Archives the current session state with every device of a user, so the
+    /// next encrypt fetches fresh pre-key bundles and produces
+    /// PreKeySignalMessages that force the peer to adopt a new session — while
+    /// the archived ratchets REMAIN decryptable for inbound messages. Used to
+    /// self-heal after this account's Signal state was rebuilt (reinstall) and
+    /// peers still encrypt to dead sessions. Archiving, never deleting, is what
+    /// keeps repeated heals convergent: deleting destroyed the very ratchet the
+    /// peer had just adopted from the previous heal, so each heal invalidated
+    /// the peer's next message and the two devices oscillated forever.
     func resetSessions(with userId: String) async
 
     /// Generates a displayable safety number for identity verification.
@@ -414,10 +418,21 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         }
         for deviceId in deviceIds {
             do {
-                try resetSession(with: userId, deviceId: deviceId)
+                let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+                // Archive rather than delete: the peer may already be sending on
+                // this ratchet (adopted from a previous heal), and libsignal can
+                // still decrypt against archived states. With no current state,
+                // the next encrypt establishes a fresh session from the peer's
+                // pre-key bundle, which is the PreKeySignalMessage the heal needs.
+                if let record = try store.loadSession(for: address, context: NullContext()) {
+                    record.archiveCurrentState()
+                    try store.storeSession(record, for: address, context: NullContext())
+                    SanchrLogger.crypto.info(
+                        "Archived session state for \(userId.prefix(8)) device \(deviceId)")
+                }
             } catch {
                 SanchrLogger.crypto.warning(
-                    "resetSessions: reset failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
+                    "resetSessions: archive failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
                 )
             }
         }
