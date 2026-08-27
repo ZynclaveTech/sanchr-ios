@@ -171,6 +171,14 @@ final class RealtimeService: @unchecked Sendable {
                     SanchrLogger.chat.info("Realtime message stream opened")
                     // Successful open — reset the backoff curve.
                     self.reconnectAttempt = 0
+                    // Catch-up sync: the stream only carries messages pushed while
+                    // it is up. Anything sent during the gap between the previous
+                    // stream dying and this one opening sits queued server-side
+                    // and would otherwise wait for the next app-activation sync —
+                    // in practice the stream is cut by an idle timeout every
+                    // ~60s, so without this, messages that land in a reconnect
+                    // gap appear minutes late or not at all this session.
+                    Task { [weak self] in _ = await self?.syncNowResult() }
                     for await event in stream {
                         guard !Task.isCancelled else { break }
                         await handle(event)
