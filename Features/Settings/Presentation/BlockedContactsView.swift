@@ -5,6 +5,9 @@ import SanchrShared
 struct BlockedContactsView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var blockedIDs: [String] = []
+    /// Display name (or phone number) per blocked user id, resolved from the
+    /// local contact table so the list is readable.
+    @State private var blockedNames: [String: String] = [:]
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -32,7 +35,7 @@ struct BlockedContactsView: View {
                             HStack(spacing: 14) {
                                 SettingsIconTile(systemName: "person", role: .destructive)
 
-                                Text(shortID(userId))
+                                Text(displayName(for: userId))
                                     .font(SanchrTypography.bodyBold)
                                     .foregroundColor(SanchrExportColors.textPrimary)
 
@@ -69,6 +72,36 @@ struct BlockedContactsView: View {
         }
     }
 
+    /// A blocked entry is only actionable if the user can tell who it is. The
+    /// server returns ids alone, so names come from the local contact table —
+    /// the same source the conversation list reads — falling back to the phone
+    /// number and finally to a shortened id when the person was never resolved.
+    private func displayName(for userId: String) -> String {
+        blockedNames[userId] ?? shortID(userId)
+    }
+
+    private func resolveNames(for ids: [String]) async {
+        guard !ids.isEmpty,
+            let contacts = try? await container.localDatabase.fetchContacts()
+        else { return }
+        let lookup = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0) })
+        var resolved: [String: String] = [:]
+        for id in ids {
+            guard let contact = lookup[id] else { continue }
+            let name = contact.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty,
+                name != User.serverPlaceholderDisplayName,
+                name != id,
+                UUID(uuidString: name) == nil
+            {
+                resolved[id] = name
+            } else if !contact.phoneNumber.isEmpty {
+                resolved[id] = contact.phoneNumber
+            }
+        }
+        blockedNames = resolved
+    }
+
     private func shortID(_ userId: String) -> String {
         let prefix = String(userId.prefix(12))
         return userId.count > 12 ? "\(prefix)..." : prefix
@@ -84,6 +117,7 @@ struct BlockedContactsView: View {
         )
         do {
             blockedIDs = try await dataSource.getBlockedList()
+            await resolveNames(for: blockedIDs)
         } catch {
             errorMessage = error.localizedDescription
             SanchrLogger.sync.error("Failed to load blocked list: \(error.localizedDescription)")
