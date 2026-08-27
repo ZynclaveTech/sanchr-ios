@@ -52,6 +52,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Resets (deletes) the session with a specific user/device for session recovery.
     func resetSession(with userId: String, deviceId: Int32) throws
 
+    /// Resets the sessions with every device of a user, so the next encrypt
+    /// fetches fresh pre-key bundles and produces PreKeySignalMessages that
+    /// force the peer to adopt a new session. Used to self-heal after this
+    /// account's Signal state was rebuilt (reinstall) and peers still encrypt
+    /// to the dead sessions. Individual device failures are swallowed.
+    func resetSessions(with userId: String) async
+
     /// Generates a displayable safety number for identity verification.
     func safetyNumber(for userId: String, deviceId: Int32) throws -> String
 
@@ -376,6 +383,27 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     }
 
     // MARK: - Session Maintenance
+
+    public func resetSessions(with userId: String) async {
+        let deviceIds: [Int32]
+        do {
+            deviceIds = try await keyManager.fetchUserDevices(recipientId: userId)
+        } catch {
+            SanchrLogger.crypto.warning(
+                "resetSessions: device fetch failed for \(userId.prefix(8)): \(error.localizedDescription)"
+            )
+            return
+        }
+        for deviceId in deviceIds {
+            do {
+                try resetSession(with: userId, deviceId: deviceId)
+            } catch {
+                SanchrLogger.crypto.warning(
+                    "resetSessions: reset failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
+                )
+            }
+        }
+    }
 
     public func resetSession(with userId: String, deviceId: Int32) throws {
         let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
