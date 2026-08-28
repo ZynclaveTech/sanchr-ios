@@ -13,6 +13,13 @@ struct MediaBubbleImage: View {
     let isOutgoing: Bool
     var uploadProgress: Double?
     var uploadLabel: String?
+    /// Fixed size for this bubble, overriding the aspect-derived one.
+    ///
+    /// Album tiles are laid out on a grid, so their size comes from the grid
+    /// rather than the attachment's own shape. Reusing this view for a tile
+    /// keeps one copy of the download, decrypt, cache, auto-download-policy
+    /// and retry behaviour instead of a second implementation that would drift.
+    var fixedSize: CGSize?
     @Environment(DependencyContainer.self) private var container
     @State private var resolvedImage: UIImage?
     @State private var placeholderImage: UIImage?
@@ -76,7 +83,7 @@ struct MediaBubbleImage: View {
     }
 
     private var displaySize: CGSize {
-        BubbleMediaLayout.displaySize(for: attachment)
+        fixedSize ?? BubbleMediaLayout.displaySize(for: attachment)
     }
 
     private var shouldAutoSaveToPhotos: Bool {
