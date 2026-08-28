@@ -158,6 +158,7 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
+            VStack(alignment: .leading, spacing: 6) {
             // View-once media must not render its contents in the transcript.
             // Showing a thumbnail defeats the feature before the recipient ever
             // taps: the image is on screen indefinitely, and the delete-after-view
@@ -185,6 +186,7 @@ struct MessageBubble: View {
                         onBubbleTap(.openMedia(messageId: message.id))
                     }
                 )
+                mediaCaption(attachment.caption)
             } else if let single = attachment.first {
                 MediaBubbleImage(
                     attachment: single,
@@ -198,9 +200,12 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+                mediaCaption(single.caption)
+            }
             }
 
         case .video(let attachment):
+            VStack(alignment: .leading, spacing: 6) {
             if let single = attachment.first, single.isViewOnce == true {
                 ViewOnceBubble(
                     attachment: single,
@@ -224,6 +229,7 @@ struct MessageBubble: View {
                         onBubbleTap(.openMedia(messageId: message.id))
                     }
                 )
+                mediaCaption(attachment.caption)
             } else if let single = attachment.first {
                 MediaBubbleImage(
                     attachment: single,
@@ -243,6 +249,8 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+                mediaCaption(single.caption)
+            }
             }
 
         case .audio(let media):
@@ -311,6 +319,24 @@ struct MessageBubble: View {
             Text("[Unsupported content]")
                 .font(SanchrTypography.caption)
                 .foregroundColor(messageTextColor.opacity(0.72))
+        }
+    }
+
+    /// Caption drawn beneath media.
+    ///
+    /// Captions have always been collected, sent and stored, and never shown:
+    /// no media bubble rendered `attachment.caption` at all, so anything typed
+    /// on the caption or review screen simply vanished on arrival. Constrained
+    /// to the media's own width so the bubble does not grow wider than the
+    /// picture it belongs to.
+    @ViewBuilder
+    private func mediaCaption(_ caption: String?) -> some View {
+        if let caption, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Text(caption)
+                .font(SanchrTypography.messageBubbleText)
+                .foregroundColor(messageTextColor)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: BubbleMediaLayout.maxWidth, alignment: .leading)
         }
     }
 
