@@ -20,7 +20,16 @@ final class AttachmentPickerViewModel: ObservableObject {
 
     @Published private(set) var recents: [RecentPhoto] = []
     @Published private(set) var isLoadingRecents = false
-    @Published private(set) var selectedRecentIDs: Set<String> = []
+    /// Ordered deliberately. This was a `Set`, and `didConfirmRecentSelection`
+    /// sent `Array(set)` — an order unrelated to what the user tapped, and one
+    /// that Swift's per-process hash seed varies between launches, so the same
+    /// photos arrived shuffled differently each run.
+    @Published private(set) var selectedRecentIDs: [String] = []
+
+    /// Ceiling on one batch. Each photo costs a sequential load and a
+    /// sequential send, so an unbounded selection stalls the sheet with no way
+    /// out. Matches WhatsApp.
+    static let selectionLimit = 30
     @Published private(set) var isMultiSelecting = false
     @Published private(set) var photoPermission: PhotoPermission = .notDetermined
     @Published var transientError: String?
@@ -70,21 +79,42 @@ final class AttachmentPickerViewModel: ObservableObject {
     }
 
     func didToggleMultiSelect(id: String) {
-        if selectedRecentIDs.contains(id) {
-            selectedRecentIDs.remove(id)
+        if let existing = selectedRecentIDs.firstIndex(of: id) {
+            selectedRecentIDs.remove(at: existing)
             if selectedRecentIDs.isEmpty { exitMultiSelect() }
         } else {
-            selectedRecentIDs.insert(id)
+            guard selectedRecentIDs.count < Self.selectionLimit else {
+                transientError = "You can send up to \(Self.selectionLimit) photos at once"
+                return
+            }
+            selectedRecentIDs.append(id)
         }
     }
 
     func didConfirmRecentSelection() async {
-        let ids = Array(selectedRecentIDs)
+        let ids = selectedRecentIDs
         exitMultiSelect()
+
         var items: [PickedMedia] = []
+        var failed = 0
         for id in ids {
-            if let m = await photos.loadPickedMedia(assetID: id) { items.append(m) }
+            if let m = await photos.loadPickedMedia(assetID: id) {
+                items.append(m)
+            } else {
+                failed += 1
+            }
         }
+
+        // A photo that fails to load used to be dropped in silence: you picked
+        // five, three arrived, and nothing said so. Report the shortfall — and
+        // if every one failed, say that rather than closing as if sent.
+        if failed > 0 {
+            transientError =
+                items.isEmpty
+                ? "Couldn't load those photos"
+                : "Couldn't load \(failed) of \(ids.count) photos — sending the rest"
+        }
+
         guard !items.isEmpty else { return }
         emit(.photoLibrary(items))
     }

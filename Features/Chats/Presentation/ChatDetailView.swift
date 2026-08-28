@@ -762,8 +762,17 @@ struct ChatDetailView: View {
             let selectedItems = items
             selectedPhotoItems = []
             Task {
-                for item in selectedItems {
-                    await handleSelectedPhoto(item)
+                // One photo keeps the editor and caption stop. A batch cannot:
+                // the editor is presented by assigning state and returning, so
+                // looping it just overwrites that state per photo — which is
+                // why only the last one used to survive. Send the batch
+                // straight through, in the order it was picked.
+                if selectedItems.count == 1, let only = selectedItems.first {
+                    await handleSelectedPhoto(only)
+                } else {
+                    for item in selectedItems {
+                        await sendPickedItemDirectly(item)
+                    }
                 }
             }
         }
@@ -1145,6 +1154,54 @@ struct ChatDetailView: View {
             localFileURL: tempURL,
             mimeType: "image/jpeg",
             contentType: .image(attachment)
+        )
+    }
+
+    /// Sends one picked photo or video straight through, with no editor and no
+    /// caption stop.
+    ///
+    /// Used only for a multi-photo selection. `handleSelectedPhoto` presents
+    /// the editor by *assigning* `pendingImageEdit` and returning immediately —
+    /// it never waits for the user to finish — so looping it over a selection
+    /// overwrote that state once per photo. The covers re-presented as the
+    /// value changed (the "editor after editor" behaviour) and only the last
+    /// photo survived; the rest were dropped without a word.
+    @MainActor
+    private func sendPickedItemDirectly(_ item: PhotosPickerItem) async {
+        if let type = item.supportedContentTypes.first, type.conforms(to: .movie) {
+            await handleSelectedPhoto(item)
+            return
+        }
+
+        guard let imageData = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: imageData) else { return }
+
+        let blurHash: String? = await Task.detached(priority: .utility) {
+            BlurHash.encode(image)
+        }.value
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).jpg")
+        // Re-encode rather than forwarding the original bytes so HEIC from the
+        // camera roll reaches the recipient as JPEG, matching the single-photo
+        // path through the editor.
+        guard let jpeg = image.jpegData(compressionQuality: 0.92),
+              (try? jpeg.write(to: tempURL)) != nil else { return }
+
+        var attachment = Message.MediaAttachment(
+            url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
+            mimeType: "image/jpeg", sizeBytes: Int64(jpeg.count), thumbnailURL: nil
+        )
+        attachment.blurHash = blurHash
+
+        commitPendingMediaSend(
+            PendingMediaSend(
+                preview: .image(jpeg),
+                localFileURL: tempURL,
+                mimeType: "image/jpeg",
+                contentType: .image(attachment)
+            ),
+            caption: nil
         )
     }
 }
