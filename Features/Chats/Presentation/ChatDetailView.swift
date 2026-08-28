@@ -963,6 +963,12 @@ struct ChatDetailView: View {
         .padding(.bottom, 12)
         .transition(.scale.combined(with: .opacity))
         .animation(.easeInOut(duration: 0.2), value: isScrolledToBottom)
+        .onChange(of: isScrolledToBottom) { _, atBottom in
+            // Returning to the newest end is the one moment the window can be
+            // shrunk without risk: everything below is loaded, and what gets
+            // dropped is exactly what paging up re-fetches.
+            viewModel.trimToRecentWindowIfAtBottom(isAtBottom: atBottom)
+        }
     }
 
     private func generateVideoThumbnail(videoURL: URL) async -> URL? {
