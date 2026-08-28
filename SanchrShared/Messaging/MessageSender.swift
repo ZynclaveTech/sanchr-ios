@@ -469,52 +469,18 @@ public actor MessageSender {
             guard let primaryRecipient = recipientIds.first else {
                 throw AppError.sessionNotEstablished
             }
-            // Step 1 — upload (outside the lock).
-            let uploadOutcome = try await uploader.uploadMedia(
-                localFileURL: attachment.url,
-                mimeType: attachment.mimeType,
-                conversationId: chatId,
-                recipientId: primaryRecipient,
+            // Steps 1 and 2 — upload, then rebuild the attachment around what
+            // came back. Shared with `sendAlbum` so the field mapping exists
+            // once.
+            let vaultPolicy = await vaultPolicyResolver.policy(for: chatId)
+            let (uploadedAttachment, uploadedMediaId) = try await uploadAndRebuild(
+                attachment,
+                caption: caption,
+                chatId: chatId,
+                primaryRecipient: primaryRecipient,
+                vaultPolicy: vaultPolicy,
                 progress: progress
             )
-
-            // Step 2 — rebuild the attachment with the mediaId reference and
-            // the encryption key/nonce the receiver needs. Mirrors
-            // `ChatDetailViewModel.sendMediaMessage` exactly: same field
-            // mapping, same voice-message field preservation. Any divergence
-            // here causes silent data loss for voice notes / file names.
-            guard let mediaIdURL = URL(string: "sanchr-media://\(uploadOutcome.mediaId)") else {
-                throw AppError.mediaUploadFailed
-            }
-            // Read the per-chat vault policy. When viewOnceOutgoing is
-            // on, stamp isViewOnce: true on the rebuilt attachment so
-            // the receiver's gallery enforces single-view + delete-on-
-            // dismiss. The flag rides inside the encrypted envelope —
-            // server is blind.
-            let vaultPolicy = await vaultPolicyResolver.policy(for: chatId)
-            var uploadedAttachment = Message.MediaAttachment(
-                url: mediaIdURL,
-                encryptionKey: uploadOutcome.encryptionKey,
-                encryptionIV: uploadOutcome.encryptionNonce,
-                mimeType: attachment.mimeType,
-                sizeBytes: uploadOutcome.plaintextFileSize,
-                thumbnailURL: uploadOutcome.thumbnailRemoteURL.flatMap(URL.init(string:)),
-                caption: caption ?? attachment.caption,
-                width: attachment.width,
-                height: attachment.height,
-                durationSeconds: attachment.durationSeconds,
-                blurHash: attachment.blurHash,
-                filename: attachment.filename,
-                isVoiceMessage: attachment.isVoiceMessage,
-                audioDurationMs: attachment.audioDurationMs,
-                audioWaveform: attachment.audioWaveform,
-                isViewOnce: vaultPolicy.viewOnceOutgoing ? true : nil
-            )
-            // Defensive: caption setter on the rebuilt struct (already set
-            // via init, but mirrors the old code path explicitly).
-            if uploadedAttachment.caption == nil, let caption {
-                uploadedAttachment.caption = caption
-            }
 
             // Step 3 — build the plaintext payload. Wire format must match
             // `ChatDetailViewModel.sendMediaMessage`: JSON-encoded
@@ -587,7 +553,7 @@ public actor MessageSender {
             )
 
             logger.info(
-                "MessageSender.sendMedia succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId) media=\(uploadOutcome.mediaId)"
+                "MessageSender.sendMedia succeeded chat=\(chatId) local=\(localId) server=\(sendResult.messageId) media=\(uploadedMediaId)"
             )
             return MessageSendReceipt(
                 chatId: chatId,
@@ -601,6 +567,189 @@ public actor MessageSender {
             await markMessageAsFailed(localMessageId: localId, error: error)
             throw error
         }
+    }
+
+
+    /// Sends several attachments as one message.
+    ///
+    /// Signal's shape: a message carries a list, so an album is one row, one
+    /// envelope and one notification rather than N of each. Sending them
+    /// separately — which is what the review screen did before this — meant
+    /// the recipient got several buzzes for one action and the collage could
+    /// never be reassembled on the far side.
+    ///
+    /// Uploads run in sequence rather than concurrently: they share the
+    /// uploader's access-key derivation per conversation, and a burst of
+    /// parallel uploads on a phone's uplink finishes no sooner while making
+    /// progress meaningless.
+    public func sendAlbum(
+        attachments: [Message.MediaAttachment],
+        caption: String?,
+        to chatId: String,
+        progress: @Sendable @escaping (Double) -> Void
+    ) async throws -> MessageSendReceipt {
+        guard attachments.count > 1 else {
+            guard let single = attachments.first else { throw AppError.mediaUploadFailed }
+            return try await sendMedia(
+                attachment: single, caption: caption, to: chatId, progress: progress
+            )
+        }
+        guard let senderId = await currentUser.currentUserId else {
+            throw AppError.sessionExpired
+        }
+
+        let timestamp = Date()
+        let localId = try await insertPendingOutgoingAlbumRow(
+            attachments: attachments,
+            caption: caption,
+            chatId: chatId,
+            authorId: senderId,
+            timestamp: timestamp
+        )
+
+        if !networkMonitor.isConnected {
+            logger.info("MessageSender.sendAlbum queued offline chat=\(chatId) local=\(localId)")
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: localId,
+                serverTimestampMs: Int64(timestamp.timeIntervalSince1970 * 1000)
+            )
+        }
+
+        do {
+            let recipientIds = try await resolveRecipientIds(chatId: chatId, senderId: senderId)
+            guard let primaryRecipient = recipientIds.first else {
+                throw AppError.sessionNotEstablished
+            }
+            let vaultPolicy = await vaultPolicyResolver.policy(for: chatId)
+
+            var uploaded: [Message.MediaAttachment] = []
+            let total = Double(attachments.count)
+            for (index, attachment) in attachments.enumerated() {
+                // Progress spans the whole album, so the bar reflects the send
+                // the user actually started rather than restarting per item.
+                let completed = Double(index)
+                let (rebuilt, _) = try await uploadAndRebuild(
+                    attachment,
+                    // The caption belongs to the message; it rides on the first
+                    // attachment, which is where the bubble draws it.
+                    caption: index == 0 ? caption : nil,
+                    chatId: chatId,
+                    primaryRecipient: primaryRecipient,
+                    vaultPolicy: vaultPolicy,
+                    progress: { fraction in progress((completed + fraction) / total) }
+                )
+                uploaded.append(rebuilt)
+            }
+
+            let contentForWire = Self.contentForAlbum(uploaded)
+            let plaintextData = try JSONEncoder().encode(contentForWire)
+            let contentTypeString = Self.contentTypeString(for: uploaded[0].mimeType)
+
+            let isDirectChat = await isDirectConversation(chatId: chatId)
+            let disappearingSecs = (try? await db.disappearingDuration(conversationId: chatId)) ?? 0
+
+            let sendResult: EncryptedMessageSendResult
+            if isDirectChat, let sealedSender {
+                sendResult = try await sendViaSealedSender(
+                    plaintext: plaintextData,
+                    contentType: contentTypeString,
+                    conversationId: chatId,
+                    recipientIds: recipientIds,
+                    senderId: senderId,
+                    localMessageId: localId,
+                    sealedSender: sealedSender,
+                    expiresAfterSecs: disappearingSecs
+                )
+            } else {
+                sendResult = try await coordinator.withLock { [encryptedSender] in
+                    try await encryptedSender.sendEncryptedMessage(
+                        plaintext: plaintextData,
+                        contentType: contentTypeString,
+                        conversationId: chatId,
+                        recipientIds: recipientIds,
+                        expiresAfterSecs: disappearingSecs
+                    )
+                }
+            }
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(sendResult.serverTimestampMs) / 1000.0
+            )
+            let confirmedRow = Message(
+                id: sendResult.messageId.isEmpty ? localId : sendResult.messageId,
+                conversationId: chatId,
+                senderId: senderId,
+                timestamp: serverTimestamp,
+                content: contentForWire,
+                status: .sent,
+                isOutgoing: true,
+                expiresAt: disappearingSecs > 0
+                    ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
+                    : nil
+            )
+            try await markMessageAsSent(localMessageId: localId, confirmedRow: confirmedRow)
+
+            logger.info(
+                "MessageSender.sendAlbum succeeded chat=\(chatId) local=\(localId) count=\(uploaded.count)"
+            )
+            return MessageSendReceipt(
+                chatId: chatId,
+                messageId: confirmedRow.id,
+                serverTimestampMs: sendResult.serverTimestampMs
+            )
+        } catch {
+            logger.error(
+                "MessageSender.sendAlbum failed chat=\(chatId) local=\(localId): \(error.localizedDescription)"
+            )
+            await markMessageAsFailed(localMessageId: localId, error: error)
+            throw error
+        }
+    }
+
+    /// Wire content for several attachments. An album is typed by its first
+    /// member, which is what the receiver's content-type routing keys on.
+    public static func contentForAlbum(_ attachments: [Message.MediaAttachment]) -> Message.MessageContent {
+        let media = Message.MediaAttachments(attachments)
+        guard let first = attachments.first else { return .image(media) }
+        if first.mimeType.hasPrefix("video/") { return .video(media) }
+        if first.mimeType.hasPrefix("audio/") { return .audio(media) }
+        if first.mimeType.hasPrefix("image/") { return .image(media) }
+        return .document(media)
+    }
+
+    public static func contentTypeString(for mimeType: String) -> String {
+        if mimeType.hasPrefix("image/") { return "image" }
+        if mimeType.hasPrefix("video/") { return "video" }
+        if mimeType.hasPrefix("audio/") { return "audio" }
+        return "document"
+    }
+
+    /// Optimistic row for an album, so the collage appears immediately rather
+    /// than one photo that later becomes four.
+    private func insertPendingOutgoingAlbumRow(
+        attachments: [Message.MediaAttachment],
+        caption: String?,
+        chatId: String,
+        authorId: String,
+        timestamp: Date
+    ) async throws -> String {
+        let localId = UUID().uuidString
+        var items = attachments
+        if let caption, items.first?.caption == nil, !items.isEmpty {
+            items[0].caption = caption
+        }
+        let row = Message(
+            id: localId,
+            conversationId: chatId,
+            senderId: authorId,
+            timestamp: timestamp,
+            content: Self.contentForAlbum(items),
+            status: .sending,
+            isOutgoing: true
+        )
+        try await db.saveMessage(row)
+        return localId
     }
 
     /// Send a contact card as structured content. The wire payload is a
@@ -967,6 +1116,61 @@ public actor MessageSender {
     /// Insert an outgoing media row in `.sending` state. The attachment is
     /// stored as-is (with whatever URL the caller chose — typically a local
     /// file URL pre-upload, swapped for `sanchr-media://<id>` post-upload).
+
+    /// Uploads one attachment and rebuilds it around the upload outcome.
+    ///
+    /// Extracted so `sendMedia` and `sendAlbum` cannot drift. The field
+    /// mapping below is the delicate part: dropping any of it is silent data
+    /// loss — a voice note that arrives as a plain audio file, a document that
+    /// loses its filename, a photo whose dimensions are gone so the receiver's
+    /// bubble falls back to a fixed guess.
+    private func uploadAndRebuild(
+        _ attachment: Message.MediaAttachment,
+        caption: String?,
+        chatId: String,
+        primaryRecipient: String,
+        vaultPolicy: ChatVaultPolicy,
+        progress: @Sendable @escaping (Double) -> Void
+    ) async throws -> (attachment: Message.MediaAttachment, mediaId: String) {
+        let uploadOutcome = try await uploader.uploadMedia(
+            localFileURL: attachment.url,
+            mimeType: attachment.mimeType,
+            conversationId: chatId,
+            recipientId: primaryRecipient,
+            progress: progress
+        )
+
+        guard let mediaIdURL = URL(string: "sanchr-media://\(uploadOutcome.mediaId)") else {
+            throw AppError.mediaUploadFailed
+        }
+
+        // `viewOnceOutgoing` stamps isViewOnce so the receiver's gallery
+        // enforces single-view and delete-on-dismiss. The flag rides inside
+        // the encrypted envelope; the server is blind to it.
+        var uploaded = Message.MediaAttachment(
+            url: mediaIdURL,
+            encryptionKey: uploadOutcome.encryptionKey,
+            encryptionIV: uploadOutcome.encryptionNonce,
+            mimeType: attachment.mimeType,
+            sizeBytes: uploadOutcome.plaintextFileSize,
+            thumbnailURL: uploadOutcome.thumbnailRemoteURL.flatMap(URL.init(string:)),
+            caption: caption ?? attachment.caption,
+            width: attachment.width,
+            height: attachment.height,
+            durationSeconds: attachment.durationSeconds,
+            blurHash: attachment.blurHash,
+            filename: attachment.filename,
+            isVoiceMessage: attachment.isVoiceMessage,
+            audioDurationMs: attachment.audioDurationMs,
+            audioWaveform: attachment.audioWaveform,
+            isViewOnce: vaultPolicy.viewOnceOutgoing ? true : nil
+        )
+        if uploaded.caption == nil, let caption {
+            uploaded.caption = caption
+        }
+        return (uploaded, uploadOutcome.mediaId)
+    }
+
     private func insertPendingOutgoingMediaRow(
         attachment: Message.MediaAttachment,
         caption: String?,
