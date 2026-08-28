@@ -171,7 +171,14 @@ struct ChatsListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .sanchrContactProfileResolved)) { _ in
             // A peer's name was just decrypted; the raw cached rows do not carry
             // it, so re-run the normalizing fetch that joins contacts.
-            Task { await viewModel.loadConversations(messageRepository: container.messageRepository) }
+            //
+            // Routed through the shared debounce rather than reloading directly.
+            // This fires once per peer resolved, so a fresh install used to kick
+            // off a full server round trip for every name that came back — fifty
+            // peers, fifty reloads. The name is already in the local database by
+            // the time this arrives, so the coalesced cached fetch has
+            // everything it needs and never touches the network.
+            scheduleConversationRefresh(forceFullReload: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
             guard let presence = note.userInfo?[RealtimeNotificationKey.presence]

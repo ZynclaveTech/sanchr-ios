@@ -21,7 +21,14 @@ final class ChatsListViewModel {
     // MARK: - State
 
     var conversations: [Conversation] = [] {
-        didSet { rebuildVisibleConversations() }
+        didSet {
+            // Only the conversation set can change the unread total; filtering
+            // and searching cannot. Recomputing it here rather than inside
+            // `rebuildVisibleConversations` keeps a full reduce off the
+            // per-keystroke path.
+            recomputeTotalUnread()
+            rebuildVisibleConversations()
+        }
     }
     var isLoading: Bool = false
     var isRefreshing: Bool = false
@@ -103,44 +110,56 @@ final class ChatsListViewModel {
 
     // MARK: - Derived State
 
+    private func recomputeTotalUnread() {
+        totalUnreadCount = conversations.reduce(into: 0) { total, conversation in
+            guard !conversation.isArchived else { return }
+            total += conversation.unreadCount
+        }
+    }
+
     private func rebuildVisibleConversations() {
-        totalUnreadCount = conversations
-            .filter { !$0.isArchived }
-            .reduce(0) { $0 + $1.unreadCount }
         let visible = filteredConversations()
         pinnedConversations = visible.filter(\.isPinned)
         recentConversations = visible.filter { !$0.isPinned }
     }
 
     /// Returns conversations filtered by search text and active filter tab.
+    ///
+    /// Filters before sorting, deliberately. This runs from the `searchText`
+    /// `didSet`, so it is on the path of every keystroke; sorting first meant
+    /// paying an O(n log n) sort across every conversation on the account for
+    /// each character typed, only to discard nearly all of the result.
     private func filteredConversations() -> [Conversation] {
-        var result = sortedConversations().filter { !$0.isArchived }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Apply filter tab
-        switch selectedFilter {
-        case .all:
-            break
-        case .unread:
-            result = result.filter { $0.unreadCount > 0 }
-        case .groups:
-            result = result.filter { $0.type == .group }
+        let matches = conversations.filter { conversation in
+            guard !conversation.isArchived else { return false }
+
+            switch selectedFilter {
+            case .all:
+                break
+            case .unread:
+                guard conversation.unreadCount > 0 else { return false }
+            case .groups:
+                guard conversation.type == .group else { return false }
+            }
+
+            guard !query.isEmpty else { return true }
+            // `localizedStandardContains` is the search comparison Apple
+            // intends for user-facing text: case- and diacritic-insensitive
+            // and locale-aware, so "jose" finds "José". It also avoids the
+            // lowercased copy the previous comparison allocated for every
+            // conversation on every keystroke.
+            return conversation.displayName.localizedStandardContains(query)
         }
 
-        // Apply search text
-        if !searchText.isEmpty {
-            let lowercased = searchText.lowercased()
-            result = result.filter { $0.displayName.lowercased().contains(lowercased) }
-        }
-
-        return result
+        return sorted(matches)
     }
 
-    /// Conversations sorted by pinned status and last activity.
-    private func sortedConversations() -> [Conversation] {
+    /// Pinned first, then most recent activity.
+    private func sorted(_ conversations: [Conversation]) -> [Conversation] {
         conversations.sorted { lhs, rhs in
-            // Pinned conversations always sort first
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
-            // Then by most recent activity
             return lhs.lastActivityAt > rhs.lastActivityAt
         }
     }
