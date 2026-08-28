@@ -114,15 +114,10 @@ struct ImageEditorView: View {
 
                 // ② PencilKit canvas — exact same size / position as the image
                 if state.activeTool == .draw {
-                    PKDrawingCanvasView(
-                        drawing:     $state.drawing,
-                        strokeColor: UIColor(state.strokeColor),
-                        strokeWidth: state.strokeWidth,
-                        isErasing:   state.isErasing
-                    )
-                    .frame(width: frame.width, height: frame.height)
-                    .background(Color.clear)
-                    .transition(.opacity)
+                    PKDrawingCanvasView(drawing: $state.drawing)
+                        .frame(width: frame.width, height: frame.height)
+                        .background(Color.clear)
+                        .transition(.opacity)
                 }
 
                 // ③ Crop overlay — fills the full canvas so it can dim letterbox areas
@@ -159,14 +154,6 @@ struct ImageEditorView: View {
             // Secondary controls for the active tool
             Group {
                 switch state.activeTool {
-                case .draw:
-                    ImageEditorDrawControls(
-                        strokeColor: $state.strokeColor,
-                        strokeWidth: $state.strokeWidth,
-                        isErasing:   $state.isErasing
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-
                 case .rotate:
                     rotateControls
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -276,45 +263,61 @@ struct ImageEditorView: View {
 
 // MARK: - PencilKit Canvas (UIViewRepresentable)
 
-/// UIViewRepresentable wrapper for `PKCanvasView`.
+/// UIViewRepresentable wrapper for `PKCanvasView`, driven by the system
+/// `PKToolPicker`.
 ///
-/// The canvas is transparent and sized to match the displayed image so that
-/// strokes render exactly over the image content. Tool properties are updated
-/// via `updateUIView` whenever the parent state changes.
+/// The canvas is transparent and sized to match the displayed image so strokes
+/// render exactly over the image content. Tools come from Apple's own palette
+/// rather than a bespoke row of swatches: it brings pen, pencil, marker,
+/// eraser, lasso, ruler, the full colour picker and undo/redo, and it is what
+/// people already know from Notes and Markup.
 private struct PKDrawingCanvasView: UIViewRepresentable {
 
     @Binding var drawing: PKDrawing
-    var strokeColor: UIColor
-    var strokeWidth: CGFloat
-    var isErasing:   Bool
 
     func makeUIView(context: Context) -> PKCanvasView {
         let canvas = PKCanvasView()
-        canvas.backgroundColor  = .clear
-        canvas.isOpaque         = false
-        canvas.drawing          = drawing
-        canvas.drawingPolicy    = .anyInput
-        canvas.delegate         = context.coordinator
-        applyTool(to: canvas)
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.drawing = drawing
+        // Finger as well as Pencil: most people editing a chat photo have no
+        // Apple Pencil to hand.
+        canvas.drawingPolicy = .anyInput
+        canvas.delegate = context.coordinator
+        context.coordinator.attachToolPicker(to: canvas)
         return canvas
     }
 
     func updateUIView(_ canvas: PKCanvasView, context: Context) {
         if canvas.drawing != drawing { canvas.drawing = drawing }
-        applyTool(to: canvas)
     }
 
-    private func applyTool(to canvas: PKCanvasView) {
-        canvas.tool = isErasing
-            ? PKEraserTool(.bitmap, width: strokeWidth * 3)
-            : PKInkingTool(.pen, color: strokeColor, width: strokeWidth)
+    static func dismantleUIView(_ canvas: PKCanvasView, coordinator: Coordinator) {
+        coordinator.detachToolPicker(from: canvas)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         var parent: PKDrawingCanvasView
+        private let toolPicker = PKToolPicker()
+
         init(_ parent: PKDrawingCanvasView) { self.parent = parent }
+
+        /// The picker only appears for a first responder, so the canvas has to
+        /// be made one — without it the palette silently never shows.
+        func attachToolPicker(to canvas: PKCanvasView) {
+            toolPicker.setVisible(true, forFirstResponder: canvas)
+            toolPicker.addObserver(canvas)
+            DispatchQueue.main.async { canvas.becomeFirstResponder() }
+        }
+
+        func detachToolPicker(from canvas: PKCanvasView) {
+            toolPicker.setVisible(false, forFirstResponder: canvas)
+            toolPicker.removeObserver(canvas)
+            canvas.resignFirstResponder()
+        }
+
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
             parent.drawing = canvasView.drawing
         }

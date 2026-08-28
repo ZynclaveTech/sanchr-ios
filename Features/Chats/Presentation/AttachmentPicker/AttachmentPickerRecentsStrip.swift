@@ -36,7 +36,8 @@ final class AttachmentPickerRecentsStrip: UIView {
     }()
 
     private var recents: [RecentPhoto] = []
-    private var selectedIDs: Set<String> = []
+    /// Ordered, so a cell can show *where* in the batch it sits.
+    private var selectedIDs: [String] = []
     private var isMultiSelecting = false
     private let photosSource: PhotosLibrarySource
 
@@ -61,7 +62,7 @@ final class AttachmentPickerRecentsStrip: UIView {
         collectionView.addGestureRecognizer(lp)
     }
 
-    func update(recents: [RecentPhoto], selected: Set<String>, multiSelecting: Bool) {
+    func update(recents: [RecentPhoto], selected: [String], multiSelecting: Bool) {
         self.recents = recents
         self.selectedIDs = selected
         self.isMultiSelecting = multiSelecting
@@ -97,7 +98,7 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
         c.accessibilityIdentifier = "attachmentPicker.recentPhoto.\(ip.item)"
         let src = photosSource
         c.configure(photo: photo,
-                    isSelected: selectedIDs.contains(photo.id),
+                    selectionIndex: selectedIDs.firstIndex(of: photo.id),
                     multiSelecting: isMultiSelecting,
                     thumbnailLoader: { size in
                         await src.loadThumbnail(assetID: photo.id, targetSize: size)
@@ -116,6 +117,7 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
 final class RecentPhotoCell: UICollectionViewCell {
     private let imageView = UIImageView()
     private let selectionBadge = UIImageView()
+    private let selectionBadgeLabel = UILabel()
     private let videoGradientLayer = CAGradientLayer()
     private let videoPlayIcon = UIImageView()
     private let videoDurationLabel = UILabel()
@@ -163,10 +165,18 @@ final class RecentPhotoCell: UICollectionViewCell {
         selectionBadge.contentMode = .center
         selectionBadge.layer.cornerRadius = 11
         selectionBadge.layer.masksToBounds = true
-        let badgeCfg = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-        selectionBadge.image = UIImage(systemName: "checkmark", withConfiguration: badgeCfg)
         selectionBadge.isHidden = true
         contentView.addSubview(selectionBadge)
+
+        // The number lives in a label rather than a checkmark glyph, because
+        // the send order is the tap order and the user has to be able to see it.
+        selectionBadgeLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        selectionBadgeLabel.textColor = .white
+        selectionBadgeLabel.textAlignment = .center
+        selectionBadgeLabel.frame = selectionBadge.bounds
+        selectionBadgeLabel.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        selectionBadgeLabel.isHidden = true
+        selectionBadge.addSubview(selectionBadgeLabel)
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -196,11 +206,14 @@ final class RecentPhotoCell: UICollectionViewCell {
         )
     }
 
-    func configure(photo: RecentPhoto, isSelected: Bool, multiSelecting: Bool,
+    func configure(photo: RecentPhoto, selectionIndex: Int?, multiSelecting: Bool,
                    thumbnailLoader: @escaping @MainActor @Sendable (CGSize) async -> UIImage?) {
         selectionBadge.isHidden = !multiSelecting
-        let badgeCfg = UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-        selectionBadge.image = isSelected ? UIImage(systemName: "checkmark", withConfiguration: badgeCfg) : nil
+        // Numbered rather than a bare tick: the send order is the tap order, so
+        // the badge has to show it or the user cannot tell what they will get.
+        let isSelected = selectionIndex != nil
+        selectionBadgeLabel.text = selectionIndex.map { String($0 + 1) } ?? ""
+        selectionBadgeLabel.isHidden = !isSelected
         selectionBadge.backgroundColor = isSelected ? .systemPurple : UIColor.black.withAlphaComponent(0.3)
 
         let isVideo = photo.kind == .video

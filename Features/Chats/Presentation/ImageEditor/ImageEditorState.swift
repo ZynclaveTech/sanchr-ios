@@ -54,9 +54,6 @@ final class ImageEditorState {
 
     // Draw
     var drawing = PKDrawing()
-    var strokeColor: Color = .white
-    var strokeWidth: CGFloat = 8
-    var isErasing = false
 
     // Crop — normalised to [0, 1] relative to the displayed image frame.
     var cropRect = CGRect(x: 0, y: 0, width: 1, height: 1)

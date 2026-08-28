@@ -48,6 +48,29 @@ struct ImageEditorCropOverlay: View {
                 cropBorder(in: screenRect)
                     .allowsHitTesting(false)
 
+                // Interior drag: moves the whole crop region. Only the corners
+                // were interactive before, so a crop could be resized but never
+                // repositioned — to frame a subject off-centre you had to drag
+                // two opposite corners and hope.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: screenRect.width, height: screenRect.height)
+                    .position(x: screenRect.midX, y: screenRect.midY)
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if !isDragging {
+                                    isDragging = true
+                                    dragStartRect = cropRect
+                                }
+                                cropRect = moved(
+                                    startRect: dragStartRect,
+                                    totalDelta: value.translation
+                                )
+                            }
+                            .onEnded { _ in isDragging = false }
+                    )
+
                 cornerHandles(canvasSize: geo.size)
 
                 // Aspect-ratio pills pinned to the bottom of the canvas
@@ -198,6 +221,19 @@ struct ImageEditorCropOverlay: View {
             r = CGRect(x: r.minX, y: r.minY, width: nx - r.minX, height: ny - r.minY)
         }
         return r
+    }
+
+    /// Slides the crop rect by a drag, keeping its size and clamping it inside
+    /// the image rather than letting it walk off the edge.
+    func moved(startRect: CGRect, totalDelta: CGSize) -> CGRect {
+        let dx = totalDelta.width / imageFrame.width
+        let dy = totalDelta.height / imageFrame.height
+        return CGRect(
+            x: min(max(0, startRect.minX + dx), 1 - startRect.width),
+            y: min(max(0, startRect.minY + dy), 1 - startRect.height),
+            width: startRect.width,
+            height: startRect.height
+        )
     }
 
     // MARK: - Coordinate Helpers
