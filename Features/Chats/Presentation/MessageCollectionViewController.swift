@@ -96,10 +96,10 @@ private struct MessageItemRenderSignature: Hashable {
 
 private enum MessageContentRenderSignature: Hashable {
     case text(String)
-    case image(MediaAttachmentRenderSignature)
-    case video(MediaAttachmentRenderSignature)
-    case audio(MediaAttachmentRenderSignature)
-    case document(MediaAttachmentRenderSignature)
+    case image([MediaAttachmentRenderSignature])
+    case video([MediaAttachmentRenderSignature])
+    case audio([MediaAttachmentRenderSignature])
+    case document([MediaAttachmentRenderSignature])
     case location(latitude: Double, longitude: Double)
     case contact(name: String, phoneNumber: String)
     case system(Message.SystemEvent)
@@ -147,19 +147,30 @@ private extension MessageItem {
     }
 }
 
+private extension Message.MediaAttachments {
+    /// Signature over *every* attachment, in order.
+    ///
+    /// The diffable data source reconfigures a cell only when this changes, so
+    /// signing just the first would leave an album that gained, lost or
+    /// reordered members rendering its old layout.
+    var renderSignature: [MediaAttachmentRenderSignature] {
+        items.map(\.renderSignature)
+    }
+}
+
 private extension Message {
     var renderContentSignature: MessageContentRenderSignature {
         switch content {
         case .text(let text):
             return .text(text)
-        case .image(let attachment):
-            return .image(attachment.renderSignature)
-        case .video(let attachment):
-            return .video(attachment.renderSignature)
-        case .audio(let attachment):
-            return .audio(attachment.renderSignature)
-        case .document(let attachment):
-            return .document(attachment.renderSignature)
+        case .image(let media):
+            return .image(media.renderSignature)
+        case .video(let media):
+            return .video(media.renderSignature)
+        case .audio(let media):
+            return .audio(media.renderSignature)
+        case .document(let media):
+            return .document(media.renderSignature)
         case .location(let latitude, let longitude):
             return .location(latitude: latitude, longitude: longitude)
         case .contact(let name, let phoneNumber):

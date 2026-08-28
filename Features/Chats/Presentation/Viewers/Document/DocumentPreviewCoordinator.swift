@@ -40,7 +40,8 @@ final class DocumentPreviewCoordinator: ObservableObject {
 
     func open(messageId: String) async {
         guard let message = messageLookup(messageId),
-              case .document(let attachment) = message.content else {
+              case .document(let media) = message.content,
+              let attachment = media.first else {
             resolveError = "Attachment not found."
             return
         }

@@ -413,13 +413,13 @@ final class MessageSenderTests: XCTestCase {
             XCTFail("Expected .audio content on confirmed row")
             return
         }
-        XCTAssertEqual(storedAttachment.isVoiceMessage, true)
-        XCTAssertEqual(storedAttachment.audioDurationMs, 3700)
-        XCTAssertEqual(storedAttachment.audioWaveform, [0.1, 0.3, 0.7, 0.2])
-        XCTAssertEqual(storedAttachment.filename, "voice-1700.m4a")
-        XCTAssertEqual(storedAttachment.encryptionKey, key)
-        XCTAssertEqual(storedAttachment.encryptionIV, nonce)
-        XCTAssertEqual(storedAttachment.url.absoluteString, "sanchr-media://media-xyz")
+        XCTAssertEqual(storedAttachment.first?.isVoiceMessage, true)
+        XCTAssertEqual(storedAttachment.first?.audioDurationMs, 3700)
+        XCTAssertEqual(storedAttachment.first?.audioWaveform, [0.1, 0.3, 0.7, 0.2])
+        XCTAssertEqual(storedAttachment.first?.filename, "voice-1700.m4a")
+        XCTAssertEqual(storedAttachment.first?.encryptionKey, key)
+        XCTAssertEqual(storedAttachment.first?.encryptionIV, nonce)
+        XCTAssertEqual(storedAttachment.first?.url.absoluteString, "sanchr-media://media-xyz")
 
         XCTAssertEqual(receipt.messageId, "server-media-1")
         XCTAssertEqual(receipt.serverTimestampMs, 1_700_000_123_000)
@@ -501,15 +501,15 @@ final class MessageSenderTests: XCTestCase {
         guard case .image(let stored) = confirmed.content else {
             return XCTFail("Expected .image content on confirmed row")
         }
-        XCTAssertEqual(stored.encryptionKey, key,
+        XCTAssertEqual(stored.first?.encryptionKey, key,
             "Encryption key must be roundtripped from upload outcome into the stored attachment")
-        XCTAssertEqual(stored.encryptionIV, nonce,
+        XCTAssertEqual(stored.first?.encryptionIV, nonce,
             "Encryption nonce must be roundtripped from upload outcome into the stored attachment")
-        XCTAssertEqual(stored.width, 1080, "Image width must be preserved through the send pipeline")
-        XCTAssertEqual(stored.height, 720, "Image height must be preserved")
-        XCTAssertEqual(stored.blurHash, "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+        XCTAssertEqual(stored.first?.width, 1080, "Image width must be preserved through the send pipeline")
+        XCTAssertEqual(stored.first?.height, 720, "Image height must be preserved")
+        XCTAssertEqual(stored.first?.blurHash, "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
             "BlurHash must be preserved for receiver placeholder")
-        XCTAssertEqual(stored.url.absoluteString, "sanchr-media://img-123",
+        XCTAssertEqual(stored.first?.url.absoluteString, "sanchr-media://img-123",
             "URL must be rewritten to sanchr-media:// scheme after upload")
     }
 
@@ -553,10 +553,10 @@ final class MessageSenderTests: XCTestCase {
         guard case .video(let stored) = db.savedMessages[1].content else {
             return XCTFail("Expected .video content on confirmed row")
         }
-        XCTAssertEqual(stored.durationSeconds, 15.5, "Video duration must be preserved")
-        XCTAssertEqual(stored.encryptionKey, Data(repeating: 0x01, count: 32),
+        XCTAssertEqual(stored.first?.durationSeconds, 15.5, "Video duration must be preserved")
+        XCTAssertEqual(stored.first?.encryptionKey, Data(repeating: 0x01, count: 32),
             "Encryption key must be roundtripped from upload outcome into the stored video attachment")
-        XCTAssertEqual(stored.encryptionIV, Data(repeating: 0x02, count: 12),
+        XCTAssertEqual(stored.first?.encryptionIV, Data(repeating: 0x02, count: 12),
             "Encryption nonce must be roundtripped from upload outcome into the stored video attachment")
     }
 
@@ -598,7 +598,7 @@ final class MessageSenderTests: XCTestCase {
         guard case .document(let stored) = db.savedMessages[1].content else {
             return XCTFail("Expected .document content on confirmed row")
         }
-        XCTAssertEqual(stored.filename, "Q4-Report.pdf",
+        XCTAssertEqual(stored.first?.filename, "Q4-Report.pdf",
             "Filename must survive the upload+rebuild pipeline so the receiver can show it")
     }
 
@@ -639,7 +639,7 @@ final class MessageSenderTests: XCTestCase {
         guard case .image(let stored) = db.savedMessages[1].content else {
             return XCTFail("Expected .image content on confirmed row")
         }
-        XCTAssertEqual(stored.caption, "Golden hour 🌅",
+        XCTAssertEqual(stored.first?.caption, "Golden hour 🌅",
             "Caption passed to sendMedia must be stored in the confirmed attachment so the receiver can display it")
     }
 

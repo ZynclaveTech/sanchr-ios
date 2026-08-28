@@ -62,7 +62,7 @@ final class DocumentPreviewCoordinatorTests: XCTestCase {
             conversationId: "conversation",
             senderId: "sender",
             timestamp: Date(),
-            content: .document(
+            content: .document(.init(
                 Message.MediaAttachment(
                     url: URL(string: "sanchr-media://\(id)")!,
                     encryptionKey: Data(),
@@ -70,7 +70,7 @@ final class DocumentPreviewCoordinatorTests: XCTestCase {
                     mimeType: "application/pdf",
                     sizeBytes: 1024
                 )
-            ),
+            )),
             status: .sent,
             isOutgoing: false
         )

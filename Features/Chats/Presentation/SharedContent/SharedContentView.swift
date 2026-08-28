@@ -139,7 +139,8 @@ struct SharedContentView: View {
         } else {
             List {
                 ForEach(viewModel.docs, id: \.id) { message in
-                    if case .document(let attachment) = message.content {
+                    if case .document(let media) = message.content,
+                       let attachment = media.first {
                         Button {
                             Task { await openDocument(message: message, attachment: attachment) }
                         } label: {
@@ -351,7 +352,7 @@ private struct SharedContentMediaCell: View {
 
     private static func attachment(for message: Message) -> Message.MediaAttachment? {
         switch message.content {
-        case .image(let a), .video(let a): return a
+        case .image(let media), .video(let media): return media.first
         default: return nil
         }
     }

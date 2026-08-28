@@ -126,7 +126,7 @@ final class ChatDetailViewModelRoutingTests: XCTestCase {
             conversationId: "c",
             senderId: "s",
             timestamp: Date(timeIntervalSince1970: timestamp),
-            content: .image(Self.attachment(mime: "image/jpeg")),
+            content: .image(.init(Self.attachment(mime: "image/jpeg"))),
             status: .sent,
             isOutgoing: false
         )
@@ -138,7 +138,7 @@ final class ChatDetailViewModelRoutingTests: XCTestCase {
             conversationId: "c",
             senderId: "s",
             timestamp: Date(timeIntervalSince1970: timestamp),
-            content: .video(Self.attachment(mime: "video/mp4")),
+            content: .video(.init(Self.attachment(mime: "video/mp4"))),
             status: .sent,
             isOutgoing: false
         )

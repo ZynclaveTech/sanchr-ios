@@ -118,8 +118,11 @@ extension ChatDetailViewModel {
         // to round-trip the wire format faithfully.
         let attachment: Message.MediaAttachment = {
             switch contentType {
-            case .image(let a), .video(let a), .audio(let a), .document(let a):
-                return a
+            case .image(let media), .video(let media), .audio(let media), .document(let media):
+                // Sends still carry one attachment; an album will fan out here
+                // once the send path uploads plural media.
+                if let first = media.first { return first }
+                fallthrough
             default:
                 return Message.MediaAttachment(
                     url: localFileURL,
@@ -251,8 +254,8 @@ extension ChatDetailViewModel {
                 SanchrLogger.chat.error("Forward failed: \(error.localizedDescription)")
             }
 
-        case .image(let a), .video(let a), .audio(let a), .document(let a):
-            guard a.url.isFileURL else {
+        case .image(let media), .video(let media), .audio(let media), .document(let media):
+            guard let a = media.first, a.url.isFileURL else {
                 errorMessage = "Download the media first to forward it."
                 return
             }
@@ -328,7 +331,7 @@ extension ChatDetailViewModel {
                         caption: nil
                     )
                     a.filename = file.filename
-                    return a
+                    return .init(a)
                 }()),
                 conversationId: context.conversationId,
                 caption: nil,
@@ -395,7 +398,7 @@ extension ChatDetailViewModel {
             await sendMediaMessage(
                 localFileURL: clip.url,
                 mimeType: "audio/mp4",
-                contentType: .audio(a),
+                contentType: .audio(.init(a)),
                 conversationId: context.conversationId,
                 caption: nil,
                 sessionService: context.sessionService,
@@ -425,7 +428,7 @@ extension ChatDetailViewModel {
             await sendMediaMessage(
                 localFileURL: tmpURL,
                 mimeType: "image/png",
-                contentType: .image(attachment),
+                contentType: .image(.init(attachment)),
                 conversationId: context.conversationId,
                 caption: nil,
                 sessionService: context.sessionService,
@@ -452,7 +455,7 @@ extension ChatDetailViewModel {
                 await sendMediaMessage(
                     localFileURL: tmpURL,
                     mimeType: "image/gif",
-                    contentType: .image(attachment),
+                    contentType: .image(.init(attachment)),
                     conversationId: context.conversationId,
                     caption: nil,
                     sessionService: context.sessionService,
@@ -551,8 +554,8 @@ extension ChatDetailViewModel {
 
         let content: Message.MessageContent
         switch item.kind {
-        case .photo: content = .image(attachment)
-        case .video: content = .video(attachment)
+        case .photo: content = .image(.init(attachment))
+        case .video: content = .video(.init(attachment))
         }
 
         await sendMediaMessage(
@@ -590,7 +593,7 @@ extension ChatDetailViewModel {
             caption: nil
         )
 
-        let content: Message.MessageContent = isVideo ? .video(attachment) : .image(attachment)
+        let content: Message.MessageContent = isVideo ? .video(.init(attachment)) : .image(.init(attachment))
 
         await sendMediaMessage(
             localFileURL: tempURL,

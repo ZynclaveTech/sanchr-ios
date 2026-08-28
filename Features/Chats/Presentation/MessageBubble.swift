@@ -162,9 +162,9 @@ struct MessageBubble: View {
             // Showing a thumbnail defeats the feature before the recipient ever
             // taps: the image is on screen indefinitely, and the delete-after-view
             // step only removes something already seen.
-            if attachment.isViewOnce == true {
+            if let single = attachment.first, single.isViewOnce == true {
                 ViewOnceBubble(
-                    attachment: attachment,
+                    attachment: single,
                     isVideo: false,
                     isOutgoing: message.isOutgoing,
                     isConsumed: false
@@ -173,9 +173,11 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
-            } else {
+            } else if let single = attachment.first {
+                // Still one image per bubble; the grid layout for an album
+                // lands with the album bubble itself.
                 MediaBubbleImage(
-                    attachment: attachment,
+                    attachment: single,
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
@@ -189,9 +191,9 @@ struct MessageBubble: View {
             }
 
         case .video(let attachment):
-            if attachment.isViewOnce == true {
+            if let single = attachment.first, single.isViewOnce == true {
                 ViewOnceBubble(
-                    attachment: attachment,
+                    attachment: single,
                     isVideo: true,
                     isOutgoing: message.isOutgoing,
                     isConsumed: false
@@ -200,9 +202,11 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
-            } else {
+            } else if let single = attachment.first {
+                // Still one image per bubble; the grid layout for an album
+                // lands with the album bubble itself.
                 MediaBubbleImage(
-                    attachment: attachment,
+                    attachment: single,
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
@@ -221,8 +225,11 @@ struct MessageBubble: View {
                 }
             }
 
-        case .audio(let attachment):
-            if attachment.isVoiceMessage == true,
+        case .audio(let media):
+            // Voice notes are always a single recording.
+            let attachment = media.first
+            if attachment?.isVoiceMessage == true,
+               let attachment,
                let durationMs = attachment.audioDurationMs {
                 VoicePlaybackBubble(
                     messageId: message.id,
@@ -236,14 +243,16 @@ struct MessageBubble: View {
                     Image(systemName: "waveform")
                         .font(.system(size: 20))
                         .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
-                    Text(formatDuration(attachment.durationSeconds ?? 0))
+                    Text(formatDuration(attachment?.durationSeconds ?? 0))
                         .font(SanchrTypography.captionSmall)
                         .foregroundColor(messageTextColor)
                 }
             }
 
-        case .document(let attachment):
-            HStack(spacing: 10) {
+        case .document(let media):
+            // A document message carries exactly one file.
+            if let attachment = media.first {
+                HStack(spacing: 10) {
                 Image(systemName: "doc.fill")
                     .font(.system(size: 24))
                     .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
@@ -256,11 +265,12 @@ struct MessageBubble: View {
                     Text(formatFileSize(attachment.sizeBytes))
                         .font(SanchrTypography.micro)
                         .foregroundColor(messageTextColor.opacity(0.7))
+                    }
                 }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onBubbleTap(.openDocument(messageId: message.id))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBubbleTap(.openDocument(messageId: message.id))
+                }
             }
 
         case .location(let latitude, let longitude):

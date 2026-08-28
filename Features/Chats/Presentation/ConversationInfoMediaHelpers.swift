@@ -82,7 +82,7 @@ struct ConversationInfoMediaThumbnail: View {
 
     private static func attachment(for message: Message) -> Message.MediaAttachment? {
         switch message.content {
-        case .image(let a), .video(let a): return a
+        case .image(let media), .video(let media): return media.first
         default: return nil
         }
     }

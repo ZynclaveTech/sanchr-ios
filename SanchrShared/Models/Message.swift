@@ -43,13 +43,79 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
 
     public enum MessageContent: Codable, Hashable, Sendable {
         case text(String)
-        case image(MediaAttachment)
-        case video(MediaAttachment)
-        case audio(MediaAttachment)
-        case document(MediaAttachment)
+        case image(MediaAttachments)
+        case video(MediaAttachments)
+        case audio(MediaAttachments)
+        case document(MediaAttachments)
         case location(latitude: Double, longitude: Double)
         case contact(name: String, phoneNumber: String)
         case system(SystemEvent)
+    }
+
+    /// The attachments a media message carries.
+    ///
+    /// Modelled on Signal, whose `DataMessage` has always had a *repeated*
+    /// `attachments` field rather than a distinct album type: one photo is a
+    /// list of one, four photos is a list of four, and there is no second code
+    /// path for the plural case.
+    ///
+    /// The enum keeps its synthesized coding, so the payload still sits at the
+    /// same place in the JSON; only its shape changed. Decoding accepts both,
+    /// which is what lets messages sent before this — and rows already in the
+    /// database and in backups — keep working:
+    ///
+    ///     {"image":{"_0":{...}}}      legacy single object
+    ///     {"image":{"_0":[{...}]}}    list
+    ///
+    /// Encoding always writes the list form.
+    public struct MediaAttachments: Codable, Hashable, Sendable {
+        public private(set) var items: [MediaAttachment]
+
+        public init(_ items: [MediaAttachment]) {
+            self.items = items
+        }
+
+        public init(_ single: MediaAttachment) {
+            self.items = [single]
+        }
+
+        /// The attachment most UI shows when it can only show one. Media
+        /// content is never constructed empty, but this stays optional rather
+        /// than trapping: a malformed payload from a peer must not crash the
+        /// receiver.
+        public var first: MediaAttachment? { items.first }
+
+        public var count: Int { items.count }
+        public var isEmpty: Bool { items.isEmpty }
+
+        /// The caption for the whole group.
+        ///
+        /// Signal keeps this on the message body rather than the attachment;
+        /// here it lives on the first item, which is the one the bubble renders
+        /// the caption beneath. Reading and writing it through this keeps
+        /// callers from having to know that.
+        public var caption: String? {
+            get { items.first?.caption }
+            set {
+                guard !items.isEmpty else { return }
+                items[0].caption = newValue
+            }
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let list = try? container.decode([MediaAttachment].self) {
+                items = list
+            } else {
+                // Legacy: a single attachment encoded as an object.
+                items = [try container.decode(MediaAttachment.self)]
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(items)
+        }
     }
 
     public struct MediaAttachment: Codable, Hashable, Sendable {

@@ -750,8 +750,12 @@ public actor MessageSender {
                     try? await db.deleteMessage(id: message.id)
                     _ = try await sendText(text, to: message.conversationId)
 
-                case .image(let att), .video(let att), .audio(let att), .document(let att):
-                    guard att.url.isFileURL,
+                case .image(let media), .video(let media), .audio(let media), .document(let media):
+                    // Offline retry resends one attachment at a time; an album
+                    // is retried as its first item until the send path itself
+                    // handles plural uploads.
+                    guard let att = media.first,
+                          att.url.isFileURL,
                           FileManager.default.fileExists(atPath: att.url.path) else {
                         logger.error("Offline retry: local file missing for \(message.id)")
                         await markMessageAsFailed(localMessageId: message.id, error: NSError(domain: "sanchr", code: -2, userInfo: [NSLocalizedDescriptionKey: "Local file no longer available"]))
@@ -1043,14 +1047,15 @@ public actor MessageSender {
         _ attachment: Message.MediaAttachment,
         mimeType: String
     ) -> Message.MessageContent {
+        let media = Message.MediaAttachments(attachment)
         if mimeType.hasPrefix("image/") {
-            return .image(attachment)
+            return .image(media)
         } else if mimeType.hasPrefix("video/") {
-            return .video(attachment)
+            return .video(media)
         } else if mimeType.hasPrefix("audio/") {
-            return .audio(attachment)
+            return .audio(media)
         } else {
-            return .document(attachment)
+            return .document(media)
         }
     }
 }

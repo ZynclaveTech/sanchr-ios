@@ -135,8 +135,10 @@ final class GalleryPageLoader: ObservableObject {
 
     private func attachment(for item: GalleryItem) -> Message.MediaAttachment? {
         switch item.message.content {
-        case .image(let attachment), .video(let attachment):
-            return attachment
+        case .image(let media), .video(let media):
+            // The gallery still opens one attachment per message; an album's
+            // remaining items are reachable once the grid bubble lands.
+            return media.first
         default:
             return nil
         }

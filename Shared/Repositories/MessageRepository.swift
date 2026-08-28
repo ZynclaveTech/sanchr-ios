@@ -315,8 +315,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
     static func attachmentFromContent(_ content: Message.MessageContent) -> Message.MediaAttachment? {
         switch content {
-        case .image(let a), .video(let a), .audio(let a), .document(let a):
-            return a
+        case .image(let media), .video(let media), .audio(let media), .document(let media):
+            return media.first
         default:
             return nil
         }
