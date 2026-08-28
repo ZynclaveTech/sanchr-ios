@@ -14,12 +14,16 @@ final class AttachmentPickerViewStructuralTests: XCTestCase {
         pills.layoutIfNeeded()
 
         let buttons = collectPills(in: pills)
-        XCTAssertEqual(buttons.count, 6, "Expected 6 action pills (camera, photos, gif, file, contact, location)")
+        XCTAssertEqual(
+            buttons.count, 7,
+            "Expected 7 action pills (camera, photos, video, gif, file, contact, location)"
+        )
 
         let identifiers = buttons.map { $0.accessibilityIdentifier ?? "" }
         XCTAssertEqual(identifiers, [
             "attachmentPicker.actionPill.camera",
             "attachmentPicker.actionPill.photos",
+            "attachmentPicker.actionPill.video",
             "attachmentPicker.actionPill.gif",
             "attachmentPicker.actionPill.file",
             "attachmentPicker.actionPill.contact",

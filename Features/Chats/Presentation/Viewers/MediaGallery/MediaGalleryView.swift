@@ -98,20 +98,19 @@ struct MediaGalleryView: View {
                 chromeOverlay
             }
 
-            // The strip lives with the chrome, so tapping to go full-bleed
-            // hides it along with everything else.
+        }
+        // Attached as a bottom overlay rather than a full-screen VStack. The
+        // VStack spanned the whole screen and sat above the pager, so it
+        // swallowed the pinch and pan the zoomable image needs — the strip has
+        // to occupy only the band it actually draws in.
+        .overlay(alignment: .bottom) {
             if chromeVisible, presentation.items.count > 1 {
-                VStack {
-                    Spacer()
-                    GalleryFilmstrip(
-                        items: presentation.items,
-                        currentIndex: $currentIndex,
-                        loader: pageLoader
-                    )
-                }
-                .ignoresSafeArea(edges: .bottom)
+                GalleryFilmstrip(
+                    items: presentation.items,
+                    currentIndex: $currentIndex,
+                    loader: pageLoader
+                )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .allowsHitTesting(true)
             }
         }
         .statusBarHidden(true)

@@ -212,40 +212,39 @@ final class ChatDetailViewModel {
         }
     }
 
-    /// Seed the media gallery with every image + video in the current chat
-    /// snapshot, ordered chronologically, plus the tapped message's index.
-    /// Returns `nil` if the tapped message isn't media or isn't in the
-    /// current snapshot. The snapshot is frozen at call time — new messages
-    /// arriving while the gallery is open do NOT mutate the pager.
+    /// Seed the media gallery with the tapped message's own attachments.
+    ///
+    /// Scoped to one message on purpose. Paging the whole conversation's media
+    /// meant opening one photo and finding yourself swiping through everything
+    /// ever sent, with no sense of where the album ended — and the thumbnail
+    /// strip made that worse by suggesting all of it belonged together. The
+    /// browse-everything view already exists separately under shared content.
+    ///
+    /// Returns `nil` if the message is not media or is not in the current
+    /// snapshot. The snapshot is frozen at call time, so messages arriving
+    /// while the gallery is open do not mutate the pager.
     func galleryItems(
         forTappedMessageId messageId: String,
         attachmentIndex: Int = 0
     ) -> GallerySeed? {
-        let ordered = messagesState.messages
-            .sorted { $0.timestamp < $1.timestamp }
-            .flatMap { msg -> [GalleryItem] in
-                // Every attachment gets its own page, so an album is browsable
-                // rather than collapsing to its first photo.
-                let media: Message.MediaAttachments
-                let kind: GalleryItem.Kind
-                switch msg.content {
-                case .image(let m): media = m; kind = .image
-                case .video(let m): media = m; kind = .video
-                default: return []
-                }
-                return media.items.indices.map { index in
-                    GalleryItem(kind: kind, message: msg, attachmentIndex: index)
-                }
-            }
+        guard let message = messagesState.messages.first(where: { $0.id == messageId })
+        else { return nil }
 
-        // Open on the tapped tile. Falling back to the message's first page
-        // keeps a tap working even if the index is stale.
-        let index = ordered.firstIndex {
-            $0.messageId == messageId && $0.attachmentIndex == attachmentIndex
-        } ?? ordered.firstIndex { $0.messageId == messageId }
+        let media: Message.MediaAttachments
+        let kind: GalleryItem.Kind
+        switch message.content {
+        case .image(let m): media = m; kind = .image
+        case .video(let m): media = m; kind = .video
+        default: return nil
+        }
+        guard !media.isEmpty else { return nil }
 
-        guard let index else { return nil }
-        return GallerySeed(items: ordered, initialIndex: index)
+        let items = media.items.indices.map { index in
+            GalleryItem(kind: kind, message: message, attachmentIndex: index)
+        }
+        // A stale index still opens the message rather than failing the tap.
+        let initial = items.indices.contains(attachmentIndex) ? attachmentIndex : 0
+        return GallerySeed(items: items, initialIndex: initial)
     }
 
     // MARK: - Conversation Lifecycle

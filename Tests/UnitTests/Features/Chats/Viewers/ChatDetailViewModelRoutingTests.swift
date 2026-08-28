@@ -24,8 +24,9 @@ final class ChatDetailViewModelRoutingTests: XCTestCase {
 
         XCTAssertEqual(vm.lastRoutedInteraction, .openMedia(messageId: "vid-1"))
         let seed = try! XCTUnwrap(capturedSeed)
-        XCTAssertEqual(seed.items.map(\.id), ["img-1", "vid-1"])
-        XCTAssertEqual(seed.initialIndex, 1)
+        // Only the tapped message's own media, not the conversation's.
+        XCTAssertEqual(seed.items.map(\.id), ["vid-1"])
+        XCTAssertEqual(seed.initialIndex, 0)
     }
 
     func test_route_openMedia_forMissingMessage_suppressesGalleryCall() {
@@ -95,9 +96,12 @@ final class ChatDetailViewModelRoutingTests: XCTestCase {
 
         let seed = try! XCTUnwrap(vm.galleryItems(forTappedMessageId: "v1"))
 
-        XCTAssertEqual(seed.items.map(\.id), ["i1", "v1", "i2"])
-        XCTAssertEqual(seed.items.map(\.kind), [.image, .video, .image])
-        XCTAssertEqual(seed.initialIndex, 1)
+        // Scoped to the tapped message. Paging the whole conversation left no
+        // sense of where a message's media ended, and the thumbnail strip
+        // implied everything in the chat belonged together.
+        XCTAssertEqual(seed.items.map(\.id), ["v1"])
+        XCTAssertEqual(seed.items.map(\.kind), [.video])
+        XCTAssertEqual(seed.initialIndex, 0)
     }
 
     func test_galleryItems_returnsNilWhenTappedMessageIsText() {

@@ -46,6 +46,11 @@ struct ChatDetailView: View {
     @State private var showEmojiPicker = false
     @State private var showStickerPicker = false
     @State private var showPhotosPicker = false
+    /// Separate from the photos picker so the sheet can offer a video-only
+    /// choice. `Photos` already accepts video, but with a library full of
+    /// stills finding a clip means scrolling past everything else.
+    @State private var showVideoPicker = false
+    @State private var selectedVideoItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
     @State private var showContactPicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
@@ -432,6 +437,13 @@ struct ChatDetailView: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showPhotosPicker = true
                             }
+                        case .video:
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showAttachmentPicker = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                showVideoPicker = true
+                            }
                         case .file:
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 showAttachmentPicker = false
@@ -540,6 +552,26 @@ struct ChatDetailView: View {
             ConversationInfoView(conversation: conversation, recipient: recipient)
         }
         .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
+        .photosPicker(
+            isPresented: $showVideoPicker,
+            selection: $selectedVideoItems,
+            maxSelectionCount: 10,
+            matching: .videos
+        )
+        .onChange(of: selectedVideoItems) { _, items in
+            guard !items.isEmpty else { return }
+            let selected = items
+            selectedVideoItems = []
+            // Same routing as photos: one goes through the editor-and-caption
+            // path, several through the batch review screen.
+            Task {
+                if selected.count == 1, let only = selected.first {
+                    await handleSelectedPhoto(only)
+                } else {
+                    await stageBatchForReview(selected)
+                }
+            }
+        }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.item],
@@ -1112,9 +1144,13 @@ struct ChatDetailView: View {
         let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
 
         if isVideo {
-            guard let videoData = try? await item.loadTransferable(type: Data.self) else { return }
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
-            try? videoData.write(to: tempURL)
+            // Streamed to disk rather than read into memory; see PickedVideoFile.
+            guard let video = try? await item.loadTransferable(type: PickedVideoFile.self) else {
+                return
+            }
+            let tempURL = video.url
+            let videoBytes = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size]
+                as? NSNumber)??.int64Value ?? 0
 
             // Generate video thumbnail for optimistic UI
             let thumbnailURL = await generateVideoThumbnail(videoURL: tempURL)
@@ -1131,7 +1167,7 @@ struct ChatDetailView: View {
 
             var attachment = Message.MediaAttachment(
                 url: thumbnailURL ?? tempURL, encryptionKey: Data(), encryptionIV: Data(),
-                mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: thumbnailURL
+                mimeType: "video/mp4", sizeBytes: videoBytes, thumbnailURL: thumbnailURL
             )
             attachment.blurHash = videoBlurHash
             // The poster frame is generated from the video, so it carries the
@@ -1346,10 +1382,11 @@ struct ChatDetailView: View {
 
     @MainActor
     private func stageVideoForReview(_ pickerItem: PhotosPickerItem) async -> BatchMediaItem? {
-        guard let data = try? await pickerItem.loadTransferable(type: Data.self) else { return nil }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(UUID().uuidString).mp4")
-        guard (try? data.write(to: url)) != nil else { return nil }
+        // Streamed to disk rather than read into memory; see PickedVideoFile.
+        guard let video = try? await pickerItem.loadTransferable(type: PickedVideoFile.self) else {
+            return nil
+        }
+        let url = video.url
 
         // Poster frame doubles as the filmstrip thumbnail and as the
         // attachment's thumbnail for the recipient's bubble, the same way the
@@ -1368,7 +1405,8 @@ struct ChatDetailView: View {
         return BatchMediaItem(
             kind: .video(durationSeconds: duration),
             fileURL: url,
-            sizeBytes: Int64(data.count),
+            sizeBytes: (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]
+                as? NSNumber)??.int64Value ?? 0,
             thumbnail: thumbnail,
             posterURL: posterURL,
             blurHash: blurHash,
