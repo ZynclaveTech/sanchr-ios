@@ -72,6 +72,100 @@ extension ChatDetailViewModel {
     /// `MessageSender` actor. The actor owns the encrypt + upload + gRPC
     /// pipeline AND the local DB writes; this view model only manages the
     /// in-memory optimistic transcript row and the upload-progress dictionary.
+    /// Sends several attachments as one album, with an optimistic bubble.
+    ///
+    /// The view called `MessageSender.sendAlbum` directly, which writes its own
+    /// database row but never touches `messages` — so nothing appeared until
+    /// something else reloaded the transcript, which in practice meant leaving
+    /// the chat and coming back. Every other send path inserts an optimistic
+    /// row here first; this one now does too.
+    @MainActor
+    func sendAlbumMessage(
+        attachments: [Message.MediaAttachment],
+        caption: String?,
+        conversationId: String,
+        sessionService: SessionService,
+        messageSender: MessageSender
+    ) async {
+        guard !attachments.isEmpty else { return }
+        let senderId = sessionService.currentUserId ?? "unknown"
+
+        // The optimistic row keeps the local file URLs so the sender sees their
+        // own photos immediately, with no round trip.
+        var localAttachments = attachments
+        if let caption, localAttachments[0].caption == nil {
+            localAttachments[0].caption = caption
+        }
+        let optimisticContent = MessageSender.contentForAlbum(localAttachments)
+        let optimisticMessage = Message(
+            id: UUID().uuidString,
+            conversationId: conversationId,
+            senderId: senderId,
+            timestamp: Date(),
+            content: optimisticContent,
+            status: .sending,
+            isOutgoing: true
+        )
+        let optimisticId = optimisticMessage.id
+        messages.append(optimisticMessage)
+        appendMessageToSections(optimisticMessage)
+        uploads.update(id: optimisticId, progress: 0.0, status: "Encrypting...")
+
+        do {
+            let receipt = try await messageSender.sendAlbum(
+                attachments: attachments,
+                caption: caption,
+                to: conversationId,
+                progress: { [weak self] fraction in
+                    Task { @MainActor [weak self] in
+                        self?.uploads.update(
+                            id: optimisticId,
+                            progress: fraction,
+                            status: fraction >= 1.0 ? "Sending..." : "Uploading..."
+                        )
+                    }
+                }
+            )
+
+            // Cache each local file under the server message id, keyed per
+            // tile, so the sender's own bubbles hit the cache instead of
+            // falling back to the download pipeline. Mirrors the single-photo
+            // path, which keys by the row id — here that id is shared, so the
+            // tile index disambiguates exactly as `MediaAlbumBubble` expects.
+            let cacheDir = AppGroup.mediaCacheURL
+                .appendingPathComponent("MediaMessages", isDirectory: true)
+            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+            for (index, attachment) in attachments.enumerated() where attachment.url.isFileURL {
+                let ext = attachment.mimeType.hasPrefix("video/") ? "mp4" : "jpg"
+                let cached = cacheDir
+                    .appendingPathComponent("\(receipt.messageId)#\(index).\(ext)")
+                try? FileManager.default.removeItem(at: cached)
+                try? FileManager.default.copyItem(at: attachment.url, to: cached)
+            }
+
+            let serverTimestamp = Date(
+                timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0
+            )
+            replaceMessage(
+                id: optimisticId,
+                with: Message(
+                    id: receipt.messageId,
+                    conversationId: conversationId,
+                    senderId: senderId,
+                    timestamp: serverTimestamp,
+                    content: optimisticContent,
+                    status: .sent,
+                    isOutgoing: true
+                )
+            )
+            uploads.clear(id: optimisticId)
+        } catch {
+            SanchrLogger.chat.error("Album send failed: \(error.localizedDescription)")
+            updateMessage(id: optimisticId) { $0.status = .failed }
+            uploads.clear(id: optimisticId)
+        }
+    }
+
     func sendMediaMessage(
         localFileURL: URL,
         mimeType: String,

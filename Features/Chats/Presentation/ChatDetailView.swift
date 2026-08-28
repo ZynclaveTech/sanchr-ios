@@ -1404,18 +1404,17 @@ struct ChatDetailView: View {
         let caption = items
             .compactMap { $0.caption.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
-        do {
-            _ = try await container.messageSender.sendAlbum(
-                attachments: attachments,
-                caption: caption,
-                to: conversation.id,
-                progress: { _ in }
-            )
-        } catch {
-            SanchrLogger.chat.error("Album send failed: \(error.localizedDescription)")
-            // Fall back to one message per item rather than losing the send.
-            for item in items { await sendSingle(item) }
-        }
+        // Routed through the view model so the bubble appears immediately.
+        // Calling the sender directly wrote a database row but never touched
+        // the in-memory transcript, so the album only surfaced after something
+        // else reloaded it.
+        await viewModel.sendAlbumMessage(
+            attachments: attachments,
+            caption: caption,
+            conversationId: conversation.id,
+            sessionService: container.sessionService,
+            messageSender: container.messageSender
+        )
     }
 
     @MainActor
