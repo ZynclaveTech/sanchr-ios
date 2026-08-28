@@ -20,8 +20,55 @@ final class ChatsListViewModel {
 
     // MARK: - State
 
+    /// How the list orders rows within the pinned and unpinned sections.
+    ///
+    /// Pinned always leads regardless — pinning is the user saying "keep this
+    /// at the top", which no sort should override.
+    enum SortOrder: String, CaseIterable, Identifiable {
+        case recent
+        case unreadFirst
+        case name
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .recent: return "Most recent"
+            case .unreadFirst: return "Unread first"
+            case .name: return "Name"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .recent: return "clock"
+            case .unreadFirst: return "circle.badge.fill"
+            case .name: return "textformat.abc"
+            }
+        }
+    }
+
+    /// Persisted so the choice survives relaunches; an ordering the user picked
+    /// and then lost on next launch is worse than not offering the control.
+    static let sortOrderStorageKey = "sanchr.chats.sortOrder"
+
+    var sortOrder: SortOrder = .recent {
+        didSet {
+            guard sortOrder != oldValue else { return }
+            UserDefaults.standard.set(sortOrder.rawValue, forKey: Self.sortOrderStorageKey)
+            rebuildVisibleConversations()
+        }
+    }
+
     var conversations: [Conversation] = [] {
-        didSet { rebuildVisibleConversations() }
+        didSet {
+            // Only the conversation set can change the unread total; filtering
+            // and searching cannot. Recomputing it here rather than inside
+            // `rebuildVisibleConversations` keeps a full reduce off the
+            // per-keystroke path.
+            recomputeTotalUnread()
+            rebuildVisibleConversations()
+        }
     }
     var isLoading: Bool = false
     var isRefreshing: Bool = false
@@ -74,6 +121,16 @@ final class ChatsListViewModel {
 
     /// Configures the view model to observe the given `SyncState`.
     /// Call this from the view's `.onAppear` or `.task` modifier.
+    /// Restores the persisted sort order. Assigned through the backing store so
+    /// the `didSet` does not immediately write back what it just read.
+    func restorePersistedSortOrder() {
+        guard let raw = UserDefaults.standard.string(forKey: Self.sortOrderStorageKey),
+              let restored = SortOrder(rawValue: raw),
+              restored != sortOrder
+        else { return }
+        sortOrder = restored
+    }
+
     func observeSyncState(_ syncState: SyncState) {
         self.syncState = syncState
     }
@@ -103,45 +160,77 @@ final class ChatsListViewModel {
 
     // MARK: - Derived State
 
+    private func recomputeTotalUnread() {
+        totalUnreadCount = conversations.reduce(into: 0) { total, conversation in
+            guard !conversation.isArchived else { return }
+            total += conversation.unreadCount
+        }
+    }
+
     private func rebuildVisibleConversations() {
-        totalUnreadCount = conversations
-            .filter { !$0.isArchived }
-            .reduce(0) { $0 + $1.unreadCount }
         let visible = filteredConversations()
         pinnedConversations = visible.filter(\.isPinned)
         recentConversations = visible.filter { !$0.isPinned }
     }
 
     /// Returns conversations filtered by search text and active filter tab.
+    ///
+    /// Filters before sorting, deliberately. This runs from the `searchText`
+    /// `didSet`, so it is on the path of every keystroke; sorting first meant
+    /// paying an O(n log n) sort across every conversation on the account for
+    /// each character typed, only to discard nearly all of the result.
     private func filteredConversations() -> [Conversation] {
-        var result = sortedConversations().filter { !$0.isArchived }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Apply filter tab
-        switch selectedFilter {
-        case .all:
-            break
-        case .unread:
-            result = result.filter { $0.unreadCount > 0 }
-        case .groups:
-            result = result.filter { $0.type == .group }
+        let matches = conversations.filter { conversation in
+            guard !conversation.isArchived else { return false }
+
+            switch selectedFilter {
+            case .all:
+                break
+            case .unread:
+                guard conversation.unreadCount > 0 else { return false }
+            case .groups:
+                guard conversation.type == .group else { return false }
+            }
+
+            guard !query.isEmpty else { return true }
+            // `localizedStandardContains` is the search comparison Apple
+            // intends for user-facing text: case- and diacritic-insensitive
+            // and locale-aware, so "jose" finds "José". It also avoids the
+            // lowercased copy the previous comparison allocated for every
+            // conversation on every keystroke.
+            return conversation.displayName.localizedStandardContains(query)
         }
 
-        // Apply search text
-        if !searchText.isEmpty {
-            let lowercased = searchText.lowercased()
-            result = result.filter { $0.displayName.lowercased().contains(lowercased) }
-        }
-
-        return result
+        return sorted(matches)
     }
 
-    /// Conversations sorted by pinned status and last activity.
-    private func sortedConversations() -> [Conversation] {
+    /// Pinned first, then whatever `sortOrder` asks for.
+    private func sorted(_ conversations: [Conversation]) -> [Conversation] {
         conversations.sorted { lhs, rhs in
-            // Pinned conversations always sort first
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
-            // Then by most recent activity
-            return lhs.lastActivityAt > rhs.lastActivityAt
+
+            switch sortOrder {
+            case .recent:
+                return lhs.lastActivityAt > rhs.lastActivityAt
+
+            case .unreadFirst:
+                // Unread ahead of read, then the most recent of the unread —
+                // ordering by raw count would bury a just-arrived message under
+                // a thread with a large backlog.
+                let lhsUnread = lhs.unreadCount > 0
+                let rhsUnread = rhs.unreadCount > 0
+                if lhsUnread != rhsUnread { return lhsUnread }
+                return lhs.lastActivityAt > rhs.lastActivityAt
+
+            case .name:
+                let comparison = lhs.displayName.localizedStandardCompare(rhs.displayName)
+                // Names are not unique, so fall back to recency rather than
+                // letting equal names order arbitrarily between rebuilds.
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+                return lhs.lastActivityAt > rhs.lastActivityAt
+            }
         }
     }
 

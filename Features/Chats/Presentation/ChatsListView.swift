@@ -154,6 +154,7 @@ struct ChatsListView: View {
             Task { await viewModel.loadCachedConversations(messageRepository: container.messageRepository) }
         }
         .task {
+            viewModel.restorePersistedSortOrder()
             await viewModel.loadCachedConversations(messageRepository: container.messageRepository)
             updatePresenceTrackingForVisibleConversations()
             await viewModel.loadConversations(messageRepository: container.messageRepository)
@@ -171,7 +172,14 @@ struct ChatsListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .sanchrContactProfileResolved)) { _ in
             // A peer's name was just decrypted; the raw cached rows do not carry
             // it, so re-run the normalizing fetch that joins contacts.
-            Task { await viewModel.loadConversations(messageRepository: container.messageRepository) }
+            //
+            // Routed through the shared debounce rather than reloading directly.
+            // This fires once per peer resolved, so a fresh install used to kick
+            // off a full server round trip for every name that came back — fifty
+            // peers, fifty reloads. The name is already in the local database by
+            // the time this arrives, so the coalesced cached fetch has
+            // everything it needs and never touches the network.
+            scheduleConversationRefresh(forceFullReload: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrRealtimePresenceUpdated)) { note in
             guard let presence = note.userInfo?[RealtimeNotificationKey.presence]
@@ -565,14 +573,38 @@ struct ChatsListView: View {
 
     private var searchBar: some View {
         SanchrSearchField(placeholder: "Search chats...", text: $viewModel.searchText) {
-            Button {
-                viewModel.searchText = ""
-            } label: {
-                Image(systemName: viewModel.searchText.isEmpty ? "slider.horizontal.3" : "xmark.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(SanchrExportColors.textTertiary)
+            // The trailing control was a single button whose action was always
+            // "clear the text" while it rendered a sliders icon when there was
+            // nothing to clear — so in the empty state it advertised a sort
+            // control and did nothing. Empty means sort; typing means clear.
+            if viewModel.searchText.isEmpty {
+                Menu {
+                    Picker("Sort by", selection: $viewModel.sortOrder) {
+                        ForEach(ChatsListViewModel.SortOrder.allCases) { order in
+                            Label(order.label, systemImage: order.systemImage).tag(order)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(
+                            viewModel.sortOrder == .recent
+                                ? SanchrExportColors.textTertiary
+                                : SanchrColors.primary
+                        )
+                }
+                .accessibilityLabel("Sort chats, currently \(viewModel.sortOrder.label)")
+            } else {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(SanchrExportColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
-            .buttonStyle(.plain)
         }
     }
 
