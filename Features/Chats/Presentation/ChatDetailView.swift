@@ -1128,6 +1128,13 @@ struct ChatDetailView: View {
                 mimeType: "video/mp4", sizeBytes: Int64(videoData.count), thumbnailURL: thumbnailURL
             )
             attachment.blurHash = videoBlurHash
+            // The poster frame is generated from the video, so it carries the
+            // clip's aspect ratio — including any rotation already applied.
+            if let thumbnailURL,
+               let poster = UIImage(contentsOfFile: thumbnailURL.path) {
+                attachment.width = Int(poster.size.width * poster.scale)
+                attachment.height = Int(poster.size.height * poster.scale)
+            }
 
             // Show caption screen before sending — user can optionally add a caption.
             pendingMediaSend = PendingMediaSend(
@@ -1164,6 +1171,12 @@ struct ChatDetailView: View {
             mimeType: "image/jpeg", sizeBytes: Int64(imageData.count), thumbnailURL: nil
         )
         attachment.blurHash = blurHash
+        // Pixel dimensions travel with the attachment so the receiver can size
+        // the bubble before a single byte of the image has downloaded. Without
+        // them every photo renders at a fixed 220x180 guess and then jumps to
+        // its real shape once decoded.
+        attachment.width = Int(editedImage.size.width * editedImage.scale)
+        attachment.height = Int(editedImage.size.height * editedImage.scale)
 
         pendingMediaSend = PendingMediaSend(
             preview: .image(imageData),
@@ -1230,7 +1243,11 @@ struct ChatDetailView: View {
                         fileURL: url,
                         sizeBytes: Int64(jpeg.count),
                         thumbnail: thumbnail,
-                        blurHash: blurHash
+                        blurHash: blurHash,
+                        // The picker already measured these; they were simply
+                        // being dropped on the way to the attachment.
+                        pixelWidth: media.width > 0 ? media.width : nil,
+                        pixelHeight: media.height > 0 ? media.height : nil
                     )
                 )
 
@@ -1262,7 +1279,9 @@ struct ChatDetailView: View {
                         sizeBytes: size,
                         thumbnail: thumbnail,
                         posterURL: posterURL,
-                        blurHash: blurHash
+                        blurHash: blurHash,
+                        pixelWidth: media.width > 0 ? media.width : nil,
+                        pixelHeight: media.height > 0 ? media.height : nil
                     )
                 )
             }
@@ -1313,7 +1332,9 @@ struct ChatDetailView: View {
             fileURL: url,
             sizeBytes: Int64(jpeg.count),
             thumbnail: thumbnail,
-            blurHash: blurHash
+            blurHash: blurHash,
+            pixelWidth: Int(image.size.width * image.scale),
+            pixelHeight: Int(image.size.height * image.scale)
         )
     }
 
@@ -1344,7 +1365,9 @@ struct ChatDetailView: View {
             sizeBytes: Int64(data.count),
             thumbnail: thumbnail,
             posterURL: posterURL,
-            blurHash: blurHash
+            blurHash: blurHash,
+            pixelWidth: poster.map { Int($0.size.width * $0.scale) },
+            pixelHeight: poster.map { Int($0.size.height * $0.scale) }
         )
     }
 
@@ -1363,6 +1386,8 @@ struct ChatDetailView: View {
                 thumbnailURL: item.posterURL
             )
             attachment.blurHash = item.blurHash
+            attachment.width = item.pixelWidth
+            attachment.height = item.pixelHeight
             if case .video(let duration) = item.kind {
                 attachment.durationSeconds = duration
             }
