@@ -89,9 +89,9 @@ final class GalleryPageLoaderTests: XCTestCase {
         let mimeType = kind == .image ? "image/jpeg" : "video/mp4"
         let content: Message.MessageContent = switch kind {
         case .image:
-            .image(Self.attachment(mimeType: mimeType))
+            .image(.init(Self.attachment(mimeType: mimeType)))
         case .video:
-            .video(Self.attachment(mimeType: mimeType))
+            .video(.init(Self.attachment(mimeType: mimeType)))
         }
 
         return GalleryItem(

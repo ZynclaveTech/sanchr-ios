@@ -522,7 +522,7 @@ struct ConversationInfoView: View {
         case .image: return "[photo]"
         case .video: return "[video]"
         case .audio: return "[audio]"
-        case .document(let a): return "[document: \(a.filename ?? "file")]"
+        case .document(let media): return "[document: \(media.first?.filename ?? "file")]"
         case .location: return "[location]"
         case .contact(let name, _): return "[contact: \(name)]"
         case .system(let event): return "[\(event.displayLabel)]"

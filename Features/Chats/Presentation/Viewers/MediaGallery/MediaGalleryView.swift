@@ -44,8 +44,10 @@ struct MediaGalleryView: View {
     private var anyViewOnceVisible: Bool {
         presentation.items.contains { item in
             switch item.message.content {
-            case .image(let a), .video(let a):
-                return a.isViewOnce == true
+            case .image(let media), .video(let media):
+                // Any view-once member protects the whole gallery: page
+                // transitions race the screenshot block, so this is blanket.
+                return media.items.contains { $0.isViewOnce == true }
             default:
                 return false
             }
@@ -64,8 +66,8 @@ struct MediaGalleryView: View {
         let item = presentation.items[index]
         let isViewOnce: Bool
         switch item.message.content {
-        case .image(let a), .video(let a):
-            isViewOnce = a.isViewOnce == true
+        case .image(let media), .video(let media):
+            isViewOnce = media.items.contains { $0.isViewOnce == true }
         default:
             isViewOnce = false
         }

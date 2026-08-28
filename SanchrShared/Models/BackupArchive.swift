@@ -430,13 +430,16 @@ public enum BackupArchiveContentCodec {
         switch content {
         case .text(let text):
             return ("text", text, text)
-        case .image(let attachment):
-            return ("image", try encodeMediaPayload(attachment), attachment.caption ?? "[Image]")
-        case .video(let attachment):
-            return ("video", try encodeMediaPayload(attachment), attachment.caption ?? "[Video]")
-        case .audio(let attachment):
-            return ("audio", try encodeMediaPayload(attachment), "[Voice message]")
-        case .document(let attachment):
+        case .image(let media):
+            return ("image", try encodeMediaPayload(media), mediaPreview(media, fallback: "[Image]"))
+        case .video(let media):
+            return ("video", try encodeMediaPayload(media), mediaPreview(media, fallback: "[Video]"))
+        case .audio(let media):
+            return ("audio", try encodeMediaPayload(media), "[Voice message]")
+        case .document(let media):
+            guard let attachment = media.first else {
+                return ("text", "[File]", "[File]")
+            }
             let fileName = attachment.url.lastPathComponent
             let payload = BackupArchiveMediaPayload(
                 url: attachment.url.absoluteString,
@@ -451,7 +454,8 @@ public enum BackupArchiveContentCodec {
                 durationMs: attachment.durationSeconds.map { Int64(($0 * 1000).rounded()) },
                 fileName: fileName
             )
-            return ("document", try encode(payload), attachment.caption ?? fileName)
+            _ = payload
+            return ("document", try encodeMediaPayload(media), attachment.caption ?? fileName)
         case .location(let latitude, let longitude):
             let payload = BackupArchiveLocationPayload(
                 latitude: latitude,
@@ -472,16 +476,16 @@ public enum BackupArchiveContentCodec {
         case "text":
             return .text(body)
         case "image":
-            return decodeMediaAttachment(body).map(Message.MessageContent.image)
+            return decodeMediaAttachments(body).map(Message.MessageContent.image)
                 ?? .text(preview ?? "[Image]")
         case "video":
-            return decodeMediaAttachment(body).map(Message.MessageContent.video)
+            return decodeMediaAttachments(body).map(Message.MessageContent.video)
                 ?? .text(preview ?? "[Video]")
         case "audio", "voice":
-            return decodeMediaAttachment(body).map(Message.MessageContent.audio)
+            return decodeMediaAttachments(body).map(Message.MessageContent.audio)
                 ?? .text(preview ?? "[Voice message]")
         case "document", "file":
-            return decodeMediaAttachment(body).map(Message.MessageContent.document)
+            return decodeMediaAttachments(body).map(Message.MessageContent.document)
                 ?? .text(preview ?? "[File]")
         case "location":
             if let payload: BackupArchiveLocationPayload = decode(body) {
@@ -519,8 +523,16 @@ public enum BackupArchiveContentCodec {
         return String(data: data, encoding: .utf8)
     }
 
-    private static func encodeMediaPayload(_ attachment: Message.MediaAttachment) throws -> String {
-        let payload = BackupArchiveMediaPayload(
+    /// Writes every attachment, as an array. Archives taken before this hold a
+    /// single object; `decodeMediaAttachments` reads both.
+    private static func encodeMediaPayload(
+        _ media: Message.MediaAttachments
+    ) throws -> String {
+        try encode(media.items.map(payload(for:)))
+    }
+
+    private static func payload(for attachment: Message.MediaAttachment) -> BackupArchiveMediaPayload {
+        BackupArchiveMediaPayload(
             url: attachment.url.absoluteString,
             thumbnailURL: attachment.thumbnailURL?.absoluteString,
             encryptionKeyBase64: attachment.encryptionKey.base64EncodedString(),
@@ -533,15 +545,41 @@ public enum BackupArchiveContentCodec {
             durationMs: attachment.durationSeconds.map { Int64(($0 * 1000).rounded()) },
             fileName: nil
         )
-        return try encode(payload)
     }
 
-    private static func decodeMediaAttachment(_ body: String) -> Message.MediaAttachment? {
-        guard let payload: BackupArchiveMediaPayload = decode(body),
-              let url = URL(string: payload.url)
-        else {
-            return nil
+    /// Preview line for a media message. An album says how many it holds, so a
+    /// restored conversation list does not show several rows all reading
+    /// "[Image]" with no hint that they belong together.
+    private static func mediaPreview(
+        _ media: Message.MediaAttachments,
+        fallback: String
+    ) -> String {
+        if let caption = media.first?.caption, !caption.isEmpty { return caption }
+        return media.count > 1 ? "\(media.count) \(fallback == "[Video]" ? "videos" : "photos")" : fallback
+    }
+
+    /// Decodes one or many attachments.
+    ///
+    /// The stored body is JSON, so the list form is written as an array while
+    /// archives taken before this hold a single object. Both are accepted —
+    /// without that, every media message in an existing backup would restore
+    /// as a bare "[Image]" text row.
+    private static func decodeMediaAttachments(_ body: String) -> Message.MediaAttachments? {
+        if let payloads: [BackupArchiveMediaPayload] = decode(body) {
+            let attachments = payloads.compactMap(attachment(from:))
+            return attachments.isEmpty ? nil : Message.MediaAttachments(attachments)
         }
+        // Legacy archive: a single payload object.
+        guard let payload: BackupArchiveMediaPayload = decode(body),
+              let single = attachment(from: payload)
+        else { return nil }
+        return Message.MediaAttachments(single)
+    }
+
+    private static func attachment(
+        from payload: BackupArchiveMediaPayload
+    ) -> Message.MediaAttachment? {
+        guard let url = URL(string: payload.url) else { return nil }
 
         return Message.MediaAttachment(
             url: url,

@@ -143,11 +143,14 @@ extension ChatDetailViewModel {
                 messageSender: messageSender
             )
 
-        case .image(let attachment),
-             .video(let attachment),
-             .audio(let attachment),
-             .document(let attachment):
-            guard attachment.url.isFileURL,
+        case .image(let media),
+             .video(let media),
+             .audio(let media),
+             .document(let media):
+            // Retry resends one attachment; plural retry follows the plural
+            // send path.
+            guard let attachment = media.first,
+                  attachment.url.isFileURL,
                   FileManager.default.fileExists(atPath: attachment.url.path) else {
                 SanchrLogger.chat.error("Cannot retry media: local file missing for \(message.id)")
                 return

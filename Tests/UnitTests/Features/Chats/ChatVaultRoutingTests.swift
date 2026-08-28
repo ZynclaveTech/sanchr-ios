@@ -6,10 +6,10 @@ import SanchrShared
 final class ChatVaultRoutingTests: XCTestCase {
 
     func test_isVaultEligible_returnsTrueForMedia() {
-        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.image(Self.attachment("image/jpeg"))))
-        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.video(Self.attachment("video/mp4"))))
-        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.audio(Self.attachment("audio/m4a"))))
-        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.document(Self.attachment("application/pdf"))))
+        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.image(.init(Self.attachment("image/jpeg")))))
+        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.video(.init(Self.attachment("video/mp4")))))
+        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.audio(.init(Self.attachment("audio/m4a")))))
+        XCTAssertTrue(MessageRepositoryImpl.isVaultEligibleContent(.document(.init(Self.attachment("application/pdf")))))
     }
 
     func test_isVaultEligible_returnsFalseForText() {

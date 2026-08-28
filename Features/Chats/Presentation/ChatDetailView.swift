@@ -1141,7 +1141,7 @@ struct ChatDetailView: View {
                 preview: .video(tempURL),
                 localFileURL: tempURL,
                 mimeType: "video/mp4",
-                contentType: .video(attachment)
+                contentType: .video(.init(attachment))
             )
         } else {
             guard let imageData = try? await item.loadTransferable(type: Data.self),
@@ -1182,7 +1182,7 @@ struct ChatDetailView: View {
             preview: .image(imageData),
             localFileURL: tempURL,
             mimeType: "image/jpeg",
-            contentType: .image(attachment)
+            contentType: .image(.init(attachment))
         )
     }
 
@@ -1393,7 +1393,7 @@ struct ChatDetailView: View {
             }
 
             let content: Message.MessageContent =
-                isVideo ? .video(attachment) : .image(attachment)
+                isVideo ? .video(.init(attachment)) : .image(.init(attachment))
             let caption = item.caption.trimmingCharacters(in: .whitespacesAndNewlines)
             // Awaited in sequence rather than routed through
             // `commitPendingMediaSend`, which fires each send on its own

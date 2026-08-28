@@ -76,7 +76,7 @@ final class SharedContentViewModelTests: XCTestCase {
             conversationId: "conv",
             senderId: "s",
             timestamp: Date(timeIntervalSince1970: ts),
-            content: .image(Self.attachment("image/jpeg")),
+            content: .image(.init(Self.attachment("image/jpeg"))),
             status: .sent,
             isOutgoing: false
         )
@@ -88,7 +88,7 @@ final class SharedContentViewModelTests: XCTestCase {
             conversationId: "conv",
             senderId: "s",
             timestamp: Date(timeIntervalSince1970: ts),
-            content: .video(Self.attachment("video/mp4")),
+            content: .video(.init(Self.attachment("video/mp4"))),
             status: .sent,
             isOutgoing: false
         )
@@ -102,7 +102,7 @@ final class SharedContentViewModelTests: XCTestCase {
             conversationId: "conv",
             senderId: "s",
             timestamp: Date(timeIntervalSince1970: ts),
-            content: .document(att),
+            content: .document(.init(att)),
             status: .sent,
             isOutgoing: false
         )
