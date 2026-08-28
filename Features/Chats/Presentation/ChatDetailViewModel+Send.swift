@@ -85,7 +85,8 @@ extension ChatDetailViewModel {
         caption: String?,
         conversationId: String,
         sessionService: SessionService,
-        messageSender: MessageSender
+        messageSender: MessageSender,
+        mediaCache: MediaDownloadManager
     ) async {
         guard !attachments.isEmpty else { return }
         let senderId = sessionService.currentUserId ?? "unknown"
@@ -111,6 +112,17 @@ extension ChatDetailViewModel {
         appendMessageToSections(optimisticMessage)
         uploads.update(id: optimisticId, progress: 0.0, status: "Encrypting...")
 
+        // Seed before the upload, not after it. The tiles render from these
+        // for the whole time the upload runs, and the picker temp files they
+        // would otherwise depend on are not ours to rely on.
+        for (index, attachment) in localAttachments.enumerated() {
+            await mediaCache.cacheLocalCopy(
+                of: attachment.url,
+                messageId: "\(optimisticId)#\(index)",
+                mimeType: attachment.mimeType
+            )
+        }
+
         do {
             let receipt = try await messageSender.sendAlbum(
                 attachments: attachments,
@@ -127,20 +139,14 @@ extension ChatDetailViewModel {
                 }
             )
 
-            // Cache each local file under the server message id, keyed per
-            // tile, so the sender's own bubbles hit the cache instead of
-            // falling back to the download pipeline. Mirrors the single-photo
-            // path, which keys by the row id — here that id is shared, so the
-            // tile index disambiguates exactly as `MediaAlbumBubble` expects.
-            let cacheDir = AppGroup.mediaCacheURL
-                .appendingPathComponent("MediaMessages", isDirectory: true)
-            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            for (index, attachment) in attachments.enumerated() where attachment.url.isFileURL {
-                let ext = attachment.mimeType.hasPrefix("video/") ? "mp4" : "jpg"
-                let cached = cacheDir
-                    .appendingPathComponent("\(receipt.messageId)#\(index).\(ext)")
-                try? FileManager.default.removeItem(at: cached)
-                try? FileManager.default.copyItem(at: attachment.url, to: cached)
+            // Re-key the copies seeded before the upload started, rather than
+            // copying the sources again — which by now may be gone.
+            for (index, attachment) in attachments.enumerated() {
+                await mediaCache.recache(
+                    from: "\(optimisticId)#\(index)",
+                    to: "\(receipt.messageId)#\(index)",
+                    mimeType: attachment.mimeType
+                )
             }
 
             let serverTimestamp = Date(
@@ -173,7 +179,8 @@ extension ChatDetailViewModel {
         conversationId: String,
         caption: String?,
         sessionService: SessionService,
-        messageSender: MessageSender
+        messageSender: MessageSender,
+        mediaCache: MediaDownloadManager
     ) async {
         let senderId = sessionService.currentUserId ?? "unknown"
 
@@ -232,6 +239,14 @@ extension ChatDetailViewModel {
 
         uploads.update(id: optimisticId, progress: 0.0, status: "Encrypting...")
 
+        // Seeded before the upload so the bubble has something to render for
+        // its duration; re-keyed to the server id once that id exists.
+        await mediaCache.cacheLocalCopy(
+            of: localFileURL,
+            messageId: optimisticId,
+            mimeType: mimeType
+        )
+
         do {
             let receipt = try await messageSender.sendMedia(
                 attachment: attachment,
@@ -262,18 +277,11 @@ extension ChatDetailViewModel {
             //
             // Cache location is the App Group's MediaCache (persistent)
             // rather than `.cachesDirectory` (which iOS evicts freely).
-            let ext = mimeType.contains("png") ? "png"
-                : mimeType.hasPrefix("video/") ? "mp4"
-                : mimeType.hasPrefix("audio/") ? "m4a"
-                : "jpg"
-            let cacheDir = AppGroup.mediaCacheURL
-                .appendingPathComponent("MediaMessages", isDirectory: true)
-            try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            let cachedFile = cacheDir.appendingPathComponent("\(receipt.messageId).\(ext)")
-            // Remove any previous copy (e.g., from a prior retry) before
-            // linking — copyItem refuses to overwrite an existing file.
-            try? FileManager.default.removeItem(at: cachedFile)
-            try? FileManager.default.copyItem(at: localFileURL, to: cachedFile)
+            await mediaCache.recache(
+                from: optimisticId,
+                to: receipt.messageId,
+                mimeType: mimeType
+            )
 
             let serverTimestamp = Date(
                 timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0
@@ -391,6 +399,9 @@ extension ChatDetailViewModel {
         let sessionService: SessionService
         let messageSender: MessageSender
         let vaultSharingCoordinator: VaultSharingCoordinating
+        /// Seeds the sender's own media so their bubbles render from disk
+        /// rather than asking to download a file they already have.
+        let mediaCache: MediaDownloadManager
     }
 
     /// Routes a user-issued `AttachmentIntent` from the attachment picker
@@ -430,7 +441,8 @@ extension ChatDetailViewModel {
                 conversationId: context.conversationId,
                 caption: nil,
                 sessionService: context.sessionService,
-                messageSender: context.messageSender
+                messageSender: context.messageSender,
+                mediaCache: context.mediaCache
             )
 
         case .contact(let stripped):
@@ -496,7 +508,8 @@ extension ChatDetailViewModel {
                 conversationId: context.conversationId,
                 caption: nil,
                 sessionService: context.sessionService,
-                messageSender: context.messageSender
+                messageSender: context.messageSender,
+                mediaCache: context.mediaCache
             )
 
         case .sticker(let pngData):
@@ -526,7 +539,8 @@ extension ChatDetailViewModel {
                 conversationId: context.conversationId,
                 caption: nil,
                 sessionService: context.sessionService,
-                messageSender: context.messageSender
+                messageSender: context.messageSender,
+                mediaCache: context.mediaCache
             )
 
         case .gif(let remoteURL):
@@ -553,7 +567,8 @@ extension ChatDetailViewModel {
                     conversationId: context.conversationId,
                     caption: nil,
                     sessionService: context.sessionService,
-                    messageSender: context.messageSender
+                    messageSender: context.messageSender,
+                    mediaCache: context.mediaCache
                 )
             } catch {
                 SanchrLogger.chat.error("gif: download failed: \(error.localizedDescription)")
@@ -659,7 +674,8 @@ extension ChatDetailViewModel {
             conversationId: context.conversationId,
             caption: nil,
             sessionService: context.sessionService,
-            messageSender: context.messageSender
+            messageSender: context.messageSender,
+            mediaCache: context.mediaCache
         )
     }
 
@@ -696,7 +712,8 @@ extension ChatDetailViewModel {
             conversationId: context.conversationId,
             caption: nil,
             sessionService: context.sessionService,
-            messageSender: context.messageSender
+            messageSender: context.messageSender,
+            mediaCache: context.mediaCache
         )
     }
 }

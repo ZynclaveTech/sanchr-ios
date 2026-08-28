@@ -21,7 +21,7 @@ import SanchrShared
 /// request handler. This gives accurate call-count tracking regardless of whether
 /// the caller uses the protocol or the concrete type.
 @available(swift, deprecated: 5.6)
-private final class SpyMessagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol,
+final class SpyMessagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol,
     @unchecked Sendable
 {
     // MARK: GRPCClient conformance
@@ -165,7 +165,7 @@ private final class SpyMessagingService: Sanchr_Messaging_MessagingServiceAsyncC
 /// Minimal GRPCClientProtocol conformance for the send path.
 /// Only `messagingService` is needed; all other service accessors crash to
 /// catch accidental calls early.
-private final class StubGRPCClient: GRPCClientProtocol, @unchecked Sendable {
+final class StubGRPCClient: GRPCClientProtocol, @unchecked Sendable {
     let messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol
 
     init(messagingService: Sanchr_Messaging_MessagingServiceAsyncClientProtocol) {
@@ -370,7 +370,7 @@ private final class StubVaultRepository: VaultRepositoryProtocol, @unchecked Sen
 
 // MARK: - Stub AccessKeyStore (for MediaDownloadManager)
 
-private final class StubAccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
+final class StubAccessKeyStore: AccessKeyStoreProtocol, @unchecked Sendable {
     func store(mediaId: String, accessKey: Data, conversationId: String, kind: AccessKeyEntry.Kind) async throws {}
     func retrieve(mediaId: String) async throws -> Data? { nil }
     func retrieveEntry(mediaId: String) async throws -> AccessKeyEntry? { nil }
@@ -382,7 +382,7 @@ private final class StubAccessKeyStore: AccessKeyStoreProtocol, @unchecked Senda
 
 // MARK: - Stub MediaEncryption (for MediaDownloadManager)
 
-private final class StubMediaEncryption: MediaEncryptionProtocol, @unchecked Sendable {
+final class StubMediaEncryption: MediaEncryptionProtocol, @unchecked Sendable {
     func encrypt(data: Data) throws -> (ciphertext: Data, key: Data, iv: Data) {
         (ciphertext: data, key: Data(), iv: Data())
     }
@@ -400,6 +400,9 @@ private final class StubMediaEncryption: MediaEncryptionProtocol, @unchecked Sen
 }
 
 // MARK: - Factory helpers
+//
+// The stubs above are internal rather than file-private so other suites can
+// build a MediaDownloadManager without a second copy of each one.
 
 private func makeMediaDownloadManager(grpcClient: GRPCClientProtocol) -> MediaDownloadManager {
     MediaDownloadManager(

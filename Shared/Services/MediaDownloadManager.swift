@@ -81,6 +81,43 @@ actor MediaDownloadManager {
         return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
+    /// Puts the sender's own file into the cache under `messageId`.
+    ///
+    /// Sending used to seed the cache only *after* the server replied, keyed by
+    /// the server's message id. For the whole upload — which for a large video
+    /// is not brief — the optimistic row had no cache entry at all and its
+    /// bubbles depended entirely on the picker temp file still being where it
+    /// was. When it was not, every fallback missed and the bubble asked to
+    /// download a `file://` URL, which cannot be fetched by definition.
+    ///
+    /// Seeding up front closes that window; `recache(from:to:)` then re-keys
+    /// the same copy once the id is known, rather than copying the source a
+    /// second time.
+    func cacheLocalCopy(of fileURL: URL, messageId: String, mimeType: String) {
+        guard fileURL.isFileURL else { return }
+        let destination = cacheDir
+            .appendingPathComponent(MediaCacheFile.fileName(messageId: messageId, mimeType: mimeType))
+        // copyItem refuses to overwrite, and a retry can legitimately land here
+        // with a previous copy already in place.
+        try? FileManager.default.removeItem(at: destination)
+        try? FileManager.default.copyItem(at: fileURL, to: destination)
+    }
+
+    /// Re-keys an already-seeded copy from the optimistic id to the server id.
+    ///
+    /// A move, not a copy: leaving the optimistic entry behind would double the
+    /// disk cost of every send and orphan the old file, since nothing ever
+    /// looks up that id again.
+    func recache(from oldMessageId: String, to newMessageId: String, mimeType: String) {
+        let source = cacheDir
+            .appendingPathComponent(MediaCacheFile.fileName(messageId: oldMessageId, mimeType: mimeType))
+        let destination = cacheDir
+            .appendingPathComponent(MediaCacheFile.fileName(messageId: newMessageId, mimeType: mimeType))
+        guard FileManager.default.fileExists(atPath: source.path) else { return }
+        try? FileManager.default.removeItem(at: destination)
+        try? FileManager.default.moveItem(at: source, to: destination)
+    }
+
     /// Wipes the cached decrypted file for a message. No-op if the
     /// file doesn't exist. Used by `deleteViewOnceMessage` to ensure
     /// the bytes are gone before the bubble flips to the tombstone.
@@ -101,7 +138,7 @@ actor MediaDownloadManager {
         messageId: String,
         attachment: Message.MediaAttachment
     ) async throws -> URL {
-        let ext = extensionForMime(attachment.mimeType)
+        let ext = MediaCacheFile.fileExtension(for: attachment.mimeType)
 
         // Check cache first
         if let cached = cachedURL(for: messageId, ext: ext) {
@@ -139,8 +176,12 @@ actor MediaDownloadManager {
             downloadURL = url
             SanchrLogger.media.info("Got presigned download URL, downloading...")
         } else if attachment.url.isFileURL {
-            // Local file — sender's own media, should be cached already
-            SanchrLogger.media.warning("Download called for local file URL, skipping")
+            // The sender's own media, whose temp file is gone and which was
+            // never seeded into the cache. There is nothing to fetch — a
+            // `file://` URL has no server behind it — so this is a cache miss
+            // rather than a network failure, and is logged as one. Callers
+            // already suppress the retry affordance for local URLs.
+            SanchrLogger.media.info("No cached copy for local media \(messageId.prefix(8)); nothing to download")
             throw AppError.mediaDownloadFailed
         } else {
             // Direct HTTPS URL (legacy or CDN)
@@ -214,16 +255,4 @@ actor MediaDownloadManager {
         return nil
     }
 
-    private func extensionForMime(_ mime: String) -> String {
-        switch mime {
-        case "image/jpeg": return "jpg"
-        case "image/png": return "png"
-        case "image/heic": return "heic"
-        case "video/mp4": return "mp4"
-        case "video/quicktime": return "mov"
-        case "audio/aac", "audio/m4a": return "m4a"
-        case "application/pdf": return "pdf"
-        default: return "bin"
-        }
-    }
 }
