@@ -695,7 +695,14 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             !existing.displayName.isEmpty
         {
             record.displayName = existing.displayName
-            if record.avatarURL == nil { record.avatarURL = existing.avatarURL }
+            // The avatar is deliberately NOT carried over. The name and the
+            // avatar look alike here but mean opposite things: the server
+            // sends "Sanchr User" because it *cannot* know the real name
+            // (it is E2EE), whereas it sends no avatar because there is none
+            // or because the owner's profile-photo-visibility excludes us.
+            // Restoring the cached one put a photo back that its owner had
+            // just switched off — the privacy setting was enforced on the
+            // server and then undone here.
         }
         try record.save(db, onConflict: Database.ConflictResolution.replace)
     }
