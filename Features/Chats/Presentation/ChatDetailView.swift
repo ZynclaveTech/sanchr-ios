@@ -1300,14 +1300,17 @@ struct ChatDetailView: View {
                 )
 
             case .video:
-                let url = FileManager.default.temporaryDirectory
+                let stagedFile = FileManager.default.temporaryDirectory
                     .appendingPathComponent("\(UUID().uuidString).mp4")
                 if let source = media.fileURL {
-                    guard (try? FileManager.default.copyItem(at: source, to: url)) != nil
+                    guard (try? FileManager.default.copyItem(at: source, to: stagedFile)) != nil
                     else { continue }
                 } else {
-                    guard (try? media.data.write(to: url)) != nil else { continue }
+                    guard (try? media.data.write(to: stagedFile)) != nil else { continue }
                 }
+                // Compress before the poster and size are taken, so both
+                // describe the file that is actually sent.
+                let url = await VideoCompressor.compressedForSending(stagedFile)
 
                 let posterURL = await generateVideoThumbnail(videoURL: url)
                 let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
