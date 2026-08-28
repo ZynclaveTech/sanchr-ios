@@ -133,15 +133,10 @@ final class GalleryPageLoader: ObservableObject {
         }
     }
 
+    /// The attachment this page shows. A page is one attachment, so an album
+    /// resolves per index rather than always returning its first.
     private func attachment(for item: GalleryItem) -> Message.MediaAttachment? {
-        switch item.message.content {
-        case .image(let media), .video(let media):
-            // The gallery still opens one attachment per message; an album's
-            // remaining items are reachable once the grid bubble lands.
-            return media.first
-        default:
-            return nil
-        }
+        item.attachment
     }
 
     nonisolated static func defaultDecodeImage(url: URL) async throws -> DecodedGalleryImage {

@@ -97,6 +97,22 @@ struct MediaGalleryView: View {
             if chromeVisible {
                 chromeOverlay
             }
+
+            // The strip lives with the chrome, so tapping to go full-bleed
+            // hides it along with everything else.
+            if chromeVisible, presentation.items.count > 1 {
+                VStack {
+                    Spacer()
+                    GalleryFilmstrip(
+                        items: presentation.items,
+                        currentIndex: $currentIndex,
+                        loader: pageLoader
+                    )
+                }
+                .ignoresSafeArea(edges: .bottom)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .allowsHitTesting(true)
+            }
         }
         .statusBarHidden(true)
         .modifier(ScreenshotProtectionModifier(isActive: anyViewOnceVisible || perChatScreenshotProtection))

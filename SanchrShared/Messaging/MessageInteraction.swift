@@ -9,7 +9,11 @@ import Foundation
 public enum MessageInteraction: Sendable, Equatable {
     /// Fired for `.image` and `.video` bubbles. The gallery disambiguates
     /// image vs. video at page-build time so the cell doesn't have to know.
-    case openMedia(messageId: String)
+    ///
+    /// `attachmentIndex` is which tile of an album was tapped, so the viewer
+    /// opens on the photo the user actually pressed rather than the first one.
+    /// Zero for a single-attachment bubble.
+    case openMedia(messageId: String, attachmentIndex: Int = 0)
 
     /// Fired for `.contact` bubbles.
     case openContact(name: String, phoneNumber: String)
