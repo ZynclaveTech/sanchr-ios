@@ -156,6 +156,26 @@ final class ChatTranscriptScaleTests: XCTestCase {
         )
     }
 
+    /// What the window is actually for: the rebuild that runs on every message
+    /// change should cost the window, not the scroll history.
+    func testTrimmedWindowRebuildsFarFasterThanTheFullTranscript() {
+        let windowed = Array(demoRoom.suffix(ChatDetailViewModel.retainedWindowSize))
+
+        func time(_ messages: [Message]) -> Double {
+            let start = CFAbsoluteTimeGetCurrent()
+            for _ in 0..<5 { _ = ChatDetailViewModel.buildSections(from: messages, calendar: calendar) }
+            return (CFAbsoluteTimeGetCurrent() - start) / 5
+        }
+
+        let full = time(demoRoom)
+        let trimmed = time(windowed)
+        print(String(format: "  full transcript (%d): %.2f ms", demoRoom.count, full * 1000))
+        print(String(format: "  trimmed window  (%d): %.2f ms", windowed.count, trimmed * 1000))
+        print(String(format: "  reduction: %.0fx", full / max(trimmed, .leastNonzeroMagnitude)))
+
+        XCTAssertLessThan(trimmed, full / 5, "the window must be dramatically cheaper")
+    }
+
     func measureSectionBuilding() {
         measure { _ = ChatDetailViewModel.buildSections(from: demoRoom, calendar: calendar) }
     }

@@ -96,6 +96,57 @@ extension ChatDetailViewModel {
     // MARK: - Load More (Pagination)
 
     /// Loads older messages for infinite scroll.
+    /// Number of messages retained once the user is back at the newest end.
+    ///
+    /// Comfortably more than a screenful, so returning to the bottom and
+    /// scrolling up a little never has to re-fetch.
+    static let retainedWindowSize = 120
+
+    /// Trimming starts only past this, so an ordinary conversation is never
+    /// touched and the work only happens after real paging.
+    static let trimThreshold = 400
+
+    /// Drops the oldest messages once the user is back at the newest end.
+    ///
+    /// Paging up appends without bound, so a long session spent scrolling back
+    /// leaves everything loaded for as long as the screen is open — and
+    /// `rebuildSections` runs over all of it on every new message, status flip
+    /// and reaction.
+    ///
+    /// This trims only at the bottom, and only ever drops the *oldest*. That
+    /// is what makes it safe: everything newer is still present, so nothing can
+    /// go missing below, and the dropped messages are exactly what the existing
+    /// `before:` pagination re-fetches when the user scrolls up again. No new
+    /// fetch direction, and no window that can desynchronise from the live
+    /// message stream.
+    ///
+    /// Returns whether anything was dropped, so callers can log it.
+    @discardableResult
+    func trimToRecentWindowIfAtBottom(isAtBottom: Bool) -> Bool {
+        guard isAtBottom, messages.count > Self.trimThreshold else { return false }
+
+        let dropped = messages.count - Self.retainedWindowSize
+        messages.removeFirst(dropped)
+
+        // Older messages exist again by definition — they were just discarded.
+        hasMoreMessages = true
+
+        // The pagination anchor and the unread divider may both point at a
+        // message that is no longer loaded. Leaving either would page from the
+        // wrong place or draw a divider above nothing.
+        lastPaginationAnchor = nil
+        if let unreadId = firstUnreadMessageId,
+           !messages.contains(where: { $0.id == unreadId }) {
+            firstUnreadMessageId = nil
+        }
+
+        rebuildSections()
+        SanchrLogger.chat.info(
+            "Trimmed \(dropped) message(s) from the transcript window; \(self.messages.count) retained"
+        )
+        return true
+    }
+
     func loadMore(conversationId: String, messageRepository: MessageRepositoryProtocol) async {
         guard !isLoadingMore, hasMoreMessages, let oldest = messages.first else { return }
         guard lastPaginationAnchor != oldest.timestamp else { return }
