@@ -42,7 +42,7 @@ final class ChatsListViewModel {
         var systemImage: String {
             switch self {
             case .recent: return "clock"
-            case .unreadFirst: return "circle.badge.fill"
+            case .unreadFirst: return "circlebadge.fill"
             case .name: return "textformat.abc"
             }
         }

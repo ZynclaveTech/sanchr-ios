@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import XCTest
 import SanchrShared
 
@@ -287,5 +288,24 @@ final class ChatsListFilteringTests: XCTestCase {
         vm.sortOrder = .name
         XCTAssertEqual(names(vm), ["Alice Alpha", "Alice Zulu"])
         clearPersistedSortOrder()
+    }
+
+    /// A bad SF Symbol name fails silently — the menu just renders a blank
+    /// space where the icon should be, which is how `circle.badge.fill`
+    /// (correct name: `circlebadge.fill`) shipped. `UIImage(systemName:)`
+    /// returns nil for a name the system does not know, so this catches it.
+    func testEverySortOrderHasAResolvableIcon() {
+        for order in ChatsListViewModel.SortOrder.allCases {
+            XCTAssertNotNil(
+                UIImage(systemName: order.systemImage),
+                "\(order.label) uses '\(order.systemImage)', which is not a valid SF Symbol"
+            )
+        }
+    }
+
+    func testEverySortOrderHasALabel() {
+        for order in ChatsListViewModel.SortOrder.allCases {
+            XCTAssertFalse(order.label.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
     }
 }
