@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import CoreImage
+import UIKit
 @preconcurrency import WebRTC
 
 /// Drop-in replacement for `RTCCameraVideoCapturer` that applies a `VideoFilter`
@@ -16,6 +17,22 @@ final class FilteredVideoCapturer: RTCVideoCapturer, @unchecked Sendable {
     private let lock = NSLock()
     private var _currentFilter: VideoFilter = .none
     private var _cachedCIFilter: CIFilter? = nil
+
+    /// Device orientation and camera position, used to tag every frame with the
+    /// rotation the far end must apply.
+    ///
+    /// The camera sensor delivers landscape buffers whatever way the phone is
+    /// held, and the capture connection is deliberately left un-rotated so the
+    /// pixel buffers stay in their native layout — rotating them here would
+    /// cost a copy per frame. WebRTC instead carries the rotation as metadata
+    /// on each frame. `RTCCameraVideoCapturer` does this for you; this class
+    /// replaced it to apply filters and reported `._0` for every frame, which
+    /// is why a portrait call arrived sideways.
+    ///
+    /// Written on the main thread from the orientation notification, read on
+    /// `captureQueue` per frame, so both go through `lock`.
+    private var _deviceOrientation: UIDeviceOrientation = .portrait
+    private var _isFrontCamera = true
 
     var currentFilter: VideoFilter {
         get { lock.withLock { _currentFilter } }
@@ -40,9 +57,70 @@ final class FilteredVideoCapturer: RTCVideoCapturer, @unchecked Sendable {
 
     init(delegate videoSource: RTCVideoSource) {
         super.init(delegate: videoSource)
+        observeDeviceOrientation()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        Task { @MainActor in UIDevice.current.endGeneratingDeviceOrientationNotifications() }
+    }
+
+    private func observeDeviceOrientation() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+            self.storeOrientation(UIDevice.current.orientation)
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(self.deviceOrientationDidChange),
+                name: UIDevice.orientationDidChangeNotification,
+                object: nil
+            )
+        }
+    }
+
+    @MainActor
+    @objc private func deviceOrientationDidChange() {
+        storeOrientation(UIDevice.current.orientation)
+    }
+
+    /// Face-up, face-down and unknown carry no usable rotation, so the last
+    /// real orientation is kept rather than snapping the video to portrait
+    /// every time the phone is laid on a table.
+    private func storeOrientation(_ orientation: UIDeviceOrientation) {
+        guard orientation.isPortrait || orientation.isLandscape else { return }
+        lock.withLock { _deviceOrientation = orientation }
+    }
+
+    /// Mirrors `RTCCameraVideoCapturer`'s mapping. The two landscape cases
+    /// differ by camera because the front sensor is mounted the other way up.
+    private func currentRotation() -> RTCVideoRotation {
+        let (orientation, isFront) = lock.withLock { (_deviceOrientation, _isFrontCamera) }
+        return Self.rotation(for: orientation, isFrontCamera: isFront)
+    }
+
+    static func rotation(
+        for orientation: UIDeviceOrientation,
+        isFrontCamera: Bool
+    ) -> RTCVideoRotation {
+        switch orientation {
+        case .portrait:
+            return ._90
+        case .portraitUpsideDown:
+            return ._270
+        case .landscapeLeft:
+            return isFrontCamera ? ._180 : ._0
+        case .landscapeRight:
+            return isFrontCamera ? ._0 : ._180
+        default:
+            // Face-up, face-down and unknown: portrait is the sane default,
+            // and a real orientation is never overwritten by these anyway.
+            return ._90
+        }
     }
 
     func startCapture(with device: AVCaptureDevice, format: AVCaptureDevice.Format, fps: Int) {
+        lock.withLock { _isFrontCamera = device.position == .front }
         captureQueue.async { [weak self] in
             self?.configureSession(device: device, format: format, fps: fps)
             self?.captureSession.startRunning()
@@ -133,11 +211,13 @@ extension FilteredVideoCapturer: AVCaptureVideoDataOutputSampleBufferDelegate {
         let ciFilter = _cachedCIFilter
         lock.unlock()
 
+        let rotation = currentRotation()
+
         // Fast path — no filter, no allocation
         guard let ciFilter else {
             let frame = RTCVideoFrame(
                 buffer: RTCCVPixelBuffer(pixelBuffer: pixelBuffer),
-                rotation: ._0,
+                rotation: rotation,
                 timeStampNs: tsNs
             )
             delegate?.capturer(self, didCapture: frame)
@@ -160,7 +240,7 @@ extension FilteredVideoCapturer: AVCaptureVideoDataOutputSampleBufferDelegate {
 
         let frame = RTCVideoFrame(
             buffer: RTCCVPixelBuffer(pixelBuffer: destBuffer),
-            rotation: ._0,
+            rotation: rotation,
             timeStampNs: tsNs
         )
         delegate?.capturer(self, didCapture: frame)
