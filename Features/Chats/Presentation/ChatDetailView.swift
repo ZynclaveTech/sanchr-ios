@@ -1371,43 +1371,78 @@ struct ChatDetailView: View {
         )
     }
 
-    /// Sends a reviewed batch in filmstrip order, each item with its own caption.
+    /// Sends a reviewed batch.
+    ///
+    /// Photos and videos go as a single album message so the recipient gets one
+    /// bubble and one notification, which is the whole point of reviewing them
+    /// together. Captions are per-item in the review screen, so anything
+    /// captioned individually is sent on its own — an album carries one caption
+    /// and merging them would silently drop what the user typed.
     @MainActor
     private func sendReviewedBatch(_ items: [BatchMediaItem]) async {
-        for item in items {
-            let isVideo = item.kind.isVideo
-            var attachment = Message.MediaAttachment(
-                // A video attachment points at its poster frame, matching the
-                // single-video path; the clip itself travels as localFileURL.
-                url: isVideo ? (item.posterURL ?? item.fileURL) : item.fileURL,
-                encryptionKey: Data(), encryptionIV: Data(),
-                mimeType: item.mimeType,
-                sizeBytes: item.sizeBytes,
-                thumbnailURL: item.posterURL
-            )
-            attachment.blurHash = item.blurHash
-            attachment.width = item.pixelWidth
-            attachment.height = item.pixelHeight
-            if case .video(let duration) = item.kind {
-                attachment.durationSeconds = duration
-            }
-
-            let content: Message.MessageContent =
-                isVideo ? .video(.init(attachment)) : .image(.init(attachment))
-            let caption = item.caption.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Awaited in sequence rather than routed through
-            // `commitPendingMediaSend`, which fires each send on its own
-            // detached Task — that would let the batch race and land in an
-            // order unrelated to the filmstrip the user just arranged.
-            await viewModel.sendMediaMessage(
-                localFileURL: item.fileURL,
-                mimeType: item.mimeType,
-                contentType: content,
-                conversationId: conversation.id,
-                caption: caption.isEmpty ? nil : caption,
-                sessionService: container.sessionService,
-                messageSender: container.messageSender
-            )
+        let captioned = items.filter {
+            !$0.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+        let sendableAsAlbum = items.count > 1 && captioned.count <= 1
+
+        if sendableAsAlbum {
+            await sendAsAlbum(items)
+        } else {
+            for item in items { await sendSingle(item) }
+        }
+    }
+
+    @MainActor
+    private func sendAsAlbum(_ items: [BatchMediaItem]) async {
+        let attachments = items.map(attachment(for:))
+        let caption = items
+            .compactMap { $0.caption.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+        do {
+            _ = try await container.messageSender.sendAlbum(
+                attachments: attachments,
+                caption: caption,
+                to: conversation.id,
+                progress: { _ in }
+            )
+        } catch {
+            SanchrLogger.chat.error("Album send failed: \(error.localizedDescription)")
+            // Fall back to one message per item rather than losing the send.
+            for item in items { await sendSingle(item) }
+        }
+    }
+
+    @MainActor
+    private func sendSingle(_ item: BatchMediaItem) async {
+        let caption = item.caption.trimmingCharacters(in: .whitespacesAndNewlines)
+        await viewModel.sendMediaMessage(
+            localFileURL: item.fileURL,
+            mimeType: item.mimeType,
+            contentType: item.kind.isVideo
+                ? .video(.init(attachment(for: item)))
+                : .image(.init(attachment(for: item))),
+            conversationId: conversation.id,
+            caption: caption.isEmpty ? nil : caption,
+            sessionService: container.sessionService,
+            messageSender: container.messageSender
+        )
+    }
+
+    private func attachment(for item: BatchMediaItem) -> Message.MediaAttachment {
+        let isVideo = item.kind.isVideo
+        var attachment = Message.MediaAttachment(
+            url: isVideo ? (item.posterURL ?? item.fileURL) : item.fileURL,
+            encryptionKey: Data(), encryptionIV: Data(),
+            mimeType: item.mimeType,
+            sizeBytes: item.sizeBytes,
+            thumbnailURL: item.posterURL
+        )
+        attachment.blurHash = item.blurHash
+        attachment.width = item.pixelWidth
+        attachment.height = item.pixelHeight
+        if case .video(let duration) = item.kind {
+            attachment.durationSeconds = duration
+        }
+        return attachment
     }
 }
