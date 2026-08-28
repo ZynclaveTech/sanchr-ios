@@ -109,10 +109,10 @@ final class VideoCompressorTests: XCTestCase {
         XCTAssertGreaterThan(bytes(source), 0, "precondition: a real source file")
 
         let result = await VideoCompressor.compressedForSending(source)
-        defer { if result != source { try? FileManager.default.removeItem(at: result) } }
+        defer { if result.isTemporary { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(FileManager.default.fileExists(atPath: result.path))
-        let tracks = try await AVURLAsset(url: result).loadTracks(withMediaType: .video)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
+        let tracks = try await AVURLAsset(url: result.url).loadTracks(withMediaType: .video)
         XCTAssertFalse(tracks.isEmpty, "result has no video track")
     }
 
@@ -132,15 +132,16 @@ final class VideoCompressorTests: XCTestCase {
 
         let originalBytes = bytes(source)
         let result = await VideoCompressor.compressedForSending(source)
-        defer { if result != source { try? FileManager.default.removeItem(at: result) } }
+        defer { if result.isTemporary { try? FileManager.default.removeItem(at: result.url) } }
 
-        if result == source {
+        guard result.isTemporary else {
             // Declined — either below the threshold or not a big enough
             // saving. Both are correct; there is nothing further to assert.
+            XCTAssertEqual(result.url, source, "a declined clip must come back untouched")
             return
         }
         XCTAssertLessThan(
-            bytes(result), originalBytes,
+            bytes(result.url), originalBytes,
             "a kept re-encode must be smaller than the original"
         )
     }
@@ -152,7 +153,8 @@ final class VideoCompressorTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: source) }
 
         let result = await VideoCompressor.compressedForSending(source)
-        XCTAssertEqual(result, source, "a small clip should be sent as-is")
+        XCTAssertEqual(result.url, source, "a small clip should be sent as-is")
+        XCTAssertFalse(result.isTemporary, "the caller must not delete a file it did not create")
     }
 
     /// A missing file must not crash or hang; the caller still gets a URL back.
@@ -160,6 +162,65 @@ final class VideoCompressorTests: XCTestCase {
         let missing = FileManager.default.temporaryDirectory
             .appendingPathComponent("does-not-exist-\(UUID().uuidString).mp4")
         let result = await VideoCompressor.compressedForSending(missing)
-        XCTAssertEqual(result, missing)
+        XCTAssertEqual(result.url, missing)
+        XCTAssertFalse(result.isTemporary)
+    }
+
+    /// Progress must be reported for a clip that is actually transcoded, and
+    /// must end at 1. A bar that stops short of full leaves the send looking
+    /// unfinished; one that never moves looks like a hang, which is the whole
+    /// reason compression was taken off the pick path.
+    func testTranscodeReportsProgressEndingAtOne() async throws {
+        let source = try await makeVideo()
+        defer { try? FileManager.default.removeItem(at: source) }
+
+        let samples = Samples()
+        let result = await VideoCompressor.compressedForSending(source) { samples.record($0) }
+        defer { if result.isTemporary { try? FileManager.default.removeItem(at: result.url) } }
+
+        let values = samples.values
+        guard result.isTemporary else {
+            // Sent as-is. The contract is that no calls means the stage was
+            // instant, so the caller's bar simply starts where it started.
+            XCTAssertTrue(values.isEmpty, "a skipped clip must not report progress")
+            return
+        }
+        XCTAssertEqual(values.last, 1.0, "progress must finish at 1")
+        XCTAssertFalse(values.contains { $0 < 0 || $0 > 1 }, "progress must stay in 0...1")
+    }
+
+    /// The compressed file's own dimensions travel with it. An attachment
+    /// staged from a 4K original would otherwise tell the recipient's bubble
+    /// to size itself for a file that was never sent.
+    func testAKeptReEncodeReportsItsOwnPixelSize() async throws {
+        let source = try await makeVideo()
+        defer { try? FileManager.default.removeItem(at: source) }
+
+        let result = await VideoCompressor.compressedForSending(source)
+        defer { if result.isTemporary { try? FileManager.default.removeItem(at: result.url) } }
+        guard result.isTemporary else { return }
+
+        let size = try XCTUnwrap(result.pixelSize, "a kept re-encode must report its size")
+        let tracks = try await AVURLAsset(url: result.url).loadTracks(withMediaType: .video)
+        let actual = try await XCTUnwrap(tracks.first).load(.naturalSize)
+        XCTAssertEqual(size, actual, "reported size must match the file on disk")
+        XCTAssertLessThanOrEqual(
+            max(size.width, size.height), VideoCompressionPolicy.targetLongEdge,
+            "a kept re-encode must respect the target long edge"
+        )
+    }
+
+    /// Collects progress callbacks, which arrive off the test's thread.
+    private final class Samples: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storage: [Double] = []
+        func record(_ value: Double) {
+            lock.lock(); defer { lock.unlock() }
+            storage.append(value)
+        }
+        var values: [Double] {
+            lock.lock(); defer { lock.unlock() }
+            return storage
+        }
     }
 }

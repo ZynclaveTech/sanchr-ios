@@ -1308,9 +1308,10 @@ struct ChatDetailView: View {
                 } else {
                     guard (try? media.data.write(to: stagedFile)) != nil else { continue }
                 }
-                // Compress before the poster and size are taken, so both
-                // describe the file that is actually sent.
-                let url = await VideoCompressor.compressedForSending(stagedFile)
+                // Not compressed here. Transcoding before the review screen
+                // put a multi-second stall between tapping a video and seeing
+                // it; `MessageSender` does it behind the upload bar instead.
+                let url = stagedFile
 
                 let posterURL = await generateVideoThumbnail(videoURL: url)
                 let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }

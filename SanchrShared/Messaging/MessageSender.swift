@@ -1124,6 +1124,26 @@ public actor MessageSender {
     /// loss — a voice note that arrives as a plain audio file, a document that
     /// loses its filename, a photo whose dimensions are gone so the receiver's
     /// bubble falls back to a fixed guess.
+    /// Share of the progress bar given to compression. Transcoding a large
+    /// clip takes long enough that hiding it behind a bar that only starts
+    /// moving on upload would look like a stall.
+    private static let compressionShare = 0.3
+
+    /// Re-encodes video before upload; passes everything else straight
+    /// through. Failure returns the original, so a clip is never lost to a
+    /// failed optimisation.
+    private func compressIfVideo(
+        _ attachment: Message.MediaAttachment,
+        progress: @Sendable @escaping (Double) -> Void
+    ) async -> VideoCompressor.Result {
+        guard attachment.mimeType.hasPrefix("video/"), attachment.url.isFileURL else {
+            return VideoCompressor.Result(url: attachment.url, pixelSize: nil, isTemporary: false)
+        }
+        return await VideoCompressor.compressedForSending(attachment.url) { fraction in
+            progress(fraction * Self.compressionShare)
+        }
+    }
+
     private func uploadAndRebuild(
         _ attachment: Message.MediaAttachment,
         caption: String?,
@@ -1132,12 +1152,25 @@ public actor MessageSender {
         vaultPolicy: ChatVaultPolicy,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> (attachment: Message.MediaAttachment, mediaId: String) {
+        // Every video send in the app funnels through here — single clip,
+        // album, and reviewed batch alike — which is the only reason this is
+        // the right place for it. Compressing at the pick site instead meant
+        // one entry point was covered and the other silently was not.
+        let compressed = await compressIfVideo(attachment, progress: progress)
+        defer {
+            if compressed.isTemporary {
+                try? FileManager.default.removeItem(at: compressed.url)
+            }
+        }
+
         let uploadOutcome = try await uploader.uploadMedia(
-            localFileURL: attachment.url,
+            localFileURL: compressed.url,
             mimeType: attachment.mimeType,
             conversationId: chatId,
             recipientId: primaryRecipient,
-            progress: progress
+            progress: { fraction in
+                progress(Self.compressionShare + fraction * (1 - Self.compressionShare))
+            }
         )
 
         guard let mediaIdURL = URL(string: "sanchr-media://\(uploadOutcome.mediaId)") else {
@@ -1155,8 +1188,8 @@ public actor MessageSender {
             sizeBytes: uploadOutcome.plaintextFileSize,
             thumbnailURL: uploadOutcome.thumbnailRemoteURL.flatMap(URL.init(string:)),
             caption: caption ?? attachment.caption,
-            width: attachment.width,
-            height: attachment.height,
+            width: compressed.pixelSize.map { Int($0.width) } ?? attachment.width,
+            height: compressed.pixelSize.map { Int($0.height) } ?? attachment.height,
             durationSeconds: attachment.durationSeconds,
             blurHash: attachment.blurHash,
             filename: attachment.filename,
