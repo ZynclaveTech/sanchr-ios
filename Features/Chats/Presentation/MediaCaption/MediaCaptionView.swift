@@ -33,7 +33,7 @@ struct MediaCaptionView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             previewContent
@@ -49,9 +49,28 @@ struct MediaCaptionView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
-            bottomBar
+            // Tapping the media dismisses the keyboard, which otherwise had no
+            // way out on this screen: it opens focused and there is no Return
+            // key on a multi-line field.
+            if captionFocused {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { captionFocused = false }
+            }
         }
-        .overlay(alignment: .topLeading) { cancelButton }
+        // An inset rather than a ZStack child: the ZStack sizes to its
+        // full-bleed children, so keyboard avoidance never reached the caption
+        // row and it stayed pinned behind the keyboard.
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { captionFocused = false }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack { cancelButton; Spacer() }
+        }
         // This view must always be presented via .fullScreenCover to own the status bar.
         .statusBarHidden(true)
         .onAppear {
@@ -107,7 +126,7 @@ struct MediaCaptionView: View {
             .accessibilityLabel("Send")
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 32)
+        .padding(.bottom, 8)
         .padding(.top, 12)
     }
 
@@ -120,7 +139,7 @@ struct MediaCaptionView: View {
                 .background(.black.opacity(0.55), in: Circle())
         }
         .padding(.leading, 16)
-        .padding(.top, 12)
+        .padding(.top, 8)
         .accessibilityLabel("Cancel")
     }
 

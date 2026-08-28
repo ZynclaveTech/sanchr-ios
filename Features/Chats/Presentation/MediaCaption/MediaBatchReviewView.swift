@@ -31,10 +31,9 @@ struct MediaBatchReviewView: View {
 
     var body: some View {
         ZStack {
-            // Only the backdrop spans the full screen. Every control lives in
-            // the layer below, which stays inside the safe area — otherwise
-            // the caption row sits under the home indicator and the top
-            // buttons collide with the dynamic island.
+            // Backdrop spans the whole screen and stays put — including when
+            // the keyboard appears, which is what `.keyboard` in the region
+            // list buys us.
             Color.black.ignoresSafeArea()
 
             previewContent
@@ -49,19 +48,40 @@ struct MediaBatchReviewView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
+            // Tapping the image dismisses the keyboard. Present only while it
+            // is up, so it never competes with the zoom gestures underneath.
+            if captionFocused {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { captionFocused = false }
+            }
+        }
+        // safeAreaInset rather than a VStack inside the ZStack: the ZStack
+        // sizes to its full-bleed children, so keyboard avoidance never
+        // reached the caption row and it stayed pinned under the keyboard.
+        // An inset participates in avoidance and in the safe area both.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack {
+                cancelButton
+                Spacer()
+                editButton
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                HStack {
-                    cancelButton
-                    Spacer()
-                    editButton
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-
-                Spacer(minLength: 0)
-
-                filmstrip
+                // The filmstrip is noise while typing, and hiding it gives the
+                // caption room on a short screen.
+                if !captionFocused { filmstrip }
                 bottomBar
+            }
+            .animation(.easeInOut(duration: 0.2), value: captionFocused)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { captionFocused = false }
             }
         }
         .statusBarHidden(true)
