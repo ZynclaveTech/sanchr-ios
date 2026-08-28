@@ -182,8 +182,10 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
-                    onTapTile: { _ in
-                        onBubbleTap(.openMedia(messageId: message.id))
+                    onTapTile: { index in
+                        onBubbleTap(
+                            .openMedia(messageId: message.id, attachmentIndex: index)
+                        )
                     }
                 )
                 mediaCaption(attachment.caption)
@@ -225,8 +227,10 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
-                    onTapTile: { _ in
-                        onBubbleTap(.openMedia(messageId: message.id))
+                    onTapTile: { index in
+                        onBubbleTap(
+                            .openMedia(messageId: message.id, attachmentIndex: index)
+                        )
                     }
                 )
                 mediaCaption(attachment.caption)

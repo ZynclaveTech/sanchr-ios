@@ -193,8 +193,11 @@ final class ChatDetailViewModel {
     ) {
         lastRoutedInteraction = interaction
         switch interaction {
-        case .openMedia(let messageId):
-            guard let seed = galleryItems(forTappedMessageId: messageId) else {
+        case .openMedia(let messageId, let attachmentIndex):
+            guard let seed = galleryItems(
+                forTappedMessageId: messageId,
+                attachmentIndex: attachmentIndex
+            ) else {
                 SanchrLogger.chat.warning(
                     "route: no gallery seed for \(messageId.prefix(8))")
                 return
@@ -214,22 +217,34 @@ final class ChatDetailViewModel {
     /// Returns `nil` if the tapped message isn't media or isn't in the
     /// current snapshot. The snapshot is frozen at call time — new messages
     /// arriving while the gallery is open do NOT mutate the pager.
-    func galleryItems(forTappedMessageId messageId: String) -> GallerySeed? {
+    func galleryItems(
+        forTappedMessageId messageId: String,
+        attachmentIndex: Int = 0
+    ) -> GallerySeed? {
         let ordered = messagesState.messages
             .sorted { $0.timestamp < $1.timestamp }
-            .compactMap { msg -> GalleryItem? in
+            .flatMap { msg -> [GalleryItem] in
+                // Every attachment gets its own page, so an album is browsable
+                // rather than collapsing to its first photo.
+                let media: Message.MediaAttachments
+                let kind: GalleryItem.Kind
                 switch msg.content {
-                case .image:
-                    return GalleryItem(id: msg.id, kind: .image, message: msg)
-                case .video:
-                    return GalleryItem(id: msg.id, kind: .video, message: msg)
-                default:
-                    return nil
+                case .image(let m): media = m; kind = .image
+                case .video(let m): media = m; kind = .video
+                default: return []
+                }
+                return media.items.indices.map { index in
+                    GalleryItem(kind: kind, message: msg, attachmentIndex: index)
                 }
             }
-        guard let index = ordered.firstIndex(where: { $0.id == messageId }) else {
-            return nil
-        }
+
+        // Open on the tapped tile. Falling back to the message's first page
+        // keeps a tap working even if the index is stale.
+        let index = ordered.firstIndex {
+            $0.messageId == messageId && $0.attachmentIndex == attachmentIndex
+        } ?? ordered.firstIndex { $0.messageId == messageId }
+
+        guard let index else { return nil }
         return GallerySeed(items: ordered, initialIndex: index)
     }
 
@@ -467,9 +482,39 @@ struct GallerySeed: Equatable {
     let initialIndex: Int
 }
 
+/// One page in the media viewer.
+///
+/// A page is one *attachment*, not one message: an album of four photos is
+/// four pages. `id` therefore cannot be the message id alone, or the pager
+/// would collapse an album into a single entry.
 struct GalleryItem: Identifiable, Equatable {
     enum Kind: Equatable { case image, video }
-    let id: String            // messageId
+    let id: String
     let kind: Kind
     let message: Message
+    /// Which attachment of the message this page shows.
+    let attachmentIndex: Int
+
+    var messageId: String { message.id }
+
+    init(id: String? = nil, kind: Kind, message: Message, attachmentIndex: Int = 0) {
+        // Single-attachment messages keep the bare message id, so existing
+        // callers and any persisted references stay stable.
+        self.id = id ?? (attachmentIndex == 0 ? message.id : "\(message.id)#\(attachmentIndex)")
+        self.kind = kind
+        self.message = message
+        self.attachmentIndex = attachmentIndex
+    }
+
+    /// The attachment this page renders, or nil if the message no longer holds
+    /// one at that position.
+    var attachment: Message.MediaAttachment? {
+        switch message.content {
+        case .image(let media), .video(let media), .audio(let media), .document(let media):
+            return media.items.indices.contains(attachmentIndex)
+                ? media.items[attachmentIndex] : nil
+        default:
+            return nil
+        }
+    }
 }
