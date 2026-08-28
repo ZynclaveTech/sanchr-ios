@@ -98,8 +98,11 @@ final class GalleryAlbumPagingTests: XCTestCase {
         XCTAssertEqual(seed?.initialIndex, 0)
     }
 
-    /// Pages from other messages must not shift the opening position.
-    func testOpensCorrectlyAmongOtherMedia() {
+    /// The viewer is scoped to the tapped message. Opening one photo used to
+    /// page the entire conversation's media, which left no sense of where the
+    /// album ended — and the thumbnail strip implied all of it belonged
+    /// together.
+    func testOtherMessagesMediaIsNotIncluded() {
         let older = message("older", .image(.init(attachment("o"))), secondsAgo: 300)
         let album = message(
             "album",
@@ -111,11 +114,9 @@ final class GalleryAlbumPagingTests: XCTestCase {
         let seed = viewModel([newer, older, album])
             .galleryItems(forTappedMessageId: "album", attachmentIndex: 1)
 
-        // Chronological: older, album[0..2], newer
-        XCTAssertEqual(seed?.items.count, 5)
-        XCTAssertEqual(seed?.initialIndex, 2, "older + album[0] precede album[1]")
-        XCTAssertEqual(seed?.items[2].messageId, "album")
-        XCTAssertEqual(seed?.items[2].attachmentIndex, 1)
+        XCTAssertEqual(seed?.items.count, 3, "only the tapped album's own attachments")
+        XCTAssertTrue(seed?.items.allSatisfy { $0.messageId == "album" } ?? false)
+        XCTAssertEqual(seed?.initialIndex, 1, "the index is within the album, not the conversation")
     }
 
     // MARK: - Page content
@@ -146,13 +147,20 @@ final class GalleryAlbumPagingTests: XCTestCase {
         XCTAssertEqual(seed?.items.map(\.kind), [.video, .video])
     }
 
-    func testNonMediaMessagesProduceNoPages() {
+    func testASinglePhotoOpensAsOnePage() {
         let seed = viewModel([
             message("text", .text("hello"), secondsAgo: 10),
             message("img", .image(.init(attachment("i"))), secondsAgo: 0),
         ]).galleryItems(forTappedMessageId: "img")
 
         XCTAssertEqual(seed?.items.count, 1)
+        XCTAssertEqual(seed?.items.first?.messageId, "img")
+    }
+
+    func testTappingAMessageNotInTheSnapshotReturnsNothing() {
+        let seed = viewModel([message("here", .image(.init(attachment("i"))), secondsAgo: 0)])
+            .galleryItems(forTappedMessageId: "gone")
+        XCTAssertNil(seed)
     }
 
     func testTappingAMessageWithNoMediaReturnsNothing() {

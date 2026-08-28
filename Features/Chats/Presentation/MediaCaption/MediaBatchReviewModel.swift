@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 import UIKit
 
 /// One photo staged for a multi-photo send.
@@ -38,6 +39,33 @@ struct BatchMediaItem: Identifiable, Equatable {
     var caption: String = ""
 
     var mimeType: String { kind.isVideo ? "video/mp4" : "image/jpeg" }
+
+    /// The attachment handed to the send path.
+    ///
+    /// `url` is always the media file. The upload reads exactly this, so a
+    /// video whose `url` pointed at its poster uploaded a 30 KB still labelled
+    /// `video/mp4` and never sent the clip at all — the receiver's player was
+    /// then handed a JPEG. The poster belongs in `thumbnailURL`.
+    func sendableAttachment() -> Message.MediaAttachment {
+        var attachment = Message.MediaAttachment(
+            url: fileURL,
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: mimeType,
+            sizeBytes: sizeBytes,
+            thumbnailURL: posterURL
+        )
+        attachment.blurHash = blurHash
+        attachment.width = pixelWidth
+        attachment.height = pixelHeight
+        if case .video(let duration) = kind {
+            attachment.durationSeconds = duration
+        }
+        if !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            attachment.caption = caption
+        }
+        return attachment
+    }
 
     init(
         id: UUID = UUID(),
