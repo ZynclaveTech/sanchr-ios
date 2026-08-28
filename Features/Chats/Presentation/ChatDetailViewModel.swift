@@ -317,7 +317,7 @@ final class ChatDetailViewModel {
                 messagesState.messageSections.append(
                     MessageSection(
                         id: day,
-                        title: sectionTitle(for: day, calendar: calendar),
+                        title: Self.sectionTitle(for: day, calendar: calendar),
                         messages: [message]
                     )
                 )
@@ -329,7 +329,7 @@ final class ChatDetailViewModel {
             messagesState.messageSections = [
                 MessageSection(
                     id: day,
-                    title: sectionTitle(for: day, calendar: calendar),
+                    title: Self.sectionTitle(for: day, calendar: calendar),
                     messages: [message]
                 )
             ]
@@ -362,24 +362,86 @@ final class ChatDetailViewModel {
         messagesState.messageSections[sectionIndex].messages[messageIndex] = message
     }
 
+    /// Groups the transcript into day sections.
+    ///
+    /// Runs on every message change — a new message, a status flip, a
+    /// reaction — so its cost is paid constantly and scales with everything
+    /// loaded. It used to build a `Dictionary(grouping:)` over the whole
+    /// transcript, sort each day's messages, then sort the days: O(n log n)
+    /// plus a dictionary and a fresh array per day, every time. On a long
+    /// conversation scrolled well back that is thousands of messages regrouped
+    /// to append one.
+    ///
+    /// `messages` is already ascending — loads arrive sorted, older pages are
+    /// inserted at the front, and new messages go in chronologically — so a
+    /// single pass that starts a section each time the day changes produces
+    /// the same result with no dictionary, no sorting, and one allocation per
+    /// section. `Sections.build` holds the pass so it can be tested directly.
     func rebuildSections() {
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: messagesState.messages) { message in
-            calendar.startOfDay(for: message.timestamp)
-        }
+        messagesState.messageSections = Self.buildSections(
+            from: messagesState.messages,
+            calendar: Calendar.current
+        )
+    }
 
-        messagesState.messageSections = grouped
-            .map { day, messages in
+    /// Single ascending pass over `messages`, caching the current day's bounds.
+    ///
+    /// Measured rather than assumed: at 10,000 messages the dominant cost is
+    /// not the grouping or the sorting — it is calling `Calendar.startOfDay`
+    /// once per message. A first attempt that removed the dictionary and the
+    /// sorts came out *slower*, because those were never the expensive part.
+    ///
+    /// Since the transcript is ascending, consecutive messages nearly always
+    /// fall in the same day, so holding the current day's half-open range turns
+    /// ten thousand calendar calls into roughly one per day present. Adding a
+    /// day through the calendar rather than adding 86,400 seconds keeps this
+    /// correct across daylight-saving transitions.
+    ///
+    /// A message outside the cached range simply opens a new section, so
+    /// unordered input still files each message under its own day rather than
+    /// the wrong header.
+    static func buildSections(from messages: [Message], calendar: Calendar) -> [MessageSection] {
+        var sections: [MessageSection] = []
+        var currentDay: Date?
+        var currentDayEnd: Date?
+        var currentMessages: [Message] = []
+
+        func flush() {
+            guard let day = currentDay, !currentMessages.isEmpty else { return }
+            sections.append(
                 MessageSection(
                     id: day,
                     title: sectionTitle(for: day, calendar: calendar),
-                    messages: messages.sorted { $0.timestamp < $1.timestamp }
+                    messages: currentMessages
                 )
+            )
+            currentMessages = []
+        }
+
+        for message in messages {
+            let timestamp = message.timestamp
+            let isSameDay: Bool
+            if let start = currentDay, let end = currentDayEnd {
+                isSameDay = timestamp >= start && timestamp < end
+            } else {
+                isSameDay = false
             }
-            .sorted { $0.id < $1.id }
+
+            if !isSameDay {
+                flush()
+                let start = calendar.startOfDay(for: timestamp)
+                currentDay = start
+                currentDayEnd = calendar.date(byAdding: .day, value: 1, to: start)
+                    ?? start.addingTimeInterval(86_400)
+            }
+            currentMessages.append(message)
+        }
+        flush()
+
+        return sections
     }
 
-    private func sectionTitle(for day: Date, calendar: Calendar) -> String {
+    static func sectionTitle(for day: Date, calendar: Calendar) -> String {
         if calendar.isDateInToday(day) {
             return "Today"
         }
