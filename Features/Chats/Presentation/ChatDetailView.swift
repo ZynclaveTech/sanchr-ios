@@ -26,6 +26,38 @@ private struct PendingBatchReview: Identifiable {
     let items: [BatchMediaItem]
 }
 
+/// A staged item on its way from the picker to the review screen.
+///
+/// `BatchMediaItem` carries a `UIImage` thumbnail, which cannot cross the
+/// concurrency boundary the task group introduces. Staging therefore hands
+/// back JPEG bytes and the main actor decodes them — a few kilobytes each, so
+/// the decode is cheap and the heavy work stays off the main thread where it
+/// belongs.
+private struct StagedMedia: Sendable {
+    let kind: BatchMediaItem.Kind
+    let fileURL: URL
+    let sizeBytes: Int64
+    let thumbnailJPEG: Data?
+    var posterURL: URL? = nil
+    let blurHash: String?
+    let pixelWidth: Int?
+    let pixelHeight: Int?
+
+    @MainActor
+    func item() -> BatchMediaItem {
+        BatchMediaItem(
+            kind: kind,
+            fileURL: fileURL,
+            sizeBytes: sizeBytes,
+            thumbnail: thumbnailJPEG.flatMap(UIImage.init(data:)),
+            posterURL: posterURL,
+            blurHash: blurHash,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight
+        )
+    }
+}
+
 /// Carries the original image through the editor flow.
 /// Conforms to `Identifiable` so it can drive a `.fullScreenCover(item:)`.
 private struct PendingImageEdit: Identifiable {
@@ -737,6 +769,15 @@ struct ChatDetailView: View {
                 onCancel: { pendingBatchReview = nil }
             )
         }
+        // Copying a video out of the photo library takes real time, and an
+        // iCloud-only clip has to be fetched first. `isStagingBatch` was
+        // tracked but never rendered, so that whole wait looked like the tap
+        // had simply done nothing.
+        .overlay {
+            if isStagingBatch {
+                stagingIndicator
+            }
+        }
         .fullScreenCover(item: $pendingImageEdit) { pending in
             ImageEditorView(sourceImage: pending.image) { editedImage in
                 pendingImageEdit = nil
@@ -1003,7 +1044,7 @@ struct ChatDetailView: View {
         }
     }
 
-    private func generateVideoThumbnail(videoURL: URL) async -> URL? {
+    private static func generateVideoThumbnail(videoURL: URL) async -> URL? {
         await Task.detached(priority: .utility) {
             let asset = AVAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
@@ -1153,7 +1194,7 @@ struct ChatDetailView: View {
                 as? NSNumber)??.int64Value ?? 0
 
             // Generate video thumbnail for optimistic UI
-            let thumbnailURL = await generateVideoThumbnail(videoURL: tempURL)
+            let thumbnailURL = await Self.generateVideoThumbnail(videoURL: tempURL)
 
             // Compute blur hash from thumbnail for instant receiver preview
             let videoBlurHash: String? = await Task.detached(priority: .utility) {
@@ -1313,7 +1354,7 @@ struct ChatDetailView: View {
                 // it; `MessageSender` does it behind the upload bar instead.
                 let url = stagedFile
 
-                let posterURL = await generateVideoThumbnail(videoURL: url)
+                let posterURL = await Self.generateVideoThumbnail(videoURL: url)
                 let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
                 let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
                     (
@@ -1341,57 +1382,94 @@ struct ChatDetailView: View {
         return staged
     }
 
+    private var stagingIndicator: some View {
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.large).tint(.white)
+                Text("Preparing…")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .padding(28)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .transition(.opacity)
+        // The picker is dismissing behind this; swallow taps so a stray one
+        // cannot reach the transcript underneath.
+        .contentShape(Rectangle())
+        .onTapGesture {}
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Preparing media")
+    }
+
     /// Photos and videos both go through the review screen. Videos are
     /// previewed with a player and cannot be sent through the still editor.
+    ///
+    /// Items stage concurrently. The loop that ran them one at a time made a
+    /// multi-select cost the sum of every copy rather than the longest one,
+    /// and nothing was shown until the last of them finished.
     @MainActor
     private func stageBatchForReview(_ pickerItems: [PhotosPickerItem]) async {
-        isStagingBatch = true
-        defer { isStagingBatch = false }
+        withAnimation(.easeOut(duration: 0.15)) { isStagingBatch = true }
+        defer { withAnimation(.easeOut(duration: 0.15)) { isStagingBatch = false } }
 
-        var staged: [BatchMediaItem] = []
-        for pickerItem in pickerItems {
-            let isVideo = pickerItem.supportedContentTypes.contains { $0.conforms(to: .movie) }
-            if isVideo {
-                if let item = await stageVideoForReview(pickerItem) { staged.append(item) }
-            } else if let item = await stagePhotoForReview(pickerItem) {
-                staged.append(item)
+        let staged = await withTaskGroup(of: (Int, StagedMedia?).self) { group in
+            for (index, pickerItem) in pickerItems.enumerated() {
+                let isVideo = pickerItem.supportedContentTypes.contains { $0.conforms(to: .movie) }
+                group.addTask {
+                    let staged = isVideo
+                        ? await Self.stageVideoForReview(pickerItem)
+                        : await Self.stagePhotoForReview(pickerItem)
+                    return (index, staged)
+                }
             }
+            // Completion order is arbitrary; the user picked an order and
+            // expects to review it in that order.
+            var collected: [(Int, StagedMedia)] = []
+            for await (index, staged) in group {
+                if let staged { collected.append((index, staged)) }
+            }
+            return collected.sorted { $0.0 < $1.0 }.map(\.1)
         }
 
         guard !staged.isEmpty else { return }
-        pendingBatchReview = PendingBatchReview(items: staged)
+        pendingBatchReview = PendingBatchReview(items: staged.map { $0.item() })
     }
 
-    @MainActor
-    private func stagePhotoForReview(_ pickerItem: PhotosPickerItem) async -> BatchMediaItem? {
-        guard let data = try? await pickerItem.loadTransferable(type: Data.self),
-              let image = UIImage(data: data)
-        else { return nil }
+    /// Decoding and re-encoding a full-resolution photo is work proportional
+    /// to its pixel count, and it used to run on the main actor — stalling the
+    /// very UI that is supposed to be showing progress meanwhile.
+    private static func stagePhotoForReview(_ pickerItem: PhotosPickerItem) async -> StagedMedia? {
+        guard let data = try? await pickerItem.loadTransferable(type: Data.self) else { return nil }
 
-        // Re-encode so HEIC from the camera roll reaches the recipient as
-        // JPEG, matching the single-photo path.
-        guard let jpeg = image.jpegData(compressionQuality: 0.92) else { return nil }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(UUID().uuidString).jpg")
-        guard (try? jpeg.write(to: url)) != nil else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> StagedMedia? in
+            guard let image = UIImage(data: data) else { return nil }
 
-        let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
-            (BlurHash.encode(image), BatchThumbnail.make(from: image))
+            // Re-encode so HEIC from the camera roll reaches the recipient as
+            // JPEG, matching the single-photo path.
+            guard let jpeg = image.jpegData(compressionQuality: 0.92) else { return nil }
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(UUID().uuidString).jpg")
+            guard (try? jpeg.write(to: url)) != nil else { return nil }
+
+            return StagedMedia(
+                kind: .photo,
+                fileURL: url,
+                sizeBytes: Int64(jpeg.count),
+                thumbnailJPEG: BatchThumbnail.make(from: image)?.jpegData(compressionQuality: 0.8),
+                blurHash: BlurHash.encode(image),
+                pixelWidth: Int(image.size.width * image.scale),
+                pixelHeight: Int(image.size.height * image.scale)
+            )
         }.value
-
-        return BatchMediaItem(
-            kind: .photo,
-            fileURL: url,
-            sizeBytes: Int64(jpeg.count),
-            thumbnail: thumbnail,
-            blurHash: blurHash,
-            pixelWidth: Int(image.size.width * image.scale),
-            pixelHeight: Int(image.size.height * image.scale)
-        )
     }
 
-    @MainActor
-    private func stageVideoForReview(_ pickerItem: PhotosPickerItem) async -> BatchMediaItem? {
+    /// The copy out of the photo library dominates here and cannot be avoided
+    /// — the clip has to be on disk before a poster can be read from it, and
+    /// an iCloud-only video has to be fetched first. What used to sit on top
+    /// of it was a full transcode; that now happens on the send path instead.
+    private static func stageVideoForReview(_ pickerItem: PhotosPickerItem) async -> StagedMedia? {
         // Streamed to disk rather than read into memory; see PickedVideoFile.
         guard let video = try? await pickerItem.loadTransferable(type: PickedVideoFile.self) else {
             return nil
@@ -1401,28 +1479,25 @@ struct ChatDetailView: View {
         // Poster frame doubles as the filmstrip thumbnail and as the
         // attachment's thumbnail for the recipient's bubble, the same way the
         // single-video path builds it.
-        let posterURL = await generateVideoThumbnail(videoURL: url)
-        let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
-        let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
-            (
-                poster.flatMap { BlurHash.encode($0) },
-                poster.flatMap { BatchThumbnail.make(from: $0) }
-            )
-        }.value
-
+        let posterURL = await Self.generateVideoThumbnail(videoURL: url)
         let duration = try? await AVURLAsset(url: url).load(.duration).seconds
 
-        return BatchMediaItem(
-            kind: .video(durationSeconds: duration),
-            fileURL: url,
-            sizeBytes: (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]
-                as? NSNumber)??.int64Value ?? 0,
-            thumbnail: thumbnail,
-            posterURL: posterURL,
-            blurHash: blurHash,
-            pixelWidth: poster.map { Int($0.size.width * $0.scale) },
-            pixelHeight: poster.map { Int($0.size.height * $0.scale) }
-        )
+        return await Task.detached(priority: .userInitiated) { () -> StagedMedia in
+            let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
+            return StagedMedia(
+                kind: .video(durationSeconds: duration),
+                fileURL: url,
+                sizeBytes: (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]
+                    as? NSNumber)??.int64Value ?? 0,
+                thumbnailJPEG: poster
+                    .flatMap { BatchThumbnail.make(from: $0) }?
+                    .jpegData(compressionQuality: 0.8),
+                posterURL: posterURL,
+                blurHash: poster.flatMap { BlurHash.encode($0) },
+                pixelWidth: poster.map { Int($0.size.width * $0.scale) },
+                pixelHeight: poster.map { Int($0.size.height * $0.scale) }
+            )
+        }.value
     }
 
     /// Sends a reviewed batch.
