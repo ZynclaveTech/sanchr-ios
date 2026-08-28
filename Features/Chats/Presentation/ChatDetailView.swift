@@ -1166,7 +1166,13 @@ struct ChatDetailView: View {
             }.value
 
             var attachment = Message.MediaAttachment(
-                url: thumbnailURL ?? tempURL, encryptionKey: Data(), encryptionIV: Data(),
+                // `url` is the media itself, not its poster. The send path
+                // uploads whatever this points at, so pointing it at the
+                // poster meant the clip was never uploaded at all: the
+                // recipient received a 30 KB still labelled video/mp4, and
+                // the player was handed a JPEG to play. The poster travels in
+                // `thumbnailURL`, which is what it is for.
+                url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
                 mimeType: "video/mp4", sizeBytes: videoBytes, thumbnailURL: thumbnailURL
             )
             attachment.blurHash = videoBlurHash
@@ -1438,7 +1444,7 @@ struct ChatDetailView: View {
 
     @MainActor
     private func sendAsAlbum(_ items: [BatchMediaItem]) async {
-        let attachments = items.map(attachment(for:))
+        let attachments = items.map { $0.sendableAttachment() }
         let caption = items
             .compactMap { $0.caption.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
@@ -1462,8 +1468,8 @@ struct ChatDetailView: View {
             localFileURL: item.fileURL,
             mimeType: item.mimeType,
             contentType: item.kind.isVideo
-                ? .video(.init(attachment(for: item)))
-                : .image(.init(attachment(for: item))),
+                ? .video(.init(item.sendableAttachment()))
+                : .image(.init(item.sendableAttachment())),
             conversationId: conversation.id,
             caption: caption.isEmpty ? nil : caption,
             sessionService: container.sessionService,
@@ -1471,21 +1477,4 @@ struct ChatDetailView: View {
         )
     }
 
-    private func attachment(for item: BatchMediaItem) -> Message.MediaAttachment {
-        let isVideo = item.kind.isVideo
-        var attachment = Message.MediaAttachment(
-            url: isVideo ? (item.posterURL ?? item.fileURL) : item.fileURL,
-            encryptionKey: Data(), encryptionIV: Data(),
-            mimeType: item.mimeType,
-            sizeBytes: item.sizeBytes,
-            thumbnailURL: item.posterURL
-        )
-        attachment.blurHash = item.blurHash
-        attachment.width = item.pixelWidth
-        attachment.height = item.pixelHeight
-        if case .video(let duration) = item.kind {
-            attachment.durationSeconds = duration
-        }
-        return attachment
-    }
 }
