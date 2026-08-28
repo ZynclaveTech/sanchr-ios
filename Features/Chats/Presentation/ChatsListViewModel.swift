@@ -20,6 +20,46 @@ final class ChatsListViewModel {
 
     // MARK: - State
 
+    /// How the list orders rows within the pinned and unpinned sections.
+    ///
+    /// Pinned always leads regardless — pinning is the user saying "keep this
+    /// at the top", which no sort should override.
+    enum SortOrder: String, CaseIterable, Identifiable {
+        case recent
+        case unreadFirst
+        case name
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .recent: return "Most recent"
+            case .unreadFirst: return "Unread first"
+            case .name: return "Name"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .recent: return "clock"
+            case .unreadFirst: return "circle.badge.fill"
+            case .name: return "textformat.abc"
+            }
+        }
+    }
+
+    /// Persisted so the choice survives relaunches; an ordering the user picked
+    /// and then lost on next launch is worse than not offering the control.
+    static let sortOrderStorageKey = "sanchr.chats.sortOrder"
+
+    var sortOrder: SortOrder = .recent {
+        didSet {
+            guard sortOrder != oldValue else { return }
+            UserDefaults.standard.set(sortOrder.rawValue, forKey: Self.sortOrderStorageKey)
+            rebuildVisibleConversations()
+        }
+    }
+
     var conversations: [Conversation] = [] {
         didSet {
             // Only the conversation set can change the unread total; filtering
@@ -81,6 +121,16 @@ final class ChatsListViewModel {
 
     /// Configures the view model to observe the given `SyncState`.
     /// Call this from the view's `.onAppear` or `.task` modifier.
+    /// Restores the persisted sort order. Assigned through the backing store so
+    /// the `didSet` does not immediately write back what it just read.
+    func restorePersistedSortOrder() {
+        guard let raw = UserDefaults.standard.string(forKey: Self.sortOrderStorageKey),
+              let restored = SortOrder(rawValue: raw),
+              restored != sortOrder
+        else { return }
+        sortOrder = restored
+    }
+
     func observeSyncState(_ syncState: SyncState) {
         self.syncState = syncState
     }
@@ -156,11 +206,31 @@ final class ChatsListViewModel {
         return sorted(matches)
     }
 
-    /// Pinned first, then most recent activity.
+    /// Pinned first, then whatever `sortOrder` asks for.
     private func sorted(_ conversations: [Conversation]) -> [Conversation] {
         conversations.sorted { lhs, rhs in
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
-            return lhs.lastActivityAt > rhs.lastActivityAt
+
+            switch sortOrder {
+            case .recent:
+                return lhs.lastActivityAt > rhs.lastActivityAt
+
+            case .unreadFirst:
+                // Unread ahead of read, then the most recent of the unread —
+                // ordering by raw count would bury a just-arrived message under
+                // a thread with a large backlog.
+                let lhsUnread = lhs.unreadCount > 0
+                let rhsUnread = rhs.unreadCount > 0
+                if lhsUnread != rhsUnread { return lhsUnread }
+                return lhs.lastActivityAt > rhs.lastActivityAt
+
+            case .name:
+                let comparison = lhs.displayName.localizedStandardCompare(rhs.displayName)
+                // Names are not unique, so fall back to recency rather than
+                // letting equal names order arbitrarily between rebuilds.
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+                return lhs.lastActivityAt > rhs.lastActivityAt
+            }
         }
     }
 

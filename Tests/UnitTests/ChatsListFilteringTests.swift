@@ -178,4 +178,114 @@ final class ChatsListFilteringTests: XCTestCase {
         XCTAssertTrue(names(vm).isEmpty, "precondition: nothing is visible")
         XCTAssertEqual(vm.totalUnreadCount, 5, "the badge counts the account, not the view")
     }
+
+    // MARK: - Sort order
+
+    private func clearPersistedSortOrder() {
+        UserDefaults.standard.removeObject(forKey: ChatsListViewModel.sortOrderStorageKey)
+    }
+
+    /// Pinning is the user saying "keep this at the top"; no sort may override it.
+    func testPinnedStayFirstUnderEverySortOrder() {
+        for order in ChatsListViewModel.SortOrder.allCases {
+            let vm = ChatsListViewModel()
+            vm.conversations = [
+                conversation("Zoe", unread: 9, minutesAgo: 0),
+                conversation("Anna", pinned: true, minutesAgo: 500),
+            ]
+            vm.sortOrder = order
+            XCTAssertEqual(
+                vm.pinnedConversations.map(\.displayName), ["Anna"],
+                "\(order.label) must not displace a pinned row"
+            )
+        }
+        clearPersistedSortOrder()
+    }
+
+    func testRecentOrder() {
+        let vm = ChatsListViewModel()
+        vm.conversations = [
+            conversation("Old", minutesAgo: 90),
+            conversation("New", minutesAgo: 1),
+        ]
+        vm.sortOrder = .recent
+        XCTAssertEqual(names(vm), ["New", "Old"])
+        clearPersistedSortOrder()
+    }
+
+    /// Unread leads, but within the unread group it is recency that decides —
+    /// ordering by raw count would bury a message that just arrived under a
+    /// thread carrying a large backlog.
+    func testUnreadFirstOrdersByRecencyNotCount() {
+        let vm = ChatsListViewModel()
+        vm.conversations = [
+            conversation("Backlog", unread: 50, minutesAgo: 120),
+            conversation("JustArrived", unread: 1, minutesAgo: 1),
+            conversation("Read", minutesAgo: 0),
+        ]
+        vm.sortOrder = .unreadFirst
+        XCTAssertEqual(names(vm), ["JustArrived", "Backlog", "Read"])
+        clearPersistedSortOrder()
+    }
+
+    func testNameOrderIsCaseAndDiacriticInsensitive() {
+        let vm = ChatsListViewModel()
+        vm.conversations = [
+            conversation("zoe", minutesAgo: 0),
+            conversation("Ábel", minutesAgo: 0),
+            conversation("Bob", minutesAgo: 0),
+        ]
+        vm.sortOrder = .name
+        XCTAssertEqual(names(vm), ["Ábel", "Bob", "zoe"])
+        clearPersistedSortOrder()
+    }
+
+    /// Names are not unique. Equal names must not shuffle between rebuilds.
+    func testEqualNamesFallBackToRecency() {
+        let vm = ChatsListViewModel()
+        var older = conversation("Sam", minutesAgo: 60)
+        var newer = conversation("Sam", minutesAgo: 1)
+        older = Conversation(
+            id: "older", participants: older.participants, lastMessage: nil, unreadCount: 0,
+            isPinned: false, isMuted: false, isArchived: false, type: .oneToOne,
+            createdAt: older.createdAt, updatedAt: older.updatedAt
+        )
+        newer = Conversation(
+            id: "newer", participants: newer.participants, lastMessage: nil, unreadCount: 0,
+            isPinned: false, isMuted: false, isArchived: false, type: .oneToOne,
+            createdAt: newer.createdAt, updatedAt: newer.updatedAt
+        )
+        vm.conversations = [older, newer]
+        vm.sortOrder = .name
+        XCTAssertEqual(
+            (vm.pinnedConversations + vm.recentConversations).map(\.id), ["newer", "older"]
+        )
+        clearPersistedSortOrder()
+    }
+
+    func testSortOrderPersistsAndRestores() {
+        clearPersistedSortOrder()
+        let first = ChatsListViewModel()
+        first.sortOrder = .name
+
+        let second = ChatsListViewModel()
+        XCTAssertEqual(second.sortOrder, .recent, "a fresh view model starts at the default")
+        second.restorePersistedSortOrder()
+        XCTAssertEqual(second.sortOrder, .name, "the persisted choice is restored")
+        clearPersistedSortOrder()
+    }
+
+    func testSortAppliesUnderSearchAndFilter() {
+        let vm = ChatsListViewModel()
+        vm.conversations = [
+            conversation("Alice Zulu", unread: 1, minutesAgo: 90),
+            conversation("Alice Alpha", unread: 1, minutesAgo: 5),
+            conversation("Bob", unread: 1, minutesAgo: 0),
+        ]
+        vm.selectedFilter = .unread
+        vm.searchText = "alice"
+        vm.sortOrder = .name
+        XCTAssertEqual(names(vm), ["Alice Alpha", "Alice Zulu"])
+        clearPersistedSortOrder()
+    }
 }
