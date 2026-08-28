@@ -173,9 +173,19 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+            } else if attachment.count > 1 {
+                // Several attachments: a collage. View-once is handled above and
+                // never reaches here, so an album is always safe to draw.
+                MediaAlbumBubble(
+                    attachments: attachment,
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                    isOutgoing: message.isOutgoing,
+                    onTapTile: { _ in
+                        onBubbleTap(.openMedia(messageId: message.id))
+                    }
+                )
             } else if let single = attachment.first {
-                // Still one image per bubble; the grid layout for an album
-                // lands with the album bubble itself.
                 MediaBubbleImage(
                     attachment: single,
                     messageId: message.id,
@@ -202,9 +212,19 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
+            } else if attachment.count > 1 {
+                // Several attachments: a collage. View-once is handled above and
+                // never reaches here, so an album is always safe to draw.
+                MediaAlbumBubble(
+                    attachments: attachment,
+                    messageId: message.id,
+                    conversationId: message.conversationId,
+                    isOutgoing: message.isOutgoing,
+                    onTapTile: { _ in
+                        onBubbleTap(.openMedia(messageId: message.id))
+                    }
+                )
             } else if let single = attachment.first {
-                // Still one image per bubble; the grid layout for an album
-                // lands with the album bubble itself.
                 MediaBubbleImage(
                     attachment: single,
                     messageId: message.id,
