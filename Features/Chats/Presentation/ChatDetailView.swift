@@ -20,6 +20,12 @@ private struct PendingMediaSend: Identifiable {
     let contentType: Message.MessageContent
 }
 
+/// Carries a staged multi-photo selection into the batch review screen.
+private struct PendingBatchReview: Identifiable {
+    let id = UUID()
+    let items: [BatchMediaItem]
+}
+
 /// Carries the original image through the editor flow.
 /// Conforms to `Identifiable` so it can drive a `.fullScreenCover(item:)`.
 private struct PendingImageEdit: Identifiable {
@@ -54,6 +60,8 @@ struct ChatDetailView: View {
     @State private var appearanceTick: UInt64 = 0
     @State private var pendingMediaSend: PendingMediaSend? = nil
     @State private var pendingImageEdit: PendingImageEdit? = nil
+    @State private var pendingBatchReview: PendingBatchReview? = nil
+    @State private var isStagingBatch = false
     @StateObject private var galleryCoordinator = MediaGalleryCoordinator()
     @StateObject private var contactCoordinator = ContactActionCoordinator(
         contactRepository: BootstrapContactRepository(),
@@ -395,7 +403,7 @@ struct ChatDetailView: View {
                     )
                 },
                 onSendIntent: { intent, ctx in
-                    await viewModel.send(intent: intent, context: ctx)
+                    await routeAttachmentIntent(intent, context: ctx)
                 },
                 onClearReply: { viewModel.clearReply() }
             )
@@ -405,7 +413,7 @@ struct ChatDetailView: View {
                     onIntent: { intent in
                         let ctx = makeAttachmentSendContext()
                         Task { @MainActor in
-                            await viewModel.send(intent: intent, context: ctx)
+                            await routeAttachmentIntent(intent, context: ctx)
                         }
                     },
                     onRequestAction: { item in
@@ -687,6 +695,16 @@ struct ChatDetailView: View {
                 pendingMediaSend = nil
             }
         }
+        .fullScreenCover(item: $pendingBatchReview) { pending in
+            MediaBatchReviewView(
+                model: MediaBatchReviewModel(items: pending.items),
+                onSend: { reviewed in
+                    pendingBatchReview = nil
+                    Task { await sendReviewedBatch(reviewed) }
+                },
+                onCancel: { pendingBatchReview = nil }
+            )
+        }
         .fullScreenCover(item: $pendingImageEdit) { pending in
             ImageEditorView(sourceImage: pending.image) { editedImage in
                 pendingImageEdit = nil
@@ -762,17 +780,15 @@ struct ChatDetailView: View {
             let selectedItems = items
             selectedPhotoItems = []
             Task {
-                // One photo keeps the editor and caption stop. A batch cannot:
-                // the editor is presented by assigning state and returning, so
-                // looping it just overwrites that state per photo — which is
-                // why only the last one used to survive. Send the batch
-                // straight through, in the order it was picked.
+                // One photo keeps the single-photo editor. A batch goes to the
+                // review screen, which owns its own editor and per-photo
+                // captions — the per-photo editor cannot be chained here
+                // because it is presented by assigning state and returning,
+                // so looping it overwrites itself once per photo.
                 if selectedItems.count == 1, let only = selectedItems.first {
                     await handleSelectedPhoto(only)
                 } else {
-                    for item in selectedItems {
-                        await sendPickedItemDirectly(item)
-                    }
+                    await stageBatchForReview(selectedItems)
                 }
             }
         }
@@ -1157,51 +1173,216 @@ struct ChatDetailView: View {
         )
     }
 
-    /// Sends one picked photo or video straight through, with no editor and no
-    /// caption stop.
+    /// Stages a multi-photo selection on disk and opens the review screen.
     ///
-    /// Used only for a multi-photo selection. `handleSelectedPhoto` presents
-    /// the editor by *assigning* `pendingImageEdit` and returning immediately —
-    /// it never waits for the user to finish — so looping it over a selection
-    /// overwrote that state once per photo. The covers re-presented as the
-    /// value changed (the "editor after editor" behaviour) and only the last
-    /// photo survived; the rest were dropped without a word.
+    /// Full-size bytes go to temp files rather than being held in memory: a
+    /// 30-photo batch would otherwise be well over a hundred megabytes. Only
+    /// small thumbnails are retained for the filmstrip.
+    ///
+    /// Sends an attachment intent, diverting picked photos and videos to the
+    /// review screen first.
+    ///
+    /// The attachment sheet emits `.photoLibrary` straight into the send
+    /// pipeline, one message per item. That bypassed the review screen
+    /// entirely — which is wired to the system photos picker — so a selection
+    /// made in the sheet could not be captioned and had no single send step.
+    /// Every other intent is passed straight through untouched.
     @MainActor
-    private func sendPickedItemDirectly(_ item: PhotosPickerItem) async {
-        if let type = item.supportedContentTypes.first, type.conforms(to: .movie) {
-            await handleSelectedPhoto(item)
+    private func routeAttachmentIntent(
+        _ intent: AttachmentIntent,
+        context: ChatDetailViewModel.AttachmentSendContext
+    ) async {
+        guard case .photoLibrary(let picked) = intent, !picked.isEmpty else {
+            await viewModel.send(intent: intent, context: context)
             return
         }
 
-        guard let imageData = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: imageData) else { return }
+        let staged = await stagePickedMediaForReview(picked)
+        guard !staged.isEmpty else {
+            // Nothing could be staged; fall back rather than dropping the send.
+            await viewModel.send(intent: intent, context: context)
+            return
+        }
+        pendingBatchReview = PendingBatchReview(items: staged)
+    }
 
-        let blurHash: String? = await Task.detached(priority: .utility) {
-            BlurHash.encode(image)
+    /// Converts picker output into review items, writing the bytes to temp
+    /// files so the screen holds only thumbnails.
+    @MainActor
+    private func stagePickedMediaForReview(_ picked: [PickedMedia]) async -> [BatchMediaItem] {
+        var staged: [BatchMediaItem] = []
+        for media in picked {
+            switch media.kind {
+            case .photo:
+                guard let image = UIImage(data: media.data),
+                      let jpeg = image.jpegData(compressionQuality: 0.92)
+                else { continue }
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(UUID().uuidString).jpg")
+                guard (try? jpeg.write(to: url)) != nil else { continue }
+
+                let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
+                    (BlurHash.encode(image), BatchThumbnail.make(from: image))
+                }.value
+                staged.append(
+                    BatchMediaItem(
+                        kind: .photo,
+                        fileURL: url,
+                        sizeBytes: Int64(jpeg.count),
+                        thumbnail: thumbnail,
+                        blurHash: blurHash
+                    )
+                )
+
+            case .video:
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(UUID().uuidString).mp4")
+                if let source = media.fileURL {
+                    guard (try? FileManager.default.copyItem(at: source, to: url)) != nil
+                    else { continue }
+                } else {
+                    guard (try? media.data.write(to: url)) != nil else { continue }
+                }
+
+                let posterURL = await generateVideoThumbnail(videoURL: url)
+                let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
+                let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
+                    (
+                        poster.flatMap { BlurHash.encode($0) },
+                        poster.flatMap { BatchThumbnail.make(from: $0) }
+                    )
+                }.value
+                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                let size = (attrs?[.size] as? NSNumber)?.int64Value ?? Int64(media.data.count)
+
+                staged.append(
+                    BatchMediaItem(
+                        kind: .video(durationSeconds: media.durationSeconds),
+                        fileURL: url,
+                        sizeBytes: size,
+                        thumbnail: thumbnail,
+                        posterURL: posterURL,
+                        blurHash: blurHash
+                    )
+                )
+            }
+        }
+        return staged
+    }
+
+    /// Photos and videos both go through the review screen. Videos are
+    /// previewed with a player and cannot be sent through the still editor.
+    @MainActor
+    private func stageBatchForReview(_ pickerItems: [PhotosPickerItem]) async {
+        isStagingBatch = true
+        defer { isStagingBatch = false }
+
+        var staged: [BatchMediaItem] = []
+        for pickerItem in pickerItems {
+            let isVideo = pickerItem.supportedContentTypes.contains { $0.conforms(to: .movie) }
+            if isVideo {
+                if let item = await stageVideoForReview(pickerItem) { staged.append(item) }
+            } else if let item = await stagePhotoForReview(pickerItem) {
+                staged.append(item)
+            }
+        }
+
+        guard !staged.isEmpty else { return }
+        pendingBatchReview = PendingBatchReview(items: staged)
+    }
+
+    @MainActor
+    private func stagePhotoForReview(_ pickerItem: PhotosPickerItem) async -> BatchMediaItem? {
+        guard let data = try? await pickerItem.loadTransferable(type: Data.self),
+              let image = UIImage(data: data)
+        else { return nil }
+
+        // Re-encode so HEIC from the camera roll reaches the recipient as
+        // JPEG, matching the single-photo path.
+        guard let jpeg = image.jpegData(compressionQuality: 0.92) else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).jpg")
+        guard (try? jpeg.write(to: url)) != nil else { return nil }
+
+        let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
+            (BlurHash.encode(image), BatchThumbnail.make(from: image))
         }.value
 
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(UUID().uuidString).jpg")
-        // Re-encode rather than forwarding the original bytes so HEIC from the
-        // camera roll reaches the recipient as JPEG, matching the single-photo
-        // path through the editor.
-        guard let jpeg = image.jpegData(compressionQuality: 0.92),
-              (try? jpeg.write(to: tempURL)) != nil else { return }
-
-        var attachment = Message.MediaAttachment(
-            url: tempURL, encryptionKey: Data(), encryptionIV: Data(),
-            mimeType: "image/jpeg", sizeBytes: Int64(jpeg.count), thumbnailURL: nil
+        return BatchMediaItem(
+            kind: .photo,
+            fileURL: url,
+            sizeBytes: Int64(jpeg.count),
+            thumbnail: thumbnail,
+            blurHash: blurHash
         )
-        attachment.blurHash = blurHash
+    }
 
-        commitPendingMediaSend(
-            PendingMediaSend(
-                preview: .image(jpeg),
-                localFileURL: tempURL,
-                mimeType: "image/jpeg",
-                contentType: .image(attachment)
-            ),
-            caption: nil
+    @MainActor
+    private func stageVideoForReview(_ pickerItem: PhotosPickerItem) async -> BatchMediaItem? {
+        guard let data = try? await pickerItem.loadTransferable(type: Data.self) else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).mp4")
+        guard (try? data.write(to: url)) != nil else { return nil }
+
+        // Poster frame doubles as the filmstrip thumbnail and as the
+        // attachment's thumbnail for the recipient's bubble, the same way the
+        // single-video path builds it.
+        let posterURL = await generateVideoThumbnail(videoURL: url)
+        let poster = posterURL.flatMap { UIImage(contentsOfFile: $0.path) }
+        let (blurHash, thumbnail) = await Task.detached(priority: .utility) {
+            (
+                poster.flatMap { BlurHash.encode($0) },
+                poster.flatMap { BatchThumbnail.make(from: $0) }
+            )
+        }.value
+
+        let duration = try? await AVURLAsset(url: url).load(.duration).seconds
+
+        return BatchMediaItem(
+            kind: .video(durationSeconds: duration),
+            fileURL: url,
+            sizeBytes: Int64(data.count),
+            thumbnail: thumbnail,
+            posterURL: posterURL,
+            blurHash: blurHash
         )
+    }
+
+    /// Sends a reviewed batch in filmstrip order, each item with its own caption.
+    @MainActor
+    private func sendReviewedBatch(_ items: [BatchMediaItem]) async {
+        for item in items {
+            let isVideo = item.kind.isVideo
+            var attachment = Message.MediaAttachment(
+                // A video attachment points at its poster frame, matching the
+                // single-video path; the clip itself travels as localFileURL.
+                url: isVideo ? (item.posterURL ?? item.fileURL) : item.fileURL,
+                encryptionKey: Data(), encryptionIV: Data(),
+                mimeType: item.mimeType,
+                sizeBytes: item.sizeBytes,
+                thumbnailURL: item.posterURL
+            )
+            attachment.blurHash = item.blurHash
+            if case .video(let duration) = item.kind {
+                attachment.durationSeconds = duration
+            }
+
+            let content: Message.MessageContent =
+                isVideo ? .video(attachment) : .image(attachment)
+            let caption = item.caption.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Awaited in sequence rather than routed through
+            // `commitPendingMediaSend`, which fires each send on its own
+            // detached Task — that would let the batch race and land in an
+            // order unrelated to the filmstrip the user just arranged.
+            await viewModel.sendMediaMessage(
+                localFileURL: item.fileURL,
+                mimeType: item.mimeType,
+                contentType: content,
+                conversationId: conversation.id,
+                caption: caption.isEmpty ? nil : caption,
+                sessionService: container.sessionService,
+                messageSender: container.messageSender
+            )
+        }
     }
 }
