@@ -31,6 +31,10 @@ struct BatchMediaItem: Identifiable, Equatable {
     var posterURL: URL?
     /// Computed on the original so it survives editing, as in the single-photo path.
     var blurHash: String?
+    /// Pixel dimensions, carried to the recipient so the bubble can be sized
+    /// before the media downloads. Nil only when they could not be read.
+    var pixelWidth: Int?
+    var pixelHeight: Int?
     var caption: String = ""
 
     var mimeType: String { kind.isVideo ? "video/mp4" : "image/jpeg" }
@@ -43,6 +47,8 @@ struct BatchMediaItem: Identifiable, Equatable {
         thumbnail: UIImage? = nil,
         posterURL: URL? = nil,
         blurHash: String? = nil,
+        pixelWidth: Int? = nil,
+        pixelHeight: Int? = nil,
         caption: String = ""
     ) {
         self.id = id
@@ -52,6 +58,8 @@ struct BatchMediaItem: Identifiable, Equatable {
         self.thumbnail = thumbnail
         self.posterURL = posterURL
         self.blurHash = blurHash
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
         self.caption = caption
     }
 }
@@ -120,12 +128,22 @@ final class MediaBatchReviewModel {
     ///
     /// Refuses on a video: the editor produces a still, so applying it would
     /// silently replace the clip with a frame of it.
-    func applyEdit(fileURL: URL, sizeBytes: Int64, thumbnail: UIImage?) {
+    func applyEdit(
+        fileURL: URL,
+        sizeBytes: Int64,
+        thumbnail: UIImage?,
+        pixelWidth: Int? = nil,
+        pixelHeight: Int? = nil
+    ) {
         guard items.indices.contains(currentIndex),
               !items[currentIndex].kind.isVideo
         else { return }
         items[currentIndex].fileURL = fileURL
         items[currentIndex].sizeBytes = sizeBytes
         if let thumbnail { items[currentIndex].thumbnail = thumbnail }
+        // Cropping and rotating change the shape, so the recorded dimensions
+        // have to follow or the bubble would be sized for the original.
+        if let pixelWidth { items[currentIndex].pixelWidth = pixelWidth }
+        if let pixelHeight { items[currentIndex].pixelHeight = pixelHeight }
     }
 }

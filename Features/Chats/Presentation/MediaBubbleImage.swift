@@ -432,9 +432,14 @@ struct MediaBubbleImage: View {
 
 // MARK: - Bubble Media Layout
 
-private enum BubbleMediaLayout {
+enum BubbleMediaLayout {
     static let maxWidth: CGFloat = 220
     static let maxHeight: CGFloat = 280
+
+    /// Smallest dimension a bubble is allowed to render at. A panorama scaled
+    /// purely by width would otherwise come out a few points tall and be
+    /// unrecognisable, and an extreme portrait would become a sliver.
+    static let minSide: CGFloat = 64
 
     static func displaySize(for attachment: Message.MediaAttachment) -> CGSize {
         guard let width = attachment.width,
@@ -442,6 +447,9 @@ private enum BubbleMediaLayout {
               width > 0,
               height > 0
         else {
+            // No dimensions: fall back to a fixed shape. Until senders started
+            // recording them this was every message, so every photo rendered
+            // at the same guess and then shifted once the real image decoded.
             return attachment.mimeType.hasPrefix("video/")
                 ? CGSize(width: maxWidth, height: maxWidth)
                 : CGSize(width: maxWidth, height: 180)
@@ -449,7 +457,10 @@ private enum BubbleMediaLayout {
 
         let sourceSize = CGSize(width: CGFloat(width), height: CGFloat(height))
         let scale = min(maxWidth / sourceSize.width, maxHeight / sourceSize.height)
-        return CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+        return CGSize(
+            width: max(minSide, (sourceSize.width * scale).rounded()),
+            height: max(minSide, (sourceSize.height * scale).rounded())
+        )
     }
 }
 

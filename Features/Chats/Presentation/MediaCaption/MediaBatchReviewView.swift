@@ -305,7 +305,9 @@ struct MediaBatchReviewView: View {
         model.applyEdit(
             fileURL: url,
             sizeBytes: Int64(jpeg.count),
-            thumbnail: BatchThumbnail.make(from: image)
+            thumbnail: BatchThumbnail.make(from: image),
+            pixelWidth: Int(image.size.width * image.scale),
+            pixelHeight: Int(image.size.height * image.scale)
         )
         preview = image
     }
