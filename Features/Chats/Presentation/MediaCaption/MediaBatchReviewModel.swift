@@ -7,28 +7,50 @@ import UIKit
 /// well over a hundred megabytes, so only the thumbnail is retained and the
 /// large preview is decoded on demand for whichever photo is on screen.
 struct BatchMediaItem: Identifiable, Equatable {
+    enum Kind: Equatable {
+        case photo
+        /// Videos ride along in the same batch. They are previewed with a
+        /// player and cannot be sent through the still-image editor.
+        case video(durationSeconds: Double?)
+
+        var isVideo: Bool {
+            if case .video = self { return true }
+            return false
+        }
+    }
+
     let id: UUID
-    /// Temp-file JPEG handed to the upload pipeline.
+    var kind: Kind
+    /// Temp-file JPEG (photos) or MP4 (videos) handed to the upload pipeline.
     var fileURL: URL
     var sizeBytes: Int64
     /// Small decoded image for the filmstrip.
     var thumbnail: UIImage?
+    /// On-disk poster frame, which a video attachment carries to the recipient
+    /// for its bubble. Nil for photos.
+    var posterURL: URL?
     /// Computed on the original so it survives editing, as in the single-photo path.
     var blurHash: String?
     var caption: String = ""
 
+    var mimeType: String { kind.isVideo ? "video/mp4" : "image/jpeg" }
+
     init(
         id: UUID = UUID(),
+        kind: Kind = .photo,
         fileURL: URL,
         sizeBytes: Int64,
         thumbnail: UIImage? = nil,
+        posterURL: URL? = nil,
         blurHash: String? = nil,
         caption: String = ""
     ) {
         self.id = id
+        self.kind = kind
         self.fileURL = fileURL
         self.sizeBytes = sizeBytes
         self.thumbnail = thumbnail
+        self.posterURL = posterURL
         self.blurHash = blurHash
         self.caption = caption
     }
@@ -87,10 +109,21 @@ final class MediaBatchReviewModel {
         }
     }
 
+    /// Whether the photo on screen can go through the still-image editor.
+    var canEditCurrent: Bool {
+        guard let current else { return false }
+        return !current.kind.isVideo
+    }
+
     /// Replaces the current photo's bytes after an edit, preserving its
     /// caption, its position, and the blur hash computed from the original.
+    ///
+    /// Refuses on a video: the editor produces a still, so applying it would
+    /// silently replace the clip with a frame of it.
     func applyEdit(fileURL: URL, sizeBytes: Int64, thumbnail: UIImage?) {
-        guard items.indices.contains(currentIndex) else { return }
+        guard items.indices.contains(currentIndex),
+              !items[currentIndex].kind.isVideo
+        else { return }
         items[currentIndex].fileURL = fileURL
         items[currentIndex].sizeBytes = sizeBytes
         if let thumbnail { items[currentIndex].thumbnail = thumbnail }

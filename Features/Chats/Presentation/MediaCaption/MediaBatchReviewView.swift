@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 import SanchrShared
 
@@ -19,6 +20,9 @@ struct MediaBatchReviewView: View {
     /// Full-size image for the photo on screen, decoded on demand so the batch
     /// never holds more than one large bitmap.
     @State private var preview: UIImage?
+    /// Player for the current item when it is a video. Torn down on every
+    /// change so a clip cannot keep playing behind another item.
+    @State private var player: AVPlayer?
 
     private struct EditingImage: Identifiable {
         let id = UUID()
@@ -68,7 +72,9 @@ struct MediaBatchReviewView: View {
 
     @ViewBuilder
     private var previewContent: some View {
-        if let preview {
+        if let player {
+            VideoPlayer(player: player)
+        } else if let preview {
             Image(uiImage: preview)
                 .resizable()
                 .scaledToFit()
@@ -111,7 +117,24 @@ struct MediaBatchReviewView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(isCurrent ? Color.white : .clear, lineWidth: 2)
         }
-        // A captioned photo is marked, so captions written earlier in the batch
+        // Videos are marked so the strip is readable at a glance — otherwise a
+        // clip is indistinguishable from a still at 56pt.
+        .overlay(alignment: .bottomTrailing) {
+            if case .video(let duration) = item.kind {
+                HStack(spacing: 2) {
+                    Image(systemName: "play.fill").font(.system(size: 7, weight: .bold))
+                    if let duration, let text = Self.durationText(duration) {
+                        Text(text).font(.system(size: 9, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(.black.opacity(0.6), in: Capsule())
+                .padding(3)
+            }
+        }
+        // A captioned item is marked, so captions written earlier in the batch
         // are not forgotten once the filmstrip scrolls away from them.
         .overlay(alignment: .bottomLeading) {
             if !item.caption.isEmpty {
@@ -134,7 +157,7 @@ struct MediaBatchReviewView: View {
                     .background(.black.opacity(0.65), in: Circle())
             }
             .padding(2)
-            .accessibilityLabel("Remove photo \(index + 1)")
+            .accessibilityLabel("Remove item \(index + 1)")
         }
         .contentShape(Rectangle())
         .onTapGesture { model.select(index) }
@@ -171,7 +194,7 @@ struct MediaBatchReviewView: View {
                         .offset(x: 4, y: -3)
                 }
             }
-            .accessibilityLabel("Send \(model.items.count) photos")
+            .accessibilityLabel("Send \(model.items.count) items")
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 32)
@@ -192,7 +215,7 @@ struct MediaBatchReviewView: View {
 
     private var editButton: some View {
         Button {
-            guard let preview else { return }
+            guard let preview, model.canEditCurrent else { return }
             editing = EditingImage(image: preview)
         } label: {
             Image(systemName: "slider.horizontal.3")
@@ -201,7 +224,10 @@ struct MediaBatchReviewView: View {
                 .padding(10)
                 .background(.black.opacity(0.55), in: Circle())
         }
-        .disabled(preview == nil)
+        // Hidden rather than merely disabled for video: the editor makes a
+        // still, so there is nothing it could usefully do to a clip.
+        .opacity(model.canEditCurrent ? 1 : 0)
+        .disabled(preview == nil || !model.canEditCurrent)
         .padding(.trailing, 16)
         .padding(.top, 12)
         .accessibilityLabel("Edit photo")
@@ -210,10 +236,25 @@ struct MediaBatchReviewView: View {
     // MARK: - Actions
 
     private func loadPreview() async {
-        guard let url = model.current?.fileURL else {
+        // Always tear the old player down first, or a clip keeps playing behind
+        // whatever the user moved to.
+        player?.pause()
+        player = nil
+
+        guard let item = model.current else {
             preview = nil
             return
         }
+
+        if item.kind.isVideo {
+            preview = nil
+            let p = AVPlayer(url: item.fileURL)
+            player = p
+            p.play()
+            return
+        }
+
+        let url = item.fileURL
         preview = await Task.detached(priority: .userInitiated) {
             guard let data = try? Data(contentsOf: url) else { return nil as UIImage? }
             return UIImage(data: data)
@@ -237,6 +278,15 @@ struct MediaBatchReviewView: View {
             thumbnail: BatchThumbnail.make(from: image)
         )
         preview = image
+    }
+}
+
+extension MediaBatchReviewView {
+    /// m:ss for the filmstrip badge; nil for a duration that is not usable.
+    static func durationText(_ seconds: Double) -> String? {
+        guard seconds.isFinite, seconds >= 0 else { return nil }
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
 

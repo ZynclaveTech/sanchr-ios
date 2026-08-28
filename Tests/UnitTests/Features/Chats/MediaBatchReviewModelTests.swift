@@ -110,4 +110,64 @@ final class MediaBatchReviewModelTests: XCTestCase {
         m.select(9)
         XCTAssertEqual(m.currentIndex, 0)
     }
+
+    // MARK: - Mixed photo/video batches
+
+    private func video(_ name: String, seconds: Double? = 12) -> BatchMediaItem {
+        BatchMediaItem(
+            kind: .video(durationSeconds: seconds),
+            fileURL: URL(fileURLWithPath: "/tmp/\(name).mp4"),
+            sizeBytes: 100
+        )
+    }
+
+    func testVideoCarriesItsMimeType() {
+        XCTAssertEqual(video("clip").mimeType, "video/mp4")
+        XCTAssertEqual(item("still").mimeType, "image/jpeg")
+    }
+
+    func testEditingIsOfferedForPhotosOnly() {
+        let m = MediaBatchReviewModel(items: [item("a"), video("clip")])
+        XCTAssertTrue(m.canEditCurrent)
+        m.select(1)
+        XCTAssertFalse(m.canEditCurrent, "the still editor cannot act on a clip")
+    }
+
+    /// The editor produces a still. Applying one to a video would replace the
+    /// clip with a single frame of it — silent data loss.
+    func testApplyEditIsRefusedOnAVideo() {
+        let m = MediaBatchReviewModel(items: [video("clip")])
+        m.applyEdit(fileURL: URL(fileURLWithPath: "/tmp/frame.jpg"), sizeBytes: 5, thumbnail: nil)
+
+        XCTAssertEqual(name(of: m.current), "clip")
+        XCTAssertEqual(m.items[0].sizeBytes, 100)
+    }
+
+    func testCaptionsWorkOnVideosToo() {
+        let m = MediaBatchReviewModel(items: [item("a"), video("clip")])
+        m.select(1)
+        m.currentCaption = "on the clip"
+
+        XCTAssertEqual(m.items[1].caption, "on the clip")
+        XCTAssertTrue(m.items[0].caption.isEmpty)
+    }
+
+    func testRemovalWorksAcrossAMixedBatch() {
+        let m = MediaBatchReviewModel(items: [item("a"), video("clip"), item("c")])
+        m.select(2)
+        m.remove(id: m.items[1].id)
+
+        XCTAssertEqual(name(of: m.current), "c")
+        XCTAssertEqual(m.items.map { $0.kind.isVideo }, [false, false])
+    }
+
+    func testDurationBadgeFormatting() {
+        XCTAssertEqual(MediaBatchReviewView.durationText(0), "0:00")
+        XCTAssertEqual(MediaBatchReviewView.durationText(9), "0:09")
+        XCTAssertEqual(MediaBatchReviewView.durationText(75), "1:15")
+        XCTAssertEqual(MediaBatchReviewView.durationText(600), "10:00")
+        // AVFoundation hands back NaN for an unreadable asset.
+        XCTAssertNil(MediaBatchReviewView.durationText(.nan))
+        XCTAssertNil(MediaBatchReviewView.durationText(-1))
+    }
 }
