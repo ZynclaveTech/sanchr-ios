@@ -73,6 +73,7 @@ struct MediaCaptionView: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFit()
+                    .zoomable()
             } else {
                 // Fallback: corrupted/unsupported image data
                 Image(systemName: "photo")

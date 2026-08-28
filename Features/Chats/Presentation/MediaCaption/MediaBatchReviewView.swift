@@ -30,7 +30,11 @@ struct MediaBatchReviewView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
+            // Only the backdrop spans the full screen. Every control lives in
+            // the layer below, which stays inside the safe area — otherwise
+            // the caption row sits under the home indicator and the top
+            // buttons collide with the dynamic island.
             Color.black.ignoresSafeArea()
 
             previewContent
@@ -45,13 +49,21 @@ struct MediaBatchReviewView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
+                HStack {
+                    cancelButton
+                    Spacer()
+                    editButton
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer(minLength: 0)
+
                 filmstrip
                 bottomBar
             }
         }
-        .overlay(alignment: .topLeading) { cancelButton }
-        .overlay(alignment: .topTrailing) { editButton }
         .statusBarHidden(true)
         .task(id: model.current?.id) { await loadPreview() }
         .onChange(of: model.isEmpty) { _, empty in
@@ -78,6 +90,7 @@ struct MediaBatchReviewView: View {
             Image(uiImage: preview)
                 .resizable()
                 .scaledToFit()
+                .zoomable()
         } else {
             ProgressView().tint(.white)
         }
@@ -197,7 +210,8 @@ struct MediaBatchReviewView: View {
             .accessibilityLabel("Send \(model.items.count) items")
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 32)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 
     private var cancelButton: some View {
@@ -208,8 +222,6 @@ struct MediaBatchReviewView: View {
                 .padding(10)
                 .background(.black.opacity(0.55), in: Circle())
         }
-        .padding(.leading, 16)
-        .padding(.top, 12)
         .accessibilityLabel("Cancel")
     }
 
@@ -228,8 +240,6 @@ struct MediaBatchReviewView: View {
         // still, so there is nothing it could usefully do to a clip.
         .opacity(model.canEditCurrent ? 1 : 0)
         .disabled(preview == nil || !model.canEditCurrent)
-        .padding(.trailing, 16)
-        .padding(.top, 12)
         .accessibilityLabel("Edit photo")
     }
 
