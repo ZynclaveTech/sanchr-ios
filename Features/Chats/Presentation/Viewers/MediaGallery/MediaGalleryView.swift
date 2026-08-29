@@ -100,6 +100,13 @@ struct MediaGalleryView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            // Full-bleed, like every other photo viewer. Only the backdrop
+            // ignored the safe area, so pages started below the status bar and
+            // left a black band above the controls — invisible while media was
+            // letterboxed inside its page, obvious once it filled one.
+            // The chrome keeps its insets, so the buttons stay clear of the
+            // notch and the home indicator.
+            .ignoresSafeArea()
             .offset(y: dragOffset)
             // Simultaneous, not high-priority. A high-priority drag claimed
             // every one-finger gesture in the viewer before the page view or
