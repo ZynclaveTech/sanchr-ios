@@ -209,7 +209,7 @@ struct MessageBubble: View {
                         )
                     }
                 )
-                mediaCaption(attachment.caption)
+                mediaCaption(attachment.caption, mediaWidth: BubbleMediaLayout.maxWidth)
             } else if let single = attachment.first {
                 MediaBubbleImage(
                     attachment: single,
@@ -223,7 +223,10 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
-                mediaCaption(single.caption)
+                mediaCaption(
+                    single.caption,
+                    mediaWidth: BubbleMediaLayout.displaySize(for: single).width
+                )
             }
             }
 
@@ -254,7 +257,7 @@ struct MessageBubble: View {
                         )
                     }
                 )
-                mediaCaption(attachment.caption)
+                mediaCaption(attachment.caption, mediaWidth: BubbleMediaLayout.maxWidth)
             } else if let single = attachment.first {
                 MediaBubbleImage(
                     attachment: single,
@@ -274,7 +277,10 @@ struct MessageBubble: View {
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
                 }
-                mediaCaption(single.caption)
+                mediaCaption(
+                    single.caption,
+                    mediaWidth: BubbleMediaLayout.displaySize(for: single).width
+                )
             }
             }
 
@@ -358,7 +364,7 @@ struct MessageBubble: View {
     /// Carries its own padding: with a caption the bubble is back, but the
     /// media sits flush to its edges, so the container pads nothing and the
     /// inset belongs to the text.
-    private func mediaCaption(_ caption: String?) -> some View {
+    private func mediaCaption(_ caption: String?, mediaWidth: CGFloat) -> some View {
         if let caption, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text(caption)
                 .font(SanchrTypography.messageBubbleText)
@@ -368,7 +374,10 @@ struct MessageBubble: View {
                 // media's width, or the bubble grows wider than the photo and
                 // the photo stops being flush with the edge it is supposed to
                 // meet.
-                .frame(maxWidth: BubbleChromePolicy.captionWidth, alignment: .leading)
+                .frame(
+                    maxWidth: BubbleChromePolicy.captionWidth(forMediaWidth: mediaWidth),
+                    alignment: .leading
+                )
                 .padding(.horizontal, SanchrSpacing.bubbleHPadding)
                 .padding(.bottom, SanchrSpacing.bubbleVPadding)
         }

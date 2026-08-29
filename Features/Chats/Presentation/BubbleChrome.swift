@@ -84,14 +84,28 @@ enum BubbleChromePolicy {
         }
     }
 
-    /// Width a caption gets inside a media bubble.
+    /// Narrowest a captioned bubble is allowed to be.
     ///
-    /// It plus its own inset has to come to exactly the media's width. Get this
-    /// wrong and the bubble grows wider than the photo, which stops the photo
-    /// being flush with the edge it is meant to meet — the whole point of
-    /// keeping the bubble for captions but not for the media.
-    static var captionWidth: CGFloat {
-        BubbleMediaLayout.maxWidth - SanchrSpacing.bubbleHPadding * 2
+    /// Below this a caption wraps into a column too narrow to read. Media this
+    /// narrow is already an extreme aspect ratio clamped to `minSide`, so the
+    /// rim this leaves beside it is the lesser of the two problems.
+    static let minimumCaptionedBubbleWidth: CGFloat = 150
+
+    /// Width a caption gets beside media that renders `mediaWidth` wide.
+    ///
+    /// It plus its own inset has to come to the bubble's width, and the
+    /// bubble's width has to be the media's — otherwise the bubble is wider
+    /// than the photo and the photo stops being flush with the edge it is meant
+    /// to meet, which is the whole point of keeping the bubble for captions but
+    /// not for the media.
+    ///
+    /// The mistake worth naming: media is *not* always `maxWidth`.
+    /// `displaySize` fits each attachment inside a 220x280 box, so anything
+    /// portrait comes out narrower — a 9:16 clip lands near 157. Sizing
+    /// captions to `maxWidth` therefore left an empty rim down the side of
+    /// every portrait photo, which is exactly how this was spotted.
+    static func captionWidth(forMediaWidth mediaWidth: CGFloat) -> CGFloat {
+        max(mediaWidth, minimumCaptionedBubbleWidth) - SanchrSpacing.bubbleHPadding * 2
     }
 
     private static func hasCaption(_ media: Message.MediaAttachments) -> Bool {

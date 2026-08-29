@@ -153,21 +153,52 @@ final class BubbleChromeTests: XCTestCase {
 
     // MARK: - Caption geometry
 
-    /// A caption plus its inset must come to exactly the media's width. When it
-    /// did not, the bubble grew wider than the photo and the photo stopped
-    /// being flush with the edge it is meant to meet.
+    /// A caption plus its inset must come to the media's own width, so the
+    /// bubble is exactly as wide as the photo and the photo stays flush.
     func testCaptionAndItsInsetMatchTheMediaWidth() {
+        for mediaWidth in [BubbleMediaLayout.maxWidth, 210, 180, 157] as [CGFloat] {
+            XCTAssertEqual(
+                BubbleChromePolicy.captionWidth(forMediaWidth: mediaWidth)
+                    + SanchrSpacing.bubbleHPadding * 2,
+                mediaWidth,
+                accuracy: 0.001,
+                "a bubble beside \(mediaWidth)pt media must be \(mediaWidth)pt wide"
+            )
+        }
+    }
+
+    /// The bug this replaced. Media is not always `maxWidth` — `displaySize`
+    /// fits each attachment inside a 220x280 box, so anything portrait comes
+    /// out narrower. Sizing captions to `maxWidth` left an empty rim down the
+    /// side of every portrait photo.
+    func testPortraitMediaDoesNotGetAWiderBubbleThanItself() {
+        var portrait = Message.MediaAttachment(
+            url: URL(string: "sanchr-media://p")!,
+            encryptionKey: Data(), encryptionIV: Data(),
+            mimeType: "video/mp4", sizeBytes: 1, thumbnailURL: nil
+        )
+        portrait.width = 1080
+        portrait.height = 1920
+
+        let rendered = BubbleMediaLayout.displaySize(for: portrait).width
+        XCTAssertLessThan(rendered, BubbleMediaLayout.maxWidth, "precondition: portrait is narrower")
         XCTAssertEqual(
-            BubbleChromePolicy.captionWidth + SanchrSpacing.bubbleHPadding * 2,
-            BubbleMediaLayout.maxWidth,
+            BubbleChromePolicy.captionWidth(forMediaWidth: rendered)
+                + SanchrSpacing.bubbleHPadding * 2,
+            rendered,
             accuracy: 0.001
         )
     }
 
-    func testCaptionWidthLeavesRoomToRead() {
-        XCTAssertGreaterThan(
-            BubbleChromePolicy.captionWidth, 120,
-            "an inset this deep would leave captions in a column too narrow to read"
+    /// Media clamped to `minSide` is a sliver. A caption still has to be
+    /// readable, so the floor wins there and the rim is accepted.
+    func testAVeryNarrowMediaStillGetsAReadableCaption() {
+        let width = BubbleChromePolicy.captionWidth(forMediaWidth: BubbleMediaLayout.minSide)
+        XCTAssertGreaterThan(width, 100, "a caption this narrow could not be read")
+        XCTAssertEqual(
+            width + SanchrSpacing.bubbleHPadding * 2,
+            BubbleChromePolicy.minimumCaptionedBubbleWidth,
+            accuracy: 0.001
         )
     }
 }
