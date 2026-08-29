@@ -413,7 +413,7 @@ private func makeMediaDownloadManager(grpcClient: GRPCClientProtocol) -> MediaDo
     )
 }
 
-private func makeRepo(spyService: SpyMessagingService) -> MessageRepositoryImpl {
+func makeRepo(spyService: SpyMessagingService) -> MessageRepositoryImpl {
     let grpcClient = StubGRPCClient(messagingService: spyService)
     return MessageRepositoryImpl(
         grpcClient: grpcClient,

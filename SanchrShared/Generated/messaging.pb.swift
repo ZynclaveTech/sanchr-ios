@@ -786,6 +786,22 @@ public struct Sanchr_Messaging_SealedDeviceMessage: Sendable {
   /// while the sealed envelope remains opaque.
   public var conversationID: String = String()
 
+  /// Set on sends that are not a message a person wrote: read receipts,
+  /// presence, and profile-key delivery. The server cannot see inside the
+  /// envelope, so without this it alerts for every send alike — which is why
+  /// starting a call produced a "New message" notification next to the call.
+  ///
+  /// The flag tells the server that this send does not warrant an alert. It is
+  /// deliberately phrased as an opt-out so an older client, which cannot set
+  /// it, keeps the behaviour it has today rather than falling silent.
+  ///
+  /// This does disclose one bit the server did not have: whether a send is
+  /// control traffic or a real message. Against what it already observes —
+  /// recipient, device fan-out, timing, size — that is a small addition, and
+  /// it buys back an alert that told the recipient's screen the same thing far
+  /// more loudly. Signal's envelope carries the same distinction as `urgent`.
+  public var silent: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2355,7 +2371,7 @@ extension Sanchr_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, Swif
 
 extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SealedDeviceMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0\u{3}conversation_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0\u{3}conversation_id\0\u{1}silent\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2367,6 +2383,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self.sealedEnvelope) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.silent) }()
       default: break
       }
     }
@@ -2385,6 +2402,9 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if !self.conversationID.isEmpty {
       try visitor.visitSingularStringField(value: self.conversationID, fieldNumber: 4)
     }
+    if self.silent != false {
+      try visitor.visitSingularBoolField(value: self.silent, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2393,6 +2413,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
     if lhs.conversationID != rhs.conversationID {return false}
+    if lhs.silent != rhs.silent {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

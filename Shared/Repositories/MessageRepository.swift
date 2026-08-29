@@ -383,13 +383,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 plaintext: innerPayload,
                 recipientId: peerId
             )
-            for dm in encrypted {
-                var sdm = Sanchr_Messaging_SealedDeviceMessage()
-                sdm.recipientID = dm.recipientID
-                sdm.deviceID = dm.deviceID
-                sdm.sealedEnvelope = dm.ciphertext
-                sealedDeviceMessages.append(sdm)
-            }
+            sealedDeviceMessages.append(
+                contentsOf: buildSealedDeviceMessages(from: encrypted, kind: .message)
+            )
         }
 
         var request = Sanchr_Messaging_SendSealedMessageRequest()
@@ -601,6 +597,47 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return conversation.participants.first { $0.id != myUserId && !$0.id.isEmpty }?.id
     }
 
+    /// Whether a send should make the recipient's phone ring out.
+    ///
+    /// Read receipts, presence and profile-key delivery travel by the same RPC
+    /// as a message someone typed. The envelope is sealed, so the server cannot
+    /// tell them apart and alerted for every send alike — which is why starting
+    /// a call produced a "New message" notification next to the call.
+    ///
+    /// Modelled as an enum rather than a bare bool so a new sealed send has to
+    /// say which kind it is at the call site, where whoever is writing it knows
+    /// the answer. A defaulted flag would silently pick one.
+    enum SealedSendKind {
+        /// Something a person wrote. Alerts.
+        case message
+        /// Machinery: receipts, presence, keys. Delivered live exactly as
+        /// before, but does not wake an offline device with a notification.
+        case control
+
+        var isSilent: Bool { self == .control }
+    }
+
+    /// Builds the per-device wire messages for a sealed send.
+    ///
+    /// Four call sites had grown four identical copies of this loop, so the
+    /// `silent` flag would have had to be remembered in each of them
+    /// separately. One builder, one argument, no way to omit it.
+    func buildSealedDeviceMessages(
+        from encrypted: [Sanchr_Messaging_DeviceMessage],
+        kind: SealedSendKind,
+        conversationId: String? = nil
+    ) -> [Sanchr_Messaging_SealedDeviceMessage] {
+        encrypted.map { dm in
+            var sdm = Sanchr_Messaging_SealedDeviceMessage()
+            sdm.recipientID = dm.recipientID
+            sdm.deviceID = dm.deviceID
+            sdm.sealedEnvelope = dm.ciphertext
+            sdm.silent = kind.isSilent
+            if let conversationId { sdm.conversationID = conversationId }
+            return sdm
+        }
+    }
+
     private func sendSealedReceipt(
         conversationId: String,
         messageId: String,
@@ -637,13 +674,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             )
             guard !encrypted.isEmpty else { return }
 
-            let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
-                var sdm = Sanchr_Messaging_SealedDeviceMessage()
-                sdm.recipientID = dm.recipientID
-                sdm.deviceID = dm.deviceID
-                sdm.sealedEnvelope = dm.ciphertext
-                return sdm
-            }
+            let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
 
             var request = Sanchr_Messaging_SendSealedMessageRequest()
             request.deliveryToken = deliveryToken
@@ -943,13 +974,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         )
         guard !encrypted.isEmpty else { return }
 
-        let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
-            var sdm = Sanchr_Messaging_SealedDeviceMessage()
-            sdm.recipientID = dm.recipientID
-            sdm.deviceID = dm.deviceID
-            sdm.sealedEnvelope = dm.ciphertext
-            return sdm
-        }
+        let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
 
         var request = Sanchr_Messaging_SendSealedMessageRequest()
         request.deliveryToken = deliveryToken
@@ -1197,13 +1222,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         )
         guard !encrypted.isEmpty else { return }
 
-        let deviceMessages = encrypted.map { dm -> Sanchr_Messaging_SealedDeviceMessage in
-            var sdm = Sanchr_Messaging_SealedDeviceMessage()
-            sdm.recipientID = dm.recipientID
-            sdm.deviceID = dm.deviceID
-            sdm.sealedEnvelope = dm.ciphertext
-            return sdm
-        }
+        let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
 
         var request = Sanchr_Messaging_SendSealedMessageRequest()
         request.deliveryToken = deliveryToken
