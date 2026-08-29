@@ -14,6 +14,11 @@ struct GalleryVideoView: UIViewControllerRepresentable {
     @Binding var isActive: Bool
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
+        // Without this the session keeps its default category, which obeys the
+        // ring/silent switch — so a video opened on a silenced phone played
+        // with no sound and no clue why.
+        GalleryAudioSession.activateForPlayback()
+
         let vc = AVPlayerViewController()
         vc.player = AVPlayer(url: url)
         vc.showsPlaybackControls = true
@@ -36,5 +41,6 @@ struct GalleryVideoView: UIViewControllerRepresentable {
     ) {
         vc.player?.pause()
         vc.player = nil
+        GalleryAudioSession.deactivate()
     }
 }
