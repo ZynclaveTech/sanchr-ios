@@ -179,7 +179,8 @@ extension ChatDetailViewModel {
     func retryMessage(
         _ message: Message,
         sessionService: SessionService,
-        messageSender: MessageSender
+        messageSender: MessageSender,
+        mediaCache: MediaDownloadManager
     ) async {
         guard message.status == .failed else { return }
 
@@ -208,16 +209,21 @@ extension ChatDetailViewModel {
             }
             messages.removeAll { $0.id == message.id }
             rebuildSections()
-            do {
-                _ = try await messageSender.sendMedia(
-                    attachment: attachment,
-                    caption: attachment.caption,
-                    to: message.conversationId,
-                    progress: { _ in }
-                )
-            } catch {
-                SanchrLogger.chat.error("Media retry failed: \(error.localizedDescription)")
-            }
+            // Retry went straight to the sender, which writes a database row
+            // but never touches the transcript — so a retried message vanished
+            // until something else reloaded the chat, showed no upload
+            // progress, and seeded no cache entry. Going through the normal
+            // send path inherits all three rather than reimplementing them.
+            await sendMediaMessage(
+                localFileURL: attachment.url,
+                mimeType: attachment.mimeType,
+                contentType: message.content,
+                conversationId: message.conversationId,
+                caption: attachment.caption,
+                sessionService: sessionService,
+                messageSender: messageSender,
+                mediaCache: mediaCache
+            )
 
         default:
             SanchrLogger.chat.warning("Retry not supported for content type in message \(message.id)")

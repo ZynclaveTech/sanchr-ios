@@ -70,15 +70,12 @@ struct MediaBubbleImage: View {
     }
 
     private var cachedMediaFilePath: URL? {
-        let ext: String
-        if attachment.mimeType.contains("png") {
-            ext = "png"
-        } else if attachment.mimeType.hasPrefix("video/") {
-            return nil
-        } else {
-            ext = "jpg"
-        }
-        let filePath = Self.thumbCacheDir.appendingPathComponent("\(messageId).\(ext)")
+        // Video is excluded on purpose: this feeds the still-image downsampler,
+        // and a video is served from its poster instead.
+        guard !attachment.mimeType.hasPrefix("video/") else { return nil }
+        let filePath = Self.thumbCacheDir.appendingPathComponent(
+            MediaCacheFile.fileName(messageId: messageId, mimeType: attachment.mimeType)
+        )
         return FileManager.default.fileExists(atPath: filePath.path) ? filePath : nil
     }
 
@@ -378,14 +375,10 @@ struct MediaBubbleImage: View {
         return nil
     }
 
+    /// Must match what the writer used, which is why it is no longer derived
+    /// here. See `MediaCacheFile`.
     private var mediaCacheExtension: String {
-        if attachment.mimeType.contains("png") {
-            return "png"
-        }
-        if attachment.mimeType.hasPrefix("video/") {
-            return attachment.mimeType.contains("quicktime") ? "mov" : "mp4"
-        }
-        return "jpg"
+        MediaCacheFile.fileExtension(for: attachment.mimeType)
     }
 
     private func generateAndCacheThumb(from videoURL: URL, scale: CGFloat, targetSize: CGSize) async -> UIImage? {

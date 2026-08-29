@@ -379,7 +379,8 @@ struct ChatDetailView: View {
                         await viewModel.retryMessage(
                             message,
                             sessionService: container.sessionService,
-                            messageSender: container.messageSender
+                            messageSender: container.messageSender,
+                            mediaCache: container.mediaDownloadManager
                         )
                     },
                     onLoadMore: {
@@ -1076,7 +1077,8 @@ struct ChatDetailView: View {
             recipientId: recipient?.id ?? "",
             sessionService: container.sessionService,
             messageSender: container.messageSender,
-            vaultSharingCoordinator: container.vaultSharingCoordinator
+            vaultSharingCoordinator: container.vaultSharingCoordinator,
+            mediaCache: container.mediaDownloadManager
         )
     }
 
@@ -1176,7 +1178,8 @@ struct ChatDetailView: View {
                 conversationId: conversation.id,
                 caption: caption,
                 sessionService: container.sessionService,
-                messageSender: container.messageSender
+                messageSender: container.messageSender,
+                mediaCache: container.mediaDownloadManager
             )
         }
     }
@@ -1536,7 +1539,8 @@ struct ChatDetailView: View {
             caption: caption,
             conversationId: conversation.id,
             sessionService: container.sessionService,
-            messageSender: container.messageSender
+            messageSender: container.messageSender,
+            mediaCache: container.mediaDownloadManager
         )
     }
 
@@ -1552,7 +1556,8 @@ struct ChatDetailView: View {
             conversationId: conversation.id,
             caption: caption.isEmpty ? nil : caption,
             sessionService: container.sessionService,
-            messageSender: container.messageSender
+            messageSender: container.messageSender,
+            mediaCache: container.mediaDownloadManager
         )
     }
 
