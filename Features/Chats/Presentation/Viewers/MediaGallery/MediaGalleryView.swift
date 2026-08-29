@@ -281,21 +281,34 @@ struct MediaGalleryView: View {
         }
     }
 
+    /// Whether the page on screen is a video, and therefore already has a full
+    /// set of controls of its own.
+    private var currentPageIsVideo: Bool {
+        presentation.items.indices.contains(currentIndex)
+            && presentation.items[currentIndex].kind == .video
+    }
+
     @ViewBuilder
     private var chromeOverlay: some View {
         VStack {
             SanchrGlassCluster(spacing: 20) {
                 HStack {
-                    SanchrIconButton(
-                        systemName: "xmark",
-                        foreground: .white,
-                        background: Color.white.opacity(0.2),
-                        size: 36,
-                        glassTint: Color.white.opacity(0.12)
-                    ) {
-                        onDismiss()
+                    // `AVPlayerViewController` draws its own close button, so
+                    // a video page had two of them, one under the other. The
+                    // player's wins: it is the one sitting with the AirPlay
+                    // and mute buttons it belongs to.
+                    if !currentPageIsVideo {
+                        SanchrIconButton(
+                            systemName: "xmark",
+                            foreground: .white,
+                            background: Color.white.opacity(0.2),
+                            size: 36,
+                            glassTint: Color.white.opacity(0.12)
+                        ) {
+                            onDismiss()
+                        }
+                        .padding(.leading, 16)
                     }
-                    .padding(.leading, 16)
 
                     Spacer()
 
@@ -331,7 +344,10 @@ struct MediaGalleryView: View {
                     .padding(.trailing, 16)
                 }
             }
-            .padding(.top, 50)
+            // Clear of the player's own control row on a video page. The
+            // player owns the top of the screen there; this row has to start
+            // below it rather than land on top of it.
+            .padding(.top, currentPageIsVideo ? 108 : 50)
 
             Spacer()
         }
