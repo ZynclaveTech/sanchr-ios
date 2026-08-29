@@ -69,10 +69,18 @@ final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if imageView.image != nil {
-            imageView.frame = bounds
-            centerImage()
+        guard imageView.image != nil else { return }
+
+        // Only while at rest. During a zoom the scroll view is driving this
+        // view's frame itself, and overwriting it here would fight the pinch.
+        if zoomScale == 1 {
+            imageView.frame = CGRect(
+                origin: .zero,
+                size: GalleryImageLayout.fittedSize(for: imageView.image?.size, in: bounds.size)
+            )
+            contentSize = imageView.frame.size
         }
+        centerImage()
     }
 
     func setImage(_ image: UIImage?) {
@@ -92,18 +100,21 @@ final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
         isZoomed = zoomScale > 1.01
     }
 
-    /// Recenter the image when zoomed out below fill so it doesn't stick
-    /// to the top-left corner.
+    /// Keeps the image centred when it is smaller than the viewport.
+    ///
+    /// Done with `contentInset` rather than by nudging the image's frame,
+    /// because the frame is what bounds the pan: padding it out to the
+    /// viewport would put empty space back inside the scrollable area, which
+    /// is the whole problem this avoids.
     private func centerImage() {
-        let boundsSize = bounds.size
-        var frameToCenter = imageView.frame
-        frameToCenter.origin.x = frameToCenter.width < boundsSize.width
-            ? (boundsSize.width - frameToCenter.width) / 2
-            : 0
-        frameToCenter.origin.y = frameToCenter.height < boundsSize.height
-            ? (boundsSize.height - frameToCenter.height) / 2
-            : 0
-        imageView.frame = frameToCenter
+        let horizontal = max(0, (bounds.width - imageView.frame.width) / 2)
+        let vertical = max(0, (bounds.height - imageView.frame.height) / 2)
+        contentInset = UIEdgeInsets(
+            top: vertical,
+            left: horizontal,
+            bottom: vertical,
+            right: horizontal
+        )
     }
 
     @objc private func handleDoubleTap(_ gr: UITapGestureRecognizer) {
