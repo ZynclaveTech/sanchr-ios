@@ -258,6 +258,21 @@ message SealedDeviceMessage {
   // per-device conversation notification mutes before sending silent APNs,
   // while the sealed envelope remains opaque.
   string conversation_id = 4;
+  // Set on sends that are not a message a person wrote: read receipts,
+  // presence, and profile-key delivery. The server cannot see inside the
+  // envelope, so without this it alerts for every send alike — which is why
+  // starting a call produced a "New message" notification next to the call.
+  //
+  // The flag tells the server that this send does not warrant an alert. It is
+  // deliberately phrased as an opt-out so an older client, which cannot set
+  // it, keeps the behaviour it has today rather than falling silent.
+  //
+  // This does disclose one bit the server did not have: whether a send is
+  // control traffic or a real message. Against what it already observes —
+  // recipient, device fan-out, timing, size — that is a small addition, and
+  // it buys back an alert that told the recipient's screen the same thing far
+  // more loudly. Signal's envelope carries the same distinction as `urgent`.
+  bool silent = 5;
 }
 
 message SendSealedMessageResponse {
