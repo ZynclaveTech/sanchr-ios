@@ -83,21 +83,31 @@ struct MessageBubble: View {
                         .padding(.bottom, 4)
                     }
 
+                    // Media already draws a rounded rectangle of its own, at
+                    // its own size. A padded, shadowed, stroked bubble behind
+                    // it is a second rounded rectangle a few points larger,
+                    // visible only as a rim. See `BubbleChrome`.
                     messageContent
-                        .padding(.horizontal, SanchrSpacing.bubbleHPadding)
-                        .padding(.vertical, SanchrSpacing.bubbleVPadding)
-                        .background(bubbleBackground)
+                        .padding(.horizontal, chrome.padsContent ? SanchrSpacing.bubbleHPadding : 0)
+                        .padding(.vertical, chrome.padsContent ? SanchrSpacing.bubbleVPadding : 0)
+                        .background {
+                            if chrome.drawsBackground {
+                                bubbleBackground.clipShape(bubbleShape)
+                            }
+                        }
                         .clipShape(bubbleShape)
                         .shadow(
-                            color: message.isOutgoing
-                                ? Color.black.opacity(0.1)
-                                : Color.black.opacity(0.04),
+                            color: chrome.drawsBackground
+                                ? (message.isOutgoing
+                                    ? Color.black.opacity(0.1)
+                                    : Color.black.opacity(0.04))
+                                : .clear,
                             radius: message.isOutgoing ? 6 : 3,
                             x: 0,
                             y: message.isOutgoing ? 2 : 1
                         )
                         .overlay {
-                            if !message.isOutgoing {
+                            if !message.isOutgoing, chrome.drawsBackground {
                                 bubbleShape
                                     .stroke(SanchrExportColors.line, lineWidth: 1)
                             }
@@ -124,7 +134,18 @@ struct MessageBubble: View {
     private var messageContent: some View {
         switch message.content {
         case .text(let text):
-            if let fallback = AttachmentFallbackParser.parse(text) {
+            if let emoji = BubbleChromePolicy.jumboEmoji(in: text) {
+                // A message that is nothing but emoji is a gesture, not a
+                // sentence. Both Signal and WhatsApp drop the bubble and draw
+                // it large; at body size in a bubble it reads as punctuation.
+                Text(emoji)
+                    .font(.system(size: BubbleChromePolicy.jumboEmojiSize(for: emoji)))
+                    // Emoji render from a colour font, so the bubble's white
+                    // foreground never applied to them anyway — but it does
+                    // apply to any variation selector that falls back to text.
+                    .foregroundColor(SanchrExportColors.textPrimary)
+                    .accessibilityLabel(emoji)
+            } else if let fallback = AttachmentFallbackParser.parse(text) {
                 switch fallback {
                 case .contact(let name, let phone):
                     if let phone, !phone.isEmpty {
@@ -334,13 +355,22 @@ struct MessageBubble: View {
     /// to the media's own width so the bubble does not grow wider than the
     /// picture it belongs to.
     @ViewBuilder
+    /// Carries its own padding: with a caption the bubble is back, but the
+    /// media sits flush to its edges, so the container pads nothing and the
+    /// inset belongs to the text.
     private func mediaCaption(_ caption: String?) -> some View {
         if let caption, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text(caption)
                 .font(SanchrTypography.messageBubbleText)
                 .foregroundColor(messageTextColor)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: BubbleMediaLayout.maxWidth, alignment: .leading)
+                // The caption plus its own inset must come to exactly the
+                // media's width, or the bubble grows wider than the photo and
+                // the photo stops being flush with the edge it is supposed to
+                // meet.
+                .frame(maxWidth: BubbleChromePolicy.captionWidth, alignment: .leading)
+                .padding(.horizontal, SanchrSpacing.bubbleHPadding)
+                .padding(.bottom, SanchrSpacing.bubbleVPadding)
         }
     }
 
@@ -422,6 +452,10 @@ struct MessageBubble: View {
                 }
             }
         }
+    }
+
+    private var chrome: BubbleChrome {
+        BubbleChromePolicy.chrome(for: message.content)
     }
 
     private var bubbleBackground: some View {
