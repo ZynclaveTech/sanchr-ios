@@ -17,6 +17,12 @@ struct MediaGalleryView: View {
 
     @Environment(DependencyContainer.self) private var container
     @State private var currentIndex: Int
+    /// True while the visible page is zoomed in. Swipe-to-dismiss stands down
+    /// then, because every drag belongs to the image's own pan.
+    @State private var isZoomed = false
+    /// Which way the current drag went first. Locked on the first movement so
+    /// a drag that starts sideways can never turn into a dismiss halfway.
+    @State private var dragIsVertical: Bool?
     @State private var dragOffset: CGFloat = 0
     @State private var backgroundOpacity: Double = 1
     @State private var chromeVisible: Bool = true
@@ -85,14 +91,22 @@ struct MediaGalleryView: View {
                     GalleryPageView(
                         item: item,
                         isActive: index == currentIndex,
-                        loader: pageLoader
+                        loader: pageLoader,
+                        onZoomChange: { zoomed in
+                            if index == currentIndex { isZoomed = zoomed }
+                        }
                     )
                         .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .offset(y: dragOffset)
-            .highPriorityGesture(dismissDrag)
+            // Simultaneous, not high-priority. A high-priority drag claimed
+            // every one-finger gesture in the viewer before the page view or
+            // the zoomed image could see it, which killed swiping between
+            // photos and panning a zoomed one — pinch survived only because it
+            // takes two fingers.
+            .simultaneousGesture(dismissDrag)
 
             if chromeVisible {
                 chromeOverlay
@@ -103,6 +117,13 @@ struct MediaGalleryView: View {
         // VStack spanned the whole screen and sat above the pager, so it
         // swallowed the pinch and pan the zoomable image needs — the strip has
         // to occupy only the band it actually draws in.
+        // The chrome toggle is attached here, before the filmstrip goes on, so
+        // that tapping a thumbnail selects it instead of hiding the strip the
+        // thumbnail lives in.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) { chromeVisible.toggle() }
+        }
         .overlay(alignment: .bottom) {
             if chromeVisible, presentation.items.count > 1 {
                 GalleryFilmstrip(
@@ -115,9 +136,6 @@ struct MediaGalleryView: View {
         }
         .statusBarHidden(true)
         .modifier(ScreenshotProtectionModifier(isActive: anyViewOnceVisible || perChatScreenshotProtection))
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.2)) { chromeVisible.toggle() }
-        }
         .task(id: currentIndex) {
             pageLoader.updateWindow(
                 items: presentation.items,
@@ -315,14 +333,35 @@ struct MediaGalleryView: View {
     // MARK: - Dismiss drag
 
     private var dismissDrag: some Gesture {
-        DragGesture()
+        DragGesture(minimumDistance: GalleryDragPolicy.minimumDistance)
             .onChanged { value in
-                guard value.translation.height > 0 else { return }
+                // A zoomed image owns every drag; dismissing from there would
+                // fight the pan.
+                guard !isZoomed else { return }
+
+                // Decide the axis once, on the first movement past the
+                // threshold. Without the lock a swipe between photos that
+                // sagged a few points downward would start dragging the whole
+                // viewer away mid-page-turn.
+                if dragIsVertical == nil {
+                    dragIsVertical = GalleryDragPolicy.isVertical(value.translation)
+                }
+                guard dragIsVertical == true, value.translation.height > 0 else { return }
+
                 dragOffset = value.translation.height
-                backgroundOpacity = max(0, 1 - Double(value.translation.height / 400))
+                backgroundOpacity = GalleryDragPolicy.backgroundOpacity(
+                    forDrop: value.translation.height
+                )
             }
             .onEnded { value in
-                if value.translation.height > 120 || value.predictedEndTranslation.height > 240 {
+                let wasVertical = dragIsVertical == true
+                dragIsVertical = nil
+                guard !isZoomed, wasVertical else { return }
+
+                if GalleryDragPolicy.shouldDismiss(
+                    translation: value.translation,
+                    predictedEnd: value.predictedEndTranslation
+                ) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         dragOffset = 1000
                         backgroundOpacity = 0

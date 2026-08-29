@@ -4,6 +4,7 @@ struct GalleryPageView: View {
     let item: GalleryItem
     let isActive: Bool
     @ObservedObject var loader: GalleryPageLoader
+    var onZoomChange: ((Bool) -> Void)?
 
     var body: some View {
         let state = loader.state(for: item)
@@ -22,7 +23,7 @@ struct GalleryPageView: View {
     @ViewBuilder
     private func imageContent(state: GalleryPageLoader.PageState) -> some View {
         if let image = state.image {
-            GalleryImageView(image: image)
+            GalleryImageView(image: image, onZoomChange: onZoomChange)
                 .ignoresSafeArea()
         } else if let error = state.error {
             retryView(error: error)
