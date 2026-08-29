@@ -10,12 +10,22 @@ import UIKit
 /// without dropping frames, so we hand-build the recipe in UIKit.
 struct GalleryImageView: UIViewRepresentable {
     let image: UIImage?
+    /// Reports whether the page is zoomed in.
+    ///
+    /// The gallery needs this to know whether a drag belongs to it or to this
+    /// scroll view: at rest a downward drag dismisses the viewer, but once the
+    /// image is zoomed every drag is a pan and the viewer must keep its hands
+    /// off.
+    var onZoomChange: ((Bool) -> Void)?
 
     func makeUIView(context: Context) -> ZoomableImageScrollView {
-        ZoomableImageScrollView()
+        let view = ZoomableImageScrollView()
+        view.onZoomChange = onZoomChange
+        return view
     }
 
     func updateUIView(_ view: ZoomableImageScrollView, context: Context) {
+        view.onZoomChange = onZoomChange
         view.setImage(image)
     }
 }
@@ -24,6 +34,14 @@ struct GalleryImageView: UIViewRepresentable {
 /// independently of SwiftUI wiring later if needed.
 final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
     let imageView = UIImageView()
+    var onZoomChange: ((Bool) -> Void)?
+
+    private var isZoomed = false {
+        didSet {
+            guard isZoomed != oldValue else { return }
+            onZoomChange?(isZoomed)
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -60,6 +78,7 @@ final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
     func setImage(_ image: UIImage?) {
         imageView.image = image
         setZoomScale(1, animated: false)
+        isZoomed = false
         setNeedsLayout()
     }
 
@@ -67,6 +86,10 @@ final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         centerImage()
+        // A hair above 1: bouncesZoom lets the scale drift a fraction past the
+        // minimum during a pinch, and treating that as "zoomed" would leave
+        // swipe-to-dismiss disabled after the image has settled back.
+        isZoomed = zoomScale > 1.01
     }
 
     /// Recenter the image when zoomed out below fill so it doesn't stick
