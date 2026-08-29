@@ -20,6 +20,13 @@ struct MediaBubbleImage: View {
     /// keeps one copy of the download, decrypt, cache, auto-download-policy
     /// and retry behaviour instead of a second implementation that would drift.
     var fixedSize: CGSize?
+    /// Corner radius for this view's own clip.
+    ///
+    /// A standalone photo rounds itself. A tile inside a collage must not: the
+    /// collage rounds its outer corners as a whole, and a tile that also
+    /// rounded all four of its own turned an album into four separate squares
+    /// instead of one picture divided up.
+    var cornerRadius: CGFloat = 14
     @Environment(DependencyContainer.self) private var container
     @State private var resolvedImage: UIImage?
     @State private var placeholderImage: UIImage?
@@ -141,14 +148,14 @@ struct MediaBubbleImage: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: displaySize.width, height: displaySize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay {
                         if let progress = uploadProgress, resolvedImage != nil {
                             progressOverlay(progress: progress)
                         }
                     }
             } else {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
                     .frame(width: displaySize.width, height: displaySize.height)
                     .overlay {
@@ -426,7 +433,7 @@ struct MediaBubbleImage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

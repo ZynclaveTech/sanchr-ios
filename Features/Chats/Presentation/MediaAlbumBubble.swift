@@ -32,7 +32,11 @@ struct MediaAlbumBubble: View {
                         messageId: "\(messageId)#\(tile.index)",
                         conversationId: conversationId,
                         isOutgoing: isOutgoing,
-                        fixedSize: tile.rect.size
+                        fixedSize: tile.rect.size,
+                        // Square: the collage rounds its own outer corners, and
+                        // a tile rounding all four of its own made an album read
+                        // as four separate photos rather than one.
+                        cornerRadius: 0
                     )
                     .frame(width: tile.rect.width, height: tile.rect.height)
                     .clipped()
