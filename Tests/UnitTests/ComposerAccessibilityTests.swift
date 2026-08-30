@@ -42,8 +42,11 @@ final class ComposerAccessibilityTests: XCTestCase {
     /// "Attachments" while showing a close button.
     func testStatefulControlsRelabelWithTheirGlyph() throws {
         let source = try composerSource
+        // "Close", not "Close attachments": the button closes whichever tray
+        // is open — emoji and stickers included — so naming one of them would
+        // be wrong in two cases out of three.
         XCTAssertTrue(
-            source.contains("\"Close attachments\""),
+            source.contains("activeTray != nil ? \"Close\" : \"Attachments\""),
             "the + button turns into a close button and must say so"
         )
         XCTAssertTrue(
