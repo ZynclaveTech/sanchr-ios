@@ -1057,6 +1057,8 @@ private final class ProfileResolverDatabase: LocalDatabaseProtocol, @unchecked S
         self.conversations = conversations
     }
 
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws {}
     func deleteMessage(id: String) async throws {}
     func purgeExpiredMessages() async throws -> [String] { [] }

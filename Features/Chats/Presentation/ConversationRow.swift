@@ -37,7 +37,19 @@ struct ConversationRow: View {
                     }
 
                     Group {
-                        if conversation.type == .group,
+                        // A draft outranks the last message: it is the thing
+                        // the user left unfinished, and it is why they are
+                        // looking at this row. It does not outrank "typing…",
+                        // which is about the other person and is live.
+                        if let draft = draftPreview {
+                            (Text("Draft: ")
+                                .font(SanchrTypography.conversationPreviewBold)
+                                .foregroundColor(SanchrColors.error)
+                            + Text(draft)
+                                .font(SanchrTypography.conversationPreview)
+                                .foregroundColor(SanchrExportColors.textSecondary))
+                            .lineLimit(1)
+                        } else if conversation.type == .group,
                            let lastMessage = conversation.lastMessage,
                            !lastMessage.isOutgoing,
                            let sender = conversation.participants.first(where: { $0.id == lastMessage.senderId }) {
@@ -215,6 +227,21 @@ struct ConversationRow: View {
         case .offline:
             return SanchrColors.statusOffline
         }
+    }
+
+    /// Unsent text for this chat, when there is any and the peer is not
+    /// actively typing.
+    private var draftPreview: String? {
+        let isPeerTyping = conversation.participants
+            .first(where: { !$0.isLocalUser })?.status == .typing
+        guard !isPeerTyping else { return nil }
+        guard let draft = conversation.draftText?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !draft.isEmpty
+        else {
+            return nil
+        }
+        return draft
     }
 
     private var messagePreview: String {

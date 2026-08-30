@@ -86,6 +86,8 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     var deletedIds: [String] { queue.sync { _deletedIds } }
     var statusUpdates: [(id: String, status: Message.DeliveryStatus)] { queue.sync { _statusUpdates } }
 
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws {
         if let e = saveMessageError { throw e }
         queue.sync { _savedMessages.append(message) }

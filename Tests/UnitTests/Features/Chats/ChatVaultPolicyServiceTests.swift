@@ -93,6 +93,8 @@ private final class StubVaultDatabase: LocalDatabaseProtocol, @unchecked Sendabl
     }
 
     // Crash-on-call stubs for the rest of the protocol.
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws { fatalError() }
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws { fatalError() }
     func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] { fatalError() }

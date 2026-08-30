@@ -41,6 +41,13 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func fetchArchivedChatSummaries() async throws -> [ShareChatSummary]
     func fetchHiddenChatSummaries() async throws -> [ShareChatSummary]
     func setConversationHidden(id: String, isHidden: Bool) async throws
+
+    /// Stores unsent composer text, or clears it when `text` is nil or blank.
+    func saveDraft(conversationId: String, text: String?) async throws
+
+    /// Reads a single conversation's draft without loading the whole
+    /// conversation, so opening a chat does not pay for a full fetch.
+    func draft(conversationId: String) async throws -> String?
     func deleteConversation(id: String) async throws
 
     // MARK: - Contacts
@@ -525,6 +532,28 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             _ = try ConversationRecord
                 .filter(Column("id") == id)
                 .updateAll(db, Column("isHidden").set(to: isHidden))
+        }
+    }
+
+    public func saveDraft(conversationId: String, text: String?) async throws {
+        // Blank is the same as absent. Storing "   " would leave the chat list
+        // advertising a draft that looks empty when opened.
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stored: String? = (trimmed?.isEmpty ?? true) ? nil : text
+        try await dbPool.write { db in
+            _ = try ConversationRecord
+                .filter(Column("id") == conversationId)
+                .updateAll(db, Column("draftText").set(to: stored))
+        }
+    }
+
+    public func draft(conversationId: String) async throws -> String? {
+        try await dbPool.read { db in
+            try String.fetchOne(
+                db,
+                sql: "SELECT draftText FROM conversation WHERE id = ?",
+                arguments: [conversationId]
+            )
         }
     }
 
@@ -1313,6 +1342,10 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         var merged = incoming
         merged.createdAt = min(existing.createdAt, incoming.createdAt)
         merged.isHidden = existing.isHidden || incoming.isHidden
+        // Local-only, like isHidden. A conversation refreshed from the server
+        // carries no draft, so taking the incoming value would silently delete
+        // whatever the user had half-written the moment anything synced.
+        merged.draftText = existing.draftText
 
         let shouldPreserveExistingPreview: Bool = {
             guard let existingTimestamp = existing.lastMessageTimestamp else { return false }
@@ -1575,6 +1608,8 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func fetchArchivedChatSummaries() async throws -> [ShareChatSummary] { throw error }
     public func fetchHiddenChatSummaries() async throws -> [ShareChatSummary] { throw error }
     public func setConversationHidden(id: String, isHidden: Bool) async throws { throw error }
+    public func saveDraft(conversationId: String, text: String?) async throws { throw error }
+    public func draft(conversationId: String) async throws -> String? { throw error }
     public func deleteConversation(id: String) async throws { throw error }
     public func saveContact(_ user: User) async throws { throw error }
     public func fetchContacts() async throws -> [User] { throw error }
