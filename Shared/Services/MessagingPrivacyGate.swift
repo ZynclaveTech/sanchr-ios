@@ -24,6 +24,19 @@ struct MessagingPrivacyGate: Sendable {
         case suppress
     }
 
+    /// Whether a decrypted message should be kept.
+    ///
+    /// Blocking is enforced on the server in `route_message`, keyed on the
+    /// sender — which the server knows only for the standard path. A sealed
+    /// message carries no sender the server can read; that is the point of
+    /// sealed sending. So for 1:1 chats, which use sealed sending whenever it
+    /// is available, the server cannot apply the block and this is the only
+    /// place left that can. `isBlocked` existed for it and was called from
+    /// nowhere, so a blocked contact could go on messaging you.
+    func acceptsMessage(from senderId: String) -> Decision {
+        privacySettings.isBlocked(senderId) ? .suppress : .allow
+    }
+
     enum PresenceDecision: Sendable, Equatable {
         case allow(Sanchr_Messaging_PresenceStatus)
         case suppress

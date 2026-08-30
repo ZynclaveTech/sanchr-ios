@@ -589,6 +589,23 @@ struct RootView: View {
                 )
             }
 
+            // The block list is part of that enforcement and was not being
+            // warmed, so the cache's blocked set was empty for the whole
+            // session and nothing was ever blocked. Fetched separately because
+            // it comes from the contact service, not the settings one.
+            do {
+                let contacts = ContactDataSource(
+                    grpcClient: container.grpcClient,
+                    localDatabase: container.localDatabase
+                )
+                let blocked = try await contacts.getBlockedList()
+                container.privacySettings.update(blockList: Set(blocked))
+            } catch {
+                SanchrLogger.settings.warning(
+                    "Block list warm-up failed on launch: \(error.localizedDescription)"
+                )
+            }
+
             // Restore the profile after a reinstall. The Profile Key comes back
             // via iCloud Keychain, but the local name/snapshot does not, so the
             // session has no display name and RootView would send the user back
