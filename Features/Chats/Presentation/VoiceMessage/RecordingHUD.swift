@@ -8,7 +8,14 @@ import SanchrShared
 /// nothing as the gesture completes, so the drag has somewhere to arrive
 /// rather than just fading.
 struct RecordingHUD: View {
-    let elapsed: TimeInterval
+    /// When recording began. The HUD derives the clock from this itself.
+    ///
+    /// It used to be handed a pre-computed `elapsed`, recomputed only when the
+    /// composer's body happened to run again — which was driven by mutating a
+    /// `@State` that the body never read. SwiftUI has no reason to re-evaluate
+    /// a view over state it does not consume, so the timer sat at 0:00 and the
+    /// waveform never moved.
+    let startedAt: Date
     let liveSamples: [Float]
     let dragOffset: CGSize
     let locked: Bool
@@ -32,6 +39,12 @@ struct RecordingHUD: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: startedAt, by: 0.1)) { context in
+            content(elapsed: max(0, context.date.timeIntervalSince(startedAt)))
+        }
+    }
+
+    private func content(elapsed: TimeInterval) -> some View {
         HStack(spacing: 12) {
             Circle()
                 .fill(Color.red)

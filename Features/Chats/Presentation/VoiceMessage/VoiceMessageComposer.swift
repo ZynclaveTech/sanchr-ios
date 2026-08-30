@@ -16,7 +16,6 @@ struct VoiceMessageComposer: View {
     @Binding var isCapturing: Bool
 
     @State private var state: VoiceMessageState = .idle
-    @State private var elapsed: TimeInterval = 0
     @State private var liveSamples: [Float] = []
     @State private var showTooShortToast = false
     /// Set when recording could not start. Holding the mic used to do nothing
@@ -24,7 +23,17 @@ struct VoiceMessageComposer: View {
     /// permission, was swallowed into `.idle` with nothing on screen.
     @State private var startFailure: StartFailure?
 
-    private let recorder = VoiceRecorder()
+    /// Owned, not rebuilt.
+    ///
+    /// This was a plain `let` on a view struct, so a new recorder was
+    /// constructed every time the composer was re-initialised — which SwiftUI
+    /// does freely. The `.task` iterating `meterStream` captured whichever
+    /// instance existed when it started, while `startRecording()` ran against
+    /// whichever exists now. Once those were different objects the meters went
+    /// to a stream nobody was reading: no waveform, and — since the elapsed
+    /// time was recomputed only when something else redrew the body — a clock
+    /// stuck at 0:00.
+    @State private var recorder = VoiceRecorder()
 
     var body: some View {
         Group {
@@ -33,7 +42,7 @@ struct VoiceMessageComposer: View {
                 micButton
             case .recording(let startedAt, let dragOffset, let locked):
                 RecordingHUD(
-                    elapsed: Date().timeIntervalSince(startedAt),
+                    startedAt: startedAt,
                     liveSamples: liveSamples,
                     dragOffset: dragOffset,
                     locked: locked,
@@ -96,22 +105,6 @@ struct VoiceMessageComposer: View {
                     message: Text(failure.message),
                     dismissButton: .default(Text("OK"))
                 )
-            }
-        }
-        // Runs only while recording. As a stored `.autoconnect()` publisher this
-        // fired ten times a second for the entire life of the chat screen, for
-        // a value that is only read during a recording.
-        //
-        // The tick is what redraws the HUD: `elapsed` is never displayed —
-        // `RecordingHUD` computes the time from `startedAt` — so its only job
-        // is to invalidate the body. That was previously implicit enough that
-        // deleting the "unused" variable would have silently frozen the timer.
-        .task(id: isRecording) {
-            guard isRecording else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                guard !Task.isCancelled else { return }
-                elapsed += 0.1
             }
         }
         .task {
@@ -242,7 +235,6 @@ struct VoiceMessageComposer: View {
                 locked: UIAccessibility.isVoiceOverRunning
             )
             liveSamples = []
-            elapsed = 0
         } catch VoiceRecorderError.permissionDenied {
             state = .idle
             startFailure = .microphoneDenied
