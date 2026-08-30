@@ -74,44 +74,19 @@ struct MessageBubble: View {
                 if message.isOutgoing { Spacer(minLength: 0) }
 
                 VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
-                    if message.replyToMessageId != nil {
-                        // Drawn ABOVE the bubble, on the transcript background —
-                        // not inside it. The colours here used to be the
-                        // bubble's white-on-gradient set, so an outgoing reply
-                        // rendered white text on a light background and was
-                        // effectively invisible.
-                        HStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(SanchrColors.primary)
-                                .frame(width: 3)
-
-                            VStack(alignment: .leading, spacing: 1) {
-                                if let quote = replyQuote, quote.quotedIsOutgoing {
-                                    Text("You")
-                                        .font(SanchrTypography.captionSmall)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(SanchrColors.primary)
-                                }
-
-                                // Falls back to the old wording only when the
-                                // quoted message is not in the transcript —
-                                // scrolled out of the loaded window, or deleted.
-                                Text(replyQuote?.preview ?? "Replied to a message")
-                                    .font(SanchrTypography.captionSmall)
-                                    .foregroundColor(SanchrExportColors.textSecondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .padding(.bottom, 4)
-                    }
-
                     // Media already draws a rounded rectangle of its own, at
                     // its own size. A padded, shadowed, stroked bubble behind
                     // it is a second rounded rectangle a few points larger,
                     // visible only as a rim. See `BubbleChrome`.
-                    messageContent
-                        .padding(.horizontal, chrome.padsContent ? SanchrSpacing.bubbleHPadding : 0)
-                        .padding(.vertical, chrome.padsContent ? SanchrSpacing.bubbleVPadding : 0)
+                    VStack(alignment: .leading, spacing: 0) {
+                        if message.replyToMessageId != nil {
+                            replyCard
+                        }
+
+                        messageContent
+                            .padding(.horizontal, chrome.padsContent ? SanchrSpacing.bubbleHPadding : 0)
+                            .padding(.vertical, chrome.padsContent ? SanchrSpacing.bubbleVPadding : 0)
+                    }
                         .background {
                             if chrome.drawsBackground {
                                 bubbleBackground.clipShape(bubbleShape)
@@ -486,7 +461,92 @@ struct MessageBubble: View {
     }
 
     private var chrome: BubbleChrome {
-        BubbleChromePolicy.chrome(for: message.content)
+        let base = BubbleChromePolicy.chrome(for: message.content)
+        // A quote needs something to sit on. Bare content — jumbo emoji, or
+        // media that draws its own shape — has no bubble, which would leave
+        // the card floating on the transcript with nothing tying it to the
+        // message it belongs to. `.media` keeps the content flush to the
+        // edges, so only the container comes back, not the inset.
+        guard message.replyToMessageId != nil, base == .none else { return base }
+        return .media
+    }
+
+    // MARK: - Quoted reply
+
+    /// The quoted message, drawn inside the bubble.
+    ///
+    /// It used to sit above the bubble on the transcript background, which
+    /// left a reply reading as two separate objects and made the quote compete
+    /// with the message rather than belong to it. Signal puts it inside, and
+    /// this follows `CVQuotedMessageView`: a stripe down the leading edge, a
+    /// tint over the bubble's own fill, the author named in semibold above a
+    /// single line of what they said — all in the bubble's own text colour
+    /// rather than a grey that would only be legible on one of the two fills.
+    ///
+    /// The corners echo Signal too: wide where the card meets the bubble's
+    /// outer edge, sharp where it meets the message below.
+    private var replyCard: some View {
+        HStack(spacing: Self.quoteStripeGap) {
+            Rectangle()
+                .fill(quoteStripeColor)
+                .frame(width: Self.quoteStripeThickness)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(replyQuote?.authorName ?? "Reply")
+                    .font(SanchrTypography.captionSmall)
+                    .fontWeight(.semibold)
+                    .foregroundColor(messageTextColor)
+                    .lineLimit(1)
+
+                // Falls back only when the quoted message is not in the
+                // transcript — scrolled out of the loaded window, or deleted.
+                Text(replyQuote?.preview ?? "Replied to a message")
+                    .font(SanchrTypography.captionSmall)
+                    .foregroundColor(messageTextColor.opacity(0.85))
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 6)
+
+            Spacer(minLength: 0)
+        }
+        .background(quoteTintColor)
+        .clipShape(
+            .rect(
+                topLeadingRadius: Self.quoteWideRadius,
+                bottomLeadingRadius: Self.quoteSharpRadius,
+                bottomTrailingRadius: Self.quoteSharpRadius,
+                topTrailingRadius: Self.quoteWideRadius
+            )
+        )
+        .padding(.horizontal, Self.quoteInset)
+        .padding(.top, Self.quoteInset)
+        .padding(.bottom, 2)
+        // Read as one unit: "Ravi, see you at six" rather than two fragments
+        // with no stated relationship.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "Replying to \(replyQuote?.authorName ?? "a message"): "
+                + (replyQuote?.preview ?? "message unavailable")
+        )
+    }
+
+    /// Signal's `stripeThickness`, `sharpCornerRadius` and `wideCornerRadius`.
+    private static let quoteStripeThickness: CGFloat = 4
+    private static let quoteStripeGap: CGFloat = 8
+    private static let quoteSharpRadius: CGFloat = 4
+    private static let quoteWideRadius: CGFloat = 10
+    private static let quoteInset: CGFloat = 4
+
+    private var quoteStripeColor: Color {
+        message.isOutgoing ? .white : SanchrColors.primary
+    }
+
+    /// Signal's `backgroundTint`: a wash over the bubble's fill, not a colour
+    /// of its own, so it works over both the gradient and the surface.
+    private var quoteTintColor: Color {
+        message.isOutgoing
+            ? Color.white.opacity(0.18)
+            : SanchrColors.primary.opacity(0.08)
     }
 
     private var bubbleBackground: some View {

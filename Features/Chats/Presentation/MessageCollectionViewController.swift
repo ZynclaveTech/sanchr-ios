@@ -37,6 +37,10 @@ enum MessageListSection: Hashable {
 struct ReplyQuote: Hashable {
     /// Whether the quoted message was sent by us, so the bubble can say "You".
     let quotedIsOutgoing: Bool
+    /// Who wrote the quoted message. Signal always names the author rather
+    /// than showing the quote unattributed — without it a reply says what was
+    /// said but not who said it, which is half the reason to quote at all.
+    let authorName: String
     /// One-line description of the quoted content.
     let preview: String
 }
@@ -269,6 +273,9 @@ final class MessageCollectionViewController: UIViewController {
     private var pendingContextMenuMessageId: String?
 
     private var isKeyboardVisible = false
+
+    /// The other party's display name, used to attribute a quoted reply.
+    var peerDisplayName: String = ""
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -561,12 +568,17 @@ final class MessageCollectionViewController: UIViewController {
     // MARK: - Snapshot Application
 
     /// Resolves what a reply is answering, if the target is in the transcript.
-    static func quote(for message: Message, in byId: [String: Message]) -> ReplyQuote? {
+    static func quote(
+        for message: Message,
+        in byId: [String: Message],
+        peerName: String
+    ) -> ReplyQuote? {
         guard let replyId = message.replyToMessageId, let quoted = byId[replyId] else {
             return nil
         }
         return ReplyQuote(
             quotedIsOutgoing: quoted.isOutgoing,
+            authorName: quoted.isOutgoing ? "You" : peerName,
             preview: ChatInputBarView.replyPreviewText(quoted)
         )
     }
@@ -628,7 +640,7 @@ final class MessageCollectionViewController: UIViewController {
                     isGroupedWithNext: isGroupedWithNext,
                     uploadProgress: uploads.progress(for: message.id),
                     uploadLabel: uploads.statusLabel(for: message.id),
-                    replyQuote: Self.quote(for: message, in: byId)
+                    replyQuote: Self.quote(for: message, in: byId, peerName: peerDisplayName)
                 ))
             }
 

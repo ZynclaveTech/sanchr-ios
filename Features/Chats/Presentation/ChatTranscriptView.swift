@@ -47,6 +47,7 @@ struct ChatTranscriptView: View {
     var body: some View {
         MessageCollectionView(
             renderInput: transcriptRenderInput,
+            peerDisplayName: conversation.displayName,
             voicePlayback: voicePlayback,
             onInitialPresentation: {
                 handleInitialTranscriptPresentation()
