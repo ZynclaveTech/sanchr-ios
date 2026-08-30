@@ -74,9 +74,13 @@ struct ChatInputBarView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Cancel reply")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                // Read as one unit, so VoiceOver announces who is being
+                // replied to and what they said rather than three fragments.
+                .accessibilityElement(children: .combine)
                 .background(SanchrExportColors.surface)
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(SanchrExportColors.line).frame(height: 1)
@@ -120,6 +124,9 @@ struct ChatInputBarView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                // Icon-only, so the symbol name is all VoiceOver had.
+                .accessibilityLabel(activeTray == .attachments ? "Close attachments" : "Attachments")
+                .accessibilityHint("Send a photo, video, document, location or contact.")
 
                 // Text input field
                 HStack(spacing: 6) {
@@ -128,6 +135,7 @@ struct ChatInputBarView: View {
                         .textFieldStyle(.plain)
                         .lineLimit(1...5)
                         .focused($isInputFocused)
+                        .accessibilityLabel("Message")
                         .onSubmit {
                             if enterSendsMessage {
                                 Task { await onSendText() }
@@ -152,6 +160,10 @@ struct ChatInputBarView: View {
                                 .foregroundColor(SanchrExportColors.textTertiary)
                         }
                         .buttonStyle(.plain)
+                        // The glyph flips between a face and a keyboard, so
+                        // the label has to flip with it or it describes the
+                        // wrong action half the time.
+                        .accessibilityLabel(activeTray == .emoji ? "Show keyboard" : "Emoji")
                         .transition(.opacity)
                     }
                 }
@@ -203,6 +215,11 @@ struct ChatInputBarView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Send")
+                    // Guards the window between tapping send and the composer
+                    // clearing, which is the only moment a second tap could
+                    // land on a button that is about to disappear.
+                    .disabled(input.isSending)
                     .transition(.scale.combined(with: .opacity))
                 } else {
                     VoiceMessageComposer(

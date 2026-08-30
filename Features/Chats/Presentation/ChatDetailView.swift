@@ -451,6 +451,14 @@ struct ChatDetailView: View {
                 typingPill
             }
 
+            // Send failures set `errorMessage` and nothing rendered it, so a
+            // forward or a location send that failed reported nothing at all.
+            // A failed message bubble has its own retry affordance; this is for
+            // the failures that never become a bubble.
+            if let error = viewModel.errorMessage {
+                sendErrorBanner(error)
+            }
+
             ChatInputBarView(
                 conversation: conversation,
                 input: viewModel.inputState,
@@ -1008,6 +1016,49 @@ struct ChatDetailView: View {
         .background(SanchrExportColors.background)
         .overlay(alignment: .bottom) {
             Rectangle().fill(SanchrExportColors.line).frame(height: 1)
+        }
+    }
+
+    /// Sits directly above the composer, where the failing action happened.
+    ///
+    /// Dismissible and self-clearing: an error about one send should not
+    /// outlive the next one, and it must never become permanent furniture
+    /// above the keyboard.
+    private func sendErrorBanner(_ error: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.sanchrWarning)
+
+            Text(error)
+                .font(SanchrTypography.caption)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
+
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { viewModel.errorMessage = nil }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(SanchrExportColors.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss error")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(SanchrExportColors.surfaceMuted)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .task(id: error) {
+            // Clears itself so it cannot sit above the composer forever.
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) { viewModel.errorMessage = nil }
         }
     }
 
