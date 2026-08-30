@@ -116,7 +116,15 @@ struct MediaGalleryView: View {
             // takes two fingers.
             .simultaneousGesture(dismissDrag)
 
-            if chromeVisible {
+            // Nothing of ours over a video. AVPlayerViewController already
+            // covers the top and bottom of the page with its own controls, and
+            // anything added there reads as a competing toolbar — which is
+            // exactly how this looked.
+            //
+            // The actions that used to justify the overlay now live on the
+            // message's context menu in the transcript, where they also work
+            // without opening the video at all.
+            if chromeVisible, !currentPageIsVideo {
                 chromeOverlay
             }
 

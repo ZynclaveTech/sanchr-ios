@@ -257,6 +257,7 @@ final class MessageCollectionViewController: UIViewController {
     var onReactToMessage: ((String, String) -> Void)?
     var onDeleteMessage: ((Message) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
+    var onMediaAction: ((MediaMessageAction, Message) -> Void)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -974,25 +975,15 @@ final class MessageCollectionViewController: UIViewController {
 
     // MARK: - Context Menu
 
-    private func makeReactionPreview(for message: Message) -> UIViewController? {
-        let quickEmojis = ["\u{2764}\u{FE0F}", "\u{1F44D}", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"]
-        let host = UIHostingController(rootView:
-            HStack(spacing: 10) {
-                ForEach(quickEmojis, id: \.self) { emoji in
-                    Button {} label: {
-                        Text(emoji).font(.system(size: 30))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-        )
-        host.preferredContentSize = CGSize(width: 320, height: 60)
-        host.view.backgroundColor = .clear
-        return host
+    /// What a media message can do beyond the actions any message has.
+    ///
+    /// Reachable from the transcript rather than only from inside the viewer,
+    /// so a photo can be saved or shared without opening it first — and so the
+    /// video player does not have to carry a second toolbar to offer them.
+    enum MediaMessageAction {
+        case saveToPhotos
+        case share
+        case copy
     }
 
     private func makeContextMenu(for message: Message) -> UIMenu {
@@ -1001,6 +992,29 @@ final class MessageCollectionViewController: UIViewController {
         if case .text(let text) = message.content {
             actions.append(UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in
                 UIPasteboard.general.string = text
+            })
+        }
+
+        // Media actions. Deliberately first: on a photo or a video they are the
+        // reason most people open this menu.
+        if message.content.isSaveableMedia {
+            actions.append(UIAction(
+                title: "Save to Photos",
+                image: UIImage(systemName: "square.and.arrow.down")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.saveToPhotos, message)
+            })
+            actions.append(UIAction(
+                title: "Share",
+                image: UIImage(systemName: "square.and.arrow.up")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.share, message)
+            })
+            actions.append(UIAction(
+                title: "Copy",
+                image: UIImage(systemName: "doc.on.doc")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.copy, message)
             })
         }
 
@@ -1114,9 +1128,17 @@ extension MessageCollectionViewController: UICollectionViewDelegate {
 
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
-            previewProvider: { [weak self] in
-                self?.makeReactionPreview(for: message)
-            },
+            // No preview of our own: UIKit lifts the actual message cell, which
+            // is the point of the gesture — you long-press a message to act on
+            // *that* message, so it has to stay on screen.
+            //
+            // This used to return a row of six emoji. A custom preview REPLACES
+            // the cell snapshot, so the message vanished and a floating emoji
+            // bar took its place. The emoji were decorative twice over: their
+            // buttons had empty actions, and a context menu preview does not
+            // deliver touches to its content anyway. Reacting works from the
+            // React submenu below, which is wired to something.
+            previewProvider: nil,
             actionProvider: { [weak self] _ in
                 self?.makeContextMenu(for: message)
             }
