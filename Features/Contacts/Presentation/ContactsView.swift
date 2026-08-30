@@ -26,6 +26,7 @@ struct ContactsView: View {
                 Button { showAddContact = true } label: {
                     Image(systemName: "person.badge.plus")
                 }
+                .accessibilityLabel("Add contact")
             }
         }
         .sheet(isPresented: $showAddContact) {
@@ -123,6 +124,7 @@ struct ContactsView: View {
                         .foregroundColor(SanchrExportColors.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
     }
@@ -159,6 +161,18 @@ struct ContactsView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        // One element per contact. Read as separate fragments,
+                        // a row announced the name, then a bare shield, then a
+                        // phone number, with no indication any of it was
+                        // tappable.
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            container.signalProtocol.isIdentityVerified(userId: contact.id)
+                                ? "\(contact.displayName), verified"
+                                : contact.displayName
+                        )
+                        .accessibilityHint("Opens a chat.")
+                        .accessibilityAddTraits(.isButton)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button {
                                 startChat(with: contact)

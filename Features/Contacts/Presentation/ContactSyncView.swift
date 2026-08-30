@@ -10,6 +10,9 @@ struct ContactSyncView: View {
     @State private var syncComplete = false
     @State private var foundContacts: [User] = []
     @State private var errorMessage: String?
+    /// Set when the address book was refused. The app cannot ask a second
+    /// time, so the only useful thing left to offer is a way to Settings.
+    @State private var needsSettings = false
     let onBack: (() -> Void)?
     let onFinish: (() -> Void)?
 
@@ -55,10 +58,27 @@ struct ContactSyncView: View {
                     }
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(SanchrTypography.caption)
-                            .foregroundColor(.sanchrError)
-                            .multilineTextAlignment(.center)
+                        VStack(spacing: 10) {
+                            Text(errorMessage)
+                                .font(SanchrTypography.caption)
+                                .foregroundColor(.sanchrError)
+                                .multilineTextAlignment(.center)
+
+                            // Only for a refusal. Every other failure is worth
+                            // retrying, and sending someone to Settings to fix
+                            // a network error would waste the trip.
+                            if needsSettings {
+                                Button("Open Settings") {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                                .font(SanchrTypography.caption)
+                                .foregroundColor(SanchrColors.primary)
+                                .accessibilityHint("Opens Sanchr's page in the Settings app.")
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
                     }
                 }
                 .padding(.horizontal, 28)
@@ -89,6 +109,7 @@ struct ContactSyncView: View {
                     .frame(width: 40, height: 40)
                     .overlay {
                         Image(systemName: "arrow.triangle.2.circlepath")
+                            .accessibilityHidden(true)
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
                     }
@@ -182,6 +203,7 @@ struct ContactSyncView: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "lock.fill")
+                .accessibilityHidden(true)
                     .font(.caption2)
                 Text("Privacy-first contact discovery")
                     .font(SanchrTypography.caption)
@@ -290,6 +312,7 @@ struct ContactSyncView: View {
     private func syncContacts() async {
         isSyncing = true
         errorMessage = nil
+        needsSettings = false
 
         let contactDataSource = ContactDataSource(
             grpcClient: container.grpcClient,
@@ -309,6 +332,9 @@ struct ContactSyncView: View {
         do {
             foundContacts = try await useCase.execute()
             syncComplete = true
+        } catch AppError.contactsPermissionDenied {
+            errorMessage = AppError.contactsPermissionDenied.localizedDescription
+            needsSettings = true
         } catch AppError.featureDisabled {
             errorMessage =
                 "Contact discovery isn't available on the server yet. You can still start chats by entering a phone number."

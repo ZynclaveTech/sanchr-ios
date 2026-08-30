@@ -48,8 +48,12 @@ enum ContactUseCases {
             let authorized = try await store.requestAccess(for: .contacts)
 
             guard authorized else {
+                // Returning an empty list here was indistinguishable from
+                // "you know nobody on Sanchr": the sync reported success, the
+                // screen showed nothing, and the reason was in a log line
+                // nobody reads.
                 SanchrLogger.sync.warning("Contact access denied by user")
-                return []
+                throw AppError.contactsPermissionDenied
             }
 
             // 2. Fetch device contacts
