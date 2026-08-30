@@ -24,7 +24,8 @@ private final class CapturingSealedSenderManager: SealedSenderManagerProtocol, @
         contentType: String,
         content: Data,
         isSync: Bool,
-        expiresAfterSecs: Int64?
+        expiresAfterSecs: Int64?,
+        replyToMessageId: String?
     ) throws -> Data {
         capturedContentType = contentType
         capturedConversationId = conversationId

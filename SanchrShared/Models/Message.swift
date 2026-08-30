@@ -260,7 +260,8 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         conversationId: String,
         senderId: String,
         text: String,
-        isOutgoing: Bool
+        isOutgoing: Bool,
+        replyToMessageId: String? = nil
     ) -> Message {
         Message(
             id: id,
@@ -269,7 +270,8 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
             timestamp: Date(),
             content: .text(text),
             status: isOutgoing ? .sending : .delivered,
-            isOutgoing: isOutgoing
+            isOutgoing: isOutgoing,
+            replyToMessageId: replyToMessageId
         )
     }
 }

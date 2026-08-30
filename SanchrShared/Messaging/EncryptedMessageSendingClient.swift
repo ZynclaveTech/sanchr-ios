@@ -174,7 +174,8 @@ public protocol SealedMessageSendingClient: Sendable {
         messageId: String,
         recipientIds: [String],
         senderId: String,
-        expiresAfterSecs: Int64
+        expiresAfterSecs: Int64,
+        replyToMessageId: String?
     ) async throws -> SealedMessageSendResult
 }
 
@@ -213,7 +214,8 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         messageId: String,
         recipientIds: [String],
         senderId: String,
-        expiresAfterSecs: Int64
+        expiresAfterSecs: Int64,
+        replyToMessageId: String? = nil
     ) async throws -> SealedMessageSendResult {
         // 1. Build the InnerPayload (peer copy: isSync = false).
         let innerPayloadData = try sealedSenderManager.encodeInnerPayload(
@@ -224,7 +226,10 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
             isSync: false,
             // Rides inside the envelope: the request has no TTL field, and the
             // server must not learn the timer regardless.
-            expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil
+            expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil,
+            // Same reasoning: which message this answers is conversation
+            // structure, and the server has no business reading it.
+            replyToMessageId: replyToMessageId
         )
 
         // 2. Fetch sender certificate (used for sender identity binding; kept
@@ -261,7 +266,8 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
             contentType: contentType,
             content: plaintext,
             isSync: true,
-            expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil
+            expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil,
+            replyToMessageId: replyToMessageId
         )
         do {
             let selfDeviceMessages = try await signalManager.encryptForAllDevices(

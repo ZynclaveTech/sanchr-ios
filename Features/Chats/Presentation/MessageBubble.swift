@@ -6,6 +6,10 @@ import SanchrShared
 
 struct MessageBubble: View {
     let message: Message
+    /// What this message is answering, when the target is still in the
+    /// transcript. Resolved by the collection controller — the bubble has no
+    /// access to the surrounding messages.
+    var replyQuote: ReplyQuote?
     var uploadProgress: Double?
     var uploadLabel: String?
     var hideTimestamp: Bool = false
@@ -71,14 +75,32 @@ struct MessageBubble: View {
 
                 VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 0) {
                     if message.replyToMessageId != nil {
+                        // Drawn ABOVE the bubble, on the transcript background —
+                        // not inside it. The colours here used to be the
+                        // bubble's white-on-gradient set, so an outgoing reply
+                        // rendered white text on a light background and was
+                        // effectively invisible.
                         HStack(spacing: 8) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(message.isOutgoing ? Color.white.opacity(0.5) : SanchrColors.primary)
+                                .fill(SanchrColors.primary)
                                 .frame(width: 3)
 
-                            Text("Replied to a message")
-                                .font(SanchrTypography.captionSmall)
-                                .foregroundColor(message.isOutgoing ? Color.white.opacity(0.7) : SanchrExportColors.textSecondary)
+                            VStack(alignment: .leading, spacing: 1) {
+                                if let quote = replyQuote, quote.quotedIsOutgoing {
+                                    Text("You")
+                                        .font(SanchrTypography.captionSmall)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(SanchrColors.primary)
+                                }
+
+                                // Falls back to the old wording only when the
+                                // quoted message is not in the transcript —
+                                // scrolled out of the loaded window, or deleted.
+                                Text(replyQuote?.preview ?? "Replied to a message")
+                                    .font(SanchrTypography.captionSmall)
+                                    .foregroundColor(SanchrExportColors.textSecondary)
+                                    .lineLimit(1)
+                            }
                         }
                         .padding(.bottom, 4)
                     }

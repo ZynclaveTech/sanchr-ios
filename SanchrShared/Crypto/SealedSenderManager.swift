@@ -61,6 +61,17 @@ public struct InnerPayload: Codable, Sendable {
     public let senderUserId: String?
     public let senderDeviceId: Int32?
 
+    /// The message this one is a reply to, if any.
+    ///
+    /// Inside the sealed envelope rather than on the request, for the same
+    /// reason the disappearing timer is: the server has no business knowing
+    /// which message someone replied to. That is conversation structure, and
+    /// it is exactly the sort of metadata sealed sender exists to withhold.
+    ///
+    /// Optional so payloads from clients predating this field still decode,
+    /// and so older clients ignore the extra key rather than failing.
+    public let replyToMessageId: String?
+
     enum CodingKeys: String, CodingKey {
         case v
         case conversationId = "conversation_id"
@@ -72,6 +83,7 @@ public struct InnerPayload: Codable, Sendable {
         case senderProfileKey = "sender_profile_key"
         case senderUserId = "sender_user_id"
         case senderDeviceId = "sender_device_id"
+        case replyToMessageId = "reply_to_message_id"
     }
 
     public init(
@@ -84,8 +96,10 @@ public struct InnerPayload: Codable, Sendable {
         expiresAfterSecs: Int64? = nil,
         senderProfileKey: Data? = nil,
         senderUserId: String? = nil,
-        senderDeviceId: Int32? = nil
+        senderDeviceId: Int32? = nil,
+        replyToMessageId: String? = nil
     ) {
+        self.replyToMessageId = replyToMessageId
         self.expiresAfterSecs = expiresAfterSecs
         self.senderProfileKey = senderProfileKey
         self.senderUserId = senderUserId
@@ -119,7 +133,8 @@ public protocol SealedSenderManagerProtocol: Sendable {
         contentType: String,
         content: Data,
         isSync: Bool,
-        expiresAfterSecs: Int64?
+        expiresAfterSecs: Int64?,
+        replyToMessageId: String?
     ) throws -> Data
 
     /// Decodes a JSON-encoded `InnerPayload`.
@@ -319,7 +334,8 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
         contentType: String,
         content: Data,
         isSync: Bool,
-        expiresAfterSecs: Int64?
+        expiresAfterSecs: Int64?,
+        replyToMessageId: String? = nil
     ) throws -> Data {
         let senderAddress = senderAddressProvider?()
         let payload = InnerPayload(
@@ -331,7 +347,8 @@ public final class SealedSenderManager: SealedSenderManagerProtocol, @unchecked 
             expiresAfterSecs: expiresAfterSecs,
             senderProfileKey: ownProfileKeyProvider?(),
             senderUserId: senderAddress?.userId,
-            senderDeviceId: senderAddress?.deviceId
+            senderDeviceId: senderAddress?.deviceId,
+            replyToMessageId: replyToMessageId
         )
         do {
             return try JSONEncoder().encode(payload)

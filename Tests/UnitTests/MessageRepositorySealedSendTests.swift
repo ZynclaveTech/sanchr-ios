@@ -341,7 +341,8 @@ private class StubSealedSenderManager: SealedSenderManagerProtocol, @unchecked S
         contentType: String,
         content: Data,
         isSync: Bool,
-        expiresAfterSecs: Int64?
+        expiresAfterSecs: Int64?,
+        replyToMessageId: String?
     ) throws -> Data {
         content
     }
