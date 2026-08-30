@@ -14,6 +14,13 @@ import SanchrShared
 struct MediaGalleryView: View {
     let presentation: MediaGalleryCoordinator.GalleryPresentation
     let onDismiss: () -> Void
+    /// Forwards the media on screen.
+    ///
+    /// The transcript's context menu offered Forward and this viewer did not,
+    /// so opening a photo took the action away — you had to back out and long
+    /// press the bubble to get it again. Optional because the gallery is also
+    /// opened from places with no conversation to forward from.
+    var onForward: ((Message) -> Void)?
 
     @Environment(DependencyContainer.self) private var container
     @State private var currentIndex: Int
@@ -36,10 +43,12 @@ struct MediaGalleryView: View {
     init(
         presentation: MediaGalleryCoordinator.GalleryPresentation,
         resolver: ChatMediaResolving,
-        onDismiss: @escaping () -> Void
+        onDismiss: @escaping () -> Void,
+        onForward: ((Message) -> Void)? = nil
     ) {
         self.presentation = presentation
         self.onDismiss = onDismiss
+        self.onForward = onForward
         self._currentIndex = State(initialValue: presentation.initialIndex)
         self._pageLoader = StateObject(wrappedValue: GalleryPageLoader(resolver: resolver))
     }
@@ -341,6 +350,13 @@ struct MediaGalleryView: View {
                     Spacer()
 
                     Menu {
+                        if let onForward {
+                            Button {
+                                onForward(presentation.items[currentIndex].message)
+                            } label: {
+                                Label("Forward", systemImage: "arrowshape.turn.up.right")
+                            }
+                        }
                         Button {
                             Task { await saveCurrentToPhotos() }
                         } label: {

@@ -1,15 +1,26 @@
 import SwiftUI
 import SanchrShared
 
-/// Bottom-sheet conversation picker for the "Forward" message action.
+/// Conversation picker for the "Forward" message action.
 ///
-/// Lists all conversations sorted by last-activity timestamp with a
-/// searchable filter.  Tapping a row invokes `onConversationPicked` with
-/// the target conversation's id and display name.
+/// Tapping a row used to forward immediately. Every row in the list was one
+/// mis-tap away from sending a private message to the wrong person, and a
+/// forward cannot be recalled — it is sent and delivered. A tap selects now,
+/// and a footer says who it is going to, which is the step Signal's
+/// `ApprovalFooterView` exists to provide.
+///
+/// Several destinations at once, as Signal allows: forwarding the same
+/// message to three people was three trips through this sheet.
 struct MessageForwardDestinationPicker: View {
     let localDatabase: LocalDatabaseProtocol
-    let onConversationPicked: (_ conversationId: String, _ conversationName: String) -> Void
+    let onConversationsPicked: (_ conversations: [(id: String, name: String)]) -> Void
     let onCancel: () -> Void
+
+    @State private var selectedIDs: [String] = []
+
+    private var selected: [Conversation] {
+        selectedIDs.compactMap { id in conversations.first { $0.id == id } }
+    }
 
     @State private var conversations: [Conversation] = []
     @State private var isLoading = true
@@ -58,9 +69,12 @@ struct MessageForwardDestinationPicker: View {
                 } else {
                     List(filteredConversations, id: \.id) { conversation in
                         Button {
-                            onConversationPicked(conversation.id, conversation.displayName)
+                            toggle(conversation.id)
                         } label: {
-                            ForwardConversationRow(conversation: conversation)
+                            ForwardConversationRow(
+                                conversation: conversation,
+                                isSelected: selectedIDs.contains(conversation.id)
+                            )
                         }
                         .buttonStyle(.plain)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -72,6 +86,7 @@ struct MessageForwardDestinationPicker: View {
                     .searchable(text: $searchText, prompt: "Search conversations")
                 }
             }
+            .safeAreaInset(edge: .bottom) { approvalFooter }
             .navigationTitle("Forward to")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -84,6 +99,70 @@ struct MessageForwardDestinationPicker: View {
         .presentationDetents([.large])
         .task {
             await loadConversations()
+        }
+    }
+
+    private func toggle(_ id: String) {
+        if let index = selectedIDs.firstIndex(of: id) {
+            selectedIDs.remove(at: index)
+        } else {
+            selectedIDs.append(id)
+        }
+    }
+
+    /// Names the destinations and holds the send.
+    @ViewBuilder
+    private var approvalFooter: some View {
+        if !selected.isEmpty {
+            HStack(spacing: 12) {
+                Text(Self.namesText(for: selected.map(\.displayName)))
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(SanchrExportColors.textSecondary)
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    onConversationsPicked(selected.map { ($0.id, $0.displayName) })
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            LinearGradient(
+                                colors: [SanchrColors.primary, SanchrColors.primaryDark],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: Circle()
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    selected.count == 1
+                        ? "Send to \(selected[0].displayName)"
+                        : "Send to \(selected.count) conversations"
+                )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.bar)
+            .transition(.move(edge: .bottom))
+        }
+    }
+
+    /// "Ravi", "Ravi and Meera", "Ravi, Meera and 2 others" — the names
+    /// matter more than the count when what is being confirmed is who sees a
+    /// message they were not sent.
+    static func namesText(for names: [String]) -> String {
+        switch names.count {
+        case 0: return ""
+        case 1: return names[0]
+        case 2: return "\(names[0]) and \(names[1])"
+        default:
+            let others = names.count - 2
+            return "\(names[0]), \(names[1]) and \(others) other\(others == 1 ? "" : "s")"
         }
     }
 
@@ -103,6 +182,7 @@ struct MessageForwardDestinationPicker: View {
 
 private struct ForwardConversationRow: View {
     let conversation: Conversation
+    var isSelected: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -129,10 +209,18 @@ private struct ForwardConversationRow: View {
             }
 
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(SanchrExportColors.textTertiary)
+            // A chevron promises that tapping opens something. Tapping picks
+            // a destination, and the row has to say whether it is picked.
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 20))
+                .foregroundStyle(
+                    isSelected ? SanchrColors.primary : SanchrExportColors.textTertiary
+                )
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(conversation.displayName)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(.isButton)
         .padding(.vertical, 4)
         .contentShape(Rectangle())
     }

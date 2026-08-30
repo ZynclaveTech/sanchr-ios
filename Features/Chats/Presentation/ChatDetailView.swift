@@ -692,11 +692,7 @@ struct ChatDetailView: View {
             )
         }
         .fullScreenCover(item: $galleryCoordinator.presentation) { presentation in
-            MediaGalleryView(
-                presentation: presentation,
-                resolver: container.chatMediaResolver,
-                onDismiss: { galleryCoordinator.dismiss() }
-            )
+            gallery(for: presentation)
         }
         .sheet(item: $contactCoordinator.pendingContact) { pending in
             ContactActionSheet(
@@ -748,15 +744,19 @@ struct ChatDetailView: View {
         .sheet(item: $messageToForward) { message in
             MessageForwardDestinationPicker(
                 localDatabase: container.localDatabase,
-                onConversationPicked: { targetId, _ in
+                onConversationsPicked: { targets in
                     messageToForward = nil
                     Task {
-                        await viewModel.forwardMessage(
-                            message,
-                            toConversationId: targetId,
-                            sessionService: container.sessionService,
-                            messageSender: container.messageSender
-                        )
+                        // Sequential: each forward is its own encrypt and
+                        // send, and the sender serialises anyway.
+                        for target in targets {
+                            await viewModel.forwardMessage(
+                                message,
+                                toConversationId: target.id,
+                                sessionService: container.sessionService,
+                                messageSender: container.messageSender
+                            )
+                        }
                     }
                 },
                 onCancel: { messageToForward = nil }
@@ -1151,7 +1151,32 @@ struct ChatDetailView: View {
         }
     }
 
+    /// Split out of the body: inlining the forward closure pushed the
+    /// surrounding expression past what the type-checker will attempt.
+    private func gallery(
+        for presentation: MediaGalleryCoordinator.GalleryPresentation
+    ) -> some View {
+        MediaGalleryView(
+            presentation: presentation,
+            resolver: container.chatMediaResolver,
+            onDismiss: { galleryCoordinator.dismiss() },
+            onForward: { message in
+                // The gallery is a full-screen cover and the picker is a
+                // sheet, so the cover has to be gone before the sheet can
+                // present at all.
+                galleryCoordinator.dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.coverDismissDuration) {
+                    messageToForward = message
+                }
+            }
+        )
+    }
+
     private static let trayDismissDuration: TimeInterval = 0.25
+
+    /// A full-screen cover takes longer to leave than a tray, and presenting
+    /// into one that is still on screen does nothing at all.
+    private static let coverDismissDuration: TimeInterval = 0.35
 
     /// Location can fail for reasons the user can act on and reasons they
     /// cannot; saying which is the difference between a fixable refusal and an
