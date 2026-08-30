@@ -30,6 +30,10 @@ struct ChatInputBarView: View {
 
     @Environment(DependencyContainer.self) private var container
 
+    /// Set while a voice message is being recorded or reviewed, when the
+    /// composer takes the whole row.
+    @State private var isCapturingVoice = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Reply banner
@@ -90,6 +94,11 @@ struct ChatInputBarView: View {
 
             // Single-row adaptive composer
             HStack(alignment: .bottom, spacing: 10) {
+                // Recording takes the whole row, as it does in Signal and
+                // WhatsApp. The recording bar and the voice preview are
+                // full-width rows; left in place beside the text field they
+                // were squeezed into the trailing button's slot.
+                if !isCapturingVoice {
                 // Plus button — opens attachments, or closes whatever tray is
                 // open.
                 //
@@ -148,7 +157,37 @@ struct ChatInputBarView: View {
                 )
 
                 // Text input field
-                HStack(spacing: 6) {
+                textField
+                }
+
+                // Right button: mic (empty) or send (has text)
+                trailingControl
+            }
+            .animation(.easeInOut(duration: 0.2), value: hasInput)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
+        .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
+        .onChange(of: input.inputText) { oldValue, newValue in
+            if let body = EnterToSend.submission(
+                previous: oldValue,
+                current: newValue,
+                enabled: enterSendsMessage
+            ) {
+                // Drop the newline the field just inserted; it was the
+                // keypress, not part of the message.
+                input.inputText = body
+                Task { await onSendText() }
+                return
+            }
+            onInputTextChanged(newValue)
+        }
+    }
+
+    private var textField: some View {
+        HStack(spacing: 6) {
                     TextField("Message...", text: $input.inputText, axis: .vertical)
                         .font(SanchrTypography.messageBubbleText)
                         .textFieldStyle(.plain)
@@ -195,8 +234,11 @@ struct ChatInputBarView: View {
                         )
                 }
 
-                // Right button: mic (empty) or send (has text)
-                if hasInput {
+    }
+
+    @ViewBuilder
+    private var trailingControl: some View {
+        if hasInput {
                     // Send button
                     Button {
                         Task { await onSendText() }
@@ -254,31 +296,10 @@ struct ChatInputBarView: View {
                                     ctx
                                 )
                             }
-                        }
+                        },
+                        isCapturing: $isCapturingVoice
                     )
                     .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: hasInput)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
-        .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
-        .onChange(of: input.inputText) { oldValue, newValue in
-            if let body = EnterToSend.submission(
-                previous: oldValue,
-                current: newValue,
-                enabled: enterSendsMessage
-            ) {
-                // Drop the newline the field just inserted; it was the
-                // keypress, not part of the message.
-                input.inputText = body
-                Task { await onSendText() }
-                return
-            }
-            onInputTextChanged(newValue)
         }
     }
 

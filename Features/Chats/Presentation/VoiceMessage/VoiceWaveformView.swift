@@ -12,6 +12,16 @@ struct VoiceWaveformView: View {
     var barSpacing: CGFloat = 2
     var minBarHeight: CGFloat = 2
 
+    /// Whether a bar at `barX` falls before the playback head.
+    ///
+    /// Strictly less than. The first bar sits at x = 0, so `<=` counted it as
+    /// played at progress 0 — every un-played waveform carried a stray
+    /// coloured tick, including the live one during recording, which has no
+    /// progress at all and documents itself as taking 0 for exactly that.
+    static func isPlayed(barX: CGFloat, progressX: CGFloat) -> Bool {
+        barX < progressX
+    }
+
     var body: some View {
         GeometryReader { proxy in
             Canvas { ctx, size in
@@ -29,7 +39,7 @@ struct VoiceWaveformView: View {
                     let x = CGFloat(i) * stride
                     let y = (size.height - h) / 2
                     let rect = CGRect(x: x, y: y, width: barWidth, height: h)
-                    let isPlayed = x <= progressX
+                    let isPlayed = Self.isPlayed(barX: x, progressX: progressX)
                     let color: Color = isPlayed ? .accentColor : Color(uiColor: .systemGray3)
                     ctx.fill(Path(roundedRect: rect, cornerRadius: barWidth / 2), with: .color(color))
                 }
