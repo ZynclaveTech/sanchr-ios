@@ -235,6 +235,14 @@ public enum DatabaseSchema {
             }
         }
 
+        // A composer draft is local to this device: it is text the user has not
+        // sent, so it exists nowhere else and no sync ever brings it back.
+        migrator.registerMigration("v10_conversation_draft") { db in
+            try db.alter(table: "conversation") { t in
+                t.add(column: "draftText", .text)
+            }
+        }
+
         return migrator
     }
 }

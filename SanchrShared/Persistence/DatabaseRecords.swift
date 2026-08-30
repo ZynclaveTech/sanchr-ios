@@ -100,6 +100,10 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
     public var lastMessageTimestamp: Date?
     public var lastMessageSenderId: String?
     public var lastMessageStatus: String?
+    /// Unsent composer text. Local to this device and never sent by the
+    /// server, so `mergeConversationRecord` keeps the existing value the same
+    /// way it keeps `isHidden`.
+    public var draftText: String?
 
     public init(from conversation: Conversation) {
         self.id = conversation.id
@@ -112,6 +116,7 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
         self.disappearingMessagesDuration = conversation.disappearingMessagesDuration
         self.createdAt = conversation.createdAt
         self.updatedAt = conversation.updatedAt
+        self.draftText = conversation.draftText
 
         if let lastMsg = conversation.lastMessage {
             self.lastMessageId = lastMsg.id
@@ -187,7 +192,8 @@ public struct ConversationRecord: Codable, FetchableRecord, PersistableRecord, S
             type: Conversation.ConversationType(rawValue: type) ?? .oneToOne,
             disappearingMessagesDuration: disappearingMessagesDuration,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            draftText: draftText
         )
     }
 

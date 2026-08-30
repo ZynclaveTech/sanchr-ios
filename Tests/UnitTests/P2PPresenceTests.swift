@@ -89,6 +89,8 @@ private final class PresenceLocalDatabase: LocalDatabaseProtocol, @unchecked Sen
         presenceUpdates.append((userId: userId, status: status))
     }
 
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws {}
     func fetchConversation(id: String) async throws -> Conversation? { nil }
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws {}

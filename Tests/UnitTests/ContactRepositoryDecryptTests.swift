@@ -111,6 +111,8 @@ private final class StubLocalDatabaseForContacts: LocalDatabaseProtocol, @unchec
     func searchMessages(conversationId: String, query: String) async throws -> [Message] { fatalError() }
     func saveConversation(_ c: Conversation) async throws { fatalError() }
     func fetchConversation(id: String) async throws -> Conversation? { fatalError() }
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func fetchConversations() async throws -> [Conversation] { fatalError() }
     func deleteConversation(id: String) async throws { fatalError() }
     func fetchContacts() async throws -> [User] { fatalError() }

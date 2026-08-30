@@ -72,6 +72,7 @@ struct ChatDetailView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = ChatDetailViewModel()
+    @Environment(\.scenePhase) private var scenePhase
     @FocusState private var isInputFocused: Bool
     @State private var showAttachmentPicker = false
     @State private var showCameraCapture = false
@@ -212,6 +213,19 @@ struct ChatDetailView: View {
                 // path's lock-protected mirror lookup hits a populated entry
                 // when subsequent messages arrive in this chat.
                 await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
+
+                // Restore whatever was left half-typed. Only when the composer
+                // is still empty: a draft must never overwrite something the
+                // user has already started typing in this session, which can
+                // happen when this task resumes after a re-entry.
+                if viewModel.inputText.isEmpty,
+                    let draft = try? await container.localDatabase.draft(
+                        conversationId: conversation.id
+                    ),
+                    !draft.isEmpty
+                {
+                    viewModel.inputText = draft
+                }
                 await viewModel.loadMessages(
                     conversationId: conversation.id,
                     unreadCount: conversation.unreadCount,
@@ -241,6 +255,15 @@ struct ChatDetailView: View {
                 )
             }
             .onDisappear {
+                // Persist the unsent text. Saved here rather than per keystroke:
+                // a draft only matters once the user has left, and writing to
+                // the database on every character would be a write per
+                // keypress for a value nobody reads until then.
+                let draft = viewModel.inputText
+                Task { [localDatabase = container.localDatabase, id = conversation.id] in
+                    try? await localDatabase.saveDraft(conversationId: id, text: draft)
+                }
+
                 viewModel.onConversationDisappear(pushManager: container.pushManager)
                 if let recipient {
                     container.realtimeService.untrackPresencePeer(recipient.id)
@@ -280,6 +303,16 @@ struct ChatDetailView: View {
                 Task {
                     try? await container.messageRepository.sendSystemEvent(
                         .screenshotDetected, conversationId: conversationId)
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // onDisappear does not fire when the app is backgrounded from
+                // inside a chat, which is exactly when an unsent message is
+                // most likely to be abandoned.
+                guard phase != .active else { return }
+                let draft = viewModel.inputText
+                Task { [localDatabase = container.localDatabase, id = conversation.id] in
+                    try? await localDatabase.saveDraft(conversationId: id, text: draft)
                 }
             }
             .onChange(of: isInputFocused) { _, focused in
@@ -431,6 +464,13 @@ struct ChatDetailView: View {
                         conversationId: conversation.id,
                         sessionService: container.sessionService,
                         messageSender: container.messageSender
+                    )
+                    // The composer is empty again, so the stored draft is
+                    // stale. Left alone, force-quitting after a send would
+                    // restore text the user had already sent.
+                    try? await container.localDatabase.saveDraft(
+                        conversationId: conversation.id,
+                        text: nil
                     )
                 },
                 onInputTextChanged: { newValue in

@@ -150,6 +150,8 @@ private final class StubFetchDatabase: LocalDatabaseProtocol, @unchecked Sendabl
         fetchMessagesResult
     }
 
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws { fatalError() }
     func saveIncomingMessageAndQueueAck(_ message: Message) async throws { fatalError() }
     func deleteMessage(id: String) async throws { fatalError() }

@@ -17,6 +17,12 @@ public struct Conversation: Identifiable, Codable, Hashable, Sendable {
     public var createdAt: Date
     public var updatedAt: Date
 
+    /// Unsent composer text for this conversation.
+    ///
+    /// Local to the device — it is by definition something the user has not
+    /// sent, so it never travels and no sync restores it.
+    public var draftText: String?
+
     // MARK: - Types
 
     public enum ConversationType: String, Codable, Hashable, Sendable {
@@ -35,8 +41,10 @@ public struct Conversation: Identifiable, Codable, Hashable, Sendable {
         type: ConversationType,
         disappearingMessagesDuration: TimeInterval? = nil,
         createdAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        draftText: String? = nil
     ) {
+        self.draftText = draftText
         self.id = id
         self.participants = participants
         self.lastMessage = lastMessage

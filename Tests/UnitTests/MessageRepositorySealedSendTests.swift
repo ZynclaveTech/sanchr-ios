@@ -237,6 +237,8 @@ private final class StubLocalDatabase: LocalDatabaseProtocol, @unchecked Sendabl
         )
     }
 
+    func saveDraft(conversationId: String, text: String?) async throws { fatalError() }
+    func draft(conversationId: String) async throws -> String? { fatalError() }
     func saveMessage(_ message: Message) async throws {}
 
     // ── All remaining protocol requirements — crash to surface accidental calls ──
