@@ -975,27 +975,6 @@ final class MessageCollectionViewController: UIViewController {
 
     // MARK: - Context Menu
 
-    private func makeReactionPreview(for message: Message) -> UIViewController? {
-        let quickEmojis = ["\u{2764}\u{FE0F}", "\u{1F44D}", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"]
-        let host = UIHostingController(rootView:
-            HStack(spacing: 10) {
-                ForEach(quickEmojis, id: \.self) { emoji in
-                    Button {} label: {
-                        Text(emoji).font(.system(size: 30))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-        )
-        host.preferredContentSize = CGSize(width: 320, height: 60)
-        host.view.backgroundColor = .clear
-        return host
-    }
-
     /// What a media message can do beyond the actions any message has.
     ///
     /// Reachable from the transcript rather than only from inside the viewer,
@@ -1149,9 +1128,17 @@ extension MessageCollectionViewController: UICollectionViewDelegate {
 
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
-            previewProvider: { [weak self] in
-                self?.makeReactionPreview(for: message)
-            },
+            // No preview of our own: UIKit lifts the actual message cell, which
+            // is the point of the gesture — you long-press a message to act on
+            // *that* message, so it has to stay on screen.
+            //
+            // This used to return a row of six emoji. A custom preview REPLACES
+            // the cell snapshot, so the message vanished and a floating emoji
+            // bar took its place. The emoji were decorative twice over: their
+            // buttons had empty actions, and a context menu preview does not
+            // deliver touches to its content anyway. Reacting works from the
+            // React submenu below, which is wired to something.
+            previewProvider: nil,
             actionProvider: { [weak self] _ in
                 self?.makeContextMenu(for: message)
             }
