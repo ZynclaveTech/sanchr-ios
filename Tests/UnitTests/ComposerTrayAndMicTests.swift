@@ -95,4 +95,73 @@ final class ComposerTrayAndMicTests: XCTestCase {
             VoiceMessageComposer.StartFailure.other("b").id
         )
     }
+
+    // MARK: - Every tray has a way out
+
+    /// Reported from the app: after opening emoji or GIFs there was no way to
+    /// close them.
+    ///
+    /// Two separate causes, one shared consequence. The emoji tray's close
+    /// control is the keyboard toggle, which lives in the `!hasInput` branch —
+    /// so picking a single emoji appended text, swapped that button for Send,
+    /// and removed the only exit. The sticker tray never had a control at all:
+    /// it opens from the attachment tray, and "+" only closed `.attachments`,
+    /// so it reopened attachments instead of closing anything.
+    ///
+    /// The fix is that "+" closes whatever is open, which is what its glyph
+    /// already promised — it shows an X.
+    func testPlusClosesWhicheverTrayIsOpen() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent(
+                "Features/Chats/Presentation/ChatInputBarView.swift"
+            ),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("if activeTray != nil {\n                            activeTray = nil"),
+            "+ must close any open tray, not only the attachment one"
+        )
+        XCTAssertFalse(
+            source.contains("activeTray == .attachments ? \"xmark\" : \"plus\""),
+            "the X glyph must appear for every tray it can close, or it lies about what it does"
+        )
+    }
+
+    /// The exit must not depend on the composer being empty. That coupling is
+    /// what made the emoji tray inescapable the moment an emoji was picked.
+    func testTheExitDoesNotDependOnTheComposerBeingEmpty() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent(
+                "Features/Chats/Presentation/ChatInputBarView.swift"
+            ),
+            encoding: .utf8
+        )
+        // Just the button's action, up to its label. A wider window runs into
+        // the text field, which uses `hasInput` for its own reasons.
+        let afterMarker = try XCTUnwrap(
+            source.range(of: "// Plus button").map { String(source[$0.lowerBound...]) }
+        )
+        let plusButton = try XCTUnwrap(
+            afterMarker.range(of: "} label: {").map { String(afterMarker[..<$0.lowerBound]) }
+        )
+        // Comments explain the bug and name `hasInput`; code must not use it.
+        // Checking the raw text would let the explanation trip the guard.
+        let code = plusButton
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+        XCTAssertFalse(
+            code.contains("hasInput"),
+            "the tray exit must not be gated on whether the composer has text"
+        )
+    }
 }

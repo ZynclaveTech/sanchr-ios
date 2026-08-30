@@ -90,10 +90,25 @@ struct ChatInputBarView: View {
 
             // Single-row adaptive composer
             HStack(alignment: .bottom, spacing: 10) {
-                // Plus button — opens attachment sheet
+                // Plus button — opens attachments, or closes whatever tray is
+                // open.
+                //
+                // It used to close only the attachment tray, which left the
+                // other two with no exit:
+                //
+                // - Emoji: the keyboard toggle that closed it lives in the
+                //   `!hasInput` branch, so picking a single emoji appended text,
+                //   swapped that button for Send, and took the only way out with
+                //   it.
+                // - Stickers and GIFs: opened from the attachment tray and never
+                //   had a control of their own, so "+" reopened attachments
+                //   rather than closing anything.
+                //
+                // Closing any open tray is also what the glyph already promised:
+                // it shows an X.
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
-                        if activeTray == .attachments {
+                        if activeTray != nil {
                             activeTray = nil
                         } else {
                             isInputFocused = false
@@ -103,7 +118,7 @@ struct ChatInputBarView: View {
                 } label: {
                     Group {
                         if #available(iOS 26.0, *) {
-                            Image(systemName: activeTray == .attachments ? "xmark" : "plus")
+                            Image(systemName: activeTray != nil ? "xmark" : "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(SanchrColors.primary)
                                 .frame(width: 36, height: 36)
@@ -114,7 +129,7 @@ struct ChatInputBarView: View {
                                     tint: SanchrColors.primary.opacity(0.18)
                                 )
                         } else {
-                            Image(systemName: activeTray == .attachments ? "xmark" : "plus")
+                            Image(systemName: activeTray != nil ? "xmark" : "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(SanchrColors.primary)
                                 .frame(width: 36, height: 36)
@@ -125,8 +140,12 @@ struct ChatInputBarView: View {
                 }
                 .buttonStyle(.plain)
                 // Icon-only, so the symbol name is all VoiceOver had.
-                .accessibilityLabel(activeTray == .attachments ? "Close attachments" : "Attachments")
-                .accessibilityHint("Send a photo, video, document, location or contact.")
+                .accessibilityLabel(activeTray != nil ? "Close" : "Attachments")
+                .accessibilityHint(
+                    activeTray != nil
+                        ? "Closes the open panel."
+                        : "Send a photo, video, document, location or contact."
+                )
 
                 // Text input field
                 HStack(spacing: 6) {
