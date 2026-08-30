@@ -74,10 +74,15 @@ struct ChatDetailView: View {
     @State private var viewModel = ChatDetailViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var isInputFocused: Bool
-    @State private var showAttachmentPicker = false
+    /// Which tray is showing below the composer, if any.
+    ///
+    /// One value rather than three booleans. As three, opening a tray meant
+    /// remembering to close the other two at every call site — and the "+"
+    /// button never closed the sticker tray, so opening stickers from the
+    /// attachment sheet and then tapping "+" put both on screen at once.
+    /// Mutual exclusion is the type's job now.
+    @State private var activeTray: ComposerTray?
     @State private var showCameraCapture = false
-    @State private var showEmojiPicker = false
-    @State private var showStickerPicker = false
     @State private var showPhotosPicker = false
     /// Separate from the photos picker so the sheet can offer a video-only
     /// choice. `Photos` already accepts video, but with a library full of
@@ -326,12 +331,8 @@ struct ChatDetailView: View {
                     }
                 } else {
                     // Keyboard appeared — mutually exclusive with attachment, emoji & sticker trays
-                    if showAttachmentPicker || showEmojiPicker || showStickerPicker {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            showAttachmentPicker = false
-                            showEmojiPicker = false
-                            showStickerPicker = false
-                        }
+                    if activeTray != nil {
+                        withAnimation(.easeInOut(duration: 0.25)) { activeTray = nil }
                     }
                 }
             }
@@ -455,8 +456,7 @@ struct ChatDetailView: View {
                 input: viewModel.inputState,
                 isInputFocused: $isInputFocused,
                 voicePlayback: voicePlayback,
-                showAttachmentPicker: $showAttachmentPicker,
-                showEmojiPicker: $showEmojiPicker,
+                activeTray: $activeTray,
                 enterSendsMessage: enterSendsMessage,
                 attachmentSendContext: { makeAttachmentSendContext() },
                 onSendText: {
@@ -486,7 +486,7 @@ struct ChatDetailView: View {
                 onClearReply: { viewModel.clearReply() }
             )
 
-            if showAttachmentPicker {
+            if activeTray == .attachments {
                 AttachmentPickerHost(
                     onIntent: { intent in
                         let ctx = makeAttachmentSendContext()
@@ -498,51 +498,51 @@ struct ChatDetailView: View {
                         switch item {
                         case .camera:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showCameraCapture = true
                             }
                         case .photos:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showPhotosPicker = true
                             }
                         case .video:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showVideoPicker = true
                             }
                         case .file:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showFileImporter = true
                             }
                         case .contact:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 showContactPicker = true
                             }
                         case .gif:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                                 withAnimation(.easeInOut(duration: 0.25)) {
-                                    showStickerPicker = true
+                                    activeTray = .stickers
                                 }
                             }
                         case .location:
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                showAttachmentPicker = false
+                                activeTray = nil
                             }
                             let ctx = makeAttachmentSendContext()
                             Task { @MainActor in
@@ -565,7 +565,7 @@ struct ChatDetailView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if showEmojiPicker {
+            if activeTray == .emoji {
                 EmojiPickerSheet { emoji in
                     viewModel.inputState.inputText.append(emoji)
                 }
@@ -574,12 +574,12 @@ struct ChatDetailView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if showStickerPicker {
+            if activeTray == .stickers {
                 StickerPickerSheet(
                     onStickerSelected: { data in
                         let ctx = makeAttachmentSendContext()
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            showStickerPicker = false
+                            activeTray = nil
                         }
                         Task { @MainActor in
                             await viewModel.send(intent: .sticker(data), context: ctx)
@@ -588,7 +588,7 @@ struct ChatDetailView: View {
                     onGIFSelected: { url in
                         let ctx = makeAttachmentSendContext()
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            showStickerPicker = false
+                            activeTray = nil
                         }
                         Task { @MainActor in
                             await viewModel.send(intent: .gif(url), context: ctx)

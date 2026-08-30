@@ -18,8 +18,7 @@ struct ChatInputBarView: View {
     @Bindable var input: ChatInputState
     @FocusState.Binding var isInputFocused: Bool
     var voicePlayback: VoicePlaybackController
-    @Binding var showAttachmentPicker: Bool
-    @Binding var showEmojiPicker: Bool
+    @Binding var activeTray: ComposerTray?
     var enterSendsMessage: Bool
     var attachmentSendContext: () -> ChatDetailViewModel.AttachmentSendContext
     /// Narrow callbacks so the composer doesn't need a reference to the full
@@ -90,18 +89,17 @@ struct ChatInputBarView: View {
                 // Plus button — opens attachment sheet
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
-                        if showAttachmentPicker {
-                            showAttachmentPicker = false
+                        if activeTray == .attachments {
+                            activeTray = nil
                         } else {
                             isInputFocused = false
-                            showEmojiPicker = false
-                            showAttachmentPicker = true
+                            activeTray = .attachments
                         }
                     }
                 } label: {
                     Group {
                         if #available(iOS 26.0, *) {
-                            Image(systemName: showAttachmentPicker ? "xmark" : "plus")
+                            Image(systemName: activeTray == .attachments ? "xmark" : "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(SanchrColors.primary)
                                 .frame(width: 36, height: 36)
@@ -112,7 +110,7 @@ struct ChatInputBarView: View {
                                     tint: SanchrColors.primary.opacity(0.18)
                                 )
                         } else {
-                            Image(systemName: showAttachmentPicker ? "xmark" : "plus")
+                            Image(systemName: activeTray == .attachments ? "xmark" : "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(SanchrColors.primary)
                                 .frame(width: 36, height: 36)
@@ -141,16 +139,15 @@ struct ChatInputBarView: View {
                     if !hasInput {
                         Button {
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                if showEmojiPicker {
-                                    showEmojiPicker = false
+                                if activeTray == .emoji {
+                                    activeTray = nil
                                 } else {
                                     isInputFocused = false
-                                    showAttachmentPicker = false
-                                    showEmojiPicker = true
+                                    activeTray = .emoji
                                 }
                             }
                         } label: {
-                            Image(systemName: showEmojiPicker ? "keyboard" : "face.smiling")
+                            Image(systemName: activeTray == .emoji ? "keyboard" : "face.smiling")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(SanchrExportColors.textTertiary)
                         }
@@ -213,8 +210,7 @@ struct ChatInputBarView: View {
                         onActivate: {
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 isInputFocused = false
-                                showAttachmentPicker = false
-                                showEmojiPicker = false
+                                activeTray = nil
                             }
                         },
                         onSend: { url, durationMs, waveform in
