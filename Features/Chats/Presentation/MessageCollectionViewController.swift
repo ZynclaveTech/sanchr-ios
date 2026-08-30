@@ -260,9 +260,15 @@ final class MessageCollectionViewController: UIViewController {
     var onMediaAction: ((MediaMessageAction, Message) -> Void)?
     var onLongPressMessage: ((MessageContextPresentation) -> Void)?
 
-    /// A long press that is waiting for the keyboard to finish leaving before
-    /// its message is snapshotted. See `presentContextMenu(for:cell:)`.
-    private var pendingContextMenu: (message: Message, cell: UICollectionViewCell)?
+    /// The message of a long press that is waiting for the keyboard to finish
+    /// leaving before it is snapshotted. See `presentContextMenu(for:cell:)`.
+    ///
+    /// The id rather than the cell: cells are recycled, and a message arriving
+    /// during the wait could hand the snapshot a bubble belonging to someone
+    /// else. The cell is looked up again once the wait is over.
+    private var pendingContextMenuMessageId: String?
+
+    private var isKeyboardVisible = false
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -317,6 +323,12 @@ final class MessageCollectionViewController: UIViewController {
         configureCollectionView()
         configureDataSource()
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(keyboardDidHide),
@@ -1109,25 +1121,61 @@ final class MessageCollectionViewController: UIViewController {
     /// Long-press with the keyboard up.
     ///
     /// The keyboard would cover the menu, so it has to go. But dismissing it
-    /// grows the transcript and moves the cell, and the snapshot's frame is
-    /// what the menu is positioned by — taken too early, the lifted message is
-    /// drawn where the cell *was*. So when there is a keyboard to dismiss, the
-    /// menu waits for it to finish leaving.
+    /// grows the transcript and moves the cell, and the cell's frame is what
+    /// the menu is positioned by — measured too early, the lifted message is
+    /// drawn where the cell *was*. So when there is a keyboard, the menu waits
+    /// for it to finish leaving.
+    ///
+    /// Whether there is one is tracked from the keyboard's own notifications.
+    /// It was read from `endEditing(true)`'s return value, which does not mean
+    /// what it looks like it means — it can report `true` with nothing being
+    /// edited. Every long press then parked itself waiting for a
+    /// `keyboardDidHide` that no one would ever post, and the menu never opened
+    /// at all.
     private func presentContextMenu(for message: Message, cell: UICollectionViewCell) {
         guard cell.window != nil else { return }
 
-        if view.window?.endEditing(true) == true {
-            pendingContextMenu = (message, cell)
-        } else {
+        guard isKeyboardVisible else {
             emitContextMenu(for: message, cell: cell)
+            return
+        }
+
+        pendingContextMenuMessageId = message.id
+        view.window?.endEditing(true)
+
+        // A dropped notification must not be able to swallow the menu the way
+        // the previous version could. If the keyboard has not reported itself
+        // gone by the time it would have finished animating, open anyway — a
+        // menu placed slightly off beats no menu.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            self?.presentPendingContextMenu()
         }
     }
 
+    @objc private func keyboardWillShow() {
+        isKeyboardVisible = true
+    }
+
     @objc private func keyboardDidHide() {
-        guard let pending = pendingContextMenu else { return }
-        pendingContextMenu = nil
+        isKeyboardVisible = false
         // Layout has settled; the cell is where it is going to stay.
-        emitContextMenu(for: pending.message, cell: pending.cell)
+        presentPendingContextMenu()
+    }
+
+    private func presentPendingContextMenu() {
+        guard let id = pendingContextMenuMessageId else { return }
+        pendingContextMenuMessageId = nil
+
+        // Re-resolved rather than remembered: the transcript may have taken a
+        // new message during the wait, and the cell that was pressed could by
+        // now be drawing a different one.
+        guard let dataSource,
+              let item = dataSource.snapshot().itemIdentifiers.first(where: { $0.message.id == id }),
+              let indexPath = dataSource.indexPath(for: item),
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        emitContextMenu(for: item.message, cell: cell)
     }
 
     private func emitContextMenu(for message: Message, cell: UICollectionViewCell) {
