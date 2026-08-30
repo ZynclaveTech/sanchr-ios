@@ -21,6 +21,10 @@ final class MessageContextMenuWindow {
 
     private var window: UIWindow?
 
+    /// The chat's own window, hidden from VoiceOver while the menu is up and
+    /// restored when it goes.
+    private weak var obscuredHost: UIWindow?
+
     /// The window the chat is drawn in — the space `sourceFrame` is measured in.
     static var host: UIWindow? {
         UIApplication.shared.connectedScenes
@@ -36,6 +40,10 @@ final class MessageContextMenuWindow {
 
         let controller = UIHostingController(rootView: content)
         controller.view.backgroundColor = .clear
+        // Signal marks its context menu's root view modal for the same reason:
+        // everything behind it is blurred and untouchable, so VoiceOver has no
+        // business reaching it.
+        controller.view.accessibilityViewIsModal = true
 
         let window = UIWindow(windowScene: scene)
         window.frame = host.frame
@@ -55,13 +63,36 @@ final class MessageContextMenuWindow {
         // responder status, and taking key would disturb the composer's focus.
         window.isHidden = false
 
+        // `accessibilityViewIsModal` contains VoiceOver among *sibling views*.
+        // The chat is a sibling window, so it stays reachable on its own —
+        // swiping past the last action walked straight into a transcript that
+        // was blurred out and could not be touched. Hiding the host window is
+        // what actually confines the cursor.
+        host.accessibilityElementsHidden = true
+        obscuredHost = host
+
         self.window = window
+
+        // Move the cursor into the menu rather than leaving it wherever the
+        // long press left it.
+        UIAccessibility.post(notification: .screenChanged, argument: controller.view)
     }
 
     func dismiss() {
+        let wasPresented = window != nil
+
+        obscuredHost?.accessibilityElementsHidden = false
+        obscuredHost = nil
+
         window?.isHidden = true
         window?.rootViewController = nil
         window = nil
+
+        // Hand focus back to the conversation. Without this the cursor is left
+        // pointing at a window that no longer exists, and VoiceOver goes quiet.
+        if wasPresented {
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+        }
     }
 
     deinit {
