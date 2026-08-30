@@ -370,7 +370,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // The disappearing timer travels inside the envelope so the recipient
             // can enforce it. SendSealedMessageRequest has no TTL field, and the
             // server should not learn the timer in any case.
-            expiresAfterSecs: disappearingSecs > 0 ? disappearingSecs : nil
+            expiresAfterSecs: disappearingSecs > 0 ? disappearingSecs : nil,
+            // Control traffic never answers a message.
+            replyToMessageId: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -664,7 +666,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 content: content,
                 isSync: false,
                 // Control payloads carry no disappearing timer.
-                expiresAfterSecs: nil
+                expiresAfterSecs: nil,
+                // Control traffic never answers a message.
+                replyToMessageId: nil
             )
             let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -964,7 +968,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             content: content,
             isSync: false,
             // Control payloads carry no disappearing timer.
-            expiresAfterSecs: nil
+            expiresAfterSecs: nil,
+            // Control traffic never answers a message.
+            replyToMessageId: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -1212,7 +1218,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             content: profileKey,
             isSync: false,
             // Control payloads carry no disappearing timer.
-            expiresAfterSecs: nil
+            expiresAfterSecs: nil,
+            // Control traffic never answers a message.
+            replyToMessageId: nil
         )
         let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
 
@@ -1776,6 +1784,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 content: content,
                 status: isOutgoing ? .sent : .delivered,
                 isOutgoing: isOutgoing,
+                // Nil for anything sent by a client that predates the field,
+                // and for group messages, which take the non-sealed path that
+                // has nowhere to carry it.
+                replyToMessageId: innerPayload.replyToMessageId,
                 expiresAt: expiresAt
             )
 

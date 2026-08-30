@@ -29,6 +29,18 @@ enum MessageListSection: Hashable {
     }
 }
 
+/// The message a bubble is answering, resolved for display.
+///
+/// Resolved once per snapshot rather than looked up inside the bubble: the
+/// bubble has no access to the transcript, and doing it per cell would be a
+/// dictionary lookup on every scroll.
+struct ReplyQuote: Hashable {
+    /// Whether the quoted message was sent by us, so the bubble can say "You".
+    let quotedIsOutgoing: Bool
+    /// One-line description of the quoted content.
+    let preview: String
+}
+
 struct MessageItem: Hashable {
     let message: Message
     let isGroupedWithPrev: Bool
@@ -36,6 +48,7 @@ struct MessageItem: Hashable {
     let uploadProgress: Double?
     let uploadLabel: String?
     let isUnreadDivider: Bool
+    let replyQuote: ReplyQuote?
 
     init(
         message: Message,
@@ -43,8 +56,10 @@ struct MessageItem: Hashable {
         isGroupedWithNext: Bool,
         uploadProgress: Double?,
         uploadLabel: String?,
-        isUnreadDivider: Bool = false
+        isUnreadDivider: Bool = false,
+        replyQuote: ReplyQuote? = nil
     ) {
+        self.replyQuote = replyQuote
         self.message         = message
         self.isGroupedWithPrev = isGroupedWithPrev
         self.isGroupedWithNext = isGroupedWithNext
@@ -87,6 +102,7 @@ private struct MessageItemRenderSignature: Hashable {
     let status: Message.DeliveryStatus
     let isOutgoing: Bool
     let replyToMessageId: String?
+    let replyQuote: ReplyQuote?
     let reactions: [MessageReactionRenderSignature]
     let isGroupedWithPrev: Bool
     let isGroupedWithNext: Bool
@@ -138,6 +154,7 @@ private extension MessageItem {
             status: message.status,
             isOutgoing: message.isOutgoing,
             replyToMessageId: message.replyToMessageId,
+            replyQuote: replyQuote,
             reactions: message.renderReactionSignature,
             isGroupedWithPrev: isGroupedWithPrev,
             isGroupedWithNext: isGroupedWithNext,
@@ -446,6 +463,7 @@ final class MessageCollectionViewController: UIViewController {
             VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
                 MessageBubble(
                     message: item.message,
+                    replyQuote: item.replyQuote,
                     uploadProgress: item.uploadProgress,
                     uploadLabel: item.uploadLabel,
                     hideTimestamp: item.isGroupedWithNext,
@@ -517,7 +535,25 @@ final class MessageCollectionViewController: UIViewController {
 
     // MARK: - Snapshot Application
 
+    /// Resolves what a reply is answering, if the target is in the transcript.
+    static func quote(for message: Message, in byId: [String: Message]) -> ReplyQuote? {
+        guard let replyId = message.replyToMessageId, let quoted = byId[replyId] else {
+            return nil
+        }
+        return ReplyQuote(
+            quotedIsOutgoing: quoted.isOutgoing,
+            preview: ChatInputBarView.replyPreviewText(quoted)
+        )
+    }
+
     func applySnapshot(sections: [MessageSection], uploads: UploadProgressStore) {
+        // One index per snapshot. A reply whose target is not loaded (older
+        // than the window, or deleted) simply resolves to nil and the bubble
+        // falls back to saying only that it is a reply.
+        let byId = Dictionary(
+            sections.lazy.flatMap(\.messages).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         guard dataSource != nil else {
             pendingRenderInput = TranscriptRenderInput(
                 sections: sections,
@@ -566,7 +602,8 @@ final class MessageCollectionViewController: UIViewController {
                     isGroupedWithPrev: isGroupedWithPrev,
                     isGroupedWithNext: isGroupedWithNext,
                     uploadProgress: uploads.progress(for: message.id),
-                    uploadLabel: uploads.statusLabel(for: message.id)
+                    uploadLabel: uploads.statusLabel(for: message.id),
+                    replyQuote: Self.quote(for: message, in: byId)
                 ))
             }
 
@@ -695,7 +732,8 @@ final class MessageCollectionViewController: UIViewController {
                 isGroupedWithPrev: item.isGroupedWithPrev,
                 isGroupedWithNext: item.isGroupedWithNext,
                 uploadProgress: uploads.progress(for: item.message.id),
-                uploadLabel: uploads.statusLabel(for: item.message.id)
+                uploadLabel: uploads.statusLabel(for: item.message.id),
+                replyQuote: item.replyQuote
             )
 
             applyCellConfiguration(cell, item: refreshed)

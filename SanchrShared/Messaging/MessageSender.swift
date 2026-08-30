@@ -198,9 +198,24 @@ public actor MessageSender {
     /// then the cross-process lock is taken for the duration of the ratchet
     /// step + gRPC call so Signal-protocol mutations stay atomic across the
     /// main app and the share extension.
+    /// Satisfies `ShareMessageSending`, whose seam is deliberately minimal and
+    /// has no notion of replies. A defaulted argument cannot witness a protocol
+    /// requirement with a different signature, so this forwards explicitly
+    /// rather than widening a protocol the share extension does not need.
     public func sendText(
         _ text: String,
         to chatId: String
+    ) async throws -> MessageSendReceipt {
+        try await sendText(text, to: chatId, replyToMessageId: nil)
+    }
+
+    /// - Parameter replyToMessageId: the message being answered, carried inside
+    ///   the sealed envelope. Groups fall back to the standard path, which has
+    ///   no field for it — see `sendViaSealedSender`.
+    public func sendText(
+        _ text: String,
+        to chatId: String,
+        replyToMessageId: String? = nil
     ) async throws -> MessageSendReceipt {
         guard let senderId = await currentUser.currentUserId else {
             throw AppError.sessionExpired
@@ -252,7 +267,8 @@ public actor MessageSender {
                     senderId: senderId,
                     localMessageId: localId,
                     sealedSender: sealedSender,
-                    expiresAfterSecs: disappearingSecs
+                    expiresAfterSecs: disappearingSecs,
+                    replyToMessageId: replyToMessageId
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -316,7 +332,8 @@ public actor MessageSender {
     public func sendLocation(
         latitude: Double,
         longitude: Double,
-        to chatId: String
+        to chatId: String,
+        replyToMessageId: String? = nil
     ) async throws -> MessageSendReceipt {
         guard let senderId = await currentUser.currentUserId else {
             throw AppError.sessionExpired
@@ -369,7 +386,8 @@ public actor MessageSender {
                     senderId: senderId,
                     localMessageId: localId,
                     sealedSender: sealedSender,
-                    expiresAfterSecs: disappearingSecs
+                    expiresAfterSecs: disappearingSecs,
+                    replyToMessageId: replyToMessageId
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -429,10 +447,29 @@ public actor MessageSender {
     /// holding the lock for them would serialize every other process's sends
     /// behind the slowest network. Only the Signal ratchet step + gRPC
     /// `sendMessage` are held under the lock.
+    /// Satisfies `ShareMessageSending`. See the `sendText` overload above for
+    /// why this forwards rather than the protocol growing a reply parameter it
+    /// has no use for.
     public func sendMedia(
         attachment: Message.MediaAttachment,
         caption: String?,
         to chatId: String,
+        progress: @Sendable @escaping (Double) -> Void
+    ) async throws -> MessageSendReceipt {
+        try await sendMedia(
+            attachment: attachment,
+            caption: caption,
+            to: chatId,
+            replyToMessageId: nil,
+            progress: progress
+        )
+    }
+
+    public func sendMedia(
+        attachment: Message.MediaAttachment,
+        caption: String?,
+        to chatId: String,
+        replyToMessageId: String? = nil,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> MessageSendReceipt {
         guard let senderId = await currentUser.currentUserId else {
@@ -513,7 +550,8 @@ public actor MessageSender {
                     senderId: senderId,
                     localMessageId: localId,
                     sealedSender: sealedSender,
-                    expiresAfterSecs: disappearingSecs
+                    expiresAfterSecs: disappearingSecs,
+                    replyToMessageId: replyToMessageId
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -586,6 +624,7 @@ public actor MessageSender {
         attachments: [Message.MediaAttachment],
         caption: String?,
         to chatId: String,
+        replyToMessageId: String? = nil,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> MessageSendReceipt {
         guard attachments.count > 1 else {
@@ -659,7 +698,8 @@ public actor MessageSender {
                     senderId: senderId,
                     localMessageId: localId,
                     sealedSender: sealedSender,
-                    expiresAfterSecs: disappearingSecs
+                    expiresAfterSecs: disappearingSecs,
+                    replyToMessageId: replyToMessageId
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -759,7 +799,8 @@ public actor MessageSender {
     public func sendContact(
         name: String,
         phoneNumber: String,
-        to chatId: String
+        to chatId: String,
+        replyToMessageId: String? = nil
     ) async throws -> MessageSendReceipt {
         guard let senderId = await currentUser.currentUserId else {
             throw AppError.sessionExpired
@@ -813,7 +854,8 @@ public actor MessageSender {
                     senderId: senderId,
                     localMessageId: localId,
                     sealedSender: sealedSender,
-                    expiresAfterSecs: disappearingSecs
+                    expiresAfterSecs: disappearingSecs,
+                    replyToMessageId: replyToMessageId
                 )
             } else {
                 sendResult = try await coordinator.withLock { [encryptedSender] in
@@ -996,7 +1038,8 @@ public actor MessageSender {
         senderId: String,
         localMessageId: String,
         sealedSender: SealedMessageSendingClient,
-        expiresAfterSecs: Int64
+        expiresAfterSecs: Int64,
+        replyToMessageId: String? = nil
     ) async throws -> EncryptedMessageSendResult {
         do {
             let sealedResult = try await coordinator.withLock {
@@ -1007,7 +1050,8 @@ public actor MessageSender {
                     messageId: localMessageId,
                     recipientIds: recipientIds,
                     senderId: senderId,
-                    expiresAfterSecs: expiresAfterSecs
+                    expiresAfterSecs: expiresAfterSecs,
+                    replyToMessageId: replyToMessageId
                 )
             }
             logger.info(

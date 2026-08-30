@@ -23,6 +23,11 @@ extension ChatDetailViewModel {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
+        // Read the reply BEFORE clearing it. This ran after `clearReply()`,
+        // so the id was already nil by the time the message was built — the
+        // reply banner was showing something the send then threw away.
+        let replyToMessageId = replyingToMessage?.id
+
         // Clear input immediately for responsive UI
         inputText = ""
         clearReply()
@@ -37,13 +42,18 @@ extension ChatDetailViewModel {
             conversationId: conversationId,
             senderId: sessionService.currentUserId ?? "unknown",
             text: text,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         messages.append(optimisticMessage)
         appendMessageToSections(optimisticMessage)
 
         do {
-            let receipt = try await messageSender.sendText(text, to: conversationId)
+            let receipt = try await messageSender.sendText(
+                text,
+                to: conversationId,
+                replyToMessageId: replyToMessageId
+            )
             let serverTimestamp = Date(
                 timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0
             )
@@ -97,6 +107,9 @@ extension ChatDetailViewModel {
         if let caption, localAttachments[0].caption == nil {
             localAttachments[0].caption = caption
         }
+        // An album is as repliable as any other message; it simply never
+        // carried the reference.
+        let replyToMessageId = replyingToMessage?.id
         let optimisticContent = MessageSender.contentForAlbum(localAttachments)
         let optimisticMessage = Message(
             id: UUID().uuidString,
@@ -105,7 +118,8 @@ extension ChatDetailViewModel {
             timestamp: Date(),
             content: optimisticContent,
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         let optimisticId = optimisticMessage.id
         messages.append(optimisticMessage)
@@ -128,6 +142,7 @@ extension ChatDetailViewModel {
                 attachments: attachments,
                 caption: caption,
                 to: conversationId,
+                replyToMessageId: replyToMessageId,
                 progress: { [weak self] fraction in
                     Task { @MainActor [weak self] in
                         self?.uploads.update(
@@ -251,7 +266,8 @@ extension ChatDetailViewModel {
             let receipt = try await messageSender.sendMedia(
                 attachment: attachment,
                 caption: caption,
-                to: conversationId
+                to: conversationId,
+                replyToMessageId: optimisticMessage.replyToMessageId
             ) { [weak self] fraction in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
