@@ -55,6 +55,11 @@ public enum AppError: LocalizedError, Equatable {
     case callPermissionDenied
     case callAlreadyInProgress
 
+    // MARK: - Contacts
+
+    /// Address-book access was refused, so discovery has nothing to match.
+    case contactsPermissionDenied
+
     // MARK: - Feature Gates
 
     /// Thrown when a caller attempts to use a feature that this build
@@ -139,6 +144,12 @@ public enum AppError: LocalizedError, Equatable {
             // again, so a message that only states the problem leaves the
             // person stuck with no idea the fix is elsewhere.
             return "Microphone permission is required for calls. You can turn it on in Settings."
+        case .contactsPermissionDenied:
+            // Names the way out. Once refused, the app cannot ask again, so a
+            // message that only states the problem leaves the person stuck
+            // looking at an empty list with no idea why.
+            return "Sanchr needs access to your contacts to find people you know. "
+                + "You can turn it on in Settings."
         case .callAlreadyInProgress:
             return "A call is already in progress."
         case .featureDisabled:
