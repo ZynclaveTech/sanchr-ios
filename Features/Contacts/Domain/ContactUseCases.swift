@@ -23,18 +23,22 @@ enum ContactUseCases {
         private let contactDataSource: ContactDataSource
         private let discoveryRepository: DiscoveryRepositoryProtocol
 
-        /// The local user's own calling code (e.g. "+91"), used to expand
-        /// address-book numbers saved without one into E.164.
-        private let defaultCallingCode: @Sendable () -> String
+        /// The local user's own E.164 number.
+        ///
+        /// Both the calling code and the national number length are derived
+        /// from it. Taking the whole number rather than just the code is what
+        /// lets a locally-saved number be read unambiguously — see
+        /// `ContactDataSource.nationalNumberLength(ofE164:)`.
+        private let ownE164: @Sendable () -> String
 
         init(
             contactDataSource: ContactDataSource,
             discoveryRepository: DiscoveryRepositoryProtocol,
-            defaultCallingCode: @escaping @Sendable () -> String = { "" }
+            ownE164: @escaping @Sendable () -> String = { "" }
         ) {
             self.contactDataSource = contactDataSource
             self.discoveryRepository = discoveryRepository
-            self.defaultCallingCode = defaultCallingCode
+            self.ownE164 = ownE164
         }
 
         /// Requests contact access, runs OPRF discovery, and resolves matches.
@@ -63,12 +67,16 @@ enum ContactUseCases {
             // local ("9569740653", "095697 40653"), which is why a saved contact
             // could previously fail to match its own account and the sync
             // reported zero results.
-            let callingCode = defaultCallingCode()
+            let own = ownE164()
+            let callingCode = ContactDataSource.callingCode(fromE164: own)
+            let nationalLength = ContactDataSource.nationalNumberLength(ofE164: own)
             try store.enumerateContacts(with: request) { contact, _ in
                 for number in contact.phoneNumbers {
                     let raw = number.value.stringValue
                     if let e164 = ContactDataSource.e164PhoneNumber(
-                        raw, defaultCallingCode: callingCode)
+                        raw,
+                        defaultCallingCode: callingCode,
+                        nationalNumberLength: nationalLength)
                     {
                         phoneNumbers.append(e164)
                     }
