@@ -619,6 +619,8 @@ private struct NewCallContactPicker: View {
             List {
                 ForEach(viewModel.filteredNewCallContacts) { contact in
                     NewCallContactRow(
+                        isIdentityVerified: container.signalProtocol
+                            .isIdentityVerified(userId: contact.id),
                         contact: contact,
                         startVoiceCall: {
                             Task {
@@ -674,6 +676,9 @@ private struct NewCallContactPicker: View {
 }
 
 private struct NewCallContactRow: View {
+    /// Whether this person's identity key has been verified — not whether they
+    /// have an account. See `User.isVerified`.
+    let isIdentityVerified: Bool
     let contact: User
     let startVoiceCall: () -> Void
     let startVideoCall: () -> Void
@@ -689,7 +694,7 @@ private struct NewCallContactRow: View {
                 displayName: contact.displayName,
                 avatarURL: contact.avatarURL,
                 status: contact.status,
-                badgeSystemImage: contact.isVerified ? "shield.fill" : nil
+                badgeSystemImage: isIdentityVerified ? "shield.fill" : nil
             )
 
             VStack(alignment: .leading, spacing: 5) {
@@ -699,7 +704,7 @@ private struct NewCallContactRow: View {
                         .foregroundColor(SanchrExportColors.textPrimary)
                         .lineLimit(1)
 
-                    if contact.isVerified {
+                    if isIdentityVerified {
                         Image(systemName: "shield.fill")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(SanchrColors.accent)

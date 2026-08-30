@@ -13,6 +13,7 @@ struct NewChatContactPickerSheet: View {
     let onConversationReady: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(DependencyContainer.self) private var container
     @State private var contacts: [User] = []
     @State private var isLoadingContacts = true
     @State private var loadError: String?
@@ -106,6 +107,8 @@ struct NewChatContactPickerSheet: View {
             List {
                 ForEach(filteredContacts) { contact in
                     NewChatContactRow(
+                        isIdentityVerified: container.signalProtocol
+                            .isIdentityVerified(userId: contact.id),
                         contact: contact,
                         isStarting: startingContactId == contact.id
                     ) {
@@ -154,6 +157,9 @@ struct NewChatContactPickerSheet: View {
 
 // Visibility promoted from private to module-internal for cross-file access.
 struct NewChatContactRow: View {
+    /// Whether this person's identity key has been verified — not whether they
+    /// have an account. See `User.isVerified`.
+    let isIdentityVerified: Bool
     let contact: User
     let isStarting: Bool
     let action: () -> Void
@@ -189,7 +195,7 @@ struct NewChatContactRow: View {
                             .font(SanchrTypography.conversationName)
                             .foregroundColor(SanchrExportColors.textPrimary)
                             .lineLimit(1)
-                        if contact.isVerified {
+                        if isIdentityVerified {
                             Image(systemName: "shield.fill")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(SanchrColors.accent)
