@@ -40,6 +40,8 @@ struct ChatTranscriptView: View {
     /// they need lives here rather than being threaded up to the root.
     @State private var shareItem: GalleryIdentifiedURLBridge?
     @State private var mediaActionToast: String?
+    /// The message whose context menu is open, if any.
+    @State private var contextPresentation: MessageContextPresentation?
 
     var body: some View {
         MessageCollectionView(
@@ -60,6 +62,9 @@ struct ChatTranscriptView: View {
             },
             onMediaAction: { action, message in
                 Task { await performMediaAction(action, on: message) }
+            },
+            onLongPressMessage: { presentation in
+                contextPresentation = presentation
             },
             onRetry: { message in
                 Task { await onRetry(message) }
@@ -85,6 +90,29 @@ struct ChatTranscriptView: View {
             }
         }
         .environment(container)
+        // A plain overlay, not a sheet or a cover: the menu has to draw over
+        // the transcript while the transcript stays visible behind it, blurred.
+        // Anything modal would replace the conversation instead of lifting a
+        // message out of it.
+        .overlay {
+            if let contextPresentation {
+                MessageContextMenuOverlay(
+                    presentation: contextPresentation,
+                    onReact: { emoji in
+                        let message = contextPresentation.message
+                        dismissContextMenu()
+                        onReact(emoji, message.id)
+                    },
+                    onAction: { action in
+                        let message = contextPresentation.message
+                        dismissContextMenu()
+                        performContextAction(action, on: message)
+                    },
+                    onDismiss: { dismissContextMenu() }
+                )
+                .transition(.opacity)
+            }
+        }
         .sheet(item: $shareItem) { wrapped in
             TranscriptActivityView(items: [wrapped.url])
         }
@@ -193,6 +221,46 @@ struct ChatTranscriptView: View {
         NotificationCenter.default.postConversationStateDidChange(
             conversationId: conversation.id
         )
+    }
+
+    // MARK: - Context Menu
+
+    private func dismissContextMenu() {
+        withAnimation(.easeOut(duration: 0.18)) { contextPresentation = nil }
+    }
+
+    /// Routes a chosen action to the handler that already exists for it.
+    ///
+    /// Every one of these was reachable from the old native menu; the menu
+    /// changed, not what the actions do.
+    private func performContextAction(_ action: MessageContextAction, on message: Message) {
+        switch action {
+        case .reply:
+            onReply(message)
+
+        case .forward:
+            messageToForward = message
+
+        case .copy:
+            if case .text(let text) = message.content {
+                UIPasteboard.general.string = text
+                showMediaToast("Copied")
+            } else {
+                Task { await performMediaAction(.copy, on: message) }
+            }
+
+        case .saveToPhotos:
+            Task { await performMediaAction(.saveToPhotos, on: message) }
+
+        case .share:
+            Task { await performMediaAction(.share, on: message) }
+
+        case .retry:
+            Task { await onRetry(message) }
+
+        case .delete:
+            onDeleteMessage(message)
+        }
     }
 
     // MARK: - Media Actions
