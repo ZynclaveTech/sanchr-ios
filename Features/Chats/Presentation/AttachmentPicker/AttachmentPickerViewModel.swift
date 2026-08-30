@@ -49,13 +49,37 @@ final class AttachmentPickerViewModel: ObservableObject {
             if photoPermission == .notDetermined {
                 photoPermission = await photos.requestPermission()
             }
-            if photoPermission == .authorized || photoPermission == .limited {
-                isLoadingRecents = true
-                let list = photos.fetchRecents()
-                self.recents = list
-                isLoadingRecents = false
-            }
+            await reloadRecents()
         }
+    }
+
+    /// Re-reads the library. Called on appear, and again after the system's
+    /// "Select More Photos" sheet, where the set can have changed underneath.
+    func reloadRecents() async {
+        guard photoPermission == .authorized || photoPermission == .limited else {
+            recents = []
+            return
+        }
+        isLoadingRecents = true
+        recents = photos.fetchRecents()
+        isLoadingRecents = false
+    }
+
+    /// What the strip should say when it has nothing to show.
+    ///
+    /// It used to say nothing at all: a refused library and an empty one both
+    /// rendered as blank space, so there was no way to tell a decision you had
+    /// made from a phone with no photos on it.
+    enum EmptyReason: Equatable {
+        case loading
+        case denied
+        case noPhotos
+    }
+
+    var emptyReason: EmptyReason? {
+        if isLoadingRecents && recents.isEmpty { return .loading }
+        guard recents.isEmpty else { return nil }
+        return photoPermission == .denied ? .denied : .noPhotos
     }
 
     func didDisappear() { exitMultiSelect() }

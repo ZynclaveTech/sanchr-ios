@@ -504,65 +504,39 @@ struct ChatDetailView: View {
                     },
                     onRequestAction: { item in
                         switch item {
-                        case .camera:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                showCameraCapture = true
-                            }
-                        case .photos:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                showPhotosPicker = true
-                            }
-                        case .video:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                showVideoPicker = true
-                            }
-                        case .file:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                showFileImporter = true
-                            }
-                        case .contact:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                showContactPicker = true
-                            }
+                        case .camera:  closeTrayThen { showCameraCapture = true }
+                        case .photos:  closeTrayThen { showPhotosPicker = true }
+                        case .video:   closeTrayThen { showVideoPicker = true }
+                        case .file:    closeTrayThen { showFileImporter = true }
+                        case .contact: closeTrayThen { showContactPicker = true }
+
                         case .gif:
+                            // Swapped, not closed and reopened. Routing this
+                            // through `closeTrayThen` played the tray out and
+                            // back in for what is a change of tab.
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
+                                activeTray = .stickers
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    activeTray = .stickers
-                                }
-                            }
+
                         case .location:
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                activeTray = nil
-                            }
-                            let ctx = makeAttachmentSendContext()
-                            Task { @MainActor in
-                                // Bind to a local to keep the LocationSource alive
-                                // across the suspension; the CLLocationManager's
-                                // delegate is weak, so a temporary would race ARC.
-                                let source = LocationSource()
-                                do {
-                                    let payload = try await source.requestOneShot()
-                                    await viewModel.send(intent: .location(payload), context: ctx)
-                                } catch {
-                                    SanchrLogger.chat.error("Location request failed: \(error)")
+                            closeTrayThen {
+                                let ctx = makeAttachmentSendContext()
+                                Task { @MainActor in
+                                    // Bind to a local to keep the LocationSource
+                                    // alive across the suspension; the
+                                    // CLLocationManager's delegate is weak, so a
+                                    // temporary would race ARC.
+                                    let source = LocationSource()
+                                    do {
+                                        let payload = try await source.requestOneShot()
+                                        await viewModel.send(intent: .location(payload), context: ctx)
+                                    } catch {
+                                        SanchrLogger.chat.error("Location request failed: \(error)")
+                                        // Was logged and nothing more, so a
+                                        // refused or unavailable location made
+                                        // the pill look inert.
+                                        viewModel.errorMessage = Self.locationFailureMessage(error)
+                                    }
                                 }
                             }
                         }
@@ -1162,6 +1136,39 @@ struct ChatDetailView: View {
     /// `AttachmentIntent`. Captured by value at call time so the resulting
     /// closure-friendly struct doesn't accidentally retain SwiftUI state.
     @MainActor
+    /// Closes the tray, then does the thing once it has gone.
+    ///
+    /// Six copies of this sat inline, each pairing `activeTray = nil` with a
+    /// hand-written `asyncAfter(0.25)` matching the animation's duration by
+    /// eye. Changing the animation would have left six presentations racing a
+    /// tray that was still on screen.
+    private func closeTrayThen(_ action: @escaping () -> Void) {
+        withAnimation(.easeInOut(duration: Self.trayDismissDuration)) {
+            activeTray = nil
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.trayDismissDuration) {
+            action()
+        }
+    }
+
+    private static let trayDismissDuration: TimeInterval = 0.25
+
+    /// Location can fail for reasons the user can act on and reasons they
+    /// cannot; saying which is the difference between a fixable refusal and an
+    /// app that looks broken.
+    static func locationFailureMessage(_ error: Error) -> String {
+        switch error as? LocationSource.Error {
+        case .denied:
+            return "Sanchr doesn't have access to your location. You can turn it on in Settings."
+        case .timeout:
+            return "Couldn't get your location in time. Try again in a moment."
+        case .failed(let reason):
+            return "Couldn't get your location: \(reason)"
+        case nil:
+            return "Couldn't get your location. Try again in a moment."
+        }
+    }
+
     private func makeAttachmentSendContext() -> ChatDetailViewModel.AttachmentSendContext {
         ChatDetailViewModel.AttachmentSendContext(
             conversationId: conversation.id,
