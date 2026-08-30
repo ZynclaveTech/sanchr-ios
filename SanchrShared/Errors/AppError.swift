@@ -135,7 +135,10 @@ public enum AppError: LocalizedError, Equatable {
         case .callConnectionFailed:
             return "Unable to connect the call. Please try again."
         case .callPermissionDenied:
-            return "Microphone permission is required for calls."
+            // Names the way out. Once permission is denied the app cannot ask
+            // again, so a message that only states the problem leaves the
+            // person stuck with no idea the fix is elsewhere.
+            return "Microphone permission is required for calls. You can turn it on in Settings."
         case .callAlreadyInProgress:
             return "A call is already in progress."
         case .featureDisabled:

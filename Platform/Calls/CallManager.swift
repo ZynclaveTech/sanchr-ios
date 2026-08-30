@@ -101,6 +101,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     // MARK: - Observable State
 
     var callState: CallState = .idle
+
+    /// Why the last call could not be answered or placed, when the reason is
+    /// something the user can act on.
+    ///
+    /// Answering happens from CallKit's own UI, often on the lock screen with
+    /// the app not even foreground, so there is nowhere to show an alert at the
+    /// moment it fails. This survives so the app can explain itself the next
+    /// time it is opened.
+    var lastCallError: String?
     var isMuted: Bool = false
     var isSpeakerOn: Bool = false
     var isVideoEnabled: Bool = false
@@ -682,6 +691,22 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             if answeringCallId == callId {
                 answeringCallId = nil
             }
+        }
+
+        // Answering had no permission check at all, while placing a call
+        // validated carefully. Someone who revoked microphone access could
+        // answer and join a call they could not speak on, with nothing to
+        // explain the silence.
+        //
+        // Only the microphone is a hard requirement: without it there is no
+        // call to be had. Camera is not checked here — a video call answered
+        // without camera access is still a working audio call, and refusing it
+        // outright would be worse than joining without video.
+        guard AVAudioApplication.shared.recordPermission == .granted else {
+            SanchrLogger.calls.error("answerCall: microphone permission not granted")
+            lastCallError = AppError.callPermissionDenied.localizedDescription
+            declineCall()
+            throw AppError.callPermissionDenied
         }
 
         try await tokenRefresher()

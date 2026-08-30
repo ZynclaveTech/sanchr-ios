@@ -53,6 +53,15 @@ struct CallsListView: View {
                 showNewCallPicker = false
             }
         }
+        // A call answered from the lock screen can fail for a reason the user
+        // can fix, with the app not foreground and nowhere to say so at the
+        // time. Deliver it here instead, through the banner this screen
+        // already has.
+        .task(id: container.callManager.lastCallError) {
+            guard let error = container.callManager.lastCallError else { return }
+            viewModel.errorMessage = error
+            container.callManager.lastCallError = nil
+        }
     }
 
     private var mainContent: some View {
