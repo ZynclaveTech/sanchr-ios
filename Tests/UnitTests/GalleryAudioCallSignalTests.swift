@@ -45,24 +45,38 @@ final class GalleryAudioCallSignalTests: XCTestCase {
     }
 
     /// A call owns the session outright: taking it would cut the call's audio,
-    /// which is far worse than a silent video.
-    func testACallKeepsTheSession() {
-        let before = AVAudioSession.sharedInstance().category
-        GalleryAudioSession.activateForPlayback(callInProgress: true)
-        XCTAssertEqual(
-            AVAudioSession.sharedInstance().category, before,
-            "the session was reconfigured while a call was in progress"
+    /// which is far worse than a silent video. Both entry points have to stand
+    /// down, not just the one that configures.
+    ///
+    /// Asserted against the source rather than by calling them and inspecting
+    /// `AVAudioSession`. An earlier version did exactly that and was wrong
+    /// twice over: it depended on whatever the process-wide session happened to
+    /// hold, so it reported success for the wrong reason and then failed the
+    /// moment unrelated code left the session in a different state.
+    func testBothEntryPointsStandDownForACall() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent(
+                    "Features/Chats/Presentation/Viewers/MediaGallery/GalleryAudioSession.swift"
+                ),
+            encoding: .utf8
         )
-    }
-
-    /// And releasing it must be equally hands-off, or dismissing a viewer
-    /// during a call would deactivate the session the call is using.
-    func testReleasingIsSkippedDuringACall() {
-        GalleryAudioSession.deactivate(callInProgress: true)
-        XCTAssertNotEqual(
-            AVAudioSession.sharedInstance().category, .ambient,
-            "the session was released while a call was in progress"
-        )
+        for entry in ["activateForPlayback(callInProgress: Bool)",
+                      "deactivate(callInProgress: Bool)"] {
+            let body = try XCTUnwrap(
+                source.range(of: "static func \(entry) {").map {
+                    String(source[$0.upperBound...].prefix(400))
+                },
+                "\(entry) is missing"
+            )
+            XCTAssertTrue(
+                body.contains("guard !callInProgress"),
+                "\(entry) must leave the session alone during a call"
+            )
+        }
     }
 
     // There is deliberately no test that activating without a call

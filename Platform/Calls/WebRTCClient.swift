@@ -427,8 +427,57 @@ final class WebRTCClient: NSObject {
         isMuted = false
         isSpeakerOn = false
         try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
+        releaseAudioSession()
         isUsingFrontCamera = true
         isVideoEnabled = false
+    }
+
+    /// Hands the audio session back when a call is over.
+    ///
+    /// `configureAudioSession` claimed the session for the call and nothing
+    /// ever gave it back. Two consequences, both of which outlived the call:
+    ///
+    /// - Whatever was playing before — music, a podcast — never resumed,
+    ///   because the session was never deactivated with
+    ///   `notifyOthersOnDeactivation`.
+    /// - Category and mode are sticky. Deactivation alone does not clear them,
+    ///   so the session read as `.playAndRecord` / `.voiceChat` for the rest of
+    ///   the process. Anything asking "is a call happening?" by inspecting the
+    ///   session got the wrong answer from the first call onwards, which is
+    ///   exactly how gallery video ended up silent after any call.
+    ///
+    /// Taken under `RTCAudioSession`'s lock so WebRTC cannot reconfigure the
+    /// session while it is being handed back, and entirely best-effort: a call
+    /// that has already ended must not be able to fail here.
+    private func releaseAudioSession() {
+        let rtcSession = RTCAudioSession.sharedInstance()
+        rtcSession.lockForConfiguration()
+        defer { rtcSession.unlockForConfiguration() }
+
+        // Before deactivating, so WebRTC stops touching a session that is
+        // about to go away.
+        rtcSession.isAudioEnabled = false
+
+        let session = AVAudioSession.sharedInstance()
+        do {
+            // Deactivate first: the notification is what lets other apps pick
+            // up again, and it has to happen while the session is still ours.
+            try session.setActive(false, options: [.notifyOthersOnDeactivation])
+        } catch {
+            // CallKit may already have deactivated it, which is fine — the
+            // category reset below is the part that still matters.
+            SanchrLogger.calls.info(
+                "Audio session was already inactive: \(error.localizedDescription)"
+            )
+        }
+
+        do {
+            try session.setCategory(.ambient, mode: .default)
+        } catch {
+            SanchrLogger.calls.warning(
+                "Could not reset the audio category after the call: \(error.localizedDescription)"
+            )
+        }
     }
 
     // MARK: - Private Helpers
