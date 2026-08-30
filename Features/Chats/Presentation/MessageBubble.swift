@@ -292,6 +292,7 @@ struct MessageBubble: View {
                     url: attachment.url,
                     durationMs: durationMs,
                     waveform: attachment.audioWaveform ?? [],
+                    isOutgoing: message.isOutgoing,
                     playback: voicePlayback
                 )
             } else {
