@@ -7,6 +7,19 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
     public var displayName: String
     public var avatarURL: URL?
     public var bio: String?
+    /// Whether this person has a Sanchr account.
+    ///
+    /// Registration, NOT identity verification — despite the name. The
+    /// persistence layer treats it as such (`isRegistered: record.isVerified`),
+    /// and contact discovery sets it true for everyone it matches, because
+    /// matching is precisely what proves they are registered.
+    ///
+    /// Do not render a security badge from this. Whether someone's identity key
+    /// has actually been verified is `SignalProtocolManagerProtocol
+    /// .isIdentityVerified(userId:)`, which is a different question with a
+    /// different answer. Four screens used to draw a shield from this flag,
+    /// which meant every registered contact looked verified and the badge could
+    /// never warn anyone.
     public var isVerified: Bool
     public var lastSeen: Date?
     public var identityKeyFingerprint: String?

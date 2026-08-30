@@ -75,6 +75,7 @@ struct ContactsView: View {
                         displayName: container.sessionService.currentDisplayName ?? "You",
                         avatarURL: nil,
                         bio: nil,
+                        // Registration, not a security claim. See `User.isVerified`.
                         isVerified: true,
                         lastSeen: nil,
                         identityKeyFingerprint: nil,
@@ -151,7 +152,11 @@ struct ContactsView: View {
                         Button {
                             startChat(with: contact)
                         } label: {
-                            ContactRow(contact: contact)
+                            ContactRow(
+                                isIdentityVerified: container.signalProtocol
+                                    .isIdentityVerified(userId: contact.id),
+                                contact: contact
+                            )
                         }
                         .buttonStyle(.plain)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -259,6 +264,12 @@ struct ContactsView: View {
 }
 
 struct ContactRow: View {
+    /// Whether this person's identity key has actually been verified.
+    ///
+    /// Passed in rather than looked up here: the row stays a dumb view, and the
+    /// answer comes from the identity store rather than from `User.isVerified`,
+    /// which only says whether they have an account.
+    let isIdentityVerified: Bool
     let contact: User
 
     var body: some View {
@@ -271,7 +282,7 @@ struct ContactRow: View {
                         .font(SanchrTypography.conversationName)
                         .foregroundColor(SanchrExportColors.textPrimary)
 
-                    if contact.isVerified {
+                    if isIdentityVerified {
                         Image(systemName: "shield.fill")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(SanchrColors.accent)

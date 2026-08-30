@@ -190,6 +190,8 @@ struct PhoneNumberLookupView: View {
 
         case .found(let user):
             FoundUserCard(
+                isIdentityVerified: container.signalProtocol
+                    .isIdentityVerified(userId: user.id),
                 user: user,
                 isStartingChat: isStartingChat,
                 onMessage: { Task { await startChat(with: user) } }
@@ -285,6 +287,9 @@ struct PhoneNumberLookupView: View {
 // MARK: - Found User Card
 
 private struct FoundUserCard: View {
+    /// Whether this person's identity key has been verified — not whether they
+    /// have an account. See `User.isVerified`.
+    let isIdentityVerified: Bool
     let user: User
     let isStartingChat: Bool
     let onMessage: () -> Void
@@ -312,7 +317,7 @@ private struct FoundUserCard: View {
                             .font(SanchrTypography.bodyBold)
                             .foregroundColor(SanchrExportColors.textPrimary)
                             .lineLimit(1)
-                        if user.isVerified {
+                        if isIdentityVerified {
                             Image(systemName: "shield.fill")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(SanchrColors.accent)
