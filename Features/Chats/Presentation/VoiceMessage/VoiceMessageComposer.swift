@@ -18,7 +18,6 @@ struct VoiceMessageComposer: View {
     @State private var startFailure: StartFailure?
 
     private let recorder = VoiceRecorder()
-    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Group {
@@ -72,8 +71,21 @@ struct VoiceMessageComposer: View {
                 )
             }
         }
-        .onReceive(timer) { _ in
-            if case .recording = state { elapsed += 0.1 }
+        // Runs only while recording. As a stored `.autoconnect()` publisher this
+        // fired ten times a second for the entire life of the chat screen, for
+        // a value that is only read during a recording.
+        //
+        // The tick is what redraws the HUD: `elapsed` is never displayed —
+        // `RecordingHUD` computes the time from `startedAt` — so its only job
+        // is to invalidate the body. That was previously implicit enough that
+        // deleting the "unused" variable would have silently frozen the timer.
+        .task(id: isRecording) {
+            guard isRecording else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled else { return }
+                elapsed += 0.1
+            }
         }
         .task {
             for await s in recorder.meterStream {
@@ -86,6 +98,11 @@ struct VoiceMessageComposer: View {
                 state = state.applyInterruption(recording: rec)
             }
         }
+    }
+
+    private var isRecording: Bool {
+        if case .recording = state { return true }
+        return false
     }
 
     private var micButton: some View {

@@ -136,13 +136,10 @@ struct ChatInputBarView: View {
                         .lineLimit(1...5)
                         .focused($isInputFocused)
                         .accessibilityLabel("Message")
-                        .onSubmit {
-                            if enterSendsMessage {
-                                Task { await onSendText() }
-                            } else {
-                                input.inputText += "\n"
-                            }
-                        }
+                        // No .onSubmit: a multiline field does not fire it.
+                        // The Return key is detected from the newline the field
+                        // inserts instead — see `EnterToSend`.
+                        .submitLabel(enterSendsMessage ? .send : .return)
 
                     if !hasInput {
                         Button {
@@ -250,7 +247,18 @@ struct ChatInputBarView: View {
         .padding(.bottom, 6)
         .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
         .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
-        .onChange(of: input.inputText) { _, newValue in
+        .onChange(of: input.inputText) { oldValue, newValue in
+            if let body = EnterToSend.submission(
+                previous: oldValue,
+                current: newValue,
+                enabled: enterSendsMessage
+            ) {
+                // Drop the newline the field just inserted; it was the
+                // keypress, not part of the message.
+                input.inputText = body
+                Task { await onSendText() }
+                return
+            }
             onInputTextChanged(newValue)
         }
     }
