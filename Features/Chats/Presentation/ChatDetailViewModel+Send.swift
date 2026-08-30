@@ -20,6 +20,11 @@ extension ChatDetailViewModel {
         sessionService: SessionService,
         messageSender: MessageSender
     ) async {
+        // Re-entrancy guard. `isSending` was set and cleared here but read by
+        // nothing, so it guarded nothing either — two sends could overlap and
+        // the flag would just be set twice.
+        guard !isSending else { return }
+
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
@@ -70,8 +75,10 @@ extension ChatDetailViewModel {
             replaceMessage(id: optimisticMessage.id, with: confirmed)
             SanchrLogger.chat.info("Message sent successfully")
         } catch {
+            // The bubble turns to Failed and carries its own retry, which is
+            // both more precise and more actionable than a banner. Setting
+            // errorMessage as well would report the same failure twice.
             updateMessage(id: optimisticMessage.id) { $0.status = .failed }
-            errorMessage = error.localizedDescription
             SanchrLogger.chat.error("Send failed: \(error.localizedDescription)")
         }
     }
@@ -326,7 +333,7 @@ extension ChatDetailViewModel {
             // progress value is gone — they need to see why the bubble shows
             // a retry affordance. A subsequent retry will call clear(id:).
             uploads.setStatus(id: optimisticId, status: "Failed")
-            errorMessage = error.localizedDescription
+            // Same as the text path: the bubble already says so.
             SanchrLogger.chat.error("Media message send failed: \(error.localizedDescription)")
         }
     }
