@@ -8,6 +8,10 @@ import SanchrShared
 struct VoiceWaveformView: View {
     let samples: [Float]
     let progress: Double          // 0...1; pass 0 for no progress overlay
+    /// Defaults preserve the recording HUD and preview; the message bubble
+    /// passes its own, since a fixed grey is muddy on the outgoing gradient.
+    var playedColor: Color = .accentColor
+    var unplayedColor: Color = Color(uiColor: .systemGray3)
     var barWidth: CGFloat = 3
     var barSpacing: CGFloat = 2
     var minBarHeight: CGFloat = 2
@@ -25,22 +29,32 @@ struct VoiceWaveformView: View {
     var body: some View {
         GeometryReader { proxy in
             Canvas { ctx, size in
-                guard !samples.isEmpty else { return }
                 let usableWidth = size.width
                 let stride = barWidth + barSpacing
                 let drawable = Int(usableWidth / stride)
                 let count = min(drawable, samples.count)
                 let strideStep = max(1, samples.count / max(1, count))
                 let progressX = usableWidth * CGFloat(progress)
-                for i in 0..<count {
-                    let sampleIndex = min(samples.count - 1, i * strideStep)
-                    let raw = CGFloat(samples[sampleIndex])
+                // With nothing to draw, a flat run of bars rather than a void.
+                // A voice note whose waveform is still being decoded, or whose
+                // audio would not decode at all, otherwise showed a blank gap
+                // that reads as a broken bubble rather than a quiet one.
+                let placeholder = samples.isEmpty
+                let barCount = placeholder ? max(0, Int(usableWidth / stride)) : count
+                for i in 0..<barCount {
+                    let raw: CGFloat
+                    if placeholder {
+                        raw = 0
+                    } else {
+                        let sampleIndex = min(samples.count - 1, i * strideStep)
+                        raw = CGFloat(samples[sampleIndex])
+                    }
                     let h = max(minBarHeight, raw * size.height)
                     let x = CGFloat(i) * stride
                     let y = (size.height - h) / 2
                     let rect = CGRect(x: x, y: y, width: barWidth, height: h)
                     let isPlayed = Self.isPlayed(barX: x, progressX: progressX)
-                    let color: Color = isPlayed ? .accentColor : Color(uiColor: .systemGray3)
+                    let color: Color = isPlayed ? playedColor : unplayedColor
                     ctx.fill(Path(roundedRect: rect, cornerRadius: barWidth / 2), with: .color(color))
                 }
             }

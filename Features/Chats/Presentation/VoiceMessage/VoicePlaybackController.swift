@@ -7,6 +7,11 @@ import SanchrShared
 final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked Sendable {
 
     private(set) var currentlyPlayingMessageId: String?
+    /// Whether audio is actually running, as distinct from which message is
+    /// loaded. `pause()` keeps the message current — that is what preserves
+    /// the playback position — so a view asking only "is this the current
+    /// message" showed a pause button on a paused clip.
+    private(set) var isPlaying = false
     private(set) var progress: Double = 0
     private var player: AVAudioPlayer?
     private var progressTimer: Timer?
@@ -23,11 +28,13 @@ final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked
         }
         player?.play()
         currentlyPlayingMessageId = messageId
+        isPlaying = true
         startTimer()
     }
 
     func pause() {
         player?.pause()
+        isPlaying = false
         progressTimer?.invalidate()
     }
 
@@ -35,6 +42,7 @@ final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked
         player?.stop()
         player = nil
         currentlyPlayingMessageId = nil
+        isPlaying = false
         progress = 0
         progressTimer?.invalidate()
         progressTimer = nil
