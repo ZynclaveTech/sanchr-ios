@@ -79,9 +79,17 @@ actor VoiceRecorder {
 
     private func activateSession() throws {
         let session = AVAudioSession.sharedInstance()
+        // Category and mode are sticky — deactivating does not put them back.
+        // Left alone, every voice message would leave the app in
+        // `.playAndRecord` routed to the speaker, which is the same way a
+        // finished call used to leave it.
+        previousCategory = (session.category, session.mode, session.categoryOptions)
         try session.setCategory(.playAndRecord, options: [.allowBluetoothHFP, .defaultToSpeaker])
         try session.setActive(true)
     }
+
+    /// What the session was set to before recording started.
+    private var previousCategory: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
 
     private func startMeteringLoop() {
         meterTask = Task { [weak self] in
@@ -153,7 +161,17 @@ actor VoiceRecorder {
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
         recorder = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+
+        let session = AVAudioSession.sharedInstance()
+        // Deactivate first: the notification is what lets other apps resume,
+        // and it has to go out while the session is still ours.
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        if let previous = previousCategory {
+            previousCategory = nil
+            // Best-effort. Failing to hand the category back is not worth
+            // failing a recording that has already been captured.
+            try? session.setCategory(previous.0, mode: previous.1, options: previous.2)
+        }
     }
 }
 

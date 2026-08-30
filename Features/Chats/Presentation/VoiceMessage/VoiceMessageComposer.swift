@@ -7,6 +7,13 @@ struct VoiceMessageComposer: View {
     let playback: VoicePlaybackController
     let onActivate: () -> Void
     let onSend: (URL, Int, [Float]) -> Void
+    /// True while recording or reviewing.
+    ///
+    /// The composer lives in the input bar's trailing button slot, sized for a
+    /// mic. The recording bar and the preview are full-width rows, and without
+    /// telling anyone they were squeezed into that slot next to the text
+    /// field. The bar hides the rest of the row while this is set.
+    @Binding var isCapturing: Bool
 
     @State private var state: VoiceMessageState = .idle
     @State private var elapsed: TimeInterval = 0
@@ -30,9 +37,9 @@ struct VoiceMessageComposer: View {
                     liveSamples: liveSamples,
                     dragOffset: dragOffset,
                     locked: locked,
-                    onLockedStop: { Task { await stopRecording() } }
+                    onStop: { Task { await stopLockedRecording() } },
+                    onCancel: { Task { await cancelRecording() } }
                 )
-                .gesture(dragGesture)
             case .preview(let rec):
                 VoicePreviewBubble(
                     recording: rec,
@@ -48,6 +55,26 @@ struct VoiceMessageComposer: View {
                 )
             }
         }
+        // On the container, not on the HUD.
+        //
+        // The gesture used to live on the HUD — which only exists once
+        // recording has started, by which time the finger is already down. A
+        // recogniser attached to a view that appears mid-touch never sees that
+        // touch, so sliding to cancel and sliding to lock did nothing, and the
+        // release that should have ended the recording was never delivered
+        // either. The container is present from before the press.
+        .frame(maxWidth: isCapturing ? .infinity : nil)
+        .simultaneousGesture(dragGesture)
+        .onChange(of: state) { _, new in
+            let capturing: Bool
+            switch new {
+            case .idle: capturing = false
+            case .recording, .preview: capturing = true
+            }
+            guard capturing != isCapturing else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { isCapturing = capturing }
+        }
+        .overlay(alignment: .top) { tooShortToast }
         .alert(item: $startFailure) { failure in
             switch failure {
             case .microphoneDenied:
@@ -133,14 +160,44 @@ struct VoiceMessageComposer: View {
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
+                // Live on the container, so it sees touches that have nothing
+                // to do with recording — the preview's buttons, a stray tap on
+                // the mic. Only a recording responds.
+                guard isRecording else { return }
                 state = state.applyDrag(g.translation)
                 if case .idle = state {
                     Task { await recorder.cancel() }
                 }
             }
             .onEnded { _ in
+                guard isRecording else { return }
                 Task { await releaseRecording() }
             }
+    }
+
+    /// Shown when a recording was too short to send.
+    ///
+    /// The flag behind this was set in two places and read in none, so letting
+    /// go too quickly deleted the recording and said nothing at all — the same
+    /// silence as a failure.
+    @ViewBuilder
+    private var tooShortToast: some View {
+        if showTooShortToast {
+            Text("Hold to record")
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color.black.opacity(0.78), in: Capsule())
+                .fixedSize()
+                .offset(y: -42)
+                .transition(.opacity)
+                .accessibilityHidden(true)
+                .task {
+                    try? await Task.sleep(nanoseconds: 1_600_000_000)
+                    withAnimation { showTooShortToast = false }
+                }
+        }
     }
 
     /// Why recording could not start, in terms the user can act on.
@@ -177,7 +234,13 @@ struct VoiceMessageComposer: View {
         onActivate()
         do {
             try await recorder.start()
-            state = state.applyPress(at: Date())
+            // Started from the VoiceOver action there is no finger holding
+            // anything, so the only operable state is the hands-free one —
+            // which is also the only one with buttons to stop or delete.
+            state = state.applyPress(
+                at: Date(),
+                locked: UIAccessibility.isVoiceOverRunning
+            )
             liveSamples = []
             elapsed = 0
         } catch VoiceRecorderError.permissionDenied {
@@ -196,25 +259,48 @@ struct VoiceMessageComposer: View {
         Task { await startRecording() }
     }
 
+    /// The finger came up. Ignored once locked — the recording is meant to
+    /// carry on without it.
     private func releaseRecording() async {
         guard case .recording(_, _, let locked) = state, !locked else { return }
-        await stopRecording()
-    }
-
-    private func stopRecording() async {
         do {
             let rec = try await recorder.stop()
             let outcome = state.applyRelease(now: Date(), recording: rec)
             state = outcome.state
             if outcome.shouldShowTooShortToast {
-                showTooShortToast = true
+                withAnimation { showTooShortToast = true }
                 try? FileManager.default.removeItem(at: rec.url)
             }
         } catch VoiceRecorderError.recordingTooShort {
             state = .idle
-            showTooShortToast = true
+            withAnimation { showTooShortToast = true }
         } catch {
             state = .idle
         }
+    }
+
+    /// The stop button on a locked recording.
+    ///
+    /// This used to call the same path as a finger lifting, which returns the
+    /// state *unchanged* when locked — deliberately, so that letting go does
+    /// not end a hands-free recording. So the recorder stopped and tore down
+    /// its session while the HUD stayed on screen, and the recording was lost.
+    /// `applyLockedStop` existed for this and was never called.
+    private func stopLockedRecording() async {
+        do {
+            let rec = try await recorder.stop()
+            state = state.applyLockedStop(recording: rec)
+        } catch VoiceRecorderError.recordingTooShort {
+            state = .idle
+            withAnimation { showTooShortToast = true }
+        } catch {
+            state = .idle
+        }
+    }
+
+    /// Discard an in-progress recording outright.
+    private func cancelRecording() async {
+        await recorder.cancel()
+        state = state.applyCancel()
     }
 }

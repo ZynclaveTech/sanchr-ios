@@ -26,9 +26,19 @@ extension VoiceMessageState {
     static let lockDragThreshold: CGFloat = -80
     static let minRecordingDuration: TimeInterval = 1.0
 
-    func applyPress(at now: Date) -> VoiceMessageState {
+    /// - Parameter locked: start already locked. There is no finger to hold
+    ///   when recording is started from a VoiceOver action, so the hands-free
+    ///   state is the only one that can be operated.
+    func applyPress(at now: Date, locked: Bool = false) -> VoiceMessageState {
         guard case .idle = self else { return self }
-        return .recording(startedAt: now, dragOffset: .zero, locked: false)
+        return .recording(startedAt: now, dragOffset: .zero, locked: locked)
+    }
+
+    /// Abandon an in-progress recording. Locked recordings have no other way
+    /// out: the finger that could have slid to cancel is long gone.
+    func applyCancel() -> VoiceMessageState {
+        guard case .recording = self else { return self }
+        return .idle
     }
 
     func applyDrag(_ offset: CGSize) -> VoiceMessageState {
