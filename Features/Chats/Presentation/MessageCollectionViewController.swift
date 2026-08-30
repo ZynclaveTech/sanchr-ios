@@ -258,6 +258,7 @@ final class MessageCollectionViewController: UIViewController {
     var onDeleteMessage: ((Message) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
     var onMediaAction: ((MediaMessageAction, Message) -> Void)?
+    var onLongPressMessage: ((MessageContextPresentation) -> Void)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -1071,6 +1072,50 @@ final class MessageCollectionViewController: UIViewController {
         }
         pan.delegate = self
         cell.addGestureRecognizer(pan)
+
+        attachLongPressGesture(to: cell, message: message)
+    }
+
+    /// Long press opens our own context menu rather than UIKit's.
+    ///
+    /// `UIContextMenuInteraction` cannot put anything above its preview, so a
+    /// reaction bar has nowhere to go — which is why the previous attempt put
+    /// the bar *in place of* the message. Signal reached the same conclusion
+    /// and wrote its own context menu for it.
+    private func attachLongPressGesture(to cell: UICollectionViewCell, message: Message) {
+        cell.gestureRecognizers?
+            .compactMap { $0 as? MessageLongPressGesture }
+            .forEach { cell.removeGestureRecognizer($0) }
+
+        let press = MessageLongPressGesture(message: message) { [weak self, weak cell] msg in
+            guard let self, let cell else { return }
+            self.presentContextMenu(for: msg, cell: cell)
+        }
+        press.delegate = self
+        cell.addGestureRecognizer(press)
+    }
+
+    private func presentContextMenu(for message: Message, cell: UICollectionViewCell) {
+        guard let window = cell.window else { return }
+
+        // Snapshot rather than re-render: this is the cell as drawn, including
+        // whatever async media had loaded by now.
+        let renderer = UIGraphicsImageRenderer(bounds: cell.bounds)
+        let snapshot = renderer.image { _ in
+            cell.drawHierarchy(in: cell.bounds, afterScreenUpdates: false)
+        }
+
+        onLongPressMessage?(
+            MessageContextPresentation(
+                id: message.id,
+                message: message,
+                snapshot: snapshot,
+                sourceFrame: cell.convert(cell.bounds, to: window),
+                isOutgoing: message.isOutgoing,
+                isSaveableMedia: message.content.isSaveableMedia,
+                canRetry: message.status == .failed
+            )
+        )
     }
 }
 
@@ -1118,32 +1163,6 @@ extension MessageCollectionViewController: UICollectionViewDelegate {
         }
     }
 
-    func collectionView(
-        _ collectionView: UICollectionView,
-        contextMenuConfigurationForItemAt indexPath: IndexPath,
-        point: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard let item = dataSource.itemIdentifier(for: indexPath) else { return nil }
-        let message = item.message
-
-        return UIContextMenuConfiguration(
-            identifier: indexPath as NSCopying,
-            // No preview of our own: UIKit lifts the actual message cell, which
-            // is the point of the gesture — you long-press a message to act on
-            // *that* message, so it has to stay on screen.
-            //
-            // This used to return a row of six emoji. A custom preview REPLACES
-            // the cell snapshot, so the message vanished and a floating emoji
-            // bar took its place. The emoji were decorative twice over: their
-            // buttons had empty actions, and a context menu preview does not
-            // deliver touches to its content anyway. Reacting works from the
-            // React submenu below, which is wired to something.
-            previewProvider: nil,
-            actionProvider: { [weak self] _ in
-                self?.makeContextMenu(for: message)
-            }
-        )
-    }
 }
 
 // MARK: - UIGestureRecognizerDelegate
@@ -1326,5 +1345,27 @@ private final class SwipeToReplyGesture: UIPanGestureRecognizer {
         replyIndicator?.alpha = progress
         let scale = 0.5 + progress * 0.5
         replyIndicator?.transform = CGAffineTransform(scaleX: scale, y: scale)
+    }
+}
+
+/// Long press that carries the message it was made for, so the handler does not
+/// have to map a touch point back to an index path that may have moved.
+private final class MessageLongPressGesture: UILongPressGestureRecognizer {
+    private let message: Message
+    private let onRecognized: (Message) -> Void
+
+    init(message: Message, onRecognized: @escaping (Message) -> Void) {
+        self.message = message
+        self.onRecognized = onRecognized
+        super.init(target: nil, action: nil)
+        minimumPressDuration = 0.35
+        addTarget(self, action: #selector(handle))
+    }
+
+    @objc private func handle() {
+        // Fires on .began, while the finger is still down — the same moment
+        // UIKit's own context menu commits, so it feels the same.
+        guard state == .began else { return }
+        onRecognized(message)
     }
 }

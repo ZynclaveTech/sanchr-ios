@@ -39,6 +39,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onDeleteMessage: (Message) -> Void
     let onForward: (Message) -> Void
     let onMediaAction: (MessageCollectionViewController.MediaMessageAction, Message) -> Void
+    let onLongPressMessage: (MessageContextPresentation) -> Void
     let onRetry: (Message) -> Void
     let onLoadMore: () -> Void
     let onBubbleTap: (MessageInteraction) -> Void
@@ -61,6 +62,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onMediaAction = { action, message in
             onMediaAction(action, message)
+        }
+
+        vc.onLongPressMessage = { presentation in
+            onLongPressMessage(presentation)
         }
 
         vc.onRetryMessage = { message in
@@ -120,6 +125,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onMediaAction = { action, message in
             onMediaAction(action, message)
+        }
+
+        vc.onLongPressMessage = { presentation in
+            onLongPressMessage(presentation)
         }
 
         vc.onRetryMessage = { message in
