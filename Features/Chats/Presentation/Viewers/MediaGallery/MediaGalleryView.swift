@@ -94,7 +94,8 @@ struct MediaGalleryView: View {
                         loader: pageLoader,
                         onZoomChange: { zoomed in
                             if index == currentIndex { isZoomed = zoomed }
-                        }
+                        },
+                        callInProgress: container.callManager.callState != .idle
                     )
                         .tag(index)
                 }

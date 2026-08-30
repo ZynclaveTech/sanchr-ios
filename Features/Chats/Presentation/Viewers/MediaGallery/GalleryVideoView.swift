@@ -12,12 +12,15 @@ import AVKit
 struct GalleryVideoView: UIViewControllerRepresentable {
     let url: URL
     @Binding var isActive: Bool
+    /// Whether a call is running. The gallery must not take the audio session
+    /// from one, and cannot work that out from the session itself.
+    var callInProgress: Bool = false
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         // Without this the session keeps its default category, which obeys the
         // ring/silent switch — so a video opened on a silenced phone played
         // with no sound and no clue why.
-        GalleryAudioSession.activateForPlayback()
+        GalleryAudioSession.activateForPlayback(callInProgress: callInProgress)
 
         let vc = AVPlayerViewController()
         vc.player = AVPlayer(url: url)
@@ -35,12 +38,14 @@ struct GalleryVideoView: UIViewControllerRepresentable {
         }
     }
 
-    static func dismantleUIViewController(
+    // Not `static`: releasing the session needs to know whether a call has
+    // started in the meantime.
+    func dismantleUIViewController(
         _ vc: AVPlayerViewController,
         coordinator: ()
     ) {
         vc.player?.pause()
         vc.player = nil
-        GalleryAudioSession.deactivate()
+        GalleryAudioSession.deactivate(callInProgress: callInProgress)
     }
 }
