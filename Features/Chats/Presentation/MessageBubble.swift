@@ -78,7 +78,7 @@ struct MessageBubble: View {
                     // its own size. A padded, shadowed, stroked bubble behind
                     // it is a second rounded rectangle a few points larger,
                     // visible only as a rim. See `BubbleChrome`.
-                    VStack(alignment: .leading, spacing: 0) {
+                    QuotedBubbleLayout {
                         if message.replyToMessageId != nil {
                             replyCard
                         }
@@ -506,9 +506,8 @@ struct MessageBubble: View {
                     .lineLimit(1)
             }
             .padding(.vertical, 6)
-
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(quoteTintColor)
         .clipShape(
             .rect(
