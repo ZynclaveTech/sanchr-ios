@@ -234,6 +234,9 @@ targets:
       - name: AttachmentPicker import hygiene
         script: '"${SRCROOT}/Scripts/check-attachment-picker-imports.sh"'
         basedOnDependencyAnalysis: false
+      - name: Unread state
+        script: '"${SRCROOT}/Scripts/check-unread-state.sh"'
+        basedOnDependencyAnalysis: false
     info:
       path: Info.plist
       properties:

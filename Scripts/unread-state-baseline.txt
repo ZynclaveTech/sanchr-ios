@@ -1,0 +1,18 @@
+# Unread state that predates the check, and framework entry points it
+# cannot distinguish from dead code. Each line is 'path: message'.
+#
+# These are NOT approved — they are the debt the check was written to
+# stop growing. Several are real: 'totalMediaCount' is computed and
+# never shown, and 'close' on the peer connection appears to have no
+# caller in product code at all. Delete a line as you fix it; the check
+# warns about entries that no longer occur.
+
+Features/Auth/Presentation/RegisterView.swift: 'showImagePicker' is written but never read
+Features/Chats/Presentation/ConversationInfoView.swift: 'totalMediaCount' is written but never read
+Features/Chats/Presentation/ConversationInfoView.swift: 'showSearchConversation' is written but never read
+Features/Chats/Presentation/VerifySecurityCodeView.swift: 'fingerprintRaw' is written but never read
+Features/Chats/Presentation/VerifySecurityCodeView.swift: 'scannableFingerprintData' is written but never read
+Features/Chats/Presentation/Viewers/Contact/ContactActionCoordinator.swift: 'pendingContact' is written but never read
+Features/Chats/Presentation/Viewers/Document/DocumentPreviewCoordinator.swift: 'isResolving' is written but never read
+Features/Chats/Presentation/Viewers/Document/DocumentPreviewCoordinator.swift: 'resolveError' is written but never read
+Features/Settings/Presentation/AppearanceView.swift: 'storedFontSize' is written but never read
