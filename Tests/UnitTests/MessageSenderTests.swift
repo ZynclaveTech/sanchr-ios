@@ -81,6 +81,9 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     var conversations: [String: Conversation] = [:]
     var saveMessageError: Error?
     var updateStatusError: Error?
+    /// Rows the offline flush will find. Left empty, the protocol's default
+    /// still traps, so only tests that opt in reach this path.
+    var pendingMessages: [Message]?
 
     var savedMessages: [Message] { queue.sync { _savedMessages } }
     var deletedIds: [String] { queue.sync { _deletedIds } }
@@ -91,6 +94,11 @@ final class FakeLocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     func saveMessage(_ message: Message) async throws {
         if let e = saveMessageError { throw e }
         queue.sync { _savedMessages.append(message) }
+    }
+
+    func fetchPendingMessages() async throws -> [Message] {
+        guard let pendingMessages else { FakeDBUnused.crash() }
+        return pendingMessages
     }
 
     func deleteMessage(id: String) async throws {
@@ -674,5 +682,109 @@ final class MessageSenderTests: XCTestCase {
         XCTAssertEqual(calls.count, 3)
         let bodies = Set(calls.map { String(data: $0.plaintext, encoding: .utf8) ?? "" })
         XCTAssertEqual(bodies, ["msg-0", "msg-1", "msg-2"])
+    }
+
+    // MARK: - Replies survive the database
+
+    /// A reply's link to what it answers has to reach the database, not just
+    /// the wire.
+    ///
+    /// It reached only the wire: every `insertPendingOutgoing*Row` and every
+    /// `confirmedRow` dropped `replyToMessageId`. Recipients saw the quote —
+    /// theirs is rebuilt from the sealed payload — but the sender's own row
+    /// stored nil, so their reply bubbles lost the quoted card as soon as the
+    /// chat was closed and reopened and the transcript came back from disk.
+    func test_sendText_reply_isPersistedOnBothRows() async throws {
+        let (sut, db, _, sender, _) = makeSUT()
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-abc",
+            serverTimestampMs: 1_700_000_000_000
+        )))
+
+        _ = try await sut.sendText("answering", to: "chat-A", replyToMessageId: "quoted-1")
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        XCTAssertEqual(
+            db.savedMessages[0].replyToMessageId, "quoted-1",
+            "the pending row is what is on screen until the send confirms"
+        )
+        XCTAssertEqual(
+            db.savedMessages[1].replyToMessageId, "quoted-1",
+            "the confirmed row replaces the pending one and is what survives a reload"
+        )
+    }
+
+    func test_sendMedia_reply_isPersistedOnBothRows() async throws {
+        let (sut, db, uploader, sender, _) = makeSUT()
+        await uploader.setResult(.success(MediaUploadOutcome(
+            mediaId: "media-r",
+            remoteURL: "https://example.invalid/media-r",
+            thumbnailRemoteURL: nil,
+            encryptedFileSize: 9999,
+            plaintextFileSize: 5000,
+            encryptionKey: Data(repeating: 0x11, count: 32),
+            encryptionNonce: Data(repeating: 0x22, count: 12),
+            encryptionTag: Data(repeating: 0x33, count: 16),
+            plaintextDigest: Data(repeating: 0x44, count: 32)
+        )))
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-media",
+            serverTimestampMs: 1_700_000_000_000
+        )))
+
+        _ = try await sut.sendMedia(
+            attachment: Message.MediaAttachment(
+                url: URL(fileURLWithPath: "/tmp/x.jpg"),
+                encryptionKey: Data(),
+                encryptionIV: Data(),
+                mimeType: "image/jpeg",
+                sizeBytes: 5000,
+                filename: "x.jpg"
+            ),
+            caption: nil,
+            to: "chat-A",
+            replyToMessageId: "quoted-2",
+            progress: { _ in }
+        )
+
+        XCTAssertEqual(db.savedMessages.count, 2)
+        XCTAssertEqual(db.savedMessages[0].replyToMessageId, "quoted-2")
+        XCTAssertEqual(db.savedMessages[1].replyToMessageId, "quoted-2")
+    }
+
+    /// A reply composed with no network keeps answering the same message when
+    /// the queue finally drains.
+    ///
+    /// The flush deletes the queued row and re-sends from scratch, so anything
+    /// the queued row carried has to be handed over explicitly. It was not:
+    /// the reply went out answering nothing.
+    func test_offlineFlush_preservesTheReply() async throws {
+        let (sut, db, _, sender, _) = makeSUT()
+        db.pendingMessages = [
+            Message(
+                id: "queued-1",
+                conversationId: "chat-A",
+                senderId: "user-123",
+                timestamp: Date(),
+                content: .text("sent while offline"),
+                status: .sending,
+                isOutgoing: true,
+                replyToMessageId: "quoted-3",
+                expiresAt: nil
+            )
+        ]
+        await sender.setResult(.success(EncryptedMessageSendResult(
+            messageId: "server-flushed",
+            serverTimestampMs: 1_700_000_000_000
+        )))
+
+        await sut.retrySendingMessages()
+
+        let rows = db.savedMessages
+        XCTAssertFalse(rows.isEmpty, "the flush should have re-sent the queued message")
+        XCTAssertTrue(
+            rows.allSatisfy { $0.replyToMessageId == "quoted-3" },
+            "the re-sent rows must still answer what the queued one answered"
+        )
     }
 }
