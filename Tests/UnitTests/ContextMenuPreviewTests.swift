@@ -148,4 +148,34 @@ final class ContextMenuPreviewTests: XCTestCase {
             "the keyboard has to go before the frame is measured, not after"
         )
     }
+
+    /// Whether to wait for the keyboard is decided from the keyboard's own
+    /// notifications, not from `endEditing(true)`'s return value.
+    ///
+    /// That return value does not mean "there was a keyboard" — it can report
+    /// `true` with nothing being edited. Reading it that way parked every long
+    /// press waiting for a `keyboardDidHide` that would never be posted, and
+    /// the menu stopped opening at all.
+    func testKeyboardWaitIsNotDecidedByEndEditingsReturnValue() throws {
+        let body = code(try source)
+        XCTAssertFalse(
+            body.contains("if view.window?.endEditing(true) == true"),
+            "endEditing's result is not a report of whether a keyboard was up"
+        )
+        XCTAssertTrue(body.contains("keyboardWillShowNotification"))
+        XCTAssertTrue(
+            body.contains("guard isKeyboardVisible else"),
+            "with no keyboard the menu must open immediately, not wait for one to leave"
+        )
+    }
+
+    /// And a notification that never arrives must not be able to swallow the
+    /// menu the way the previous version could.
+    func testAMissedKeyboardNotificationCannotSwallowTheMenu() throws {
+        let body = code(try source)
+        XCTAssertTrue(
+            body.contains("asyncAfter"),
+            "the wait needs a deadline; a menu placed slightly off beats no menu"
+        )
+    }
 }
