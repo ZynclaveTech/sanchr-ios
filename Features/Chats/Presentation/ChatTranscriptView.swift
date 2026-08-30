@@ -42,6 +42,7 @@ struct ChatTranscriptView: View {
     @State private var mediaActionToast: String?
     /// The message whose context menu is open, if any.
     @State private var contextPresentation: MessageContextPresentation?
+    @State private var contextMenuWindow = MessageContextMenuWindow()
 
     var body: some View {
         MessageCollectionView(
@@ -90,28 +91,17 @@ struct ChatTranscriptView: View {
             }
         }
         .environment(container)
-        // A plain overlay, not a sheet or a cover: the menu has to draw over
-        // the transcript while the transcript stays visible behind it, blurred.
-        // Anything modal would replace the conversation instead of lifting a
-        // message out of it.
-        .overlay {
-            if let contextPresentation {
-                MessageContextMenuOverlay(
-                    presentation: contextPresentation,
-                    onReact: { emoji in
-                        let message = contextPresentation.message
-                        dismissContextMenu()
-                        onReact(emoji, message.id)
-                    },
-                    onAction: { action in
-                        let message = contextPresentation.message
-                        dismissContextMenu()
-                        performContextAction(action, on: message)
-                    },
-                    onDismiss: { dismissContextMenu() }
-                )
-                .transition(.opacity)
-            }
+        // Presented in its own window, not as an overlay here: this view is
+        // one child of the chat screen's VStack, so an overlay could only cover
+        // the transcript — the header, the encryption banner and the composer
+        // stayed sharp on top of it, and the action list ran underneath the
+        // composer. The window also puts the menu in the same coordinate space
+        // the message's frame was measured in.
+        .onChange(of: contextPresentation?.id) { _, _ in
+            syncContextMenuWindow()
+        }
+        .onDisappear {
+            contextMenuWindow.dismiss()
         }
         .sheet(item: $shareItem) { wrapped in
             TranscriptActivityView(items: [wrapped.url])
@@ -233,6 +223,35 @@ struct ChatTranscriptView: View {
     ///
     /// Every one of these was reachable from the old native menu; the menu
     /// changed, not what the actions do.
+    /// Raises or tears down the context-menu window to match `contextPresentation`.
+    private func syncContextMenuWindow() {
+        guard let contextPresentation else {
+            contextMenuWindow.dismiss()
+            return
+        }
+        let message = contextPresentation.message
+        contextMenuWindow.present(
+            MessageContextMenuOverlay(
+                presentation: contextPresentation,
+                onReact: { emoji in
+                    dismissContextMenu()
+                    onReact(emoji, message.id)
+                },
+                onAction: { action in
+                    dismissContextMenu()
+                    performContextAction(action, on: message)
+                },
+                onDismiss: { dismissContextMenu() }
+            ),
+            // A conversation can force light or dark; a new window would
+            // otherwise follow the system and render the menu in the wrong one.
+            colorScheme: container.chatAppearance
+                .effectiveAppearance(for: conversation.id)
+                .appearanceMode
+                .colorScheme
+        )
+    }
+
     private func performContextAction(_ action: MessageContextAction, on message: Message) {
         switch action {
         case .reply:

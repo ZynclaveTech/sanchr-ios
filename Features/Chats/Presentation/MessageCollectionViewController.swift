@@ -259,6 +259,10 @@ final class MessageCollectionViewController: UIViewController {
     var onForwardMessage: ((Message) -> Void)?
     var onMediaAction: ((MediaMessageAction, Message) -> Void)?
     var onLongPressMessage: ((MessageContextPresentation) -> Void)?
+
+    /// A long press that is waiting for the keyboard to finish leaving before
+    /// its message is snapshotted. See `presentContextMenu(for:cell:)`.
+    private var pendingContextMenu: (message: Message, cell: UICollectionViewCell)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -312,6 +316,13 @@ final class MessageCollectionViewController: UIViewController {
         super.viewDidLoad()
         configureCollectionView()
         configureDataSource()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardDidHide),
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
 
         if let pending = pendingRenderInput {
             pendingRenderInput = nil
@@ -1095,7 +1106,31 @@ final class MessageCollectionViewController: UIViewController {
         cell.addGestureRecognizer(press)
     }
 
+    /// Long-press with the keyboard up.
+    ///
+    /// The keyboard would cover the menu, so it has to go. But dismissing it
+    /// grows the transcript and moves the cell, and the snapshot's frame is
+    /// what the menu is positioned by — taken too early, the lifted message is
+    /// drawn where the cell *was*. So when there is a keyboard to dismiss, the
+    /// menu waits for it to finish leaving.
     private func presentContextMenu(for message: Message, cell: UICollectionViewCell) {
+        guard cell.window != nil else { return }
+
+        if view.window?.endEditing(true) == true {
+            pendingContextMenu = (message, cell)
+        } else {
+            emitContextMenu(for: message, cell: cell)
+        }
+    }
+
+    @objc private func keyboardDidHide() {
+        guard let pending = pendingContextMenu else { return }
+        pendingContextMenu = nil
+        // Layout has settled; the cell is where it is going to stay.
+        emitContextMenu(for: pending.message, cell: pending.cell)
+    }
+
+    private func emitContextMenu(for message: Message, cell: UICollectionViewCell) {
         guard let window = cell.window else { return }
 
         // Snapshot rather than re-render: this is the cell as drawn, including
