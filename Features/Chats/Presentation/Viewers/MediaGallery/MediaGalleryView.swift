@@ -313,7 +313,16 @@ struct MediaGalleryView: View {
 
                     Spacer()
 
-                    if presentation.items.indices.contains(currentIndex) {
+                    // No timestamp on a video. Together with the actions
+                    // button it formed a second toolbar directly beneath the
+                    // player's own, two disconnected rows of controls floating
+                    // in the letterbox. The player owns the top of a video
+                    // page; what is left of ours is a single button rather
+                    // than a competing bar, and the time is on the message in
+                    // the transcript anyway.
+                    if !currentPageIsVideo,
+                        presentation.items.indices.contains(currentIndex)
+                    {
                         chromeTitlePill(
                             text: Self.titleText(
                                 for: presentation.items[currentIndex].message
@@ -345,10 +354,11 @@ struct MediaGalleryView: View {
                     .padding(.trailing, 16)
                 }
             }
-            // Clear of the player's own control row on a video page. The
-            // player owns the top of the screen there; this row has to start
-            // below it rather than land on top of it.
-            .padding(.top, currentPageIsVideo ? 108 : 50)
+            // Below the player's own control row on a video page rather than
+            // on top of it. Only the actions button remains there, so it reads
+            // as one more control under the player's row instead of a second
+            // toolbar of its own.
+            .padding(.top, currentPageIsVideo ? 104 : 50)
 
             Spacer()
         }
