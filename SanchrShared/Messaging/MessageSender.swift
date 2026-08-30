@@ -225,7 +225,8 @@ public actor MessageSender {
             text: text,
             chatId: chatId,
             authorId: senderId,
-            timestamp: timestamp
+            timestamp: timestamp,
+            replyToMessageId: replyToMessageId
         )
 
         // ── Offline queue: skip gRPC if no network ─────────────────────
@@ -293,6 +294,7 @@ public actor MessageSender {
                 content: .text(text),
                 status: .sent,
                 isOutgoing: true,
+                replyToMessageId: replyToMessageId,
                 // Our own copy must expire too — otherwise the sender keeps
                 // a permanent transcript of a conversation the recipient
                 // was told would disappear.
@@ -344,7 +346,8 @@ public actor MessageSender {
             longitude: longitude,
             chatId: chatId,
             authorId: senderId,
-            timestamp: timestamp
+            timestamp: timestamp,
+            replyToMessageId: replyToMessageId
         )
 
         // ── Offline queue: skip gRPC if no network ─────────────────────
@@ -412,6 +415,7 @@ public actor MessageSender {
                 content: .location(latitude: latitude, longitude: longitude),
                 status: .sent,
                 isOutgoing: true,
+                replyToMessageId: replyToMessageId,
                 // Our own copy must expire too — otherwise the sender keeps
                 // a permanent transcript of a conversation the recipient
                 // was told would disappear.
@@ -481,7 +485,8 @@ public actor MessageSender {
             caption: caption,
             chatId: chatId,
             authorId: senderId,
-            timestamp: timestamp
+            timestamp: timestamp,
+            replyToMessageId: replyToMessageId
         )
 
         // ── Offline queue: skip upload + gRPC if no network ────────────
@@ -578,6 +583,7 @@ public actor MessageSender {
                 content: contentForWire,
                 status: .sent,
                 isOutgoing: true,
+                replyToMessageId: replyToMessageId,
                 // Our own copy must expire too — otherwise the sender keeps
                 // a permanent transcript of a conversation the recipient
                 // was told would disappear.
@@ -643,7 +649,8 @@ public actor MessageSender {
             caption: caption,
             chatId: chatId,
             authorId: senderId,
-            timestamp: timestamp
+            timestamp: timestamp,
+            replyToMessageId: replyToMessageId
         )
 
         if !networkMonitor.isConnected {
@@ -724,6 +731,7 @@ public actor MessageSender {
                 content: contentForWire,
                 status: .sent,
                 isOutgoing: true,
+                replyToMessageId: replyToMessageId,
                 expiresAt: disappearingSecs > 0
                     ? serverTimestamp.addingTimeInterval(TimeInterval(disappearingSecs))
                     : nil
@@ -772,7 +780,8 @@ public actor MessageSender {
         caption: String?,
         chatId: String,
         authorId: String,
-        timestamp: Date
+        timestamp: Date,
+        replyToMessageId: String?
     ) async throws -> String {
         let localId = UUID().uuidString
         var items = attachments
@@ -786,7 +795,8 @@ public actor MessageSender {
             timestamp: timestamp,
             content: Self.contentForAlbum(items),
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         try await db.saveMessage(row)
         return localId
@@ -811,7 +821,8 @@ public actor MessageSender {
             phoneNumber: phoneNumber,
             chatId: chatId,
             authorId: senderId,
-            timestamp: timestamp
+            timestamp: timestamp,
+            replyToMessageId: replyToMessageId
         )
 
         // ── Offline queue: skip gRPC if no network ─────────────────────
@@ -880,6 +891,7 @@ public actor MessageSender {
                 content: .contact(name: name, phoneNumber: phoneNumber),
                 status: .sent,
                 isOutgoing: true,
+                replyToMessageId: replyToMessageId,
                 // Our own copy must expire too — otherwise the sender keeps
                 // a permanent transcript of a conversation the recipient
                 // was told would disappear.
@@ -937,9 +949,16 @@ public actor MessageSender {
             do {
                 switch message.content {
                 case .text(let text):
-                    // Delete old pending row, sendText creates a new one
+                    // Delete old pending row, sendText creates a new one.
+                    // The new row is built from scratch, so anything the queued
+                    // one carried has to be handed over explicitly — a reply
+                    // composed offline otherwise arrives answering nothing.
                     try? await db.deleteMessage(id: message.id)
-                    _ = try await sendText(text, to: message.conversationId)
+                    _ = try await sendText(
+                        text,
+                        to: message.conversationId,
+                        replyToMessageId: message.replyToMessageId
+                    )
 
                 case .image(let media), .video(let media), .audio(let media), .document(let media):
                     // Offline retry resends one attachment at a time; an album
@@ -957,6 +976,7 @@ public actor MessageSender {
                         attachment: att,
                         caption: att.caption,
                         to: message.conversationId,
+                        replyToMessageId: message.replyToMessageId,
                         progress: { _ in }
                     )
 
@@ -965,7 +985,8 @@ public actor MessageSender {
                     _ = try await sendContact(
                         name: name,
                         phoneNumber: phoneNumber,
-                        to: message.conversationId
+                        to: message.conversationId,
+                        replyToMessageId: message.replyToMessageId
                     )
 
                 default:
@@ -1097,7 +1118,8 @@ public actor MessageSender {
         text: String,
         chatId: String,
         authorId: String,
-        timestamp: Date
+        timestamp: Date,
+        replyToMessageId: String?
     ) async throws -> String {
         let localId = UUID().uuidString
         let row = Message(
@@ -1107,7 +1129,8 @@ public actor MessageSender {
             timestamp: timestamp,
             content: .text(text),
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         try await db.saveMessage(row)
         return localId
@@ -1119,7 +1142,8 @@ public actor MessageSender {
         longitude: Double,
         chatId: String,
         authorId: String,
-        timestamp: Date
+        timestamp: Date,
+        replyToMessageId: String?
     ) async throws -> String {
         let localId = UUID().uuidString
         let row = Message(
@@ -1129,7 +1153,8 @@ public actor MessageSender {
             timestamp: timestamp,
             content: .location(latitude: latitude, longitude: longitude),
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         try await db.saveMessage(row)
         return localId
@@ -1141,7 +1166,8 @@ public actor MessageSender {
         phoneNumber: String,
         chatId: String,
         authorId: String,
-        timestamp: Date
+        timestamp: Date,
+        replyToMessageId: String?
     ) async throws -> String {
         let localId = UUID().uuidString
         let row = Message(
@@ -1151,7 +1177,8 @@ public actor MessageSender {
             timestamp: timestamp,
             content: .contact(name: name, phoneNumber: phoneNumber),
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         try await db.saveMessage(row)
         return localId
@@ -1253,7 +1280,8 @@ public actor MessageSender {
         caption: String?,
         chatId: String,
         authorId: String,
-        timestamp: Date
+        timestamp: Date,
+        replyToMessageId: String?
     ) async throws -> String {
         let localId = UUID().uuidString
         var attachmentWithCaption = attachment
@@ -1271,7 +1299,8 @@ public actor MessageSender {
             timestamp: timestamp,
             content: content,
             status: .sending,
-            isOutgoing: true
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
         )
         try await db.saveMessage(row)
         return localId
