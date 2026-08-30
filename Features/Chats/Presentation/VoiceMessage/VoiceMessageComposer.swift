@@ -12,6 +12,10 @@ struct VoiceMessageComposer: View {
     @State private var elapsed: TimeInterval = 0
     @State private var liveSamples: [Float] = []
     @State private var showTooShortToast = false
+    /// Set when recording could not start. Holding the mic used to do nothing
+    /// at all in that case — every error, including a denied microphone
+    /// permission, was swallowed into `.idle` with nothing on screen.
+    @State private var startFailure: StartFailure?
 
     private let recorder = VoiceRecorder()
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
@@ -42,6 +46,29 @@ struct VoiceMessageComposer: View {
                         onSend(rec.url, rec.durationMs, rec.waveform)
                         state = state.applySend()
                     }
+                )
+            }
+        }
+        .alert(item: $startFailure) { failure in
+            switch failure {
+            case .microphoneDenied:
+                return Alert(
+                    title: Text(failure.title),
+                    message: Text(failure.message),
+                    // Deep-linking to the app's own page is the only route
+                    // iOS offers; there is no in-app way back from a denial.
+                    primaryButton: .default(Text("Open Settings")) {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    },
+                    secondaryButton: .cancel(Text("Not Now"))
+                )
+            case .other:
+                return Alert(
+                    title: Text(failure.title),
+                    message: Text(failure.message),
+                    dismissButton: .default(Text("OK"))
                 )
             }
         }
@@ -99,6 +126,36 @@ struct VoiceMessageComposer: View {
             }
     }
 
+    /// Why recording could not start, in terms the user can act on.
+    enum StartFailure: Identifiable {
+        case microphoneDenied
+        case other(String)
+
+        var id: String {
+            switch self {
+            case .microphoneDenied: return "denied"
+            case .other(let message): return message
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .microphoneDenied: return "Microphone access is off"
+            case .other: return "Couldn't start recording"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .microphoneDenied:
+                return "Sanchr needs the microphone to record a voice message. "
+                    + "You can turn it on in Settings."
+            case .other(let message):
+                return message
+            }
+        }
+    }
+
     private func startRecording() async {
         onActivate()
         do {
@@ -108,8 +165,12 @@ struct VoiceMessageComposer: View {
             elapsed = 0
         } catch VoiceRecorderError.permissionDenied {
             state = .idle
+            startFailure = .microphoneDenied
         } catch {
+            // Anything else — a busy session, a file that could not be created.
+            // Previously indistinguishable from success-then-nothing.
             state = .idle
+            startFailure = .other(error.localizedDescription)
         }
     }
 
