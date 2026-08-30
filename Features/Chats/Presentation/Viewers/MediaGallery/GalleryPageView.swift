@@ -5,6 +5,9 @@ struct GalleryPageView: View {
     let isActive: Bool
     @ObservedObject var loader: GalleryPageLoader
     var onZoomChange: ((Bool) -> Void)?
+    /// Whether a call is running, so a video page never takes the audio
+    /// session from one.
+    var callInProgress: Bool = false
 
     var body: some View {
         let state = loader.state(for: item)
@@ -39,7 +42,8 @@ struct GalleryPageView: View {
         if let url = state.url {
             GalleryVideoView(
                 url: url,
-                isActive: .constant(isActive)
+                isActive: .constant(isActive),
+                callInProgress: callInProgress
             )
             .ignoresSafeArea()
         } else if let error = state.error {

@@ -14,18 +14,16 @@ import SanchrShared
 /// video opened afterwards inherited a routing setup meant for a microphone.
 enum GalleryAudioSession {
 
-    /// Whether a call currently owns the session.
-    ///
-    /// Calls configure `.playAndRecord` with `.voiceChat`, and voice notes use
-    /// the same category with the default mode — so the mode, not the
-    /// category, is what tells them apart. Taking the session from a live call
-    /// would cut its audio, which is far worse than a silent video.
-    private static var callInProgress: Bool {
-        AVAudioSession.sharedInstance().mode == .voiceChat
-    }
-
     /// Makes gallery video audible, including on a phone switched to silent.
-    static func activateForPlayback() {
+    ///
+    /// - Parameter callInProgress: whether a call currently owns the session.
+    ///   Passed in rather than inferred: the obvious-looking test — is the
+    ///   session's mode `.voiceChat` — is wrong, because category and mode are
+    ///   sticky. CallKit deactivating the session does not clear them, and
+    ///   nothing in the call teardown resets them either, so after the first
+    ///   call of a session the mode reads `.voiceChat` forever. Inferring from
+    ///   it meant every video opened after any call played silently.
+    static func activateForPlayback(callInProgress: Bool) {
         guard !callInProgress else {
             SanchrLogger.media.info("Gallery audio: call in progress, leaving the session alone")
             return
@@ -47,7 +45,7 @@ enum GalleryAudioSession {
     ///
     /// `notifyOthersOnDeactivation` is what lets whatever was playing before —
     /// music, a podcast — pick up again instead of staying stopped.
-    static func deactivate() {
+    static func deactivate(callInProgress: Bool) {
         guard !callInProgress else { return }
         do {
             try AVAudioSession.sharedInstance().setActive(
