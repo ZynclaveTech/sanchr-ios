@@ -92,6 +92,20 @@ final class PrivacySettingsCache: @unchecked Sendable {
         SanchrLogger.settings.info("Privacy cache blockList updated: count=\(blockList.count)")
     }
 
+    /// Applies a single block or unblock without a round trip.
+    ///
+    /// The list is otherwise only read at launch, and a contact blocked
+    /// during a session would go on reaching you until the next one.
+    func setBlocked(_ userId: String, _ blocked: Bool) {
+        lock.lock()
+        if blocked {
+            _blockedUserIds.insert(userId)
+        } else {
+            _blockedUserIds.remove(userId)
+        }
+        lock.unlock()
+    }
+
     /// Reset every field to its default. Called from
     /// `SessionService.clearSessionState()` so a logged-out session cannot
     /// leak the previous user's privacy state into a new login. Defaults are

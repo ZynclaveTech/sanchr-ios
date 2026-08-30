@@ -131,6 +131,7 @@ struct BlockedContactsView: View {
         )
         do {
             try await dataSource.unblockContact(userId: userId)
+            container.privacySettings.setBlocked(userId, false)
             blockedIDs.removeAll { $0 == userId }
         } catch {
             errorMessage = error.localizedDescription

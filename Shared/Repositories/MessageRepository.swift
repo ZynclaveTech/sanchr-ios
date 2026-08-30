@@ -98,6 +98,10 @@ struct MessageSyncResult: Sendable {
 private enum SealedDecodeOutcome {
     case event(RealtimeEvent)
     case undeliverable(Error)
+    /// Decrypted successfully and deliberately discarded. Distinct from
+    /// `undeliverable`, which triggers session healing and a retry — there is
+    /// nothing wrong with this envelope and nothing to repair.
+    case dropped(reason: String)
 }
 
 /// Per-peer cooldown for session self-healing, so a burst of undeliverable
@@ -812,6 +816,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                         shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
                                     }
                                     continuation.yield(event)
+                                case .dropped(let reason):
+                                    SanchrLogger.chat.info(
+                                        "Dropped sealed message \(envelope.messageID.prefix(8)): \(reason)"
+                                    )
+                                    shouldRememberEnvelope = await self.ackDeliveredEnvelope(
+                                        messageId: envelope.messageID,
+                                        conversationId: envelope.conversationID
+                                    )
                                 case .undeliverable(let error):
                                     shouldRememberEnvelope = await self.ackUndeliverableSealedMessage(
                                         messageId: envelope.messageID,
@@ -874,6 +886,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                     shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
                                 }
                                 continuation.yield(event)
+                            case .dropped(let reason):
+                                SanchrLogger.chat.info(
+                                    "Dropped sealed message \(sealed.messageID.prefix(8)): \(reason)"
+                                )
+                                shouldRememberEnvelope = await self.ackDeliveredEnvelope(
+                                    messageId: sealed.messageID,
+                                    conversationId: Self.nilUUIDString
+                                )
                             case .undeliverable(let error):
                                 shouldRememberEnvelope = await self.ackUndeliverableSealedMessage(
                                     messageId: sealed.messageID,
@@ -1289,6 +1309,19 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                             Int64(message.timestamp.timeIntervalSince1970 * 1000)
                         )
                     }
+                case .dropped(let reason):
+                    // Not counted: a dropped message is not a message that
+                    // synced, and letting it move `latestTimestamp` would be
+                    // harmless but letting it inflate the unread count would
+                    // not — the conversation would show unread mail that does
+                    // not exist.
+                    SanchrLogger.chat.info(
+                        "Dropped sealed message \(envelope.messageID.prefix(8)): \(reason)"
+                    )
+                    shouldRememberEnvelope = await ackDeliveredEnvelope(
+                        messageId: envelope.messageID,
+                        conversationId: envelope.conversationID
+                    )
                 case .undeliverable(let error):
                     shouldRememberEnvelope = await ackUndeliverableSealedMessage(
                         messageId: envelope.messageID,
@@ -1763,6 +1796,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let effectiveSenderId: String = isOutgoing
                 ? (currentUserIdProvider() ?? senderId)
                 : senderId
+
+            // The sender is only knowable here, after decryption. Dropped
+            // before it is written, so a blocked contact leaves no trace in
+            // the transcript, the conversation list, or an unread count.
+            if !isOutgoing, privacyGate.acceptsMessage(from: effectiveSenderId) == .suppress {
+                return .dropped(reason: "sender is blocked")
+            }
             let messageId = Self.canonicalSealedMessageId(
                 sealedEnvelopeId: sealed.messageID,
                 innerPayloadMessageId: innerPayload.messageId

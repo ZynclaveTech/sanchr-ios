@@ -283,6 +283,7 @@ struct ConversationInfoView: View {
                     )
                     do {
                         try await dataSource.blockContact(userId: userId)
+                        container.privacySettings.setBlocked(userId, true)
                         SanchrLogger.sync.info("Blocked contact \(userId.prefix(8))… from ConversationInfo")
                         dismiss()
                     } catch {

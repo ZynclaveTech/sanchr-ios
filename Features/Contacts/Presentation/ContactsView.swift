@@ -187,6 +187,10 @@ struct ContactsView: View {
                                         userId: contact.id,
                                         contactDataSource: contactDataSource
                                     )
+                                    // The gate reads this cache on every
+                                    // incoming sealed message; without it the
+                                    // block only takes effect next launch.
+                                    container.privacySettings.setBlocked(contact.id, true)
                                 }
                             } label: {
                                 Label("Block", systemImage: "hand.raised.fill")
