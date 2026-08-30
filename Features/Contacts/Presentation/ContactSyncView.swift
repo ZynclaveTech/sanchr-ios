@@ -295,13 +295,15 @@ struct ContactSyncView: View {
             grpcClient: container.grpcClient,
             localDatabase: container.localDatabase
         )
-        // The calling code comes from the signed-in user's own E.164 number, so
-        // contacts saved in local format expand to the same country as the user.
+        // The signed-in user's own E.164 number supplies both the calling code
+        // and the national number length, so contacts saved in local format
+        // expand to the same country — and a number that begins with its own
+        // country's calling code is still read as national.
         let ownNumber = container.sessionService.currentPhoneNumber ?? ""
         let useCase = ContactUseCases.SyncContacts(
             contactDataSource: contactDataSource,
             discoveryRepository: container.discoveryRepository,
-            defaultCallingCode: { ContactDataSource.callingCode(fromE164: ownNumber) }
+            ownE164: { ownNumber }
         )
 
         do {

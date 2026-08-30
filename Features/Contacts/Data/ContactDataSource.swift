@@ -155,6 +155,29 @@ final class ContactDataSource: @unchecked Sendable {
         return "+" + String(digits.prefix(1))
     }
 
+    /// How many digits a national number has in the signed-in user's country,
+    /// worked out from their own registered number.
+    ///
+    /// This is what makes a locally-saved number unambiguous. Without it, a
+    /// ten-digit Indian mobile that happens to begin "91" — a real allocated
+    /// series — is indistinguishable from a country code followed by eight
+    /// digits, and gets expanded as the latter.
+    ///
+    /// Derived rather than tabulated: the user's own number is already known to
+    /// be a valid national number for their country, so it is a better source
+    /// than a table this app would have to keep current for every country.
+    static func nationalNumberLength(ofE164 number: String) -> Int? {
+        let digits = number.filter(\.isNumber)
+        let code = callingCode(fromE164: number).filter(\.isNumber)
+        guard !digits.isEmpty, !code.isEmpty, digits.count > code.count else { return nil }
+
+        // No country has national numbers this short. A tiny value here would
+        // be worse than none: it would make the length test below fire on
+        // fragments and expand them as if they were whole numbers.
+        let length = digits.count - code.count
+        return length >= 4 ? length : nil
+    }
+
     /// Converts an address-book number to the E.164 form the server registered.
     ///
     /// Accounts are stored as country code + subscriber number ("+919569740653"),
@@ -166,7 +189,15 @@ final class ContactDataSource: @unchecked Sendable {
     ///
     /// `defaultCallingCode` is the caller's own country code (e.g. "+91"),
     /// applied to numbers that carry no country information of their own.
-    static func e164PhoneNumber(_ phoneNumber: String, defaultCallingCode: String) -> String? {
+    /// - Parameter nationalNumberLength: how many digits a national number has
+    ///   in the user's country. Supplying it is what disambiguates a number
+    ///   that begins with its own country's calling code; without it the older,
+    ///   prefix-only behaviour applies.
+    static func e164PhoneNumber(
+        _ phoneNumber: String,
+        defaultCallingCode: String,
+        nationalNumberLength: Int? = nil
+    ) -> String? {
         var digits = normalizePhoneNumber(phoneNumber)
             .replacingOccurrences(of: ".", with: "")
             .replacingOccurrences(of: "\u{00A0}", with: "")
@@ -194,6 +225,18 @@ final class ContactDataSource: @unchecked Sendable {
         if digits.hasPrefix("0") {
             digits = String(digits.drop(while: { $0 == "0" }))
             guard !digits.isEmpty else { return nil }
+        }
+
+        // A number of exactly the national length is a national number, even
+        // when it happens to start with its own country's calling code.
+        //
+        // This check has to come first. India's calling code is 91 and 91 is
+        // also a valid mobile prefix there, so "9198765432" satisfies the
+        // country-code test below and was expanded to "+9198765432" — ten
+        // digits where twelve were needed. Those contacts could never match
+        // their own account, and nothing said so.
+        if let nationalNumberLength, digits.count == nationalNumberLength {
+            return "+" + callingDigits + digits
         }
 
         // Some entries are saved with the country code but no "+".
