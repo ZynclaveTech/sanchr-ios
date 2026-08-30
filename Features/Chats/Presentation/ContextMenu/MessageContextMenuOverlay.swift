@@ -69,6 +69,9 @@ struct MessageContextMenuOverlay: View {
                     Image(uiImage: presentation.snapshot)
                         .resizable()
                         .frame(width: messageFrame.width, height: messageFrame.height)
+                        // Tapping the lifted message dismisses, so it must not
+                        // swallow the touch on its way to the backdrop.
+                        .allowsHitTesting(false)
                         .accessibilityLabel("Selected message")
 
                     MessageContextActionList(
@@ -82,17 +85,21 @@ struct MessageContextMenuOverlay: View {
                     )
                 }
                 .frame(width: messageFrame.width, alignment: presentation.isOutgoing ? .trailing : .leading)
-                // `.position` centres the whole stack, but what has to land on
-                // the message's own position is the message — the bar above and
-                // the menu below are different heights, so centring the group
-                // puts the message wherever their difference lands. Shifting by
-                // half that difference puts it back.
-                .position(
-                    x: messageFrame.midX,
-                    y: messageFrame.midY
-                        + (menuHeight - barHeight) / 2
+                // Offset from the group's top-left rather than `.position`.
+                //
+                // `.position` expands the view it modifies to fill the parent,
+                // so the stack became a full-screen layer covering the backdrop
+                // and swallowing every tap meant to dismiss. It also centres,
+                // which meant deriving the message's placement from half the
+                // difference between the bar and menu heights — where what the
+                // layout actually computes, and what has to be honoured, is the
+                // top of the group.
+                .offset(
+                    x: messageFrame.minX,
+                    y: messageFrame.minY - barHeight - MessageContextMenuLayout.spacing
                         + layout.verticalOffset
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 // Scale and fade from the message's own position, so the menu
                 // grows out of what was pressed rather than appearing over it.
                 .scaleEffect(hasAppeared ? 1 : 0.94, anchor: .center)

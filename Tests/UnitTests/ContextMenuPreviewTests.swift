@@ -42,6 +42,12 @@ final class ContextMenuPreviewTests: XCTestCase {
         }
     }
 
+    private var transcript: String {
+        get throws {
+            try read("Features/Chats/Presentation/ChatTranscriptView.swift")
+        }
+    }
+
     private func code(_ text: String) -> String {
         text.split(separator: "\n", omittingEmptySubsequences: false)
             .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
@@ -80,6 +86,66 @@ final class ContextMenuPreviewTests: XCTestCase {
         XCTAssertTrue(
             overlay.contains("onReact(emoji)"),
             "the reaction bar must call something, unlike the empty buttons it replaces"
+        )
+    }
+
+    /// The menu covers the whole screen, not just the transcript.
+    ///
+    /// It was first attached as `.overlay` on this view — which is one child of
+    /// the chat screen's VStack, so the blur stopped at the transcript's edges.
+    /// The header, the encryption banner and the composer stayed sharp on top
+    /// of the menu, and the action list ran on underneath the composer.
+    func testTheMenuIsPresentedAboveTheWholeScreen() throws {
+        let body = code(try transcript)
+        XCTAssertTrue(
+            body.contains("contextMenuWindow.present("),
+            "the menu needs its own window; a transcript overlay cannot cover the header or composer"
+        )
+        XCTAssertFalse(
+            body.contains("MessageContextMenuOverlay(") && body.contains(".overlay {\n            if let contextPresentation"),
+            "presenting it as an overlay of the transcript is the bug this guards"
+        )
+    }
+
+    /// `sourceFrame` is measured in window coordinates, so the view drawing it
+    /// has to be the window — as a transcript overlay the message was drawn
+    /// offset by the height of everything above the transcript.
+    func testTheMessageFrameAndTheMenuShareACoordinateSpace() throws {
+        XCTAssertTrue(
+            try code(source).contains("cell.convert(cell.bounds, to: window)"),
+            "the frame is window-space, which is why the menu is presented in a window"
+        )
+    }
+
+    /// `.position` expands the view it modifies to fill its parent, so the
+    /// positioned stack became a full-screen layer over the backdrop and ate
+    /// every tap meant to dismiss.
+    func testTappingOutsideCanReachTheBackdrop() throws {
+        let body = code(try overlay)
+        XCTAssertFalse(
+            body.contains(".position("),
+            ".position fills the parent and swallows the backdrop's taps; offset from the top-left instead"
+        )
+        XCTAssertTrue(
+            body.contains(".allowsHitTesting(false)"),
+            "the lifted message must let a tap through to the backdrop rather than absorb it"
+        )
+    }
+
+    /// The keyboard covers the menu, and dismissing it moves the cell the menu
+    /// is positioned by — so it goes first, and the snapshot waits for it.
+    func testTheKeyboardIsDismissedBeforeTheMessageIsSnapshotted() throws {
+        let body = code(try source)
+        XCTAssertTrue(body.contains("endEditing(true)"))
+        XCTAssertTrue(
+            body.contains("keyboardDidHideNotification"),
+            "snapshotting before the keyboard finishes leaving captures a stale frame"
+        )
+        let dismiss = try XCTUnwrap(body.range(of: "endEditing(true)"))
+        let snapshot = try XCTUnwrap(body.range(of: "UIGraphicsImageRenderer"))
+        XCTAssertTrue(
+            dismiss.lowerBound < snapshot.lowerBound,
+            "the keyboard has to go before the frame is measured, not after"
         )
     }
 }
