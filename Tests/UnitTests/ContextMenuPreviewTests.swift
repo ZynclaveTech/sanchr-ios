@@ -42,6 +42,12 @@ final class ContextMenuPreviewTests: XCTestCase {
         }
     }
 
+    private var menuWindow: String {
+        get throws {
+            try read("Features/Chats/Presentation/ContextMenu/MessageContextMenuWindow.swift")
+        }
+    }
+
     private var transcript: String {
         get throws {
             try read("Features/Chats/Presentation/ChatTranscriptView.swift")
@@ -176,6 +182,61 @@ final class ContextMenuPreviewTests: XCTestCase {
         XCTAssertTrue(
             body.contains("asyncAfter"),
             "the wait needs a deadline; a menu placed slightly off beats no menu"
+        )
+    }
+
+    // MARK: - VoiceOver
+
+    /// VoiceOver has to stay inside the menu.
+    ///
+    /// The menu is presented in its own window, and `accessibilityViewIsModal`
+    /// only contains the cursor among sibling *views*. The chat is a sibling
+    /// window, so it stayed reachable: swiping past the last action walked
+    /// into a transcript that was blurred out and could not be touched.
+    func testVoiceOverCannotReachTheChatBehindTheMenu() throws {
+        let body = code(try menuWindow)
+        XCTAssertTrue(
+            body.contains("accessibilityViewIsModal = true"),
+            "the menu's own root must be modal, as Signal's is"
+        )
+        XCTAssertTrue(
+            body.contains("host.accessibilityElementsHidden = true"),
+            "modality does not cross windows; the chat window has to be hidden too"
+        )
+        XCTAssertTrue(
+            body.contains("obscuredHost?.accessibilityElementsHidden = false"),
+            "and handed back, or the conversation stays unreadable after the menu closes"
+        )
+    }
+
+    /// Focus moves into the menu when it opens and back to the conversation
+    /// when it closes — otherwise the cursor is left pointing at a window that
+    /// no longer exists and VoiceOver goes quiet.
+    func testFocusMovesIntoTheMenuAndBackOut() throws {
+        let body = code(try menuWindow)
+        XCTAssertEqual(
+            body.components(separatedBy: "UIAccessibility.post(notification: .screenChanged").count - 1,
+            2,
+            "one post to enter the menu, one to leave it"
+        )
+    }
+
+    /// The two-finger scrub. Every other way out is a tap on something, and a
+    /// VoiceOver user cannot aim at the backdrop.
+    func testTheMenuCanBeDismissedWithoutAimingAtTheBackdrop() throws {
+        XCTAssertTrue(
+            try code(overlay).contains(".accessibilityAction(.escape)"),
+            "the escape gesture is the only pointer-free way out"
+        )
+    }
+
+    /// The backdrop is on top of the z-order but is the least interesting
+    /// thing in the menu. Announcing "Close menu" first left no clue which
+    /// message had been opened.
+    func testTheBackdropIsNotTheFirstThingAnnounced() throws {
+        XCTAssertTrue(
+            try code(overlay).contains(".accessibilitySortPriority(-1)"),
+            "the backdrop should be read last, not first"
         )
     }
 }

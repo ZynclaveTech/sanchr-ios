@@ -59,6 +59,11 @@ struct MessageContextMenuOverlay: View {
                     .onTapGesture { onDismiss() }
                     .accessibilityLabel("Close menu")
                     .accessibilityAddTraits(.isButton)
+                    // Read last. It is on top of the ZStack's z-order but it
+                    // is the least interesting thing here, and announcing
+                    // "Close menu" before naming the message left no clue what
+                    // the menu had been opened on.
+                    .accessibilitySortPriority(-1)
 
                 VStack(alignment: presentation.isOutgoing ? .trailing : .leading,
                        spacing: MessageContextMenuLayout.spacing) {
@@ -107,6 +112,9 @@ struct MessageContextMenuOverlay: View {
             }
         }
         .ignoresSafeArea()
+        // The two-finger scrub. Every other way out of this menu is a tap on
+        // something, and a VoiceOver user has no way to aim at the backdrop.
+        .accessibilityAction(.escape) { onDismiss() }
         .onAppear {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
