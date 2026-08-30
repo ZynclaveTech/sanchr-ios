@@ -86,7 +86,12 @@ final class AttachmentPillButton: UIControl {
         iconContainer.addSubview(iconView)
 
         titleLabel.text = Self.title(for: item)
-        titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        // Was a fixed 12pt, so the labels stayed put at every Dynamic Type
+        // size including the accessibility ones.
+        titleLabel.font = .preferredFont(forTextStyle: .caption1)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.adjustsFontSizeToFitWidth = true
+        titleLabel.minimumScaleFactor = 0.8
         titleLabel.textColor = .secondaryLabel
         titleLabel.textAlignment = .center
 

@@ -93,9 +93,32 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
         }
 
         c.isAccessibilityElement = true
-        c.accessibilityLabel = "Recent photo"
+        // Every cell used to be "Recent photo" — the same words for all of
+        // them, so VoiceOver could not tell one from the next, say whether it
+        // was a video, or report what was selected during a multiple
+        // selection.
+        c.accessibilityLabel = Self.accessibilityLabel(
+            for: photo,
+            position: ip.item + 1,
+            of: recents.count
+        )
+        if isMultiSelecting {
+            c.accessibilityValue = selectedIDs.firstIndex(of: photo.id)
+                .map { "Selected, number \($0 + 1)" } ?? "Not selected"
+        } else {
+            c.accessibilityValue = nil
+        }
         c.accessibilityTraits = .button
         c.accessibilityIdentifier = "attachmentPicker.recentPhoto.\(ip.item)"
+        // Multiple selection was reachable only by long press, which VoiceOver
+        // has no way to perform.
+        c.accessibilityCustomActions = isMultiSelecting ? nil : [
+            UIAccessibilityCustomAction(name: "Select several") { [weak self] _ in
+                guard let self else { return false }
+                self.delegate?.recentsStrip(self, didLongPressPhotoAt: photo.id)
+                return true
+            }
+        ]
         let src = photosSource
         c.configure(photo: photo,
                     selectionIndex: selectedIDs.firstIndex(of: photo.id),
@@ -109,6 +132,41 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
     func collectionView(_ cv: UICollectionView, didSelectItemAt ip: IndexPath) {
         delegate?.recentsStrip(self, didTapPhotoAt: recents[ip.item].id)
     }
+
+    /// "Video, 12 seconds, 3 of 40" rather than "Recent photo" forty times.
+    static func accessibilityLabel(for photo: RecentPhoto, position: Int, of total: Int) -> String {
+        var parts: [String] = []
+        if let seconds = photo.durationSeconds {
+            parts.append("Video")
+            parts.append(spokenDuration(seconds))
+        } else {
+            parts.append("Photo")
+        }
+        if let date = photo.creationDate {
+            parts.append(Self.dateFormatter.string(from: date))
+        }
+        parts.append("\(position) of \(total)")
+        return parts.joined(separator: ", ")
+    }
+
+    /// Local rather than borrowed from the recording HUD — the picker has no
+    /// business depending on a voice-message view for a string.
+    private static func spokenDuration(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let minutes = total / 60
+        let secs = total % 60
+        var parts: [String] = []
+        if minutes > 0 { parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")") }
+        parts.append("\(secs) second\(secs == 1 ? "" : "s")")
+        return parts.joined(separator: ", ")
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f
+    }()
 }
 
 // MARK: Cells
