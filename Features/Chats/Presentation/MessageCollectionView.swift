@@ -38,6 +38,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onReact: (String, String) -> Void
     let onDeleteMessage: (Message) -> Void
     let onForward: (Message) -> Void
+    let onMediaAction: (MessageCollectionViewController.MediaMessageAction, Message) -> Void
     let onRetry: (Message) -> Void
     let onLoadMore: () -> Void
     let onBubbleTap: (MessageInteraction) -> Void
@@ -56,6 +57,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onForwardMessage = { message in
             onForward(message)
+        }
+
+        vc.onMediaAction = { action, message in
+            onMediaAction(action, message)
         }
 
         vc.onRetryMessage = { message in
@@ -111,6 +116,10 @@ struct MessageCollectionView: UIViewControllerRepresentable {
 
         vc.onForwardMessage = { message in
             onForward(message)
+        }
+
+        vc.onMediaAction = { action, message in
+            onMediaAction(action, message)
         }
 
         vc.onRetryMessage = { message in

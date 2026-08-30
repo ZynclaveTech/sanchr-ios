@@ -36,6 +36,11 @@ struct ChatTranscriptView: View {
 
     @Environment(DependencyContainer.self) private var container
 
+    /// Media actions run from the transcript's own context menu, so the state
+    /// they need lives here rather than being threaded up to the root.
+    @State private var shareItem: GalleryIdentifiedURLBridge?
+    @State private var mediaActionToast: String?
+
     var body: some View {
         MessageCollectionView(
             renderInput: transcriptRenderInput,
@@ -52,6 +57,9 @@ struct ChatTranscriptView: View {
             },
             onForward: { message in
                 messageToForward = message
+            },
+            onMediaAction: { action, message in
+                Task { await performMediaAction(action, on: message) }
             },
             onRetry: { message in
                 Task { await onRetry(message) }
@@ -77,6 +85,22 @@ struct ChatTranscriptView: View {
             }
         }
         .environment(container)
+        .sheet(item: $shareItem) { wrapped in
+            TranscriptActivityView(items: [wrapped.url])
+        }
+        .overlay(alignment: .bottom) {
+            if let mediaActionToast {
+                Text(mediaActionToast)
+                    .font(SanchrTypography.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.75), in: Capsule())
+                    .padding(.bottom, 24)
+                    .transition(.opacity)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
         .onAppear {
             // Load more is handled by the collection view's scroll delegate
         }
@@ -170,4 +194,86 @@ struct ChatTranscriptView: View {
             conversationId: conversation.id
         )
     }
+
+    // MARK: - Media Actions
+
+    /// Save, share or copy a photo or video straight from the transcript.
+    ///
+    /// These used to exist only inside the viewer, which meant opening a
+    /// message before you could do anything with it — and on video it meant the
+    /// player carried a second toolbar just to offer them.
+    ///
+    /// The file may not be on disk yet: a message that has never been opened
+    /// has only its blurhash and a remote id, so the first step is always to
+    /// resolve it, which downloads and decrypts if needed.
+    private func performMediaAction(
+        _ action: MessageCollectionViewController.MediaMessageAction,
+        on message: Message
+    ) async {
+        guard let attachment = message.content.firstAttachment else { return }
+
+        let url: URL
+        do {
+            url = try await container.chatMediaResolver.decryptedURL(
+                forMessageId: message.id,
+                attachment: attachment
+            )
+        } catch {
+            // Almost always "not downloaded and currently offline". Saying so
+            // beats a menu item that silently does nothing.
+            showMediaToast("Couldn't load the media — try again in a moment.")
+            return
+        }
+
+        switch action {
+        case .saveToPhotos:
+            do {
+                let isVideo = attachment.mimeType.hasPrefix("video/")
+                try await SaveToPhotos.save(fileURL: url, kind: isVideo ? .video : .image)
+                showMediaToast(isVideo ? "Video saved to Photos" : "Image saved to Photos")
+            } catch {
+                showMediaToast(error.localizedDescription)
+            }
+
+        case .share:
+            shareItem = GalleryIdentifiedURLBridge(url: url)
+
+        case .copy:
+            // The image itself for a photo; for a video the file, since the
+            // pasteboard has nothing useful to do with a whole movie.
+            if attachment.mimeType.hasPrefix("video/") {
+                UIPasteboard.general.url = url
+                showMediaToast("Video copied")
+            } else if let image = UIImage(contentsOfFile: url.path) {
+                UIPasteboard.general.image = image
+                showMediaToast("Image copied")
+            } else {
+                showMediaToast("Couldn't copy this media.")
+            }
+        }
+    }
+
+    private func showMediaToast(_ text: String) {
+        withAnimation(.easeOut(duration: 0.2)) { mediaActionToast = text }
+        Task {
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
+            withAnimation(.easeOut(duration: 0.2)) { mediaActionToast = nil }
+        }
+    }
 }
+
+/// Share sheet for media acted on from the transcript.
+///
+/// The gallery has its own copy of this; they are a handful of lines each and
+/// neither view should have to reach into the other's file to present a system
+/// sheet.
+private struct TranscriptActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+

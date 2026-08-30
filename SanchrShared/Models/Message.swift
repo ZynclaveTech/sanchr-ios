@@ -50,6 +50,35 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         case location(latitude: Double, longitude: Double)
         case contact(name: String, phoneNumber: String)
         case system(SystemEvent)
+
+        /// The attachment a media action should operate on.
+        public var firstAttachment: MediaAttachment? {
+            switch self {
+            case .image(let media), .video(let media),
+                 .audio(let media), .document(let media):
+                return media.first
+            case .text, .location, .contact, .system:
+                return nil
+            }
+        }
+
+        /// Whether this carries media the Photos library will accept.
+        ///
+        /// Documents, voice notes, locations and contacts are all attachments
+        /// of a sort, but none of them are something Photos can store —
+        /// offering to save them would produce a failure nobody can act on.
+        ///
+        /// View-once media is excluded on purpose: the whole point is that it
+        /// is seen once and gone, and a Save button would be a hole straight
+        /// through that.
+        public var isSaveableMedia: Bool {
+            switch self {
+            case .image(let media), .video(let media):
+                return media.first?.isViewOnce != true && !media.items.isEmpty
+            case .text, .audio, .document, .location, .contact, .system:
+                return false
+            }
+        }
     }
 
     /// The attachments a media message carries.

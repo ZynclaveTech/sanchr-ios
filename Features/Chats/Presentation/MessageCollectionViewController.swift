@@ -257,6 +257,7 @@ final class MessageCollectionViewController: UIViewController {
     var onReactToMessage: ((String, String) -> Void)?
     var onDeleteMessage: ((Message) -> Void)?
     var onForwardMessage: ((Message) -> Void)?
+    var onMediaAction: ((MediaMessageAction, Message) -> Void)?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -995,12 +996,46 @@ final class MessageCollectionViewController: UIViewController {
         return host
     }
 
+    /// What a media message can do beyond the actions any message has.
+    ///
+    /// Reachable from the transcript rather than only from inside the viewer,
+    /// so a photo can be saved or shared without opening it first — and so the
+    /// video player does not have to carry a second toolbar to offer them.
+    enum MediaMessageAction {
+        case saveToPhotos
+        case share
+        case copy
+    }
+
     private func makeContextMenu(for message: Message) -> UIMenu {
         var actions: [UIMenuElement] = []
 
         if case .text(let text) = message.content {
             actions.append(UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in
                 UIPasteboard.general.string = text
+            })
+        }
+
+        // Media actions. Deliberately first: on a photo or a video they are the
+        // reason most people open this menu.
+        if message.content.isSaveableMedia {
+            actions.append(UIAction(
+                title: "Save to Photos",
+                image: UIImage(systemName: "square.and.arrow.down")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.saveToPhotos, message)
+            })
+            actions.append(UIAction(
+                title: "Share",
+                image: UIImage(systemName: "square.and.arrow.up")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.share, message)
+            })
+            actions.append(UIAction(
+                title: "Copy",
+                image: UIImage(systemName: "doc.on.doc")
+            ) { [weak self] _ in
+                self?.onMediaAction?(.copy, message)
             })
         }
 
