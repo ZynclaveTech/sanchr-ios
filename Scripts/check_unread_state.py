@@ -121,9 +121,40 @@ def called_names(sources, skip_declarations=True):
     return names
 
 
+PROTOCOL = re.compile(r"^\s*(?:public |internal |private |fileprivate )?protocol \s*\w+")
+
+
+def protocol_requirements(sources):
+    """Names declared inside a `protocol` body.
+
+    A protocol requirement is called through the protocol, so its
+    implementations have no direct caller and look exactly like dead code from
+    here. That was 49 of the 58 findings the first audit produced — enough
+    noise to bury the one real bug in it, which was that call duration padding
+    is built, tested and never invoked.
+    """
+    names = set()
+    for _, text in sources.items():
+        depth = None
+        for line in text.split("\n"):
+            if PROTOCOL.match(line):
+                depth = 0
+                continue
+            if depth is None:
+                continue
+            depth += line.count("{") - line.count("}")
+            m = re.match(r"\s*(?:static\s+)?func (\w+)\s*\(", line)
+            if m:
+                names.add(m.group(1))
+            if depth <= 0 and "}" in line:
+                depth = None
+    return names
+
+
 def test_only_functions(product, tests):
     in_product = called_names(product)
     in_tests = called_names(tests, skip_declarations=False)
+    conformances = protocol_requirements(product)
 
     problems = []
     for path, text in product.items():
@@ -137,6 +168,8 @@ def test_only_functions(product, tests):
             if "private" in line or "override" in line:
                 continue
             if in_product.get(name):
+                continue
+            if name in conformances:
                 continue
             if name in in_tests:
                 problems.append(
