@@ -44,3 +44,33 @@ than a bug fix.
   *parser* is still used, for messages from older clients, and these two are
   the tested statement of the format it must accept. Worth keeping for that
   reason alone.
+
+---
+
+# Media upload dedup on forward — checked and rejected, 2026-08-31
+
+Forwarding one file to several conversations uploads it several times. That
+was raised as waste worth fixing. It is not waste.
+
+`MediaUploadManager` derives the key as the paper's Defense 2 specifies:
+
+    MediaK_n = HKDF(CK_n, file_hash, "media-v1")
+
+`CK_n` is *that conversation's* media chain key, and it is erased on the next
+line. One ciphertext has one key, so an upload reused elsewhere would belong to
+a conversation whose media key was never derived from its own chain. Deriving
+it properly means re-encrypting, which means re-uploading.
+
+It would also break the paper's Cross-Domain Persistence Invariant: MediaK is
+cross-domain but not persistent, because the chain advances past it. Shared
+across conversations it would live until the slowest chain advanced — both
+cross-domain and persistent, the pair the design exists to keep apart — and
+compromising one conversation would expose media delivered in another.
+
+Compression is not key-derived, so that part *is* shared
+(`MessageSender.PreparedVideo`, #88). Encryption and upload are not.
+
+Note for anyone re-opening this: the first argument given against dedup was
+metadata — one media id visible in several conversations. That argument is
+weak, and the paper explicitly puts ciphertext correlation out of scope. The
+cryptographic argument above is the one that holds.
