@@ -276,6 +276,9 @@ final class MessageCollectionViewController: UIViewController {
 
     /// The other party's display name, used to attribute a quoted reply.
     var peerDisplayName: String = ""
+
+    /// The viewer, so the reaction pill can mark which reaction is theirs.
+    var localUserId: String?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -491,6 +494,7 @@ final class MessageCollectionViewController: UIViewController {
         }
 
         let voicePlayback = self.voicePlayback
+        let localUserId = self.localUserId
         cell.contentConfiguration = UIHostingConfiguration { [weak self] in
             VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
                 MessageBubble(
@@ -502,6 +506,7 @@ final class MessageCollectionViewController: UIViewController {
                     isGroupedWithPrev: item.isGroupedWithPrev,
                     isGroupedWithNext: item.isGroupedWithNext,
                     voicePlayback: voicePlayback,
+                    localUserId: localUserId,
                     onBubbleTap: { interaction in
                         self?.onBubbleTap?(interaction)
                     }

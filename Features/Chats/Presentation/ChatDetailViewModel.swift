@@ -189,7 +189,8 @@ final class ChatDetailViewModel {
         onOpenGallery: (GallerySeed) -> Void = { _ in },
         onOpenContact: (String, String) -> Void = { _, _ in },
         onOpenLocation: (Double, Double) -> Void = { _, _ in },
-        onOpenDocument: (String) -> Void = { _ in }
+        onOpenDocument: (String) -> Void = { _ in },
+        onToggleReaction: (String, String) -> Void = { _, _ in }
     ) {
         lastRoutedInteraction = interaction
         switch interaction {
@@ -209,6 +210,8 @@ final class ChatDetailViewModel {
             onOpenLocation(latitude, longitude)
         case .openDocument(let messageId):
             onOpenDocument(messageId)
+        case .toggleReaction(let messageId, let emoji):
+            onToggleReaction(messageId, emoji)
         }
     }
 

@@ -15,6 +15,10 @@ public enum MessageInteraction: Sendable, Equatable {
     /// Zero for a single-attachment bubble.
     case openMedia(messageId: String, attachmentIndex: Int = 0)
 
+    /// Fired by the reaction pill under a bubble. Toggles: tapping your own
+    /// removes it, tapping anyone else's adds yours alongside.
+    case toggleReaction(messageId: String, emoji: String)
+
     /// Fired for `.contact` bubbles.
     case openContact(name: String, phoneNumber: String)
 

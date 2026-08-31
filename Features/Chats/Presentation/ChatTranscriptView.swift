@@ -48,6 +48,7 @@ struct ChatTranscriptView: View {
         MessageCollectionView(
             renderInput: transcriptRenderInput,
             peerDisplayName: conversation.displayName,
+            localUserId: container.signalProtocol.localUserId,
             voicePlayback: voicePlayback,
             onInitialPresentation: {
                 handleInitialTranscriptPresentation()
