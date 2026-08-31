@@ -276,6 +276,9 @@ final class MessageCollectionViewController: UIViewController {
 
     /// The other party's display name, used to attribute a quoted reply.
     var peerDisplayName: String = ""
+
+    /// The viewer, so the reaction pill can mark which reaction is theirs.
+    var localUserId: String?
     var onRetryMessage: ((Message) -> Void)?
     var onScrolledToBottom: ((Bool) -> Void)?
     var onNewMessageCountWhileScrolled: ((Int) -> Void)?
@@ -491,6 +494,7 @@ final class MessageCollectionViewController: UIViewController {
         }
 
         let voicePlayback = self.voicePlayback
+        let localUserId = self.localUserId
         cell.contentConfiguration = UIHostingConfiguration { [weak self] in
             VStack(alignment: item.message.isOutgoing ? .trailing : .leading, spacing: 4) {
                 MessageBubble(
@@ -502,19 +506,11 @@ final class MessageCollectionViewController: UIViewController {
                     isGroupedWithPrev: item.isGroupedWithPrev,
                     isGroupedWithNext: item.isGroupedWithNext,
                     voicePlayback: voicePlayback,
+                    localUserId: localUserId,
                     onBubbleTap: { interaction in
                         self?.onBubbleTap?(interaction)
                     }
                 )
-
-                if !item.message.reactions.isEmpty {
-                    ReactionPillsRow(
-                        reactions: item.message.reactions,
-                        isOutgoing: item.message.isOutgoing
-                    ) { emoji in
-                        self?.onReactToMessage?(emoji, item.message.id)
-                    }
-                }
             }
         }
         .margins(.horizontal, SanchrExportMetrics.sectionHorizontal)
@@ -1267,48 +1263,6 @@ extension MessageCollectionViewController: UIGestureRecognizerDelegate {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         let velocity = pan.velocity(in: pan.view)
         return abs(velocity.x) > abs(velocity.y) * 1.5
-    }
-}
-
-// MARK: - ReactionPillsRow
-
-private struct ReactionPillsRow: View {
-    let reactions: [Message.MessageReaction]
-    let isOutgoing: Bool
-    let onTapReaction: (String) -> Void
-
-    private var grouped: [(emoji: String, count: Int)] {
-        var dict: [String: Int] = [:]
-        for r in reactions { dict[r.emoji, default: 0] += 1 }
-        return dict.map { (emoji: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-    }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(grouped, id: \.emoji) { item in
-                Button {
-                    onTapReaction(item.emoji)
-                } label: {
-                    HStack(spacing: 2) {
-                        Text(item.emoji).font(.system(size: 14))
-                        if item.count > 1 {
-                            Text("\(item.count)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(SanchrExportColors.textSecondary)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(Capsule())
-                    .overlay {
-                        Capsule().stroke(SanchrExportColors.line, lineWidth: 0.5)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
     }
 }
 

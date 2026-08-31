@@ -435,6 +435,15 @@ struct ChatDetailView: View {
                             },
                             onOpenDocument: { messageId in
                                 Task { await documentCoordinator.open(messageId: messageId) }
+                            },
+                            onToggleReaction: { messageId, emoji in
+                                viewModel.toggleReaction(
+                                    emoji: emoji,
+                                    messageId: messageId,
+                                    conversationId: conversation.id,
+                                    userId: container.signalProtocol.localUserId,
+                                    chatDataSource: container.chatDataSource
+                                )
                             }
                         )
                     }
@@ -444,7 +453,8 @@ struct ChatDetailView: View {
                     scrollToBottomFAB
                 }
 
-                // Reaction picker overlay removed — reactions are in context menu
+                // The picker is in the context menu; the pill under a bubble
+                // shows what was picked and toggles your own.
             }
 
             if viewModel.presenceState.showsTypingIndicators && (viewModel.presenceState.peerIsTyping || viewModel.presenceState.peerPresenceStatus == .typing) {

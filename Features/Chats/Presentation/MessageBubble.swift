@@ -16,6 +16,8 @@ struct MessageBubble: View {
     var isGroupedWithPrev: Bool = false
     var isGroupedWithNext: Bool = false
     var voicePlayback: VoicePlaybackController
+    /// Highlights the viewer's own reaction in the pill.
+    var localUserId: String?
     var onBubbleTap: (MessageInteraction) -> Void = { _ in }
 
     private static let fileSizeFormatter: ByteCountFormatter = {
@@ -35,6 +37,11 @@ struct MessageBubble: View {
         default:      return SanchrTypography.body
         }
     }
+
+    /// How far the pill hangs below the bubble's edge. Half of it sits on the
+    /// bubble and half below, which is what makes it read as attached rather
+    /// than as a separate row.
+    private static let reactionOverhang: CGFloat = 12
 
     private var bubbleCornerRadius: CGFloat {
         switch bubbleStyle {
@@ -109,6 +116,27 @@ struct MessageBubble: View {
                                     .stroke(SanchrExportColors.line, lineWidth: 1)
                             }
                         }
+                        // On the bubble's lower outer corner, straddling the
+                        // edge — Signal's placement, and it keeps the pill off
+                        // the last line of text.
+                        .overlay(alignment: message.isOutgoing ? .bottomLeading : .bottomTrailing) {
+                            if !message.reactions.isEmpty {
+                                MessageReactionsPill(
+                                    reactions: message.reactions,
+                                    isOutgoing: message.isOutgoing,
+                                    localUserId: localUserId,
+                                    onTap: { emoji in
+                                        onBubbleTap(
+                                            .toggleReaction(messageId: message.id, emoji: emoji)
+                                        )
+                                    }
+                                )
+                                .offset(x: message.isOutgoing ? -8 : 8, y: Self.reactionOverhang)
+                            }
+                        }
+                        // An overlay adds no height, so without this the pill
+                        // would hang over the timestamp and the message below.
+                        .padding(.bottom, message.reactions.isEmpty ? 0 : Self.reactionOverhang * 2)
 
                     if !hideTimestamp {
                         timestampRow
