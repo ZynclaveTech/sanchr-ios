@@ -77,6 +77,7 @@ struct MediaCaptionView: View {
             if case .video(let url) = preview {
                 player = AVPlayer(url: url)
                 player?.play()
+                Task { videoAspectRatio = await MediaAspectFill.aspectRatio(ofVideoAt: url) }
             }
             captionFocused = true
         }
@@ -102,10 +103,39 @@ struct MediaCaptionView: View {
 
         case .video:
             if let player {
-                VideoPlayer(player: player)
+                // Sized to the clip's own shape rather than handed the whole
+                // screen.
+                //
+                // A bare `VideoPlayer` fills whatever frame it is given and
+                // letterboxes inside itself, so the black bands belonged to
+                // the player and moved with the aspect ratio — while the close
+                // button and caption row are pinned to the screen. A tall clip
+                // nearly filled and looked right; a 4:3 one left deep bands
+                // with the chrome stranded at the edges. That was the
+                // "sometimes".
+                //
+                // `MediaAspectFill.presentationRatio` decides: close to the
+                // screen's shape, fill and crop the little that overhangs;
+                // further away, fit, because cropping a wide clip to a tall
+                // screen would hide most of the picture.
+                GeometryReader { proxy in
+                    let ratio = MediaAspectFill.presentationRatio(
+                        content: videoAspectRatio,
+                        container: proxy.size
+                    )
+                    VideoPlayer(player: player)
+                        .aspectRatio(videoAspectRatio, contentMode: ratio.contentMode)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                }
             }
         }
     }
+
+    /// The clip's width ÷ height, once its track has been read. Nil until then,
+    /// which the ratio treats as "fit" — better a moment of letterbox than a
+    /// crop guessed from nothing.
+    @State private var videoAspectRatio: CGFloat?
 
     private var bottomBar: some View {
         HStack(alignment: .bottom, spacing: 12) {
