@@ -354,21 +354,34 @@ extension ChatDetailViewModel {
     /// Sent one after another, each forward waited for the last to encrypt and
     /// upload before it started, so choosing three chats delivered three
     /// messages visibly apart. They go together now.
+    /// - Parameter currentConversationId: the conversation on screen. A
+    ///   forward into it has to appear in it, which a plain send does by
+    ///   appending optimistically and a forward did not do at all — so
+    ///   forwarding to the chat you were looking at showed nothing until the
+    ///   transcript was reloaded.
     func forwardMessage(
         _ message: Message,
         toConversationIds targetConversationIds: [String],
+        currentConversationId: String,
         sessionService: SessionService,
         messageSender: MessageSender,
         mediaResolver: ChatMediaResolving
     ) async {
         guard !targetConversationIds.isEmpty else { return }
-        _ = sessionService
+        let senderId = sessionService.currentUserId ?? "unknown"
 
         switch message.content {
         case .text(let text):
-            await fanOut(targetConversationIds) { target in
+            let echo = echoIntoCurrentConversation(
+                content: .text(text),
+                currentConversationId: currentConversationId,
+                targets: targetConversationIds,
+                senderId: senderId
+            )
+            let failures = await fanOut(targetConversationIds) { target in
                 _ = try await messageSender.sendText(text, to: target)
             }
+            settle(echo, allFailed: failures == targetConversationIds.count)
 
         case .image(let media), .video(let media), .audio(let media), .document(let media):
             guard let attachment = media.first else {
@@ -416,7 +429,13 @@ extension ChatDetailViewModel {
             let prepared = await messageSender.prepareVideoForReuse(localAttachment)
             defer { messageSender.discardPreparedVideo(prepared) }
 
-            await fanOut(targetConversationIds) { target in
+            let echo = echoIntoCurrentConversation(
+                content: message.content.replacingSoleAttachment(localAttachment),
+                currentConversationId: currentConversationId,
+                targets: targetConversationIds,
+                senderId: senderId
+            )
+            let failures = await fanOut(targetConversationIds) { target in
                 _ = try await messageSender.sendMedia(
                     attachment: localAttachment,
                     caption: localAttachment.caption,
@@ -425,6 +444,7 @@ extension ChatDetailViewModel {
                     progress: { _ in }
                 )
             }
+            settle(echo, allFailed: failures == targetConversationIds.count)
 
         default:
             errorMessage = "This message type can't be forwarded."
@@ -435,10 +455,11 @@ extension ChatDetailViewModel {
     ///
     /// A forward that failed used to overwrite `errorMessage` with whichever
     /// failure finished last, so two failures out of three read like one.
+    @discardableResult
     private func fanOut(
         _ targets: [String],
         _ send: @escaping @Sendable (String) async throws -> Void
-    ) async {
+    ) async -> Int {
         let failures = await withTaskGroup(of: Bool.self) { group in
             for target in targets {
                 group.addTask {
@@ -458,10 +479,48 @@ extension ChatDetailViewModel {
             return failed
         }
 
-        guard failures > 0 else { return }
+        guard failures > 0 else { return 0 }
         errorMessage = failures == targets.count
             ? "Couldn't forward that message."
             : "Couldn't forward to \(failures) of \(targets.count) chats."
+        return failures
+    }
+
+    /// Shows a forward into the conversation on screen, straight away.
+    ///
+    /// The real row is written by `MessageSender` against the target
+    /// conversation, which is correct but invisible: this transcript is
+    /// already loaded and does not re-read the database. A plain send appends
+    /// optimistically for the same reason.
+    private func echoIntoCurrentConversation(
+        content: Message.MessageContent,
+        currentConversationId: String,
+        targets: [String],
+        senderId: String
+    ) -> String? {
+        guard targets.contains(currentConversationId) else { return nil }
+        let echo = Message(
+            id: UUID().uuidString,
+            conversationId: currentConversationId,
+            senderId: senderId,
+            timestamp: Date(),
+            content: content,
+            status: .sending,
+            isOutgoing: true
+        )
+        appendMessageChronologically(echo)
+        return echo.id
+    }
+
+    /// Marks the echo sent or failed once every destination has answered.
+    ///
+    /// It keeps its own id rather than being replaced by the server-confirmed
+    /// row — the confirmed row is already in the database and arrives on the
+    /// next load, and swapping ids here would show the message twice until
+    /// then.
+    private func settle(_ echoId: String?, allFailed: Bool) {
+        guard let echoId else { return }
+        updateMessage(id: echoId) { $0.status = allFailed ? .failed : .sent }
     }
 
     // MARK: - Attachment Intent Routing (Task 13)
