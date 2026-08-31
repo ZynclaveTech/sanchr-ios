@@ -29,6 +29,38 @@ struct MediaBubbleImage: View {
     var cornerRadius: CGFloat = 14
     @Environment(DependencyContainer.self) private var container
     @State private var resolvedImage: UIImage?
+
+    /// Seeds `resolvedImage` from the cache before the first frame.
+    ///
+    /// The cache was consulted inside `.task`, which runs *after* the view has
+    /// been rendered once. So every time the transcript came back on screen —
+    /// switching chats, returning from the gallery, coming back from another
+    /// screen — each photo drew its placeholder, and only then swapped in an
+    /// image that had been in memory the whole time. Nothing was downloaded
+    /// twice; it simply looked like it was.
+    init(
+        attachment: Message.MediaAttachment,
+        messageId: String,
+        conversationId: String,
+        isOutgoing: Bool,
+        uploadProgress: Double? = nil,
+        uploadLabel: String? = nil,
+        fixedSize: CGSize? = nil,
+        cornerRadius: CGFloat = 14
+    ) {
+        self.attachment = attachment
+        self.messageId = messageId
+        self.conversationId = conversationId
+        self.isOutgoing = isOutgoing
+        self.uploadProgress = uploadProgress
+        self.uploadLabel = uploadLabel
+        self.fixedSize = fixedSize
+        self.cornerRadius = cornerRadius
+        _resolvedImage = State(
+            initialValue: Self.imageCache.object(forKey: messageId as NSString)
+        )
+    }
+
     @State private var placeholderImage: UIImage?
     @State private var isDownloading = false
     @State private var loadFailed = false
