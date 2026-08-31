@@ -12,9 +12,20 @@ struct MediaCaptionView: View {
     /// The media to preview. Image data is held in memory (photos are typically
     /// < 5 MB at JPEG quality). Video is referenced by file URL to avoid
     /// duplicating large buffers.
-    enum Preview: Sendable {
+    enum Preview: Sendable, Equatable {
         case image(Data)
         case video(URL)
+
+        /// Identifies the media being previewed, so the player and the aspect
+        /// ratio are rebuilt when it changes rather than kept from the last
+        /// one. Data is compared by size, not contents: this only has to
+        /// change when the media does.
+        var identity: String {
+            switch self {
+            case .image(let data): return "image:\(data.count)"
+            case .video(let url): return "video:\(url.absoluteString)"
+            }
+        }
     }
 
     // MARK: - Inputs
@@ -73,13 +84,31 @@ struct MediaCaptionView: View {
         }
         // This view must always be presented via .fullScreenCover to own the status bar.
         .statusBarHidden(true)
-        .onAppear {
-            if case .video(let url) = preview {
-                player = AVPlayer(url: url)
-                player?.play()
-                Task { videoAspectRatio = await MediaAspectFill.aspectRatio(ofVideoAt: url) }
-            }
-            captionFocused = true
+        // Keyed on the media, not on appearing.
+        //
+        // From `onAppear` this ran once. The second video reused whatever
+        // `videoAspectRatio` the first had left behind — and if that was
+        // never replaced, every clip after the first was laid out as the one
+        // before it. Keying the work to the media means it is redone whenever
+        // the media changes, and the stale value is cleared before the new one
+        // is read rather than after.
+        .task(id: preview.identity) {
+            videoAspectRatio = nil
+            player?.pause()
+            player = nil
+
+            guard case .video(let url) = preview else { return }
+            let newPlayer = AVPlayer(url: url)
+            player = newPlayer
+            newPlayer.play()
+            videoAspectRatio = await MediaAspectFill.aspectRatio(ofVideoAt: url)
+        }
+        .onAppear { captionFocused = true }
+        .onDisappear {
+            // Nothing stopped it, so a preview that was dismissed went on
+            // playing and holding its file open behind the next one.
+            player?.pause()
+            player = nil
         }
     }
 
