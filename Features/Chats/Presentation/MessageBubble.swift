@@ -176,7 +176,10 @@ struct MessageBubble: View {
             }
 
         case .image(let attachment):
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(
+                alignment: .leading,
+                spacing: Self.mediaSpacing(hasCaption: Self.hasCaption(attachment.first?.caption))
+            ) {
             // View-once media must not render its contents in the transcript.
             // Showing a thumbnail defeats the feature before the recipient ever
             // taps: the image is on screen indefinitely, and the delete-after-view
@@ -214,7 +217,8 @@ struct MessageBubble: View {
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
                     uploadProgress: uploadProgress,
-                    uploadLabel: uploadLabel
+                    uploadLabel: uploadLabel,
+                    squaresBottomCorners: Self.hasCaption(single.caption)
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -228,7 +232,10 @@ struct MessageBubble: View {
             }
 
         case .video(let attachment):
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(
+                alignment: .leading,
+                spacing: Self.mediaSpacing(hasCaption: Self.hasCaption(attachment.first?.caption))
+            ) {
             if let single = attachment.first, single.isViewOnce == true {
                 ViewOnceBubble(
                     attachment: single,
@@ -262,7 +269,8 @@ struct MessageBubble: View {
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
                     uploadProgress: uploadProgress,
-                    uploadLabel: uploadLabel
+                    uploadLabel: uploadLabel,
+                    squaresBottomCorners: Self.hasCaption(single.caption)
                 )
                 .overlay {
                     Image(systemName: "play.circle.fill")
@@ -351,6 +359,20 @@ struct MessageBubble: View {
         }
     }
 
+    /// Whether this media carries a caption, and so shares its bubble with
+    /// text below it. The corners and the spacing both follow from this, and
+    /// they have to agree: a squared corner with a gap under it looks worse
+    /// than either alone.
+    static func hasCaption(_ caption: String?) -> Bool {
+        guard let caption else { return false }
+        return !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// No gap when a caption follows, so the picture and the text meet.
+    static func mediaSpacing(hasCaption: Bool) -> CGFloat {
+        hasCaption ? 0 : 6
+    }
+
     /// Caption drawn beneath media.
     ///
     /// Captions have always been collected, sent and stored, and never shown:
@@ -358,10 +380,10 @@ struct MessageBubble: View {
     /// on the caption or review screen simply vanished on arrival. Constrained
     /// to the media's own width so the bubble does not grow wider than the
     /// picture it belongs to.
-    @ViewBuilder
     /// Carries its own padding: with a caption the bubble is back, but the
     /// media sits flush to its edges, so the container pads nothing and the
     /// inset belongs to the text.
+    @ViewBuilder
     private func mediaCaption(_ caption: String?, mediaWidth: CGFloat) -> some View {
         if let caption, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text(caption)
