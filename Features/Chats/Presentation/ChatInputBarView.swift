@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SanchrShared
 
 // MARK: - Chat Input Bar
@@ -221,6 +222,8 @@ struct ChatInputBarView: View {
                         .accessibilityLabel(activeTray == .emoji ? "Show keyboard" : "Emoji")
                         .transition(.opacity)
                     }
+
+                    Self.composerRowSpacer
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
@@ -301,6 +304,27 @@ struct ChatInputBarView: View {
                     )
                     .transition(.scale.combined(with: .opacity))
         }
+    }
+
+    /// Holds the row at the height the emoji button gives it, without the
+    /// button.
+    ///
+    /// The button is an 18pt glyph, taller than a line of message text, and it
+    /// leaves the row the moment there is something to send — so the field
+    /// shrank by six points as soon as you started typing, and the placeholder
+    /// state was a different height from every state after it.
+    ///
+    /// A hidden copy rather than a measured constant: `.hidden()` keeps the
+    /// layout size, so this is the same height by construction. Two attempts
+    /// at a number — the font's line height, then the rendered glyph's — each
+    /// left a point of shrink, because what has to match is what SwiftUI lays
+    /// out, not what the metrics say.
+    static var composerRowSpacer: some View {
+        Image(systemName: "face.smiling")
+            .font(.system(size: 18, weight: .medium))
+            .hidden()
+            .frame(width: 0)
+            .accessibilityHidden(true)
     }
 
     private var hasInput: Bool {
