@@ -469,11 +469,14 @@ public actor MessageSender {
         )
     }
 
+    /// - Parameter prepared: a video already compressed by the caller, for a
+    ///   send that is one of several of the same clip. See `PreparedVideo`.
     public func sendMedia(
         attachment: Message.MediaAttachment,
         caption: String?,
         to chatId: String,
         replyToMessageId: String? = nil,
+        prepared: PreparedVideo? = nil,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> MessageSendReceipt {
         guard let senderId = await currentUser.currentUserId else {
@@ -521,6 +524,7 @@ public actor MessageSender {
                 chatId: chatId,
                 primaryRecipient: primaryRecipient,
                 vaultPolicy: vaultPolicy,
+                prepared: prepared,
                 progress: progress
             )
 
@@ -1203,6 +1207,44 @@ public actor MessageSender {
     /// Re-encodes video before upload; passes everything else straight
     /// through. Failure returns the original, so a clip is never lost to a
     /// failed optimisation.
+    /// A video compressed once and sent more than once.
+    ///
+    /// Compression stays inside `uploadAndRebuild` — every send funnels
+    /// through there, and moving it to the pick site once left one entry point
+    /// covered and another silently not. But a forward to several chats calls
+    /// that path once per destination, so a single clip was re-encoded for
+    /// each: three chats, three compressions of the same file, in series.
+    ///
+    /// The caller compresses once and passes the result in. Ownership comes
+    /// with it — `discard` deletes the file when every send is done, rather
+    /// than the first one deleting it out from under the rest.
+    public struct PreparedVideo: Sendable {
+        fileprivate let result: VideoCompressor.Result
+    }
+
+    /// Compresses `attachment` if it is a video, for reuse across sends.
+    /// Returns nil when there is nothing to prepare, which is every other kind
+    /// of media and a video that is already a remote reference.
+    public func prepareVideoForReuse(
+        _ attachment: Message.MediaAttachment,
+        progress: @Sendable @escaping (Double) -> Void = { _ in }
+    ) async -> PreparedVideo? {
+        guard attachment.mimeType.hasPrefix("video/"), attachment.url.isFileURL else {
+            return nil
+        }
+        return PreparedVideo(result: await compressIfVideo(attachment, progress: progress))
+    }
+
+    /// Deletes the compressed file, if compression produced one. Safe to call
+    /// with nil, and safe to call twice.
+    ///
+    /// Not isolated: it touches the filesystem and a `Sendable` value, and
+    /// callers need it from a `defer`, which cannot await.
+    public nonisolated func discardPreparedVideo(_ prepared: PreparedVideo?) {
+        guard let prepared, prepared.result.isTemporary else { return }
+        try? FileManager.default.removeItem(at: prepared.result.url)
+    }
+
     private func compressIfVideo(
         _ attachment: Message.MediaAttachment,
         progress: @Sendable @escaping (Double) -> Void
@@ -1221,15 +1263,28 @@ public actor MessageSender {
         chatId: String,
         primaryRecipient: String,
         vaultPolicy: ChatVaultPolicy,
+        prepared: PreparedVideo? = nil,
         progress: @Sendable @escaping (Double) -> Void
     ) async throws -> (attachment: Message.MediaAttachment, mediaId: String) {
         // Every video send in the app funnels through here — single clip,
         // album, and reviewed batch alike — which is the only reason this is
         // the right place for it. Compressing at the pick site instead meant
         // one entry point was covered and the other silently was not.
-        let compressed = await compressIfVideo(attachment, progress: progress)
+        //
+        // A caller sending the same clip to several chats may compress once
+        // and hand the result in. It keeps ownership of the file: deleting it
+        // here would pull it out from under the sends that follow.
+        let compressed: VideoCompressor.Result
+        let ownsCompressedFile: Bool
+        if let prepared {
+            compressed = prepared.result
+            ownsCompressedFile = false
+        } else {
+            compressed = await compressIfVideo(attachment, progress: progress)
+            ownsCompressedFile = true
+        }
         defer {
-            if compressed.isTemporary {
+            if ownsCompressedFile, compressed.isTemporary {
                 try? FileManager.default.removeItem(at: compressed.url)
             }
         }

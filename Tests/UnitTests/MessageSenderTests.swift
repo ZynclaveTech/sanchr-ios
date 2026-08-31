@@ -787,4 +787,41 @@ final class MessageSenderTests: XCTestCase {
             "the re-sent rows must still answer what the queued one answered"
         )
     }
+
+    // MARK: - Preparing a video once for several sends
+
+    private func mediaAttachment(mime: String, url: URL) -> Message.MediaAttachment {
+        Message.MediaAttachment(
+            url: url,
+            encryptionKey: Data(),
+            encryptionIV: Data(),
+            mimeType: mime,
+            sizeBytes: 1024
+        )
+    }
+
+    /// Only a local video has anything to compress.
+    func test_prepareVideo_photoHasNothingToPrepare() async {
+        let (sut, _, _, _, _) = makeSUT()
+        let prepared = await sut.prepareVideoForReuse(
+            mediaAttachment(mime: "image/jpeg", url: URL(fileURLWithPath: "/tmp/x.jpg"))
+        )
+        XCTAssertNil(prepared)
+    }
+
+    /// A video still held as a remote reference has not been downloaded, so
+    /// there is no file to compress.
+    func test_prepareVideo_remoteVideoHasNothingToPrepare() async {
+        let (sut, _, _, _, _) = makeSUT()
+        let prepared = await sut.prepareVideoForReuse(
+            mediaAttachment(mime: "video/mp4", url: URL(string: "sanchr-media://abc")!)
+        )
+        XCTAssertNil(prepared)
+    }
+
+    /// The forward path calls this unconditionally from a `defer`.
+    func test_discardPreparedVideo_nilIsSafe() {
+        let (sut, _, _, _, _) = makeSUT()
+        sut.discardPreparedVideo(nil)
+    }
 }

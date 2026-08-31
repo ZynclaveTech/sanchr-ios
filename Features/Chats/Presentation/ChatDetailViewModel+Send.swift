@@ -408,11 +408,20 @@ extension ChatDetailViewModel {
                 }
             }
 
+            // Compressed once for the whole fan-out. Each destination still
+            // uploads its own copy — the upload is keyed to a conversation and
+            // recipient, so sharing one would share key material between chats
+            // and show the server a single media id in several of them — but
+            // re-encoding the same clip once per destination bought nothing.
+            let prepared = await messageSender.prepareVideoForReuse(localAttachment)
+            defer { messageSender.discardPreparedVideo(prepared) }
+
             await fanOut(targetConversationIds) { target in
                 _ = try await messageSender.sendMedia(
                     attachment: localAttachment,
                     caption: localAttachment.caption,
                     to: target,
+                    prepared: prepared,
                     progress: { _ in }
                 )
             }
