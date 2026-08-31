@@ -27,6 +27,24 @@ struct MediaBubbleImage: View {
     /// rounded all four of its own turned an album into four separate squares
     /// instead of one picture divided up.
     var cornerRadius: CGFloat = 14
+    /// Squares the bottom corners so a caption below can meet the picture.
+    ///
+    /// Media with a caption is one bubble: the picture on top, the text under
+    /// it, the bubble rounding the outside. Rounding the picture's own bottom
+    /// corners too drew a seam across the middle of it — the curve ended, the
+    /// flat caption began, and the two read as separate objects stacked up
+    /// rather than one message.
+    var squaresBottomCorners: Bool = false
+
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: cornerRadius,
+            bottomLeadingRadius: squaresBottomCorners ? 0 : cornerRadius,
+            bottomTrailingRadius: squaresBottomCorners ? 0 : cornerRadius,
+            topTrailingRadius: cornerRadius,
+            style: .continuous
+        )
+    }
     @Environment(DependencyContainer.self) private var container
     @State private var resolvedImage: UIImage?
 
@@ -46,7 +64,8 @@ struct MediaBubbleImage: View {
         uploadProgress: Double? = nil,
         uploadLabel: String? = nil,
         fixedSize: CGSize? = nil,
-        cornerRadius: CGFloat = 14
+        cornerRadius: CGFloat = 14,
+        squaresBottomCorners: Bool = false
     ) {
         self.attachment = attachment
         self.messageId = messageId
@@ -56,6 +75,7 @@ struct MediaBubbleImage: View {
         self.uploadLabel = uploadLabel
         self.fixedSize = fixedSize
         self.cornerRadius = cornerRadius
+        self.squaresBottomCorners = squaresBottomCorners
         _resolvedImage = State(
             initialValue: Self.imageCache.object(forKey: messageId as NSString)
         )
@@ -180,14 +200,14 @@ struct MediaBubbleImage: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: displaySize.width, height: displaySize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .clipShape(shape)
                     .overlay {
                         if let progress = uploadProgress, resolvedImage != nil {
                             progressOverlay(progress: progress)
                         }
                     }
             } else {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                shape
                     .fill(isOutgoing ? Color.white.opacity(0.15) : SanchrExportColors.surfaceSoft)
                     .frame(width: displaySize.width, height: displaySize.height)
                     .overlay {
@@ -465,7 +485,7 @@ struct MediaBubbleImage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(shape)
     }
 }
 
