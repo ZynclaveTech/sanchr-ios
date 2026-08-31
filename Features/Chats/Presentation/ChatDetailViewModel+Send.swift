@@ -421,11 +421,15 @@ extension ChatDetailViewModel {
                 }
             }
 
-            // Compressed once for the whole fan-out. Each destination still
-            // uploads its own copy — the upload is keyed to a conversation and
-            // recipient, so sharing one would share key material between chats
-            // and show the server a single media id in several of them — but
-            // re-encoding the same clip once per destination bought nothing.
+            // Compressed once for the whole fan-out; uploaded once per
+            // destination, which is required rather than wasteful.
+            //
+            // Each conversation's media key is derived from that
+            // conversation's own media chain, so one ciphertext cannot serve
+            // two of them. See the derivation in `MediaUploadManager` for why
+            // sharing an upload would break forward secrecy rather than merely
+            // save bandwidth. Compression is not key-derived, so that part is
+            // shared.
             let prepared = await messageSender.prepareVideoForReuse(localAttachment)
             defer { messageSender.discardPreparedVideo(prepared) }
 
