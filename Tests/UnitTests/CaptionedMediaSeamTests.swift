@@ -69,4 +69,22 @@ final class CaptionedMediaSeamTests: XCTestCase {
         XCTAssertTrue(body.contains("bottomLeadingRadius: squaresBottomCorners ? 0 : cornerRadius"))
         XCTAssertTrue(body.contains("bottomTrailingRadius: squaresBottomCorners ? 0 : cornerRadius"))
     }
+
+    /// The gap belongs to the text, not to the stack.
+    ///
+    /// Closing the stack's gap removed the seam and also removed the room the
+    /// words had: the first line came to rest directly on the photo's bottom
+    /// edge. A stack gap would bring the seam back, so the inset is padding on
+    /// the caption instead.
+    func testTheCaptionHasRoomAboveItWithoutReopeningTheSeam() throws {
+        let body = code(try source("Features/Chats/Presentation/MessageBubble.swift"))
+        XCTAssertTrue(
+            body.contains(".padding(.top, SanchrSpacing.bubbleVPadding)"),
+            "the words need somewhere to sit"
+        )
+        XCTAssertEqual(
+            MessageBubble.mediaSpacing(hasCaption: true), 0,
+            "and the stack must still not add one, or the seam returns"
+        )
+    }
 }
