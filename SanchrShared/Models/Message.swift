@@ -178,6 +178,37 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         public var audioDurationMs: Int?
         public var audioWaveform: [Float]?
 
+        /// The same attachment pointing at a local file.
+        ///
+        /// A received attachment's `url` is remote; forwarding needs the
+        /// decrypted copy on disk while keeping the rest of the metadata —
+        /// mime type, filename, voice-note fields — intact.
+        public func replacingURL(_ newURL: URL) -> MediaAttachment {
+            var copy = MediaAttachment(
+                url: newURL,
+                encryptionKey: encryptionKey,
+                encryptionIV: encryptionIV,
+                mimeType: mimeType,
+                sizeBytes: sizeBytes,
+                thumbnailURL: thumbnailURL
+            )
+            // Everything the initialiser does not take. Set rather than
+            // recreated so a field added later is not silently dropped from a
+            // forward — it would simply not be carried, which is visible,
+            // instead of being carried as a stale default.
+            copy.caption = caption
+            copy.width = width
+            copy.height = height
+            copy.durationSeconds = durationSeconds
+            copy.blurHash = blurHash
+            copy.filename = filename
+            copy.isVoiceMessage = isVoiceMessage
+            copy.audioDurationMs = audioDurationMs
+            copy.audioWaveform = audioWaveform
+            copy.isViewOnce = isViewOnce
+            return copy
+        }
+
         /// View-once flag set by the sender when the per-chat
         /// `viewOnceOutgoing` policy is on. Receiver enforces by
         /// applying ScreenshotProtectionModifier on the gallery and

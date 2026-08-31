@@ -34,6 +34,35 @@ struct MessageForwardDestinationPicker: View {
         }
     }
 
+    /// Recents, then contacts, then groups — Signal's order, and the order
+    /// that puts the answer first: a forward almost always goes to someone you
+    /// were just talking to, and a single list of every conversation made that
+    /// a scroll.
+    ///
+    /// Searching collapses to one list. Sections are there to shorten the path
+    /// to a likely destination; once a name has been typed, the likely
+    /// destination is whatever matches it.
+    static func sections(
+        for conversations: [Conversation],
+        searching: Bool,
+        recentLimit: Int = 5
+    ) -> [(title: String?, items: [Conversation])] {
+        guard !searching else {
+            return [(nil, conversations)]
+        }
+        let recents = Array(conversations.prefix(recentLimit))
+        let recentIDs = Set(recents.map(\.id))
+        let rest = conversations.filter { !recentIDs.contains($0.id) }
+        let byName: (Conversation, Conversation) -> Bool = {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+        return [
+            ("Recent", recents),
+            ("Contacts", rest.filter { $0.type == .oneToOne }.sorted(by: byName)),
+            ("Groups", rest.filter { $0.type == .group }.sorted(by: byName))
+        ].filter { !$0.1.isEmpty }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -67,18 +96,37 @@ struct MessageForwardDestinationPicker: View {
                         )
                     )
                 } else {
-                    List(filteredConversations, id: \.id) { conversation in
-                        Button {
-                            toggle(conversation.id)
-                        } label: {
-                            ForwardConversationRow(
-                                conversation: conversation,
-                                isSelected: selectedIDs.contains(conversation.id)
-                            )
+                    List {
+                        ForEach(
+                            Self.sections(
+                                for: filteredConversations,
+                                searching: !searchText.isEmpty
+                            ),
+                            id: \.title
+                        ) { section in
+                            Section {
+                                ForEach(section.items, id: \.id) { conversation in
+                                    Button {
+                                        toggle(conversation.id)
+                                    } label: {
+                                        ForwardConversationRow(
+                                            conversation: conversation,
+                                            isSelected: selectedIDs.contains(conversation.id)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowInsets(
+                                        EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
+                                    )
+                                    .listRowBackground(SanchrExportColors.background)
+                                }
+                            } header: {
+                                if let title = section.title {
+                                    SanchrSectionEyebrow(title: title)
+                                        .textCase(nil)
+                                }
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                        .listRowBackground(SanchrExportColors.background)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)

@@ -1,4 +1,5 @@
 import Foundation
+import SanchrShared
 import XCTest
 
 @testable import Sanchr
@@ -77,5 +78,60 @@ final class ForwardPickerTests: XCTestCase {
             gallery.contains("var onForward: ((Message) -> Void)?"),
             "optional, since the gallery also opens where there is nothing to forward from"
         )
+    }
+
+    // MARK: - Sections
+
+    private func conversation(_ id: String, _ name: String, group: Bool = false) -> Conversation {
+        Conversation(
+            id: id,
+            participants: [
+                User(id: "u-\(id)", phoneNumber: "+9155500\(id)", displayName: name,
+                     isVerified: false, status: .offline)
+            ],
+            unreadCount: 0, isPinned: false, isMuted: false, isArchived: false,
+            type: group ? .group : .oneToOne,
+            createdAt: Date(), updatedAt: Date()
+        )
+    }
+
+    /// Recents first, then contacts, then groups — Signal's order, and the
+    /// one that puts the likely destination at the top instead of behind a
+    /// scroll through every conversation.
+    func testDestinationsAreGroupedRecentsFirst() {
+        let all = (1...8).map { conversation("\($0)", "Name \($0)", group: $0 > 6) }
+        let sections = MessageForwardDestinationPicker.sections(
+            for: all, searching: false, recentLimit: 3
+        )
+        XCTAssertEqual(sections.map { $0.title }, ["Recent", "Contacts", "Groups"])
+        XCTAssertEqual(sections[0].items.count, 3)
+    }
+
+    /// A conversation appears once. Being recent should not also list it under
+    /// contacts.
+    func testARecentConversationIsNotListedTwice() {
+        let all = (1...5).map { conversation("\($0)", "Name \($0)") }
+        let sections = MessageForwardDestinationPicker.sections(
+            for: all, searching: false, recentLimit: 2
+        )
+        let ids = sections.flatMap { $0.items.map { $0.id } }
+        XCTAssertEqual(Set(ids).count, ids.count)
+    }
+
+    /// Sections shorten the path to a likely destination. Once a name has been
+    /// typed, the likely destination is whatever matches it.
+    func testSearchingCollapsesToOneList() {
+        let all = (1...5).map { conversation("\($0)", "Name \($0)") }
+        let sections = MessageForwardDestinationPicker.sections(for: all, searching: true)
+        XCTAssertEqual(sections.count, 1)
+        XCTAssertNil(sections[0].title)
+    }
+
+    func testAnEmptySectionIsNotShown() {
+        let all = [conversation("1", "Solo")]
+        let sections = MessageForwardDestinationPicker.sections(
+            for: all, searching: false, recentLimit: 5
+        )
+        XCTAssertEqual(sections.map { $0.title }, ["Recent"])
     }
 }

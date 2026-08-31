@@ -83,10 +83,6 @@ private final class MockContactRepository: ContactRepositoryProtocol, @unchecked
         contacts.first { $0.phoneNumber == phoneNumber }
     }
 
-    func blockUser(userId: String) async throws {}
-    func unblockUser(userId: String) async throws {}
-    func fetchBlockedUsers() async throws -> [User] { [] }
-
     func updateProfile(
         displayName: String?,
         bio: String?,

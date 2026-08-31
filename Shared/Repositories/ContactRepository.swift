@@ -10,15 +10,6 @@ protocol ContactRepositoryProtocol: AnyObject, Sendable {
     /// Searches for a user by phone number.
     func searchUser(phoneNumber: String) async throws -> User?
 
-    /// Blocks a user.
-    func blockUser(userId: String) async throws
-
-    /// Unblocks a user.
-    func unblockUser(userId: String) async throws
-
-    /// Fetches the list of blocked users.
-    func fetchBlockedUsers() async throws -> [User]
-
     /// Updates the current user's profile.
     func updateProfile(displayName: String?, bio: String?, avatarData: Data?) async throws -> User
 }
@@ -144,47 +135,6 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
             identityKeyFingerprint: nil,
             status: .offline
         )
-    }
-
-    func blockUser(userId: String) async throws {
-        SanchrLogger.sync.info("Blocking user \(userId.prefix(8))...")
-
-        var request = Sanchr_Contacts_BlockContactRequest()
-        request.contactUserID = userId
-
-        _ = try await grpcClient.contactService.blockContact(request)
-    }
-
-    func unblockUser(userId: String) async throws {
-        SanchrLogger.sync.info("Unblocking user \(userId.prefix(8))...")
-
-        var request = Sanchr_Contacts_UnblockContactRequest()
-        request.contactUserID = userId
-
-        _ = try await grpcClient.contactService.unblockContact(request)
-    }
-
-    func fetchBlockedUsers() async throws -> [User] {
-        SanchrLogger.sync.info("Fetching blocked users list")
-
-        let request = Sanchr_Contacts_GetBlockedListRequest()
-        let response = try await grpcClient.contactService.getBlockedList(request)
-
-        // The response only has user IDs; create placeholder users.
-        // A full implementation would fetch profiles for these IDs.
-        return response.blockedUserIds.map { userId in
-            User(
-                id: userId,
-                phoneNumber: "",
-                displayName: "Blocked User",
-                avatarURL: nil,
-                bio: nil,
-                isVerified: false,
-                lastSeen: nil,
-                identityKeyFingerprint: nil,
-                status: .offline
-            )
-        }
     }
 
     func updateProfile(displayName: String?, bio: String?, avatarData: Data?) async throws -> User {
