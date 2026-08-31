@@ -247,15 +247,6 @@ final class BootstrapContactRepository: ContactRepositoryProtocol, @unchecked Se
     func searchUser(phoneNumber: String) async throws -> User? {
         fatalError("ChatDetailView bootstrap repo should never be called")
     }
-    func blockUser(userId: String) async throws {
-        fatalError("ChatDetailView bootstrap repo should never be called")
-    }
-    func unblockUser(userId: String) async throws {
-        fatalError("ChatDetailView bootstrap repo should never be called")
-    }
-    func fetchBlockedUsers() async throws -> [User] {
-        fatalError("ChatDetailView bootstrap repo should never be called")
-    }
     func updateProfile(
         displayName: String?,
         bio: String?,

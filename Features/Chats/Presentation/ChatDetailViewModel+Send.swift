@@ -348,66 +348,111 @@ extension ChatDetailViewModel {
     ///   Remote-only attachments (not yet downloaded) are rejected with a
     ///   user-visible error — the user should download the media first.
     /// - Other content types (location, contact, system) are not forwardable.
+    /// Forwards one message to one or more conversations.
+    ///
+    /// Takes every destination at once rather than being called in a loop.
+    /// Sent one after another, each forward waited for the last to encrypt and
+    /// upload before it started, so choosing three chats delivered three
+    /// messages visibly apart. They go together now.
     func forwardMessage(
         _ message: Message,
-        toConversationId targetConversationId: String,
+        toConversationIds targetConversationIds: [String],
         sessionService: SessionService,
-        messageSender: MessageSender
+        messageSender: MessageSender,
+        mediaResolver: ChatMediaResolving
     ) async {
-        let senderId = sessionService.currentUserId ?? "unknown"
+        guard !targetConversationIds.isEmpty else { return }
+        _ = sessionService
 
         switch message.content {
         case .text(let text):
-            let _ = Message(
-                id: UUID().uuidString,
-                conversationId: targetConversationId,
-                senderId: senderId,
-                timestamp: Date(),
-                content: .text(text),
-                status: .sending,
-                isOutgoing: true
-            )
-            // Only append to transcript if we're already viewing the target conversation.
-            // The check is intentionally omitted here — the target conversation's view
-            // model will receive the server push and render it independently.
-            do {
-                let receipt = try await messageSender.sendText(text, to: targetConversationId)
-                SanchrLogger.chat.info(
-                    "Forwarded message \(message.id.prefix(8)) → \(receipt.messageId.prefix(8))")
-            } catch {
-                errorMessage = error.localizedDescription
-                SanchrLogger.chat.error("Forward failed: \(error.localizedDescription)")
+            await fanOut(targetConversationIds) { target in
+                _ = try await messageSender.sendText(text, to: target)
             }
 
         case .image(let media), .video(let media), .audio(let media), .document(let media):
-            guard let a = media.first, a.url.isFileURL else {
-                errorMessage = "Download the media first to forward it."
+            guard let attachment = media.first else {
+                errorMessage = "This message type can't be forwarded."
                 return
             }
-            let optimisticId = UUID().uuidString
-            uploads.update(id: optimisticId, progress: 0.0, status: "Forwarding...")
-            do {
-                let receipt = try await messageSender.sendMedia(
-                    attachment: a,
-                    caption: a.caption,
-                    to: targetConversationId
-                ) { [weak self] fraction in
-                    Task { @MainActor [weak self] in
-                        self?.uploads.update(id: optimisticId, progress: fraction, status: nil)
-                    }
+
+            // Resolved through the same path that draws the bubble.
+            //
+            // This used to require `attachment.url.isFileURL` and otherwise
+            // told you to "download the media first". On a received message
+            // that URL is remote whether or not the file is cached, so the
+            // demand was made even for a photo you were looking at — and
+            // there was nothing you could do to satisfy it.
+            //
+            // Resolved once, before the fan-out, so several destinations do
+            // not each download the same file.
+            let localAttachment: Message.MediaAttachment
+            if attachment.url.isFileURL {
+                localAttachment = attachment
+            } else {
+                let optimisticId = UUID().uuidString
+                uploads.update(id: optimisticId, progress: 0, status: "Preparing…")
+                defer { uploads.clear(id: optimisticId) }
+                do {
+                    let localURL = try await mediaResolver.decryptedURL(
+                        forMessageId: message.id,
+                        attachment: attachment
+                    )
+                    localAttachment = attachment.replacingURL(localURL)
+                } catch {
+                    errorMessage = "Couldn't prepare that media to forward."
+                    SanchrLogger.chat.error(
+                        "Forward: resolving media failed: \(error.localizedDescription)"
+                    )
+                    return
                 }
-                uploads.clear(id: optimisticId)
-                SanchrLogger.chat.info(
-                    "Forwarded media \(message.id.prefix(8)) → \(receipt.messageId.prefix(8))")
-            } catch {
-                uploads.clear(id: optimisticId)
-                errorMessage = error.localizedDescription
-                SanchrLogger.chat.error("Forward media failed: \(error.localizedDescription)")
+            }
+
+            await fanOut(targetConversationIds) { target in
+                _ = try await messageSender.sendMedia(
+                    attachment: localAttachment,
+                    caption: localAttachment.caption,
+                    to: target,
+                    progress: { _ in }
+                )
             }
 
         default:
             errorMessage = "This message type can't be forwarded."
         }
+    }
+
+    /// Runs one send per destination concurrently and reports the shortfall.
+    ///
+    /// A forward that failed used to overwrite `errorMessage` with whichever
+    /// failure finished last, so two failures out of three read like one.
+    private func fanOut(
+        _ targets: [String],
+        _ send: @escaping @Sendable (String) async throws -> Void
+    ) async {
+        let failures = await withTaskGroup(of: Bool.self) { group in
+            for target in targets {
+                group.addTask {
+                    do {
+                        try await send(target)
+                        return false
+                    } catch {
+                        SanchrLogger.chat.error(
+                            "Forward failed: \(error.localizedDescription)"
+                        )
+                        return true
+                    }
+                }
+            }
+            var failed = 0
+            for await didFail in group where didFail { failed += 1 }
+            return failed
+        }
+
+        guard failures > 0 else { return }
+        errorMessage = failures == targets.count
+            ? "Couldn't forward that message."
+            : "Couldn't forward to \(failures) of \(targets.count) chats."
     }
 
     // MARK: - Attachment Intent Routing (Task 13)

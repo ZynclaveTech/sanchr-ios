@@ -747,16 +747,13 @@ struct ChatDetailView: View {
                 onConversationsPicked: { targets in
                     messageToForward = nil
                     Task {
-                        // Sequential: each forward is its own encrypt and
-                        // send, and the sender serialises anyway.
-                        for target in targets {
-                            await viewModel.forwardMessage(
-                                message,
-                                toConversationId: target.id,
-                                sessionService: container.sessionService,
-                                messageSender: container.messageSender
-                            )
-                        }
+                        await viewModel.forwardMessage(
+                            message,
+                            toConversationIds: targets.map(\.id),
+                            sessionService: container.sessionService,
+                            messageSender: container.messageSender,
+                            mediaResolver: container.chatMediaResolver
+                        )
                     }
                 },
                 onCancel: { messageToForward = nil }
