@@ -1405,6 +1405,56 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     ///   endCall RPC instead; otherwise the active-call record lingers and both
     ///   parties stay "busy". Reacting to a received terminal signal leaves this
     ///   `false` — the server already knows.
+    /// Closes the peer connection at the next duration bucket rather than at
+    /// hang-up.
+    ///
+    /// The server can time when a call's media stops, so an exact hang-up is
+    /// an exact duration. `CallDurationPaddingManager` exists for precisely
+    /// this and was never asked to do it: it was constructed, it had tests,
+    /// and the only thing anything ever called on it was `cancel()`.
+    ///
+    /// Capture stops immediately either way. The microphone and the camera
+    /// have nothing to do with what the server can time, and there is no
+    /// reason to hold them.
+    ///
+    /// A call that never connected is not padded. There is no duration to
+    /// hide, and holding a connection open for a minute after a declined call
+    /// would be a cost with nothing bought.
+    private func closePeerConnection(paddingFrom callStart: Date?) {
+        guard let callStart else {
+            webRTCClient.close()
+            return
+        }
+        let target = CallDurationPaddingManager.paddingEnd(
+            callStart: callStart,
+            callEnd: Date()
+        )
+        SanchrLogger.calls.info(
+            "Holding peer connection for \(Int(target.timeIntervalSinceNow))s of duration padding"
+        )
+        paddingManager.padThenComplete(target: target) { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                // A call that started while this was waiting owns the
+                // connection now. Closing here would tear down the new call to
+                // finish hiding the length of the old one.
+                guard Self.isBetweenCalls(self.callState) else {
+                    SanchrLogger.calls.info("Duration padding elapsed during a new call; leaving it alone")
+                    return
+                }
+                self.webRTCClient.close()
+            }
+        }
+    }
+
+    /// Whether no call currently owns the peer connection.
+    static func isBetweenCalls(_ state: CallState) -> Bool {
+        switch state {
+        case .idle, .ended: return true
+        default: return false
+        }
+    }
+
     private func endCallInternal(
         callId: String, reason: CallState.EndReason, notifyServer: Bool = false
     ) {
@@ -1437,7 +1487,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         outgoingVideoUpgradePending = false
         stopBatteryMonitoring()
         webRTCClient.stopLocalMedia()
-        webRTCClient.close()
+        closePeerConnection(paddingFrom: callStartTime)
 
         callState = .ended(callId: callId, reason: reason)
 

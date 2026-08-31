@@ -399,6 +399,14 @@ struct MessageBubble: View {
                     alignment: .leading
                 )
                 .padding(.horizontal, SanchrSpacing.bubbleHPadding)
+                // The inset above belongs to the text, not to the stack.
+                //
+                // A stack gap would show bubble colour between the picture and
+                // the caption — the seam that squaring the corners was meant
+                // to remove. Padding the text instead keeps them touching
+                // while giving the words somewhere to sit: without it the
+                // first line rested directly on the photo's bottom edge.
+                .padding(.top, SanchrSpacing.bubbleVPadding)
                 .padding(.bottom, SanchrSpacing.bubbleVPadding)
         }
     }
