@@ -38,6 +38,13 @@ struct MediaCaptionView: View {
     // MARK: - State
 
     @State private var caption: String = ""
+    /// Deliberately not focused on appear.
+    ///
+    /// This screen exists to show what is about to be sent. Opening the
+    /// keyboard for a caption nobody has asked to write covers most of the
+    /// picture with it — and a caption is the exception rather than the rule.
+    /// Tapping the field opens it, which is the same gesture every other
+    /// text field on the platform wants.
     @FocusState private var captionFocused: Bool
     @State private var player: AVPlayer? = nil
 
@@ -60,9 +67,9 @@ struct MediaCaptionView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
-            // Tapping the media dismisses the keyboard, which otherwise had no
-            // way out on this screen: it opens focused and there is no Return
-            // key on a multi-line field.
+            // Tapping the media dismisses the keyboard. A multi-line field has
+            // no Return key to close it with, so without this there is no way
+            // back to the picture once the caption has been tapped.
             if captionFocused {
                 Color.clear
                     .contentShape(Rectangle())
@@ -103,7 +110,6 @@ struct MediaCaptionView: View {
             newPlayer.play()
             videoAspectRatio = await MediaAspectFill.aspectRatio(ofVideoAt: url)
         }
-        .onAppear { captionFocused = true }
         .onDisappear {
             // Nothing stopped it, so a preview that was dismissed went on
             // playing and holding its file open behind the next one.
