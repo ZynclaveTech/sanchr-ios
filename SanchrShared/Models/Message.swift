@@ -335,3 +335,22 @@ public struct Message: Identifiable, Codable, Hashable, Sendable {
         )
     }
 }
+
+extension Message.MessageContent {
+    /// The same content with its single attachment swapped.
+    ///
+    /// Forwarding shows the message in the conversation on screen before the
+    /// send returns, and it has to render from the local file rather than the
+    /// remote reference the original carried.
+    public func replacingSoleAttachment(_ attachment: Message.MediaAttachment) -> Message.MessageContent {
+        let one = Message.MediaAttachments(attachment)
+        switch self {
+        case .image: return .image(one)
+        case .video: return .video(one)
+        case .audio: return .audio(one)
+        case .document: return .document(one)
+        case .text, .location, .contact, .system: return self
+        }
+    }
+}
+

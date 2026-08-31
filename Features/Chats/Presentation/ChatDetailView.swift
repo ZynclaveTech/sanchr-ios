@@ -742,22 +742,7 @@ struct ChatDetailView: View {
             ChatShareActivityView(items: ["Join me on Sanchr — \(payload.url)"])
         }
         .sheet(item: $messageToForward) { message in
-            MessageForwardDestinationPicker(
-                localDatabase: container.localDatabase,
-                onConversationsPicked: { targets in
-                    messageToForward = nil
-                    Task {
-                        await viewModel.forwardMessage(
-                            message,
-                            toConversationIds: targets.map(\.id),
-                            sessionService: container.sessionService,
-                            messageSender: container.messageSender,
-                            mediaResolver: container.chatMediaResolver
-                        )
-                    }
-                },
-                onCancel: { messageToForward = nil }
-            )
+            forwardPicker(for: message)
         }
         .fullScreenCover(item: $locationCoordinator.presentation) { presentation in
             LocationPreviewView(
@@ -1146,6 +1131,29 @@ struct ChatDetailView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.trayDismissDuration) {
             action()
         }
+    }
+
+    /// Split out of the body for the same reason as `gallery` below: one more
+    /// argument to `forwardMessage` was enough to push the surrounding
+    /// expression past what the type-checker will attempt.
+    private func forwardPicker(for message: Message) -> some View {
+        MessageForwardDestinationPicker(
+            localDatabase: container.localDatabase,
+            onConversationsPicked: { targets in
+                messageToForward = nil
+                Task {
+                    await viewModel.forwardMessage(
+                        message,
+                        toConversationIds: targets.map(\.id),
+                        currentConversationId: conversation.id,
+                        sessionService: container.sessionService,
+                        messageSender: container.messageSender,
+                        mediaResolver: container.chatMediaResolver
+                    )
+                }
+            },
+            onCancel: { messageToForward = nil }
+        )
     }
 
     /// Split out of the body: inlining the forward closure pushed the
