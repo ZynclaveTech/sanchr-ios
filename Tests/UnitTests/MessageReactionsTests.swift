@@ -104,4 +104,20 @@ final class MessageReactionsTests: XCTestCase {
         XCTAssertTrue(body.contains("onToggleReaction: { messageId, emoji in"))
         XCTAssertTrue(body.contains("viewModel.toggleReaction("))
     }
+
+    /// Exactly one thing draws reactions.
+    ///
+    /// A detached row already existed inside the collection view controller,
+    /// below the bubble and aligned to the far edge. Adding the attached pill
+    /// without removing it drew every reaction twice — once on the bubble and
+    /// once floating beneath it.
+    func testReactionsAreDrawnOnce() throws {
+        let controller = code(
+            try source("Features/Chats/Presentation/MessageCollectionViewController.swift")
+        )
+        XCTAssertFalse(
+            controller.contains("ReactionPillsRow"),
+            "the cell must not draw its own row alongside the bubble's pill"
+        )
+    }
 }
