@@ -12,7 +12,28 @@ struct VoicePlaybackBubble: View {
 
     /// Decoded on demand when the message arrived without one, which is every
     /// voice note that came from someone else.
-    @State private var decoded: [Float] = []
+    ///
+    /// Seeded from the cache so a bubble returning to screen draws its bars in
+    /// the first frame. Read inside `.task` alone, it showed the flat
+    /// placeholder every time the transcript came back and then filled in.
+    @State private var decoded: [Float]
+
+    init(
+        messageId: String,
+        url: URL,
+        durationMs: Int,
+        waveform: [Float],
+        isOutgoing: Bool,
+        playback: VoicePlaybackController
+    ) {
+        self.messageId = messageId
+        self.url = url
+        self.durationMs = durationMs
+        self.waveform = waveform
+        self.isOutgoing = isOutgoing
+        self.playback = playback
+        _decoded = State(initialValue: VoiceWaveformCache.cached(for: url) ?? [])
+    }
 
     private var samples: [Float] { waveform.isEmpty ? decoded : waveform }
 
@@ -65,7 +86,7 @@ struct VoicePlaybackBubble: View {
         // this was painting a second rounded box inside the first, which on an
         // outgoing bubble read as a grey slab on the gradient.
         .task(id: url) {
-            guard waveform.isEmpty else { return }
+            guard waveform.isEmpty, decoded.isEmpty else { return }
             decoded = await VoiceWaveformCache.shared.waveform(for: url)
         }
         .accessibilityElement(children: .combine)
