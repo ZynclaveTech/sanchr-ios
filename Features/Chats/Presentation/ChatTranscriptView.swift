@@ -77,7 +77,10 @@ struct ChatTranscriptView: View {
             },
             onBubbleTap: onRouteInteraction,
             isScrolledToBottom: $isScrolledToBottom,
-            newMessageCountWhileScrolled: $newMessageCountWhileScrolled
+            newMessageCountWhileScrolled: $newMessageCountWhileScrolled,
+            ground: TranscriptGround.forWallpaper(
+                id: container.chatAppearance.effectiveAppearance(for: conversation.id).wallpaperId
+            )
         )
         // Transparent background — the chat-level .background on the
         // outer VStack paints either the wallpaper gradient or the
