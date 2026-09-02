@@ -266,7 +266,9 @@ struct MainTabView: View {
                 get: { container.callManager.callState != .idle },
                 set: { presented in
                     if !presented {
-                        container.callManager.resetState()
+                        // Dismissing the screen after a call, not ending a
+                        // session: leaves the duration padding running.
+                        container.callManager.dismissEndedCall()
                     }
                 }
             )
