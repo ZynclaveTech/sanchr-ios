@@ -211,6 +211,9 @@ struct SanchrApp: App {
 
         switch newPhase {
         case .background:
+            // The sync high-water mark is written to the Keychain lazily;
+            // make it durable before the process can be suspended.
+            container.sessionService.flushPendingSnapshot()
             // Schedule background tasks when the app goes to background.
             let orchestrator = container.syncOrchestrator
             orchestrator.scheduleBackgroundSync()
