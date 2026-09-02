@@ -450,7 +450,10 @@ struct ChatDetailView: View {
                 )
 
                 if !isScrolledToBottom {
-                    scrollToBottomFAB
+                    // Hosted in its own UIKit layer: as a plain SwiftUI view
+                    // it drew above the transcript but hit-tested below it,
+                    // and taps went to the bubble behind.
+                    HostedAboveUIKit { scrollToBottomFAB }
                 }
 
                 // The picker is in the context menu; the pill under a bubble
