@@ -1,8 +1,14 @@
 import LocalAuthentication
 import SwiftUI
 
-/// Gate view that blocks app access until biometric authentication succeeds.
-/// Shown at cold launch if biometric lock is enabled.
+/// Gate view that blocks app access until the device owner authenticates.
+/// Shown at cold launch if App Lock is enabled.
+///
+/// Uses `.deviceOwnerAuthentication`, the same policy as the share
+/// extension's unlock: Face ID / Touch ID when enrolled, with the device
+/// passcode as the fallback. The biometrics-only policy this used to
+/// request left anyone without biometrics enrolled — or with a failed Face
+/// ID — locked out of their own app with no way in.
 struct AppLockGateView: View {
     @Binding var isAuthenticated: Bool
     @State private var authError: String?
@@ -58,8 +64,8 @@ struct AppLockGateView: View {
         let context = LAContext()
         var error: NSError?
 
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            authError = error?.localizedDescription ?? "Biometric not available"
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            authError = error?.localizedDescription ?? "Set a device passcode to unlock Sanchr."
             return
         }
 
@@ -69,7 +75,7 @@ struct AppLockGateView: View {
         Task {
             do {
                 let success = try await context.evaluatePolicy(
-                    .deviceOwnerAuthenticationWithBiometrics,
+                    .deviceOwnerAuthentication,
                     localizedReason: "Unlock Sanchr"
                 )
 
