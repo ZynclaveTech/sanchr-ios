@@ -42,9 +42,19 @@ final class LockScreenTests: XCTestCase {
     func testCopyForFailures() {
         XCTAssertNil(LockScreenView.message(for: LAError(.userCancel)))
         XCTAssertNil(LockScreenView.message(for: LAError(.userFallback)))
+        XCTAssertNil(LockScreenView.message(for: LAError(.notInteractive)), "could-not-prompt (\"User interaction is required\") is not a verdict")
         XCTAssertEqual(LockScreenView.message(for: LAError(.biometryLockout)), "Too many attempts. Use your passcode to unlock.")
         XCTAssertEqual(LockScreenView.message(for: LAError(.passcodeNotSet)), "Set a device passcode to unlock Sanchr.")
         XCTAssertNotNil(LockScreenView.message(for: LAError(.authenticationFailed)))
+    }
+
+    /// Backgrounding must not re-arm the cold-launch gate: with both it and
+    /// the manager prompting on foreground, one of them always lost.
+    func testTheBackgroundHandlerLeavesTheGateAlone() throws {
+        let app = try source("App/SanchrApp.swift")
+        let background = try XCTUnwrap(app.range(of: "case .background:"))
+        let handler = String(app[background.upperBound...].prefix(1800))
+        XCTAssertFalse(handler.contains("hasAuthenticatedAtGate = false"))
     }
 
     /// The manager exposes prompt state so the overlay can show it.
