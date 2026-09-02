@@ -14,6 +14,9 @@ struct HiddenChatsView: View {
     @State private var isLoading = true
     @State private var isRestoringConversationIds: Set<String> = []
     @State private var loadError: String?
+    /// A failed restore. Kept apart from `loadError`, which replaces the
+    /// whole list with the load-failed screen.
+    @State private var actionError: String?
     @State private var searchText = ""
 
     private var filteredSummaries: [ShareChatSummary] {
@@ -75,6 +78,14 @@ struct HiddenChatsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(SanchrExportColors.background.ignoresSafeArea())
         .task { await loadSummaries() }
+        .alert("Couldn't restore that chat", isPresented: Binding(
+            get: { actionError != nil },
+            set: { if !$0 { actionError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(actionError ?? "")
+        }
     }
 
     @MainActor
@@ -105,7 +116,7 @@ struct HiddenChatsView: View {
                 }
             } catch {
                 await MainActor.run {
-                    loadError = error.localizedDescription
+                    actionError = error.localizedDescription
                     isRestoringConversationIds.remove(conversationId)
                 }
             }
