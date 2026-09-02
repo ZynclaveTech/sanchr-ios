@@ -43,17 +43,43 @@ protocol MediaDownloading: Sendable {
 
 extension MediaDownloadManager: MediaDownloading {}
 
+/// The per-message directories of filename-preserving hard links that
+/// `ChatMediaResolverImpl.decryptedURLWithDisplayName` hands to QuickLook.
+///
+/// A hard link is a second name for the same bytes. Deleting the cached
+/// decrypted file alone — view-once, disappearing messages, "delete for me"
+/// — left the plaintext fully readable under this directory until iOS got
+/// around to purging tmp. Every path that removes a cached file must also
+/// remove its links here, and sign-out and launch sweep the whole tree.
+enum QuickLookDisplayLinks {
+    static let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("sanchr-quicklook", isDirectory: true)
+
+    /// Removes the link directory for one message. No-op if there is none.
+    static func remove(messageId: String, root: URL = root) {
+        try? FileManager.default.removeItem(at: root.appendingPathComponent(messageId, isDirectory: true))
+    }
+
+    /// Removes every link. The links are recreated on demand, so this is
+    /// safe whenever no preview is on screen: launch and sign-out.
+    static func sweep(root: URL = root) {
+        try? FileManager.default.removeItem(at: root)
+    }
+}
+
 final class ChatMediaResolverImpl: ChatMediaResolving, @unchecked Sendable {
     private let download: MediaDownloading
     private let displayLinkRoot: URL
 
     init(
         download: MediaDownloading,
-        displayLinkRoot: URL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("sanchr-quicklook", isDirectory: true)
+        displayLinkRoot: URL = QuickLookDisplayLinks.root
     ) {
         self.download = download
         self.displayLinkRoot = displayLinkRoot
+        // Anything left from a previous run is plaintext for media that may
+        // since have been deleted. The resolver is built once per launch.
+        QuickLookDisplayLinks.sweep(root: displayLinkRoot)
         try? FileManager.default.createDirectory(
             at: displayLinkRoot,
             withIntermediateDirectories: true
