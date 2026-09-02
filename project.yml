@@ -133,6 +133,9 @@ targets:
         excludes:
           - "Info.plist"
           - "SanchrShareExtension.entitlements"
+      # The lock screen's mark. Kept apart from the app catalog so the
+      # extension does not carry the whole thing.
+      - path: Resources/BrandAssets.xcassets
     info:
       path: SanchrShareExtension/Info.plist
       properties:
@@ -186,6 +189,7 @@ targets:
       - path: Shared
       - path: Features
       - path: Resources/Assets.xcassets
+      - path: Resources/BrandAssets.xcassets
       - path: Resources/Fonts
     dependencies:
       - target: LibSignalClient

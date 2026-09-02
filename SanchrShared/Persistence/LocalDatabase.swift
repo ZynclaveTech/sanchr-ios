@@ -443,8 +443,11 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     public func enqueuePendingConversationDelete(conversationId: String) async throws {
         try await dbPool.write { db in
+            // A delete queued twice keeps its first timestamp: the queue is
+            // settled oldest-first, and replacing the row would push a
+            // conversation to the back every time the user retried.
             try PendingConversationDeleteRecord(conversationId: conversationId)
-                .save(db, onConflict: Database.ConflictResolution.replace)
+                .save(db, onConflict: Database.ConflictResolution.ignore)
         }
     }
 

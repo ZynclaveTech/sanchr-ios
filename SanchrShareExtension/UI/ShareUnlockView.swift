@@ -1,20 +1,18 @@
-import SwiftUI
 import LocalAuthentication
 import SanchrShared
+import SwiftUI
 
 /// Biometric / passcode gate shown before the share extension exposes any
 /// chat data, when the host app has screen lock enabled.
 ///
-/// We deliberately use `.deviceOwnerAuthentication` (not the
-/// `…WithBiometrics` variant) so the system automatically falls back to the
-/// device passcode when Face ID / Touch ID is unavailable, not enrolled, or
-/// has too many failed attempts. This matches the main app's
-/// `AppLockManager.unlockWithPasscodeIfAvailable()` behaviour.
+/// The screen itself is the app's `LockScreenView`, so the two never drift.
+/// The prompt stays here: the main app's `AppLockManager` lives in the host
+/// module, and this extension can also be dismissed instead of unlocked.
 ///
-/// Note: the main app's `AppLockManager` lives in the host module, not in
-/// `SanchrShared`, so we can't reuse the type directly here. The contract
-/// (same `LAPolicy`, same localized reason) is preserved by sharing the
-/// reason string and policy choice instead.
+/// We deliberately use `.deviceOwnerAuthentication` (not the
+/// `…WithBiometrics` variant) so the system falls back to the device
+/// passcode when Face ID / Touch ID is unavailable, not enrolled, or has
+/// too many failed attempts.
 struct ShareUnlockView: View {
 
     let onUnlocked: () -> Void
@@ -24,52 +22,13 @@ struct ShareUnlockView: View {
     @State private var isAuthenticating: Bool = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            Image(systemName: "lock.fill")
-                .font(.system(size: 56))
-                .foregroundColor(SanchrColors.primary)
-
-            Text("Sanchr is locked")
-                .font(.title3.weight(.semibold))
-
-            Text("Unlock to share into Sanchr.")
-                .font(.body)
-                .foregroundColor(SanchrExportColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                Button(action: authenticate) {
-                    Text("Unlock")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(SanchrColors.primary)
-                        .cornerRadius(14)
-                }
-                .disabled(isAuthenticating)
-
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .foregroundColor(SanchrColors.primary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(uiColor: .systemBackground))
+        LockScreenView(
+            isAuthenticating: isAuthenticating,
+            errorMessage: errorMessage,
+            subtitle: "Unlock to share into Sanchr.",
+            onUnlock: authenticate,
+            onCancel: onCancel
+        )
         .task {
             // Auto-prompt as soon as the view appears so users don't have to
             // tap an extra button in the common case.
@@ -88,8 +47,8 @@ struct ShareUnlockView: View {
         var policyError: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
             isAuthenticating = false
-            errorMessage = policyError?.localizedDescription
-                ?? "Authentication is not available on this device."
+            errorMessage = policyError.map { LockScreenView.message(for: $0) }
+                ?? "Set a device passcode to unlock Sanchr."
             return
         }
 
@@ -101,13 +60,12 @@ struct ShareUnlockView: View {
                 isAuthenticating = false
                 if success {
                     onUnlocked()
-                } else if let laError = evalError as? LAError, laError.code == .userCancel {
-                    // User explicitly tapped Cancel inside the LA prompt — leave
-                    // the view in place so they can retry without an error.
-                    errorMessage = nil
+                } else if let evalError {
+                    // A cancel inside the prompt leaves the screen in place
+                    // with nothing to explain.
+                    errorMessage = LockScreenView.message(for: evalError)
                 } else {
-                    errorMessage = evalError?.localizedDescription
-                        ?? "Authentication failed."
+                    errorMessage = "Couldn't unlock. Try again."
                 }
             }
         }
