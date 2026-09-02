@@ -47,6 +47,9 @@ public enum AppError: LocalizedError, Equatable {
     case mediaCompressionFailed
     case mediaUploadFailed
     case mediaDownloadFailed
+    /// The server no longer has the file, or this device no longer holds a
+    /// key for it. Retrying cannot help; only the sender can.
+    case mediaExpired
     case unsupportedMediaType
 
     // MARK: - Calls
@@ -135,6 +138,8 @@ public enum AppError: LocalizedError, Equatable {
             return "Failed to upload media. Please try again."
         case .mediaDownloadFailed:
             return "Failed to download media."
+        case .mediaExpired:
+            return "This media is no longer available. Ask the sender to send it again."
         case .unsupportedMediaType:
             return "This media type is not supported."
         case .callConnectionFailed:
