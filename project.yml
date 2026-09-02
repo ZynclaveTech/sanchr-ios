@@ -197,6 +197,7 @@ targets:
       - path: Resources/Assets.xcassets
       - path: Resources/BrandAssets.xcassets
       - path: Resources/Fonts
+      - path: Resources/PrivacyInfo.xcprivacy
     dependencies:
       - target: LibSignalClient
       - target: SanchrShared
