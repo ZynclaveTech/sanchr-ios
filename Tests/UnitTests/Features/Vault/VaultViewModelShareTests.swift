@@ -157,7 +157,7 @@ final class VaultViewModelShareTests: XCTestCase {
     func test_didFinishFilesExport_success_deletesTempDir_setsToast() throws {
         let viewModel = VaultViewModel()
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("test-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("vault-save-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(
             at: tempDir,
             withIntermediateDirectories: true
@@ -177,7 +177,7 @@ final class VaultViewModelShareTests: XCTestCase {
     func test_didFinishFilesExport_cancel_deletesTempDir_noToast() throws {
         let viewModel = VaultViewModel()
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("test-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("vault-save-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(
             at: tempDir,
             withIntermediateDirectories: true
@@ -191,6 +191,30 @@ final class VaultViewModelShareTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.path))
         XCTAssertNil(viewModel.shareCompletionToast)
         XCTAssertNil(viewModel.shareState)
+    }
+
+    /// The cleanup must only ever delete a directory this flow made.
+    ///
+    /// With the export name unsanitised, a sender-chosen `../` put the temp
+    /// URL under some other directory, and this cleanup then removed that
+    /// directory's parent. The traversal is closed upstream; this is the
+    /// second wall.
+    func test_didFinishFilesExport_leavesAForeignDirectoryAlone() throws {
+        let viewModel = VaultViewModel()
+        let foreignDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("not-ours-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: foreignDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: foreignDir) }
+        let tempURL = foreignDir.appendingPathComponent("doc.pdf")
+        try Data("x".utf8).write(to: tempURL)
+
+        let item = Self.makeVaultItem(id: "d", name: "doc.pdf", type: .document, sizeBytes: 1)
+        viewModel.didFinishFilesExport(for: item, tempURL: tempURL, success: true)
+
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: foreignDir.path),
+            "a directory the flow did not create must survive its cleanup"
+        )
     }
 
     // MARK: - takeShareCompletionToast consumes exactly once
