@@ -84,9 +84,9 @@ final class AppRouter {
         case .openCall(let callId):
             selectedTab = .calls
             pendingCallId = callId
-        case .replyToMessage(let conversationId, _):
-            selectedTab = .chats
-            pendingConversationId = conversationId
+        case .replyToMessage, .declineCall:
+            // Acted on by PushManager as they arrive; nothing to show.
+            break
         case .none:
             break
         }

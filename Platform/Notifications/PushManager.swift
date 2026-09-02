@@ -11,6 +11,7 @@ enum NotificationAction: Equatable, Sendable {
     case openConversation(conversationId: String)
     case openCall(callId: String)
     case replyToMessage(conversationId: String, text: String)
+    case declineCall(callId: String)
     case none
 }
 
@@ -90,6 +91,13 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
     /// The handler is responsible for syncing pending messages and scheduling
     /// any local notification to surface new content to the user.
     var onSilentWakeup: (@Sendable () async -> UIBackgroundFetchResult)?
+
+    /// Sends the text typed into a notification's inline reply field.
+    /// Wired by the app to the message sender.
+    var onInlineReply: (@Sendable (_ conversationId: String, _ text: String) async -> Void)?
+
+    /// Declines the call a notification's Decline button refers to.
+    var onDeclineCall: (@Sendable (_ callId: String) async -> Void)?
 
     // MARK: - Dependencies
 
@@ -382,7 +390,10 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
 
         // Decline call -- no navigation
         case SanchrNotificationCategory.Action.declineCall:
-            SanchrLogger.push.info("Decline call action")
+            if let callId = payload?.callId {
+                SanchrLogger.push.info("Decline call action: \(callId.prefix(8))...")
+                return .declineCall(callId: callId)
+            }
             return .none
 
         // Call back from missed call
@@ -512,9 +523,24 @@ extension PushManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse
     ) async {
         let action = handleNotificationResponse(response)
-        pendingAction = action
-
         SanchrLogger.push.info("Notification response handled: \(String(describing: action))")
+
+        switch action {
+        case .replyToMessage(let conversationId, let text):
+            // Done here, while the system keeps the process alive for this
+            // handler. An inline reply usually arrives with the app in the
+            // background and no scene watching `pendingAction`, and until
+            // this was handled the typed text was dropped on the floor. No
+            // navigation follows: the user replied from the notification
+            // precisely so as not to open the app.
+            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !body.isEmpty else { return }
+            await onInlineReply?(conversationId, body)
+        case .declineCall(let callId):
+            await onDeclineCall?(callId)
+        case .openConversation, .openCall, .none:
+            pendingAction = action
+        }
     }
 }
 
