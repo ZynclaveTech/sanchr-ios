@@ -23,6 +23,8 @@ struct RegistrationLockView: View {
     @State private var currentPINForChange: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
+    /// Incremented on a rejected PIN so the entry on screen shakes and clears.
+    @State private var pinErrorTrigger = 0
     @State private var showSuccess = false
 
     private enum Phase {
@@ -100,7 +102,8 @@ struct RegistrationLockView: View {
                     },
                     onCancel: {
                         phase = .idle
-                    }
+                    },
+                    errorTrigger: pinErrorTrigger
                 )
             }
 
@@ -344,8 +347,9 @@ struct RegistrationLockView: View {
                     withAnimation { showSuccess = false }
                 }
             } else {
-                errorMessage = "Incorrect PIN. Please try again."
-                phase = .idle
+                // Stay on the entry: the shake and haptic are the verdict, and
+                // the user can try again without starting over.
+                pinErrorTrigger += 1
             }
         } catch {
             errorMessage = error.localizedDescription
