@@ -30,6 +30,8 @@ struct SecurityView: View {
                 featureSection
                 privacySection
                 accountSection
+
+                SettingsErrorLabel(message: viewModel.errorMessage)
             }
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)

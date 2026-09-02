@@ -22,6 +22,8 @@ struct PrivacyView: View {
                 securityFeaturesSection
                 controlsSection
                 blockedContactsSection
+
+                SettingsErrorLabel(message: viewModel.errorMessage)
             }
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)

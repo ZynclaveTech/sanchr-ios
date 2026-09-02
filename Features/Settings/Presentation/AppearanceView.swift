@@ -36,6 +36,8 @@ struct AppearanceView: View {
                 wallpaperSection
                 bubbleSection
                 fontSection
+
+                SettingsErrorLabel(message: viewModel.errorMessage)
             }
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)

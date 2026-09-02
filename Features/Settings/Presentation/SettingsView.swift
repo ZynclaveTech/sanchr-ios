@@ -112,6 +112,8 @@ struct SettingsView: View {
                     .font(SanchrTypography.captionSmall)
                     .foregroundColor(SanchrExportColors.textTertiary)
                     .padding(.top, 8)
+
+                SettingsErrorLabel(message: viewModel.errorMessage)
             }
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 24)
