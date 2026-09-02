@@ -455,7 +455,10 @@ struct RootView: View {
 
             // Lock screen overlay
             if container.appLockManager.isLocked && !showSplash {
-                LockScreenView {
+                LockScreenView(
+                    isAuthenticating: container.appLockManager.isAuthenticating,
+                    errorMessage: container.appLockManager.authError
+                ) {
                     container.appLockManager.authenticate()
                 }
                 .transition(.opacity)

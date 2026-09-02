@@ -16,49 +16,11 @@ struct AppLockGateView: View {
     @State private var isAuthenticating = false
 
     var body: some View {
-        ZStack {
-            // Solid background — no preview of content behind
-            Color.black
-                .ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.white)
-
-                Text("App Locked")
-                    .font(SanchrTypography.font(size: .lg, weight: .semibold))
-                    .foregroundColor(.white)
-
-                if let error = authError {
-                    Text(error)
-                        .font(SanchrTypography.font(size: .xs, weight: .regular))
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                }
-
-                Button(action: authenticate) {
-                    if isAuthenticating {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Text("Unlock")
-                            .font(SanchrTypography.font(size: .sm, weight: .semibold))
-                    }
-                }
-                .disabled(isAuthenticating)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.white)
-                .foregroundColor(.black)
-                .cornerRadius(8)
+        LockScreenView(isAuthenticating: isAuthenticating, errorMessage: authError, onUnlock: authenticate)
+            .onAppear {
+                // Prompt straight away; the button is for a second try.
+                authenticate()
             }
-            .padding(20)
-        }
-        .onAppear {
-            // Attempt biometric auth immediately on appearance
-            authenticate()
-        }
     }
 
     private func authenticate() {
@@ -83,10 +45,10 @@ struct AppLockGateView: View {
                 if success {
                     isAuthenticated = true
                 } else {
-                    authError = "Authentication failed"
+                    authError = "Couldn't unlock. Try again."
                 }
             } catch {
-                authError = error.localizedDescription
+                authError = LockScreenView.message(for: error)
             }
 
             isAuthenticating = false
