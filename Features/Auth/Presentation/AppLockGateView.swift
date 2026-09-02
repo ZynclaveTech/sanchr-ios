@@ -12,11 +12,17 @@ import SwiftUI
 /// ID — locked out of their own app with no way in.
 struct AppLockGateView: View {
     @Binding var isAuthenticated: Bool
+    var markNamespace: Namespace.ID? = nil
     @State private var authError: String?
     @State private var isAuthenticating = false
 
     var body: some View {
-        LockScreenView(isAuthenticating: isAuthenticating, errorMessage: authError, onUnlock: authenticate)
+        LockScreenView(
+            isAuthenticating: isAuthenticating,
+            errorMessage: authError,
+            onUnlock: authenticate,
+            markNamespace: markNamespace
+        )
             .onAppear {
                 // Prompt straight away; the button is for a second try.
                 authenticate()

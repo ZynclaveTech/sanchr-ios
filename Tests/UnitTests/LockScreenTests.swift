@@ -21,7 +21,10 @@ final class LockScreenTests: XCTestCase {
 
     func testBothSurfacesShowTheSameScreen() throws {
         let gate = try source("Features/Auth/Presentation/AppLockGateView.swift")
-        XCTAssertTrue(gate.contains("LockScreenView(isAuthenticating: isAuthenticating, errorMessage: authError, onUnlock: authenticate)"))
+        XCTAssertTrue(gate.contains("isAuthenticating: isAuthenticating,"))
+        XCTAssertTrue(gate.contains("errorMessage: authError,"))
+        XCTAssertTrue(gate.contains("onUnlock: authenticate,"))
+        XCTAssertTrue(gate.contains("markNamespace: markNamespace"), "the gate hands the splash's mark through")
         let app = try source("App/SanchrApp.swift")
         XCTAssertTrue(app.contains("isAuthenticating: container.appLockManager.isAuthenticating"))
         XCTAssertTrue(app.contains("errorMessage: container.appLockManager.authError"))

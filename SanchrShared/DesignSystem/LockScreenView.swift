@@ -14,24 +14,29 @@ public struct LockScreenView: View {
     let subtitle: String
     let onUnlock: () -> Void
     let onCancel: (() -> Void)?
+    let markNamespace: Namespace.ID?
 
     /// - Parameters:
     ///   - subtitle: one line under the title; the app and the share
     ///     extension say different things about what unlocking gets you.
     ///   - onCancel: the share extension can be dismissed instead of
     ///     unlocked; the app cannot.
+    ///   - markNamespace: when the screen follows the splash, the mark
+    ///     glides from where the splash drew it instead of cutting.
     public init(
         isAuthenticating: Bool = false,
         errorMessage: String? = nil,
         subtitle: String = "Your messages stay private until you unlock.",
         onUnlock: @escaping () -> Void,
-        onCancel: (() -> Void)? = nil
+        onCancel: (() -> Void)? = nil,
+        markNamespace: Namespace.ID? = nil
     ) {
         self.isAuthenticating = isAuthenticating
         self.errorMessage = errorMessage
         self.subtitle = subtitle
         self.onUnlock = onUnlock
         self.onCancel = onCancel
+        self.markNamespace = markNamespace
     }
 
     @Environment(\.colorScheme) private var colorScheme
@@ -132,6 +137,7 @@ public struct LockScreenView: View {
                 .frame(width: 104, height: 104)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .sanchrShadow(0.18, radius: 24, y: 12)
+                .brandMark(in: markNamespace)
 
             // Lock badge on the mark's corner: "Sanchr, and it's locked" in one glyph.
             Image(systemName: "lock.fill")
@@ -206,6 +212,25 @@ public extension LockScreenView {
             return nil
         default:
             return laError.localizedDescription
+        }
+    }
+}
+
+/// The one geometry id the app's brand mark travels under between the
+/// splash and the lock screen.
+public enum BrandMark {
+    public static let geometryID = "sanchr.brandMark"
+}
+
+extension View {
+    /// Joins this view to the brand mark's shared geometry when a namespace
+    /// is supplied; a no-op otherwise, so the screen stands alone as well.
+    @ViewBuilder
+    public func brandMark(in namespace: Namespace.ID?) -> some View {
+        if let namespace {
+            matchedGeometryEffect(id: BrandMark.geometryID, in: namespace)
+        } else {
+            self
         }
     }
 }
