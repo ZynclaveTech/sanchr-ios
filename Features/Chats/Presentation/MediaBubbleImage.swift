@@ -181,7 +181,8 @@ struct MediaBubbleImage: View {
             mimeType: attachment.mimeType,
             connection: container.networkMonitor.connectionType,
             wifi: AutoDownloadSettingsStore.wifi,
-            mobile: AutoDownloadSettingsStore.mobile
+            mobile: AutoDownloadSettingsStore.mobile,
+            lowData: AutoDownloadSettingsStore.lowDataMode
         ) == .manual
     }
 

@@ -37,6 +37,7 @@ public enum VideoCompressor {
     /// bar should treat "no calls" as "this stage was instant".
     public static func compressedForSending(
         _ source: URL,
+        lowData: Bool = false,
         progress: (@Sendable (Double) -> Void)? = nil
     ) async -> Result {
         let asset = AVURLAsset(url: source)
@@ -44,7 +45,7 @@ public enum VideoCompressor {
         let byteCount = fileSize(of: source)
         let pixelSize = (try? await naturalPixelSize(of: asset)) ?? .zero
 
-        switch VideoCompressionPolicy.decide(pixelSize: pixelSize, byteCount: byteCount) {
+        switch VideoCompressionPolicy.decide(pixelSize: pixelSize, byteCount: byteCount, lowData: lowData) {
         case .sendOriginal(let reason):
             SanchrLogger.media.info(
                 "Video compression skipped (\(reason)): \(byteCount) bytes"
@@ -64,7 +65,7 @@ public enum VideoCompressor {
         // compressed.
         guard let session = AVAssetExportSession(
             asset: asset,
-            presetName: AVAssetExportPreset1280x720
+            presetName: lowData ? AVAssetExportPreset960x540 : AVAssetExportPreset1280x720
         ) else {
             SanchrLogger.media.warning("Video compression unavailable for this asset; sending original")
             return Result(

@@ -17,6 +17,10 @@ public enum VideoCompressionPolicy {
     /// phone, and roughly an order of magnitude smaller than 4K.
     public static let targetLongEdge: CGFloat = 1280
 
+    /// Long edge in Low Data Mode. 540p is roughly half the bytes of 720p
+    /// and still readable on a phone.
+    public static let lowDataLongEdge: CGFloat = 960
+
     /// Clips at or below this are sent as they are. Re-encoding something
     /// already small wastes time and battery, and can make it *bigger* — a
     /// short clip already compressed once often grows on a second pass.
@@ -34,7 +38,10 @@ public enum VideoCompressionPolicy {
     ///     transform. Only the longer and shorter edges matter, so a portrait
     ///     clip is treated the same as its landscape equivalent.
     ///   - byteCount: size of the source file.
-    public static func decide(pixelSize: CGSize, byteCount: Int64) -> Decision {
+    ///   - lowData: the user's Low Data Mode switch. When on, the target is
+    ///     `lowDataLongEdge` and only clips that are already small and at
+    ///     or below it are left alone.
+    public static func decide(pixelSize: CGSize, byteCount: Int64, lowData: Bool = false) -> Decision {
         guard byteCount > 0 else {
             return .sendOriginal(reason: "unknown size")
         }
@@ -43,12 +50,14 @@ public enum VideoCompressionPolicy {
             // things worse, and the file is still perfectly sendable.
             return .sendOriginal(reason: "unknown dimensions")
         }
-        if byteCount <= skipBelowBytes {
+        let skipBelow = lowData ? skipBelowBytes / 2 : skipBelowBytes
+        if byteCount <= skipBelow {
             return .sendOriginal(reason: "already small")
         }
 
         let longEdge = max(pixelSize.width, pixelSize.height)
-        if longEdge <= targetLongEdge, byteCount <= skipBelowBytes * 8 {
+        let target = lowData ? lowDataLongEdge : targetLongEdge
+        if longEdge <= target, byteCount <= skipBelow * 8 {
             // Already at or below the target resolution and not unreasonably
             // heavy for it — likely encoded sensibly already.
             return .sendOriginal(reason: "already within target")
