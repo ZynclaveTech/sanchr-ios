@@ -1252,7 +1252,10 @@ public actor MessageSender {
         guard attachment.mimeType.hasPrefix("video/"), attachment.url.isFileURL else {
             return VideoCompressor.Result(url: attachment.url, pixelSize: nil, isTemporary: false)
         }
-        return await VideoCompressor.compressedForSending(attachment.url) { fraction in
+        return await VideoCompressor.compressedForSending(
+            attachment.url,
+            lowData: AutoDownloadSettingsStore.lowDataMode
+        ) { fraction in
             progress(fraction * Self.compressionShare)
         }
     }

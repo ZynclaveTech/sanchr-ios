@@ -328,7 +328,8 @@ final class SettingsViewModel {
     private func mirrorAutoDownloadSettings() {
         AutoDownloadSettingsStore.store(
             wifi: autoDownloadWifi,
-            mobile: autoDownloadMobile
+            mobile: autoDownloadMobile,
+            lowData: lowDataMode
         )
     }
 

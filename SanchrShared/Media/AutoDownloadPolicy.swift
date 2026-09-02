@@ -77,14 +77,21 @@ public enum AutoDownloadPolicy {
     }
 
     /// Whether `mimeType` may be fetched automatically right now.
+    /// - Parameter lowData: the user's Low Data Mode switch. When on, no
+    ///   connection auto-downloads more than photos and voice notes, whatever
+    ///   the per-connection setting says.
     public static func decision(
         mimeType: String,
         connection: NetworkMonitor.ConnectionType,
         wifi: String,
-        mobile: String
+        mobile: String,
+        lowData: Bool = false
     ) -> Decision {
-        guard let tier = tier(for: connection, wifi: wifi, mobile: mobile) else {
+        guard var tier = tier(for: connection, wifi: wifi, mobile: mobile) else {
             return .automatic
+        }
+        if lowData, tier == .all {
+            tier = .photos
         }
         switch tier {
         case .all:
@@ -111,16 +118,24 @@ public enum AutoDownloadPolicy {
 public enum AutoDownloadSettingsStore {
     public static let wifiKey = "sanchr.autoDownload.wifi"
     public static let mobileKey = "sanchr.autoDownload.mobile"
+    public static let lowDataKey = "sanchr.autoDownload.lowData"
 
     /// Defaults match `SettingsViewModel`'s, so a user who has never opened
     /// the settings screen gets the same behaviour the screen would show them.
     public static let wifiDefault = "all"
     public static let mobileDefault = "photos"
 
-    public static func store(wifi: String, mobile: String) {
+    public static func store(wifi: String, mobile: String, lowData: Bool) {
         let defaults = UserDefaults.standard
         defaults.set(wifi, forKey: wifiKey)
         defaults.set(mobile, forKey: mobileKey)
+        defaults.set(lowData, forKey: lowDataKey)
+    }
+
+    /// The Low Data Mode switch. Off until the user turns it on; the
+    /// setting existed and was synced to the server but nothing read it.
+    public static var lowDataMode: Bool {
+        UserDefaults.standard.bool(forKey: lowDataKey)
     }
 
     public static var wifi: String {
