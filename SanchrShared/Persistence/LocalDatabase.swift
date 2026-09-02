@@ -26,6 +26,9 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func updateMessageStatus(id: String, status: Message.DeliveryStatus) async throws
     func fetchPendingMessageAcks(limit: Int) async throws -> [PendingMessageAck]
     func deletePendingMessageAcks(_ acks: [PendingMessageAck]) async throws
+    /// Queues a delivery ack for the next batch. Defaulted, so stubs that
+    /// persist nothing need not care.
+    func enqueuePendingMessageAck(_ ack: PendingMessageAck) async throws
     func searchMessages(conversationId: String, query: String) async throws -> [Message]
 
     /// Fetch all outgoing messages stuck in `.sending` status, ordered by timestamp ASC.
@@ -110,6 +113,10 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
 
 /// GRDB-backed local database with encrypted SQLite storage.
 /// Thread-safe via GRDB's internal WAL-mode serialization.
+extension LocalDatabaseProtocol {
+    public func enqueuePendingMessageAck(_ ack: PendingMessageAck) async throws {}
+}
+
 public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     private enum BootstrapState {
         case freshEncrypted
@@ -422,6 +429,12 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 sql: "UPDATE message SET status = ? WHERE id = ?",
                 arguments: [status.rawValue, id]
             )
+        }
+    }
+
+    public func enqueuePendingMessageAck(_ ack: PendingMessageAck) async throws {
+        try await dbPool.write { db in
+            try PendingMessageAckRecord(from: ack).save(db, onConflict: Database.ConflictResolution.replace)
         }
     }
 
