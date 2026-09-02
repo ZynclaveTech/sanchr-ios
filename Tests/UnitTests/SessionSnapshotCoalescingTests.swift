@@ -13,7 +13,8 @@ final class SessionSnapshotCoalescingTests: XCTestCase {
         let service = SessionService(
             secureStorage: storage,
             authRepository: MockAuthRepository(),
-            privacySettings: PrivacySettingsCache()
+            privacySettings: PrivacySettingsCache(),
+            snapshotPersistDelay: .milliseconds(150)
         )
         try await service.storeTokens(
             AuthTokens(
@@ -39,7 +40,7 @@ final class SessionSnapshotCoalescingTests: XCTestCase {
         }
         XCTAssertEqual(storage.sessionSnapshotWrites, before, "nothing is written synchronously")
 
-        try await Task.sleep(for: .milliseconds(2600))
+        try await Task.sleep(for: .milliseconds(600))
         XCTAssertEqual(storage.sessionSnapshotWrites, before + 1)
         XCTAssertEqual(storage.sessionSnapshot?.lastMessageSyncTimestamp, 50)
     }
@@ -55,7 +56,7 @@ final class SessionSnapshotCoalescingTests: XCTestCase {
         XCTAssertEqual(storage.sessionSnapshot?.lastMessageSyncTimestamp, 7)
 
         // The cancelled timer must not write a second time.
-        try await Task.sleep(for: .milliseconds(2600))
+        try await Task.sleep(for: .milliseconds(600))
         XCTAssertEqual(storage.sessionSnapshotWrites, before + 1)
     }
 

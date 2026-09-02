@@ -54,8 +54,10 @@ final class SessionService: @unchecked Sendable {
         authRepository: AuthRepositoryProtocol,
         privacySettings: PrivacySettingsCache,
         cleanup: @escaping @Sendable () async -> Void = {},
-        deepWipe: @escaping @Sendable () async -> Void = {}
+        deepWipe: @escaping @Sendable () async -> Void = {},
+        snapshotPersistDelay: Duration = .seconds(2)
     ) {
+        self.snapshotPersistDelay = snapshotPersistDelay
         self.secureStorage = secureStorage
         self.authRepository = authRepository
         self.privacySettings = privacySettings
@@ -297,12 +299,14 @@ final class SessionService: @unchecked Sendable {
     /// gate already de-duplicates. So writes are coalesced, and anything
     /// that ends the session or backgrounds the app flushes first.
     private var pendingSnapshotPersist: Task<Void, Never>?
-    private static let snapshotPersistDelay: Duration = .seconds(2)
+    /// Injected so tests do not have to wait out the production delay.
+    private let snapshotPersistDelay: Duration
 
     private func schedulePersistSnapshot() {
         pendingSnapshotPersist?.cancel()
+        let delay = snapshotPersistDelay
         pendingSnapshotPersist = Task { [weak self] in
-            try? await Task.sleep(for: Self.snapshotPersistDelay)
+            try? await Task.sleep(for: delay)
             guard !Task.isCancelled, let self else { return }
             try? self.persistSnapshot()
             self.pendingSnapshotPersist = nil
