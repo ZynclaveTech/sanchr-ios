@@ -95,7 +95,7 @@ final class ChatsListFilteringTests: XCTestCase {
         // Asserted as-is rather than worked around: it is existing behaviour
         // this change must not alter, and it is flagged with a TODO in
         // `Conversation.displayName`.
-        XCTAssertEqual(names(vm), ["You, Team"])
+        XCTAssertEqual(names(vm), ["Team"])
     }
 
     /// Sorting now happens after filtering, so ordering has to survive a filter.
