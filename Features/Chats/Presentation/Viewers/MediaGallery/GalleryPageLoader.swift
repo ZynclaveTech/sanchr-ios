@@ -8,6 +8,9 @@ final class GalleryPageLoader: ObservableObject {
         var url: URL?
         var image: UIImage?
         var error: String?
+        /// The media is gone from the server or unreadable on this device.
+        /// A retry would get the same answer.
+        var isExpired = false
         var isLoading = false
 
         static let empty = PageState()
@@ -127,6 +130,7 @@ final class GalleryPageLoader: ObservableObject {
                     url: nil,
                     image: nil,
                     error: error.localizedDescription,
+                    isExpired: (error as? AppError) == .mediaExpired,
                     isLoading: false
                 )
             }

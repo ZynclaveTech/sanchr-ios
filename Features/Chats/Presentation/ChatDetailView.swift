@@ -822,7 +822,7 @@ struct ChatDetailView: View {
                     }
             }
         }
-        .alert("Couldn't open file", isPresented: Binding(
+        .alert(documentAlertTitle, isPresented: Binding(
             get: { documentCoordinator.resolveError != nil },
             set: { if !$0 { documentCoordinator.clearError() } }
         )) {
@@ -1050,6 +1050,12 @@ struct ChatDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+    }
+
+    /// A file the server no longer has is not a glitch and should not be
+    /// titled like one.
+    private var documentAlertTitle: String {
+        documentCoordinator.resolveErrorIsExpiry ? "File expired" : "Couldn't open file"
     }
 
     private var scrollToBottomFAB: some View {

@@ -4,7 +4,7 @@ import SanchrShared
 /// A received or sent voice note inside its message bubble.
 struct VoicePlaybackBubble: View {
     let messageId: String
-    let url: URL
+    let attachment: Message.MediaAttachment
     let durationMs: Int
     let waveform: [Float]
     let isOutgoing: Bool
@@ -17,22 +17,32 @@ struct VoicePlaybackBubble: View {
     /// the first frame. Read inside `.task` alone, it showed the flat
     /// placeholder every time the transcript came back and then filled in.
     @State private var decoded: [Float]
+    @Environment(DependencyContainer.self) private var container
+    /// The local file to play. A received note arrives as a sanchr-media://
+    /// URL and has to be fetched first; the bubble used to hand that URL
+    /// straight to AVAudioPlayer, which threw, and the tap did nothing.
+    @State private var playableURL: URL?
+    @State private var loadState: VoiceLoadState = .idle
+
+    enum VoiceLoadState: Equatable {
+        case idle, loading, failed, expired
+    }
 
     init(
         messageId: String,
-        url: URL,
+        attachment: Message.MediaAttachment,
         durationMs: Int,
         waveform: [Float],
         isOutgoing: Bool,
         playback: VoicePlaybackController
     ) {
         self.messageId = messageId
-        self.url = url
+        self.attachment = attachment
         self.durationMs = durationMs
         self.waveform = waveform
         self.isOutgoing = isOutgoing
         self.playback = playback
-        _decoded = State(initialValue: VoiceWaveformCache.cached(for: url) ?? [])
+        _decoded = State(initialValue: VoiceWaveformCache.cached(for: attachment.url) ?? [])
     }
 
     private var samples: [Float] { waveform.isEmpty ? decoded : waveform }
@@ -61,18 +71,26 @@ struct VoicePlaybackBubble: View {
     var body: some View {
         HStack(spacing: 10) {
             Button(action: togglePlayback) {
-                Image(systemName: isCurrent && playback.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(tint)
-                    .frame(width: 34, height: 34)
-                    .background(tint.opacity(0.16), in: Circle())
+                Group {
+                    if loadState == .loading {
+                        ProgressView().tint(tint).scaleEffect(0.8)
+                    } else {
+                        Image(systemName: playGlyphName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(tint)
+                    }
+                }
+                .frame(width: 34, height: 34)
+                .background(tint.opacity(loadState == .expired ? 0.08 : 0.16), in: Circle())
             }
             .buttonStyle(.plain)
+            .disabled(loadState == .expired || loadState == .loading)
             .accessibilityLabel(isCurrent && playback.isPlaying ? "Pause" : "Play")
 
             waveformStrip
+                .opacity(loadState == .expired ? 0.4 : 1)
 
-            Text(Self.formatTime(displayedTime))
+            Text(trailingLabel)
                 .font(SanchrTypography.font(size: .xxs, weight: .medium).monospacedDigit())
                 .monospacedDigit()
                 .foregroundColor(tint.opacity(0.7))
@@ -85,13 +103,34 @@ struct VoicePlaybackBubble: View {
         // `.standard` chrome, so the message bubble already draws all three —
         // this was painting a second rounded box inside the first, which on an
         // outgoing bubble read as a grey slab on the gradient.
-        .task(id: url) {
-            guard waveform.isEmpty, decoded.isEmpty else { return }
-            decoded = await VoiceWaveformCache.shared.waveform(for: url)
+        .task(id: playableURL) {
+            guard waveform.isEmpty, decoded.isEmpty, let playableURL else { return }
+            decoded = await VoiceWaveformCache.shared.waveform(for: playableURL)
+        }
+        .onAppear {
+            if attachment.url.isFileURL, FileManager.default.fileExists(atPath: attachment.url.path) {
+                playableURL = attachment.url
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Voice message")
-        .accessibilityValue(Self.spokenDuration(duration))
+        .accessibilityLabel(loadState == .expired ? "Voice message expired" : "Voice message")
+        .accessibilityValue(loadState == .expired ? "Ask them to send it again" : Self.spokenDuration(duration))
+    }
+
+    private var playGlyphName: String {
+        switch loadState {
+        case .expired: return "clock.badge.xmark"
+        case .failed: return "arrow.clockwise"
+        default: return isCurrent && playback.isPlaying ? "pause.fill" : "play.fill"
+        }
+    }
+
+    private var trailingLabel: String {
+        switch loadState {
+        case .expired: return "Expired"
+        case .failed: return "Retry"
+        default: return Self.formatTime(displayedTime)
+        }
     }
 
     /// Scrubbing needs the strip's own width.
@@ -129,8 +168,30 @@ struct VoicePlaybackBubble: View {
     private var isCurrent: Bool { playback.currentlyPlayingMessageId == messageId }
 
     private func togglePlayback() {
-        if isCurrent && playback.isPlaying { playback.pause() }
-        else { try? playback.play(url: url, messageId: messageId) }
+        if isCurrent && playback.isPlaying {
+            playback.pause()
+            return
+        }
+        if let playableURL {
+            try? playback.play(url: playableURL, messageId: messageId)
+            return
+        }
+        guard loadState != .loading, loadState != .expired else { return }
+        loadState = .loading
+        Task {
+            do {
+                let url = try await container.mediaDownloadManager.download(
+                    messageId: messageId, attachment: attachment)
+                playableURL = url
+                loadState = .idle
+                try? playback.play(url: url, messageId: messageId)
+            } catch let error as AppError where error == .mediaExpired {
+                loadState = .expired
+            } catch {
+                SanchrLogger.media.error("Voice note fetch failed: \(error.localizedDescription)")
+                loadState = .failed
+            }
+        }
     }
 
     private static func formatTime(_ t: Double) -> String {

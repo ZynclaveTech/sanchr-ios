@@ -13,6 +13,8 @@ final class DocumentPreviewCoordinator: ObservableObject {
     @Published var presentation: DocumentPresentation?
     @Published var isResolving: Bool = false
     @Published var resolveError: String?
+    /// The file is gone for good; the alert should not read like a glitch.
+    @Published var resolveErrorIsExpiry: Bool = false
 
     struct DocumentPresentation: Identifiable, Equatable {
         let id = UUID()
@@ -54,6 +56,7 @@ final class DocumentPreviewCoordinator: ObservableObject {
             )
             presentation = DocumentPresentation(fileURL: url)
         } catch {
+            resolveErrorIsExpiry = (error as? AppError) == .mediaExpired
             resolveError = error.localizedDescription
         }
     }
@@ -64,5 +67,6 @@ final class DocumentPreviewCoordinator: ObservableObject {
 
     func clearError() {
         resolveError = nil
+        resolveErrorIsExpiry = false
     }
 }

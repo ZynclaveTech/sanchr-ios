@@ -13,6 +13,9 @@ struct MediaBubbleImage: View {
     let isOutgoing: Bool
     var uploadProgress: Double?
     var uploadLabel: String?
+    /// Draw the video play glyph. Owned here rather than by the caller so
+    /// it can stay off an expired tile.
+    var showsPlayGlyph: Bool = false
     /// Fixed size for this bubble, overriding the aspect-derived one.
     ///
     /// Album tiles are laid out on a grid, so their size comes from the grid
@@ -63,6 +66,7 @@ struct MediaBubbleImage: View {
         isOutgoing: Bool,
         uploadProgress: Double? = nil,
         uploadLabel: String? = nil,
+        showsPlayGlyph: Bool = false,
         fixedSize: CGSize? = nil,
         cornerRadius: CGFloat = 14,
         squaresBottomCorners: Bool = false
@@ -73,6 +77,7 @@ struct MediaBubbleImage: View {
         self.isOutgoing = isOutgoing
         self.uploadProgress = uploadProgress
         self.uploadLabel = uploadLabel
+        self.showsPlayGlyph = showsPlayGlyph
         self.fixedSize = fixedSize
         self.cornerRadius = cornerRadius
         self.squaresBottomCorners = squaresBottomCorners
@@ -219,6 +224,13 @@ struct MediaBubbleImage: View {
                     .overlay {
                         if let progress = uploadProgress, resolvedImage != nil {
                             progressOverlay(progress: progress)
+                        } else if loadFailure == .expired {
+                            // A blurhash used to hide the failure entirely: the
+                            // tile stayed a blur with a play glyph on it.
+                            shape.fill(Color.black.opacity(0.55))
+                            expiredTile
+                        } else if showsPlayGlyph {
+                            playGlyph
                         }
                     }
             } else {
@@ -258,21 +270,7 @@ struct MediaBubbleImage: View {
                             .accessibilityLabel("Media not downloaded. Tap to download.")
                             .accessibilityAddTraits(.isButton)
                         } else if loadFailure == .expired {
-                            VStack(spacing: 4) {
-                                Image(systemName: "clock.badge.xmark")
-                                    .font(.system(size: 26))
-                                    .foregroundColor(isOutgoing ? .white.opacity(0.85) : SanchrExportColors.textTertiary)
-                                Text("Media expired")
-                                    .font(SanchrTypography.font(size: .xxs, weight: .semibold))
-                                    .foregroundColor(isOutgoing ? .white.opacity(0.9) : SanchrExportColors.textSecondary)
-                                Text(isOutgoing ? "Send it again" : "Ask them to send it again")
-                                    .font(SanchrTypography.font(size: .xxxs, weight: .regular))
-                                    .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
-                            }
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 8)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel(isOutgoing ? "Media expired. Send it again." : "Media expired. Ask them to send it again.")
+                            expiredTile
                         } else if loadFailure == .transient {
                             // Tap-to-retry: replaces the silent placeholder that
                             // used to leave receivers stuck when the first
@@ -350,6 +348,34 @@ struct MediaBubbleImage: View {
                 loadFailure = failure
             }
         }
+    }
+
+    /// "Media expired" with the one thing that helps. Drawn over a blurhash
+    /// when there is one and in place of the tile when there is not.
+    private var expiredTile: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "clock.badge.xmark")
+                .font(.system(size: 26))
+                .foregroundColor(.white.opacity(0.9))
+            Text("Media expired")
+                .font(SanchrTypography.font(size: .xxs, weight: .semibold))
+                .foregroundColor(.white)
+            Text(isOutgoing ? "Send it again" : "Ask them to send it again")
+                .font(SanchrTypography.font(size: .xxxs, weight: .regular))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isOutgoing ? "Media expired. Send it again." : "Media expired. Ask them to send it again.")
+    }
+
+    private var playGlyph: some View {
+        Image(systemName: "play.circle.fill")
+            .font(.system(size: 44))
+            .foregroundColor(.white.opacity(0.9))
+            .shadow(radius: 4)
+            .accessibilityHidden(true)
     }
 
     private func loadResolvedImage() async -> MediaLoadOutcome {

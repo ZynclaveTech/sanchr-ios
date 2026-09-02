@@ -7,7 +7,6 @@
 # caller in product code at all. Delete a line as you fix it; the check
 # warns about entries that no longer occur.
 
-Features/Auth/Presentation/RegisterView.swift: 'showImagePicker' is written but never read
 Features/Chats/Presentation/ConversationInfoView.swift: 'totalMediaCount' is written but never read
 Features/Chats/Presentation/ConversationInfoView.swift: 'showSearchConversation' is written but never read
 Features/Chats/Presentation/VerifySecurityCodeView.swift: 'fingerprintRaw' is written but never read
@@ -15,4 +14,5 @@ Features/Chats/Presentation/VerifySecurityCodeView.swift: 'scannableFingerprintD
 Features/Chats/Presentation/Viewers/Contact/ContactActionCoordinator.swift: 'pendingContact' is written but never read
 Features/Chats/Presentation/Viewers/Document/DocumentPreviewCoordinator.swift: 'isResolving' is written but never read
 Features/Chats/Presentation/Viewers/Document/DocumentPreviewCoordinator.swift: 'resolveError' is written but never read
+Features/Chats/Presentation/Viewers/Document/DocumentPreviewCoordinator.swift: 'resolveErrorIsExpiry' is written but never read
 Features/Settings/Presentation/AppearanceView.swift: 'storedFontSize' is written but never read

@@ -1,3 +1,4 @@
+import SanchrShared
 import SwiftUI
 
 struct GalleryPageView: View {
@@ -29,7 +30,7 @@ struct GalleryPageView: View {
             GalleryImageView(image: image, onZoomChange: onZoomChange)
                 .ignoresSafeArea()
         } else if let error = state.error {
-            retryView(error: error)
+            retryView(error: error, isExpired: state.isExpired)
         } else {
             ProgressView()
                 .tint(.white)
@@ -47,7 +48,7 @@ struct GalleryPageView: View {
             )
             .ignoresSafeArea()
         } else if let error = state.error {
-            retryView(error: error)
+            retryView(error: error, isExpired: state.isExpired)
         } else {
             ProgressView()
                 .tint(.white)
@@ -55,19 +56,32 @@ struct GalleryPageView: View {
         }
     }
 
-    private func retryView(error: String) -> some View {
+    private func retryView(error: String, isExpired: Bool) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: isExpired ? "clock.badge.xmark" : "exclamationmark.triangle.fill")
                 .font(.system(size: 32))
-                .foregroundColor(.yellow)
+                .foregroundColor(isExpired ? .white.opacity(0.8) : .yellow)
 
+            if isExpired {
+                Text("Media expired")
+                    .font(SanchrTypography.bodyBold)
+                    .foregroundColor(.white)
+                Text("Ask them to send it again.")
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            } else {
             Text(error)
                 .font(.footnote)
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            }
 
-            if #available(iOS 26.0, *) {
+            if isExpired {
+                EmptyView()
+            } else if #available(iOS 26.0, *) {
                 Button("Retry") {
                     loader.retry(item)
                 }
