@@ -90,6 +90,17 @@ struct OnboardingAvatarStepView: View {
                 .foregroundColor(SanchrExportColors.textSecondary)
                 .padding(.top, 14)
 
+            if selectedImage != nil {
+                Button("Remove photo") {
+                    viewModel.selectedImage = nil
+                    selectedPhotoItem = nil
+                    viewModel.errorMessage = nil
+                }
+                .font(SanchrTypography.caption)
+                .foregroundColor(.sanchrError)
+                .padding(.top, 6)
+            }
+
             Spacer()
 
             VStack(spacing: 18) {
