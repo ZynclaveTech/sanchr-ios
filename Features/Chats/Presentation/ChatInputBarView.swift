@@ -149,6 +149,7 @@ struct ChatInputBarView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .padding(.bottom, Self.sideControlBottomInset)
                 // Icon-only, so the symbol name is all VoiceOver had.
                 .accessibilityLabel(activeTray != nil ? "Close" : "Attachments")
                 .accessibilityHint(
@@ -163,6 +164,7 @@ struct ChatInputBarView: View {
 
                 // Right button: mic (empty) or send (has text)
                 trailingControl
+                    .padding(.bottom, Self.sideControlBottomInset)
             }
             .animation(.easeInOut(duration: 0.2), value: hasInput)
         }
@@ -319,6 +321,14 @@ struct ChatInputBarView: View {
     /// at a number — the font's line height, then the rendered glyph's — each
     /// left a point of shrink, because what has to match is what SwiftUI lays
     /// out, not what the metrics say.
+    /// The row is bottom-aligned so the controls stay with the last line
+    /// when the field grows. A single line of the field is 41.5pt — the
+    /// 21.5pt row spacer plus 10pt of padding each side — against 36pt
+    /// controls, so flush bottoms left the plus and the mic sitting 2.75pt
+    /// low of the field's centre. This lifts them onto it; with more lines
+    /// they still hug the last one.
+    static let sideControlBottomInset: CGFloat = 2.75
+
     static var composerRowSpacer: some View {
         Image(systemName: "face.smiling")
             .font(.system(size: 18, weight: .medium))
