@@ -26,6 +26,12 @@ final class ProfileViewModel {
     private var originalStatusText: String = ""
     private var originalAvatarURL: String = ""
 
+    /// Saving an empty name is not a no-op: the root view treats a nameless
+    /// session as unfinished onboarding and sends the user back through it.
+    var hasDisplayName: Bool {
+        !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var hasChanges: Bool {
         displayName != originalDisplayName || statusText != originalStatusText
             || avatarURL != originalAvatarURL
@@ -60,6 +66,12 @@ final class ProfileViewModel {
         profileCrypto: ProfileCryptoProtocol,
         sessionService: SessionService
     ) async {
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Enter a display name."
+            return
+        }
+
         isSaving = true
         defer { isSaving = false }
 
@@ -71,7 +83,7 @@ final class ProfileViewModel {
 
         do {
             let response = try await useCase.execute(
-                name: displayName,
+                name: trimmedName,
                 avatarURL: avatarURL,
                 status: statusText
             )

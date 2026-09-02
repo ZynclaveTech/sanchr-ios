@@ -207,7 +207,7 @@ struct ProfileView: View {
                             Spacer()
                         }
                     }
-                    .disabled(!viewModel.hasChanges || viewModel.isSaving)
+                    .disabled(!viewModel.hasChanges || viewModel.isSaving || !viewModel.hasDisplayName)
                     .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
 
                     // Cancel button

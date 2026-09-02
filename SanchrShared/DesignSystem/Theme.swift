@@ -27,7 +27,9 @@ public final class SanchrTheme: @unchecked Sendable {
         }
     }
 
-    public var mode: Mode = .light
+    /// Follows the device until the user chooses. A forced light default
+    /// meant every dark-mode user got a white app on first launch.
+    public var mode: Mode = .system
 
     public init() {}
 

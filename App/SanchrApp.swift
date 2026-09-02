@@ -24,7 +24,7 @@ struct SanchrApp: App {
     @State private var appRouter = AppRouter()
     @State private var sanchrTheme = SanchrTheme()
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
+    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.system.rawValue
     @State private var cancellables = Set<AnyCancellable>()
     /// Owned at App level so it survives background/foreground cycles
     /// and SwiftUI view-tree reconciliation without resetting to true.
