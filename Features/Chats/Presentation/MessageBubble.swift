@@ -5,6 +5,14 @@ import SanchrShared
 // Extracted from ChatDetailView.swift on 2026-04-20 as part of god-file refactor.
 
 struct MessageBubble: View {
+    @Environment(\.messageAvailableWidth) private var availableWidth
+
+    /// The host (the message collection view) publishes its width; the
+    /// screen is only a fallback for previews and tests.
+    private var bubbleMaxWidth: CGFloat {
+        (availableWidth ?? UIScreen.main.bounds.width) * SanchrSpacing.messageMaxWidthFraction
+    }
+
     let message: Message
     /// What this message is answering, when the target is still in the
     /// transcript. Resolved by the collection controller — the bubble has no
@@ -144,7 +152,7 @@ struct MessageBubble: View {
                             .padding(.horizontal, 4)
                     }
                 }
-                .frame(maxWidth: UIScreen.main.bounds.width * SanchrSpacing.messageMaxWidthFraction, alignment: message.isOutgoing ? .trailing : .leading)
+                .frame(maxWidth: bubbleMaxWidth, alignment: message.isOutgoing ? .trailing : .leading)
 
                 if !message.isOutgoing { Spacer(minLength: 0) }
             }
