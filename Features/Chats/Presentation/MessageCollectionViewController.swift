@@ -567,7 +567,7 @@ final class MessageCollectionViewController: UIViewController {
                         .frame(height: 28)
                         .background(SanchrExportColors.surface)
                         .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
+                        .sanchrShadow(0.04, radius: 3, y: 1)
                         .overlay {
                             Capsule()
                                 .stroke(SanchrExportColors.line, lineWidth: 1)

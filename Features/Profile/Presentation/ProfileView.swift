@@ -404,6 +404,7 @@ struct ProfileView: View {
                             .background(Color.sanchrPrimary.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.button))
                     }
+                    .accessibilityLabel("Save QR code")
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, SanchrSpacing.xl)

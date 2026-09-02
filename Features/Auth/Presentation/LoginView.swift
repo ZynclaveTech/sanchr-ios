@@ -154,7 +154,7 @@ struct LoginView: View {
                         lineWidth: 1.2
                     )
             }
-            .shadow(color: Color.black.opacity(0.04), radius: 18, x: 0, y: 10)
+            .sanchrShadow(0.04, radius: 18, y: 10)
 
             Spacer()
                 .frame(height: 14)

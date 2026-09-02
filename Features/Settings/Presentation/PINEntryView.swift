@@ -39,6 +39,7 @@ struct PINEntryView: View {
                             .foregroundColor(SanchrExportColors.textPrimary)
                             .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("Back")
                     Spacer()
                 }
                 .padding(.horizontal, 8)
@@ -117,6 +118,7 @@ struct PINEntryView: View {
                 deleteLastDigit()
             } label: {
                 Image(systemName: "delete.left")
+                    .accessibilityLabel("Delete last digit")
                     .font(.system(size: 22, weight: .medium))
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(width: keySize, height: keySize)

@@ -6,6 +6,7 @@ import SanchrShared
 
 struct MessageBubble: View {
     @Environment(\.messageAvailableWidth) private var availableWidth
+    @Environment(\.colorScheme) private var colorScheme
 
     /// The host (the message collection view) publishes its width; the
     /// screen is only a fallback for previews and tests.
@@ -67,19 +68,19 @@ struct MessageBubble: View {
                 HStack(spacing: 6) {
                     Image(systemName: "shield.fill")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(SanchrColors.securityEventIcon)
+                        .foregroundColor(colorScheme == .dark ? SanchrColors.securityEventIconDark : SanchrColors.securityEventIcon)
                     Text(systemEventLabel(event))
                         .font(SanchrTypography.captionSmall)
                         .fontWeight(.medium)
-                        .foregroundColor(SanchrColors.securityEventText)
+                        .foregroundColor(colorScheme == .dark ? SanchrColors.securityEventTextDark : SanchrColors.securityEventText)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
-                .background(SanchrColors.securityEventBg)
+                .background(colorScheme == .dark ? SanchrColors.securityEventBgDark : SanchrColors.securityEventBg)
                 .clipShape(Capsule())
                 .overlay {
                     Capsule()
-                        .stroke(SanchrColors.securityEventBorder, lineWidth: 1)
+                        .stroke(colorScheme == .dark ? SanchrColors.securityEventBorderDark : SanchrColors.securityEventBorder, lineWidth: 1)
                 }
                 Spacer()
             }

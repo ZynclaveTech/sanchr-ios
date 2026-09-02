@@ -170,7 +170,7 @@ struct ChatInputBarView: View {
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(SanchrExportColors.background.ignoresSafeArea(edges: .bottom))
-        .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
+        .sanchrShadow(0.04, radius: 10, y: -4)
         .onChange(of: input.inputText) { oldValue, newValue in
             if let body = EnterToSend.submission(
                 previous: oldValue,

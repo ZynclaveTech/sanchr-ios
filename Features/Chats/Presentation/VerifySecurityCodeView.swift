@@ -258,7 +258,7 @@ struct VerifySecurityCodeView: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(colorScheme == .dark ? Color(hex: 0x24243A) : Color.white)
                         .frame(width: 220, height: 220)
-                        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+                        .sanchrShadow(0.08, radius: 12, y: 4)
                         .overlay {
                             if let qrImage {
                                 let img = Image(uiImage: qrImage)
@@ -370,7 +370,7 @@ struct VerifySecurityCodeView: View {
                                     .clipShape(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     )
-                                    .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+                                    .sanchrShadow(0.06, radius: 4, y: 2)
                             }
                         }
                     }
@@ -533,7 +533,7 @@ struct VerifySecurityCodeView: View {
         }
         .background(
             SanchrExportColors.background
-                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -4)
+                .sanchrShadow(0.06, radius: 8, y: -4)
                 .ignoresSafeArea(edges: .bottom)
         )
     }

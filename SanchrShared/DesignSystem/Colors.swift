@@ -103,11 +103,17 @@ public enum SanchrColors {
     /// Received bubble border — gray-100
     public static let receivedBubbleBorderLight = Color(hex: 0xF3F4F6)
     public static let receivedBubbleBorderDark = Color(hex: 0x2D2D3F)
-    /// Security event amber colors
+    /// Security event amber colors. The light set is cream on amber; on a
+    /// dark surface that cream pill glowed and the brown text vanished, so
+    /// the dark set inverts to amber text on a deep amber-tinted ground.
     public static let securityEventBg = Color(hex: 0xFFFBEB)
     public static let securityEventBorder = Color(hex: 0xFDE68A)
     public static let securityEventText = Color(hex: 0xB45309)
     public static let securityEventIcon = Color(hex: 0xD97706)
+    public static let securityEventBgDark = Color(hex: 0x2A2410)
+    public static let securityEventBorderDark = Color(hex: 0x5C4A12)
+    public static let securityEventTextDark = Color(hex: 0xFCD34D)
+    public static let securityEventIconDark = Color(hex: 0xFBBF24)
 }
 
 // MARK: - Color Extension

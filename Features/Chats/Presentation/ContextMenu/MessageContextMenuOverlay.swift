@@ -142,7 +142,7 @@ struct MessageContextMenuOverlay: View {
         .padding(.vertical, 6)
         .background(.regularMaterial, in: Capsule())
         .overlay { Capsule().strokeBorder(Color.white.opacity(0.08)) }
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .sanchrShadow(0.18, radius: 12, y: 4)
         // The bar is wider than a short message; let it overhang rather than
         // squeezing the emoji.
         .fixedSize()
