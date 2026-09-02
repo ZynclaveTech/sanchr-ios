@@ -305,6 +305,12 @@ final class MessageCollectionViewController: UIViewController {
     private var lastAppliedUploadsVersion: UInt64?
     private var lastHandledScrollCommand: TranscriptScrollCommand?
     private var pendingScrollCommand: TranscriptScrollCommand?
+
+    /// An animated scroll to the newest message is in flight. Rows above
+    /// the viewport are self-sizing and still estimated, so the content
+    /// height keeps changing while it runs; the animation's end is where
+    /// the real bottom is finally known.
+    private var isAnimatingToBottom = false
     private var pendingInitialBottomPresentation = false
     private var lastMessageIDs: [String] = []
     private var hasAppliedFirstPopulatedSnapshot = false
@@ -870,12 +876,42 @@ final class MessageCollectionViewController: UIViewController {
 
     func scrollToBottom(animated: Bool) {
         pendingInitialBottomPresentation = false
-        wasAtBottom = true
         collectionView.alpha = 1
-        collectionView.setContentOffset(
-            CGPoint(x: 0, y: maxContentOffsetY),
-            animated: animated
-        )
+
+        // An animated setContentOffset aims at maxContentOffsetY as it is
+        // *now* — computed from estimated heights for every row not yet
+        // laid out. In a long transcript it landed short of the newest
+        // message, the row stayed off the bottom, and the jump button never
+        // went away. Scrolling to the item lets UIKit re-aim as heights
+        // resolve; the end of the animation squares up the last few points.
+        guard animated, let lastIndexPath = lastIndexPath else {
+            wasAtBottom = true
+            collectionView.setContentOffset(
+                CGPoint(x: 0, y: maxContentOffsetY),
+                animated: animated
+            )
+            return
+        }
+        isAnimatingToBottom = true
+        collectionView.scrollToItem(at: lastIndexPath, at: .bottom, animated: true)
+    }
+
+    private var lastIndexPath: IndexPath? {
+        guard let last = dataSource.snapshot().itemIdentifiers.last else { return nil }
+        return dataSource.indexPath(for: last)
+    }
+
+    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        guard isAnimatingToBottom else { return }
+        isAnimatingToBottom = false
+        collectionView.layoutIfNeeded()
+        scrollToBottomImmediate()
+        if !wasAtBottom {
+            wasAtBottom = true
+            onScrolledToBottom?(true)
+        }
+        pendingNewMessageCount = 0
+        onNewMessageCountWhileScrolled?(0)
     }
 
     private func beginInitialBottomAnchorMaintenance() {
