@@ -349,7 +349,7 @@ final class VaultViewModel {
                 try await photosSaver.save(
                     data: data,
                     mediaType: item.type,
-                    suggestedFilename: item.name.isEmpty ? "vault-item" : item.name
+                    suggestedFilename: VaultSharingCoordinator.safeFileName(for: item)
                 )
                 shareCompletionToast = "Saved to Photos"
             } catch let photosError as PhotosSaverError {
@@ -375,11 +375,34 @@ final class VaultViewModel {
     /// `.exportingToFiles`. The view presents
     /// `UIDocumentPickerViewController(forExporting:)` which takes
     /// ownership of the temp URL (iOS copies on import).
+    /// Where an item is written for export, or nil if the name would escape.
+    ///
+    /// Sanitised through the same function the share path uses, then checked:
+    /// the resolved path must still be inside `directory`. The check is what
+    /// makes this safe against a sanitiser regression rather than only
+    /// against the inputs the sanitiser was written for.
+    nonisolated static func exportURL(for item: VaultItem, in directory: URL) -> URL? {
+        let name = VaultSharingCoordinator.safeFileName(for: item)
+        let url = directory.appendingPathComponent(name).standardizedFileURL
+        let root = directory.standardizedFileURL.path
+        guard url.path.hasPrefix(root + "/") || url.path == root else { return nil }
+        return url
+    }
+
     private func routeToFilesExport(item: VaultItem, data: Data) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("vault-save-\(UUID().uuidString)", isDirectory: true)
-        let filename = item.name.isEmpty ? "vault-item" : item.name
-        let tempURL = tempDir.appendingPathComponent(filename)
+        // The name is chosen by whoever sent the file — an incoming attachment
+        // is auto-vaulted under `attachment.filename`. It used to go straight
+        // into `appendingPathComponent`, so a name containing `../` resolved
+        // outside this directory, and the cleanup afterwards deleted the
+        // parent of wherever it landed. The share path already ran it through
+        // `safeFileName`; the save path did not.
+        guard let tempURL = Self.exportURL(for: item, in: tempDir) else {
+            errorMessage = "Couldn't save that item."
+            SanchrLogger.vault.error("Vault save: refused to write outside the export directory")
+            return
+        }
 
         do {
             try FileManager.default.createDirectory(
@@ -400,7 +423,12 @@ final class VaultViewModel {
     /// deletes the temp file's enclosing directory.
     func didFinishFilesExport(for item: VaultItem, tempURL: URL, success: Bool) {
         let tempDir = tempURL.deletingLastPathComponent()
-        try? FileManager.default.removeItem(at: tempDir)
+        // Only ever delete a directory this flow made. With the traversal
+        // above closed this is belt and braces, but a cleanup that removes
+        // whatever directory it is handed is the wrong shape to keep around.
+        if tempDir.lastPathComponent.hasPrefix("vault-save-") {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         if success {
             shareCompletionToast = "Saved"
         }
