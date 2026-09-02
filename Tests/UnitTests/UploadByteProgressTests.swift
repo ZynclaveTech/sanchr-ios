@@ -44,6 +44,19 @@ final class UploadByteProgressTests: XCTestCase {
         XCTAssertFalse(manager.contains("reports the terminal 0/1 progress points"), "stale comment")
     }
 
+    /// A ring stayed on the bubble after the upload cleared: the reconfigure
+    /// pass only revisited cells with an *active* upload, so the one that had
+    /// just finished was never repainted. Seen in an on-screen render of the
+    /// real transcript, not inferred.
+    func testAFinishedUploadIsReconfiguredOnceMoreToRemoveItsRing() throws {
+        let controller = try source("Features/Chats/Presentation/MessageCollectionViewController.swift")
+        let fn = try XCTUnwrap(controller.range(of: "private func reconfigureUploadItems(uploads: UploadProgressStore) {"))
+        let body = String(controller[fn.upperBound...].prefix(1400))
+        XCTAssertTrue(body.contains("let affectedIds = activeIds.union(uploadIdsRenderedLastPass)"))
+        XCTAssertTrue(body.contains("affectedIds.contains(item.message.id)"), "cells are matched against finished uploads too")
+        XCTAssertFalse(body.contains("guard !activeIds.isEmpty else { return }"), "an empty active set must still clear the last ring")
+    }
+
     func testEveryOutgoingAttachmentKindShowsTheRing() throws {
         XCTAssertTrue(try source("Features/Chats/Presentation/MediaBubbleImage.swift").contains("UploadRing(progress: progress)"))
         let bubble = try source("Features/Chats/Presentation/MessageBubble.swift")

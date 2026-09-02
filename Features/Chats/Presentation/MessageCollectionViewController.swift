@@ -399,6 +399,7 @@ final class MessageCollectionViewController: UIViewController {
             // A full snapshot apply already pulls the freshest upload state
             // through the store, so sync the uploads watermark here too.
             lastAppliedUploadsVersion = renderInput.uploadsVersion
+            uploadIdsRenderedLastPass = renderInput.uploads.activeUploadIds
             didApplySnapshot = true
             applySnapshot(
                 sections: renderInput.sections,
@@ -771,11 +772,20 @@ final class MessageCollectionViewController: UIViewController {
     // touched, so the diff engine never runs, no animations fire, and
     // invisible cells (which aren't rendered anyway) pick up fresh state
     // when they're next dequeued or on the next full snapshot apply.
+    /// Upload ids that had a ring painted by the previous reconfigure pass.
+    private var uploadIdsRenderedLastPass: Set<String> = []
+
     private func reconfigureUploadItems(uploads: UploadProgressStore) {
         guard dataSource != nil else { return }
 
         let activeIds = uploads.activeUploadIds
-        guard !activeIds.isEmpty else { return }
+        // A cell whose upload just finished (or was cleared after a failure)
+        // is no longer active, but it is still showing a ring: it must be
+        // reconfigured once more to take it off. Only reconfiguring active
+        // ids left the last progress value frozen on the bubble.
+        let affectedIds = activeIds.union(uploadIdsRenderedLastPass)
+        uploadIdsRenderedLastPass = activeIds
+        guard !affectedIds.isEmpty else { return }
 
         let visibleIndexPaths = collectionView.indexPathsForVisibleItems
         guard !visibleIndexPaths.isEmpty else { return }
@@ -783,7 +793,7 @@ final class MessageCollectionViewController: UIViewController {
         for indexPath in visibleIndexPaths {
             guard let item = dataSource.itemIdentifier(for: indexPath),
                   !item.isUnreadDivider,
-                  activeIds.contains(item.message.id),
+                  affectedIds.contains(item.message.id),
                   let cell = collectionView.cellForItem(at: indexPath) else { continue }
 
             let refreshed = MessageItem(
