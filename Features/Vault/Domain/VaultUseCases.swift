@@ -47,10 +47,23 @@ enum VaultUseCases {
         ) async throws -> Result {
             let response = try await vaultDataSource.getVaultItems(limit: limit, cursor: cursor)
             var items: [VaultItem] = []
+            var undecryptable = 0
             for protoItem in response.items {
-                if let item = try await decryptToItem(protoItem) {
-                    items.append(item)
+                // One row that fails to decrypt — a key rotated away, a
+                // corrupt metadata blob — used to throw the whole page and
+                // empty the vault. Skip it and keep the rest.
+                do {
+                    if let item = try await decryptToItem(protoItem) {
+                        items.append(item)
+                    }
+                } catch {
+                    undecryptable += 1
+                    SanchrLogger.vault.error(
+                        "Skipping vault item \(protoItem.vaultItemID.prefix(8)): \(error.localizedDescription)")
                 }
+            }
+            if undecryptable > 0 {
+                SanchrLogger.vault.warning("\(undecryptable) vault item(s) could not be decrypted")
             }
             return Result(items: items, nextCursor: response.nextCursor)
         }
