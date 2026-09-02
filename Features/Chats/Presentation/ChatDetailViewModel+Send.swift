@@ -83,6 +83,58 @@ extension ChatDetailViewModel {
         }
     }
 
+    // MARK: - Contact / Location Send
+
+    /// Sends a message the sender builds entirely from its arguments — a
+    /// contact card or a location — with the same optimistic transcript
+    /// handling as text.
+    ///
+    /// These two used to call the sender and stop. The sender writes its own
+    /// database row, so the message was there on the next open, but nothing
+    /// put it in the transcript on screen: the user sent a contact and saw
+    /// nothing happen.
+    private func sendInlineMessage(
+        content: Message.MessageContent,
+        context: AttachmentSendContext,
+        send: (String?) async throws -> MessageSendReceipt
+    ) async {
+        let replyToMessageId = replyingToMessage?.id
+        clearReply()
+
+        let optimisticMessage = Message(
+            id: UUID().uuidString,
+            conversationId: context.conversationId,
+            senderId: context.sessionService.currentUserId ?? "unknown",
+            timestamp: Date(),
+            content: content,
+            status: .sending,
+            isOutgoing: true,
+            replyToMessageId: replyToMessageId
+        )
+        messages.append(optimisticMessage)
+        appendMessageToSections(optimisticMessage)
+
+        do {
+            let receipt = try await send(replyToMessageId)
+            let confirmed = Message(
+                id: receipt.messageId,
+                conversationId: context.conversationId,
+                senderId: optimisticMessage.senderId,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(receipt.serverTimestampMs) / 1000.0),
+                content: content,
+                status: .sent,
+                isOutgoing: true,
+                replyToMessageId: replyToMessageId
+            )
+            replaceMessage(id: optimisticMessage.id, with: confirmed)
+        } catch {
+            // The bubble turns to Failed with its own retry; a banner would
+            // report the same failure twice.
+            updateMessage(id: optimisticMessage.id) { $0.status = .failed }
+            SanchrLogger.chat.error("Inline send failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Media Send
 
     /// Sends a media attachment (with optional caption) via the shared
@@ -586,27 +638,30 @@ extension ChatDetailViewModel {
             )
 
         case .contact(let stripped):
-            do {
-                _ = try await context.messageSender.sendContact(
+            let phoneNumber = stripped.phoneNumbers.first ?? ""
+            await sendInlineMessage(
+                content: .contact(name: stripped.displayName, phoneNumber: phoneNumber),
+                context: context
+            ) { replyToMessageId in
+                try await context.messageSender.sendContact(
                     name: stripped.displayName,
-                    phoneNumber: stripped.phoneNumbers.first ?? "",
-                    to: context.conversationId
+                    phoneNumber: phoneNumber,
+                    to: context.conversationId,
+                    replyToMessageId: replyToMessageId
                 )
-            } catch {
-                SanchrLogger.chat.error("Contact send failed: \(error.localizedDescription)")
-                errorMessage = error.localizedDescription
             }
 
         case .location(let payload):
-            do {
-                _ = try await context.messageSender.sendLocation(
+            await sendInlineMessage(
+                content: .location(latitude: payload.latitude, longitude: payload.longitude),
+                context: context
+            ) { replyToMessageId in
+                try await context.messageSender.sendLocation(
                     latitude: payload.latitude,
                     longitude: payload.longitude,
-                    to: context.conversationId
+                    to: context.conversationId,
+                    replyToMessageId: replyToMessageId
                 )
-            } catch {
-                SanchrLogger.chat.error("Location send failed: \(error.localizedDescription)")
-                errorMessage = error.localizedDescription
             }
 
         case .vaultItem(let item):
