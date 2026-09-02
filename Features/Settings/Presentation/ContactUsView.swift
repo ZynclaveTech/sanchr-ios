@@ -116,7 +116,7 @@ struct ContactUsView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
 
                 TextEditor(text: $message)
-                    .font(UIFont(name: "Afacad", size: 16) == nil ? .body : .custom("Afacad", size: 16))
+                    .font(SanchrTypography.body)
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(minHeight: 150)
                     .padding(12)
