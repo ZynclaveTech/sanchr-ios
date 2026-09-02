@@ -17,6 +17,13 @@ final class AppLockManager: @unchecked Sendable {
     /// Whether screenshot protection is currently active.
     private(set) var isScreenshotProtectionActive: Bool = false
 
+    /// A prompt is on screen. The lock screen disables its button meanwhile.
+    private(set) var isAuthenticating: Bool = false
+
+    /// Why the last prompt did not unlock, for the lock screen to show. Nil
+    /// when the user simply cancelled — that needs no explanation.
+    private(set) var authError: String?
+
     /// Timestamp when the app last entered the background.
     private var backgroundedAt: Date?
 
@@ -134,7 +141,11 @@ final class AppLockManager: @unchecked Sendable {
             return
         }
 
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+        authError = nil
         Task {
+            defer { isAuthenticating = false }
             do {
                 let success = try await context.evaluatePolicy(
                     .deviceOwnerAuthenticationWithBiometrics,
@@ -143,10 +154,13 @@ final class AppLockManager: @unchecked Sendable {
                 if success {
                     isLocked = false
                     backgroundedAt = nil
+                } else {
+                    authError = "Couldn't unlock. Try again."
                 }
             } catch {
                 SanchrLogger.auth.error("Biometric auth failed: \(error.localizedDescription)")
                 // Don't unlock — user stays on lock screen
+                authError = LockScreenView.message(for: error)
             }
         }
     }
@@ -155,7 +169,11 @@ final class AppLockManager: @unchecked Sendable {
     private func authenticateWithPasscode() {
         let context = LAContext()
 
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+        authError = nil
         Task {
+            defer { isAuthenticating = false }
             do {
                 let success = try await context.evaluatePolicy(
                     .deviceOwnerAuthentication,
@@ -164,9 +182,12 @@ final class AppLockManager: @unchecked Sendable {
                 if success {
                     isLocked = false
                     backgroundedAt = nil
+                } else {
+                    authError = "Couldn't unlock. Try again."
                 }
             } catch {
                 SanchrLogger.auth.error("Passcode auth failed: \(error.localizedDescription)")
+                authError = LockScreenView.message(for: error)
             }
         }
     }
