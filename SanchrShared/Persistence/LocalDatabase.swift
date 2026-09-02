@@ -453,7 +453,12 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
 
     public func fetchPendingConversationDeletes() async throws -> [String] {
         try await dbPool.read { db in
-            try PendingConversationDeleteRecord.order(Column("createdAt")).fetchAll(db).map(\.conversationId)
+            // createdAt alone leaves two rows written in the same millisecond
+            // in undefined order; rowid makes the queue strictly first-in.
+            try PendingConversationDeleteRecord
+                .order(Column("createdAt"), Column.rowID)
+                .fetchAll(db)
+                .map(\.conversationId)
         }
     }
 
