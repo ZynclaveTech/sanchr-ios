@@ -83,10 +83,10 @@ struct MediaBubbleImage: View {
 
     @State private var placeholderImage: UIImage?
     @State private var isDownloading = false
-    @State private var loadFailed = false
+    @State private var loadFailure: MediaLoadFailure?
     @State private var retryTick: Int = 0
     /// Set when the auto-download settings say this attachment must not be
-    /// fetched on the current network. Distinct from `loadFailed`: nothing has
+    /// fetched on the current network. Distinct from `loadFailure`: nothing has
     /// gone wrong, we are simply waiting for the user to ask.
     @State private var deferredByPolicy = false
     /// A tap on the placeholder overrides the policy for this bubble only.
@@ -169,8 +169,22 @@ struct MediaBubbleImage: View {
     private enum MediaLoadOutcome {
         case image(UIImage)
         case deferred
-        case failed
+        case failed(MediaLoadFailure)
     }
+
+    /// Why a load did not produce an image. Only a transient failure gets a
+    /// retry: expired media is gone for good, and the honest thing to say
+    /// is so, the way WhatsApp does, rather than offering a retry that can
+    /// only fail again.
+    enum MediaLoadFailure: Equatable {
+        case transient
+        case expired
+    }
+
+    /// Message ids whose media the server or this device no longer has.
+    /// Kept for the process so scrolling back past an expired bubble does
+    /// not fetch it again just to be told the same thing.
+    @MainActor private static var expiredMessageIds: Set<String> = []
 
     /// Whether the auto-download settings permit fetching this attachment on
     /// the connection we are on right now. Outgoing media is ours and already
@@ -243,7 +257,23 @@ struct MediaBubbleImage: View {
                             }
                             .accessibilityLabel("Media not downloaded. Tap to download.")
                             .accessibilityAddTraits(.isButton)
-                        } else if loadFailed {
+                        } else if loadFailure == .expired {
+                            VStack(spacing: 4) {
+                                Image(systemName: "clock.badge.xmark")
+                                    .font(.system(size: 26))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.85) : SanchrExportColors.textTertiary)
+                                Text("Media expired")
+                                    .font(SanchrTypography.font(size: .xxs, weight: .semibold))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.9) : SanchrExportColors.textSecondary)
+                                Text(isOutgoing ? "Send it again" : "Ask them to send it again")
+                                    .font(SanchrTypography.font(size: .xxxs, weight: .regular))
+                                    .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
+                            }
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(isOutgoing ? "Media expired. Send it again." : "Media expired. Ask them to send it again.")
+                        } else if loadFailure == .transient {
                             // Tap-to-retry: replaces the silent placeholder that
                             // used to leave receivers stuck when the first
                             // download failed (network blip, expired URL, etc.).
@@ -257,7 +287,7 @@ struct MediaBubbleImage: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                loadFailed = false
+                                loadFailure = nil
                                 retryTick &+= 1
                             }
                             .accessibilityLabel("Media download failed. Tap to retry.")
@@ -278,7 +308,7 @@ struct MediaBubbleImage: View {
     private func loadImages() async {
         // Reset the retry-error state on each attempt; the .task(id:) modifier
         // re-runs this on every retryTick bump so we always restart clean.
-        loadFailed = false
+        loadFailure = nil
         deferredByPolicy = false
         if let cached = Self.imageCache.object(forKey: messageId as NSString) {
             resolvedImage = cached
@@ -310,19 +340,22 @@ struct MediaBubbleImage: View {
             resolvedImage = image
         case .deferred:
             deferredByPolicy = true
-        case .failed:
+        case .failed(let failure):
             // Only surface the retry affordance for remote attachments
             // (sanchr-media:// or https://). A missing local file URL on
             // the sender side is expected transiently while the picker
             // temp file is being copied into the App Group cache — the
             // next body pass picks it up via `cachedMediaFilePath`.
             if !attachment.url.isFileURL {
-                loadFailed = true
+                loadFailure = failure
             }
         }
     }
 
     private func loadResolvedImage() async -> MediaLoadOutcome {
+        if await MainActor.run(body: { Self.expiredMessageIds.contains(messageId) }) {
+            return .failed(.expired)
+        }
         let scale = await MainActor.run { UIScreen.main.scale }
         let targetSize = displaySize
 
@@ -354,9 +387,13 @@ struct MediaBubbleImage: View {
                 try? await SaveToPhotos.save(fileURL: url, kind: kind)
             }
             return await Self.downsampledOutcome(at: url, to: targetSize, scale: scale)
+        } catch let error as AppError where error == .mediaExpired {
+            SanchrLogger.media.info("Media \(messageId.prefix(8)) has expired")
+            Self.expiredMessageIds.insert(messageId)
+            return .failed(.expired)
         } catch {
             SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
-            return .failed
+            return .failed(.transient)
         }
     }
 
@@ -368,7 +405,7 @@ struct MediaBubbleImage: View {
         let image = await Task.detached(priority: .utility) {
             BubbleImagePipeline.downsampleImage(at: url, to: targetSize, scale: scale)
         }.value
-        return image.map { .image($0) } ?? .failed
+        return image.map { .image($0) } ?? .failed(.transient)
     }
 
     private func loadResolvedVideoThumbnail(
@@ -399,17 +436,17 @@ struct MediaBubbleImage: View {
                 }
             } catch {
                 SanchrLogger.media.error("Media download failed: \(error.localizedDescription)")
-                return .failed
+                return .failed(.transient)
             }
         }
 
-        guard let cachedVideoURL else { return .failed }
+        guard let cachedVideoURL else { return .failed(.transient) }
         let thumb = await generateAndCacheThumb(
             from: cachedVideoURL,
             scale: scale,
             targetSize: targetSize
         )
-        return thumb.map { .image($0) } ?? .failed
+        return thumb.map { .image($0) } ?? .failed(.transient)
     }
 
     private func localImageCandidateURL() -> URL? {

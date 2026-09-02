@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 import SanchrShared
 
 /// Manages downloading, decrypting, and caching received media.
@@ -170,9 +171,16 @@ actor MediaDownloadManager {
 
             var request = Sanchr_Media_GetDownloadUrlRequest()
             request.mediaID = mediaId
-            let response = try await grpcClient.mediaService.getDownloadUrl(request)
+            let presignedURL: String
+            do {
+                presignedURL = try await grpcClient.mediaService.getDownloadUrl(request).url
+            } catch let status as GRPCStatus where status.code == .notFound {
+                // The server has already reaped the object. Nothing to retry.
+                SanchrLogger.media.info("Media \(mediaId.prefix(8)) is gone from the server")
+                throw AppError.mediaExpired
+            }
 
-            guard let url = URL(string: response.url) else {
+            guard let url = URL(string: presignedURL) else {
                 SanchrLogger.media.error("Invalid download URL from server")
                 throw AppError.mediaDownloadFailed
             }
@@ -198,6 +206,12 @@ actor MediaDownloadManager {
               (200...299).contains(httpResponse.statusCode) else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             SanchrLogger.media.error("Download failed: HTTP \(status)")
+            // The storage answered and said no: the object is gone or the
+            // presigned URL will never be honoured. A retry would get the
+            // same answer.
+            if [403, 404, 410].contains(status) {
+                throw AppError.mediaExpired
+            }
             throw AppError.mediaDownloadFailed
         }
         SanchrLogger.media.info("Downloaded \(encryptedData.count) bytes, decrypting...")
@@ -224,10 +238,13 @@ actor MediaDownloadManager {
             let iv = attachment.encryptionIV
             plaintext = try await vaultEKFScheduler.withAccess { () -> Data in
                 guard let accessKey = try await store.getAndTouch(mediaId: mediaId) else {
+                    // The AccessK was purged by the 30-day sliding TTL (or
+                    // never stored). The ciphertext is unreadable on this
+                    // device for good.
                     SanchrLogger.media.error(
                         "No AccessK available for re-access of \(mediaId.prefix(8))"
                     )
-                    throw AppError.mediaDownloadFailed
+                    throw AppError.mediaExpired
                 }
                 SanchrLogger.media.info(
                     "Using AccessK for re-access of \(mediaId.prefix(8))"
