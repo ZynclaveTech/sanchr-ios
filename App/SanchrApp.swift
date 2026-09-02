@@ -555,13 +555,20 @@ struct RootView: View {
         "sanchr.restoreOfferHandled.\(userId)"
     }
 
-    /// Refreshes the session token before showing the main UI.
-    /// Ensures all subsequent API calls have a valid token.
-    /// Also configures the Signal Protocol store with the authenticated user's ID.
+    /// Gets the session to the point where the main UI can show, and no
+    /// further.
+    ///
+    /// This used to also check the Signal key bundle with the server, upload
+    /// the VoIP token, fetch settings and fetch the block list — five or six
+    /// sequential round trips — before `sessionReady` flipped, so the chats
+    /// list could not draw even its cached rows until the network had
+    /// answered every one of them. Only two things actually gate the UI: a
+    /// token that is about to expire (a no-op otherwise), and, after a
+    /// reinstall, the profile restore that decides whether onboarding is
+    /// needed. Everything else runs in `warmSessionInBackground`.
     private func refreshSessionToken() async {
-        // Always attempt a proactive refresh if the token is expired or within 5 minutes of
-        // expiry. This prevents the app opening with a near-expired token that will fail
-        // mid-session. `refreshTokenIfExpiringSoon` is a no-op when the token has >5 min left.
+        // `refreshTokenIfExpiringSoon` only touches the network when the
+        // token has under five minutes left; the common launch is local.
         do {
             try await container.sessionService.refreshTokenIfExpiringSoon()
             SanchrLogger.auth.info("Session token validated/refreshed, showing main UI")
@@ -574,6 +581,54 @@ struct RootView: View {
         if let userId = container.sessionService.currentUserId {
             container.configureSignalStore(userId: userId)
         }
+
+        if container.sessionService.isAuthenticated {
+            // Restore the profile after a reinstall. The Profile Key comes back
+            // via iCloud Keychain, but the local name/snapshot does not, so the
+            // session has no display name and RootView would send the user back
+            // through onboarding. Recover the name (and avatar) by decrypting the
+            // encrypted server copy with the restored key, before that decision.
+            // This is the one network step worth waiting for, and only then.
+            let localName = container.sessionService.currentDisplayName ?? ""
+            if container.profileKeyStore.hasOwnProfileKey(),
+                localName.isEmpty || localName == User.serverPlaceholderDisplayName,
+                let restored = await container.messageRepository.resolveOwnProfile()
+            {
+                container.sessionService.updateProfile(
+                    displayName: restored.displayName,
+                    avatarURL: restored.avatarURL?.absoluteString
+                )
+            }
+
+            // Authenticating latches activeOnboardingFlow on while the name is
+            // still unknown; once the profile is complete — whether restored just
+            // now or already present in the session snapshot — the user is fully
+            // onboarded, so clear the latch or RootView keeps routing them to the
+            // name step. A genuinely new user has no complete profile here, so this
+            // leaves their onboarding intact.
+            if hasCompletedProfileBasics {
+                activeOnboardingFlow = false
+            }
+        } else {
+            container.realtimeService.stop()
+        }
+
+        sessionReady = true
+
+        if container.sessionService.isAuthenticated {
+            Task { await warmSessionInBackground() }
+        }
+    }
+
+    /// The launch work that needs the network but not the user's attention.
+    /// Runs after the main UI is up; each step tolerates failure on its own.
+    private func warmSessionInBackground() async {
+        container.realtimeService.enterForeground()
+
+        // Now that the session is confirmed valid, upload any VoIP push token that
+        // arrived before auth was established (deferred to avoid UNAUTHENTICATED
+        // triggering a forceRefreshToken() → session-wipe cascade on early launch).
+        container.pushManager.uploadPendingVoIPTokenIfNeeded()
 
         // Ensure Signal Protocol identity keys exist and key bundle is uploaded
         do {
@@ -603,72 +658,33 @@ struct RootView: View {
             SanchrLogger.crypto.warning("Signal key setup failed on startup: \(error.localizedDescription)")
         }
 
-        if container.sessionService.isAuthenticated {
-            container.realtimeService.enterForeground()
-
-            // Now that the session is confirmed valid, upload any VoIP push token that
-            // arrived before auth was established (deferred to avoid UNAUTHENTICATED
-            // triggering a forceRefreshToken() → session-wipe cascade on early launch).
-            container.pushManager.uploadPendingVoIPTokenIfNeeded()
-
-            // Warm the privacy cache so enforcement is ready before the first message send.
-            do {
-                let settingsDataSource = SettingsDataSource(grpcClient: container.grpcClient)
-                let settings = try await settingsDataSource.getSettings()
-                container.privacySettings.update(from: settings)
-            } catch {
-                SanchrLogger.settings.warning(
-                    "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
-                )
-            }
-
-            // The block list is part of that enforcement and was not being
-            // warmed, so the cache's blocked set was empty for the whole
-            // session and nothing was ever blocked. Fetched separately because
-            // it comes from the contact service, not the settings one.
-            do {
-                let contacts = ContactDataSource(
-                    grpcClient: container.grpcClient,
-                    localDatabase: container.localDatabase
-                )
-                let blocked = try await contacts.getBlockedList()
-                container.privacySettings.update(blockList: Set(blocked))
-            } catch {
-                SanchrLogger.settings.warning(
-                    "Block list warm-up failed on launch: \(error.localizedDescription)"
-                )
-            }
-
-            // Restore the profile after a reinstall. The Profile Key comes back
-            // via iCloud Keychain, but the local name/snapshot does not, so the
-            // session has no display name and RootView would send the user back
-            // through onboarding. Recover the name (and avatar) by decrypting the
-            // encrypted server copy with the restored key, before that decision.
-            let localName = container.sessionService.currentDisplayName ?? ""
-            if container.profileKeyStore.hasOwnProfileKey(),
-                localName.isEmpty || localName == User.serverPlaceholderDisplayName,
-                let restored = await container.messageRepository.resolveOwnProfile()
-            {
-                container.sessionService.updateProfile(
-                    displayName: restored.displayName,
-                    avatarURL: restored.avatarURL?.absoluteString
-                )
-            }
-
-            // Authenticating latches activeOnboardingFlow on while the name is
-            // still unknown; once the profile is complete — whether restored just
-            // now or already present in the session snapshot — the user is fully
-            // onboarded, so clear the latch or RootView keeps routing them to the
-            // name step. A genuinely new user has no complete profile here, so this
-            // leaves their onboarding intact.
-            if hasCompletedProfileBasics {
-                activeOnboardingFlow = false
-            }
-        } else {
-            container.realtimeService.stop()
+        // Warm the privacy cache so enforcement is ready before the first message send.
+        do {
+            let settingsDataSource = SettingsDataSource(grpcClient: container.grpcClient)
+            let settings = try await settingsDataSource.getSettings()
+            container.privacySettings.update(from: settings)
+        } catch {
+            SanchrLogger.settings.warning(
+                "Privacy cache warm-up failed on launch: \(error.localizedDescription)"
+            )
         }
 
-        sessionReady = true
+        // The block list is part of that enforcement and was not being
+        // warmed, so the cache's blocked set was empty for the whole
+        // session and nothing was ever blocked. Fetched separately because
+        // it comes from the contact service, not the settings one.
+        do {
+            let contacts = ContactDataSource(
+                grpcClient: container.grpcClient,
+                localDatabase: container.localDatabase
+            )
+            let blocked = try await contacts.getBlockedList()
+            container.privacySettings.update(blockList: Set(blocked))
+        } catch {
+            SanchrLogger.settings.warning(
+                "Block list warm-up failed on launch: \(error.localizedDescription)"
+            )
+        }
     }
 
 }
