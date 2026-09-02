@@ -118,3 +118,25 @@ public enum ChatMediaVisibilityStore {
         AppGroup.userDefaults.set(isVisible, forKey: key(for: conversationId))
     }
 }
+
+/// The App Group defaults keys the app lock is stored under.
+///
+/// Defined once, here, because they are read from two targets. The share
+/// extension used to spell the screen-lock key as `"screenLockEnabled"` while
+/// the app wrote `"sanchr.security.screenLockEnabled"` — so the extension never
+/// saw a lock, its unlock screen could not render, and the share sheet opened
+/// the database and listed every conversation with App Lock on.
+public enum AppLockDefaultsKeys {
+    public static let screenLockEnabled = "sanchr.security.screenLockEnabled"
+    public static let biometricLockEnabled = "sanchr.security.biometricLockEnabled"
+    public static let screenLockTimeout = "sanchr.security.screenLockTimeout"
+    public static let screenshotProtection = "sanchr.security.screenshotProtection"
+
+    /// Whether the app is locked at all: either lock flavour counts. The app's
+    /// Security screen prefers the biometric flag, so an extension that checks
+    /// only the screen-lock flag would still miss the common case.
+    public static var isLockEnabled: Bool {
+        AppGroup.userDefaults.bool(forKey: screenLockEnabled)
+            || AppGroup.userDefaults.bool(forKey: biometricLockEnabled)
+    }
+}
