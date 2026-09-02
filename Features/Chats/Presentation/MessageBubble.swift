@@ -22,6 +22,7 @@ struct MessageBubble: View {
     var uploadProgress: Double?
     var uploadLabel: String?
     var hideTimestamp: Bool = false
+    @Environment(\.transcriptGround) private var ground
     var isGroupedWithPrev: Bool = false
     var isGroupedWithNext: Bool = false
     var voicePlayback: VoicePlaybackController
@@ -507,7 +508,7 @@ struct MessageBubble: View {
         HStack(spacing: 4) {
             Text(message.timestamp.messageTime)
                 .font(SanchrTypography.messageTimestamp)
-                .foregroundColor(SanchrExportColors.textTertiary)
+                .foregroundColor(ground.timestampColor)
 
             if message.isOutgoing {
                 if isDoubleCheck {
@@ -521,13 +522,13 @@ struct MessageBubble: View {
                     .foregroundColor(
                         message.status == .read
                             ? SanchrColors.accent
-                            : SanchrExportColors.textTertiary
+                            : ground.timestampColor
                     )
                     .frame(width: 16)
                 } else {
                     Image(systemName: statusIcon)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(SanchrExportColors.textTertiary)
+                        .foregroundColor(ground.timestampColor)
                 }
             }
         }

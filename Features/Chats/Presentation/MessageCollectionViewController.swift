@@ -276,6 +276,15 @@ final class MessageCollectionViewController: UIViewController {
 
     /// The other party's display name, used to attribute a quoted reply.
     var peerDisplayName: String = ""
+    /// Wallpaper luminance for the on-background chrome. A change repaints
+    /// every row and header; it only happens when the wallpaper changes.
+    var ground: TranscriptGround = .system {
+        didSet {
+            guard oldValue != ground, isViewLoaded else { return }
+            lastRenderedItemSignatures.removeAll()
+            collectionView.reloadData()
+        }
+    }
 
     /// The viewer, so the reaction pill can mark which reaction is theirs.
     var localUserId: String?
@@ -521,6 +530,7 @@ final class MessageCollectionViewController: UIViewController {
                 )
             }
             .environment(\.messageAvailableWidth, self?.hostedWidth)
+            .environment(\.transcriptGround, self?.ground ?? .system)
         }
         .margins(.horizontal, SanchrExportMetrics.sectionHorizontal)
         .margins(.vertical, item.isGroupedWithPrev ? 2 : 6)
@@ -569,15 +579,15 @@ final class MessageCollectionViewController: UIViewController {
                     Text(title)
                         .font(SanchrTypography.captionSmall)
                         .fontWeight(.medium)
-                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .foregroundColor(self.ground.chipText)
                         .padding(.horizontal, 14)
                         .frame(height: 28)
-                        .background(SanchrExportColors.surface)
+                        .background(self.ground.chipBackground)
                         .clipShape(Capsule())
                         .sanchrShadow(0.04, radius: 3, y: 1)
                         .overlay {
                             Capsule()
-                                .stroke(SanchrExportColors.line, lineWidth: 1)
+                                .stroke(self.ground.chipStroke, lineWidth: 1)
                         }
                     Spacer()
                 }

@@ -49,6 +49,9 @@ struct MessageCollectionView: UIViewControllerRepresentable {
     let onBubbleTap: (MessageInteraction) -> Void
     @Binding var isScrolledToBottom: Bool
     @Binding var newMessageCountWhileScrolled: Int
+    /// Cells are UIKit-hosted and do not inherit the SwiftUI environment
+    /// above the representable, so the ground travels explicitly.
+    var ground: TranscriptGround = .system
 
     // MARK: - UIViewControllerRepresentable
 
@@ -113,6 +116,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
         }
 
         vc.firstUnreadMessageId = renderInput.firstUnreadMessageId
+        vc.ground = ground
         vc.update(renderInput: renderInput)
 
         return vc
@@ -166,6 +170,7 @@ struct MessageCollectionView: UIViewControllerRepresentable {
         }
 
         vc.firstUnreadMessageId = renderInput.firstUnreadMessageId
+        vc.ground = ground
         vc.update(renderInput: renderInput)
     }
 }
