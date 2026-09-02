@@ -88,10 +88,13 @@ final class ProfileViewModel {
                 status: statusText
             )
 
-            // Update with server-confirmed plaintext values
-            displayName = response.displayName.isEmpty ? displayName : response.displayName
-            avatarURL   = response.avatarURL.isEmpty   ? avatarURL   : response.avatarURL
-            statusText  = response.statusText.isEmpty  ? statusText  : response.statusText
+            // The reply has nothing to say about these. The request carried
+            // only ciphertext, so the server's copy of the name is its
+            // placeholder ("Sanchr User"); adopting it here wrote that into
+            // the session, the root view stopped seeing a completed profile,
+            // and every edit sent the user back to the onboarding name step.
+            // What the user typed is the truth, as it is in onboarding.
+            _ = response
 
             originalDisplayName = displayName
             originalStatusText  = statusText
