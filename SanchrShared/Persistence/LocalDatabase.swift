@@ -29,6 +29,12 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     /// Queues a delivery ack for the next batch. Defaulted, so stubs that
     /// persist nothing need not care.
     func enqueuePendingMessageAck(_ ack: PendingMessageAck) async throws
+
+    /// A conversation deleted locally whose server-side delete has not
+    /// succeeded yet. Defaulted like the ack queue.
+    func enqueuePendingConversationDelete(conversationId: String) async throws
+    func fetchPendingConversationDeletes() async throws -> [String]
+    func removePendingConversationDelete(conversationId: String) async throws
     func searchMessages(conversationId: String, query: String) async throws -> [Message]
 
     /// Fetch all outgoing messages stuck in `.sending` status, ordered by timestamp ASC.
@@ -115,6 +121,9 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
 /// Thread-safe via GRDB's internal WAL-mode serialization.
 extension LocalDatabaseProtocol {
     public func enqueuePendingMessageAck(_ ack: PendingMessageAck) async throws {}
+    public func enqueuePendingConversationDelete(conversationId: String) async throws {}
+    public func fetchPendingConversationDeletes() async throws -> [String] { [] }
+    public func removePendingConversationDelete(conversationId: String) async throws {}
 }
 
 public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
@@ -429,6 +438,25 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 sql: "UPDATE message SET status = ? WHERE id = ?",
                 arguments: [status.rawValue, id]
             )
+        }
+    }
+
+    public func enqueuePendingConversationDelete(conversationId: String) async throws {
+        try await dbPool.write { db in
+            try PendingConversationDeleteRecord(conversationId: conversationId)
+                .save(db, onConflict: Database.ConflictResolution.replace)
+        }
+    }
+
+    public func fetchPendingConversationDeletes() async throws -> [String] {
+        try await dbPool.read { db in
+            try PendingConversationDeleteRecord.order(Column("createdAt")).fetchAll(db).map(\.conversationId)
+        }
+    }
+
+    public func removePendingConversationDelete(conversationId: String) async throws {
+        try await dbPool.write { db in
+            _ = try PendingConversationDeleteRecord.deleteOne(db, key: conversationId)
         }
     }
 

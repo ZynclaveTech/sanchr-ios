@@ -320,6 +320,20 @@ public struct PendingMessageAckRecord: Codable, FetchableRecord, PersistableReco
     }
 }
 
+// MARK: - Pending Conversation Delete Record
+
+public struct PendingConversationDeleteRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "pendingConversationDelete"
+
+    public var conversationId: String
+    public var createdAt: Date
+
+    public init(conversationId: String, createdAt: Date = Date()) {
+        self.conversationId = conversationId
+        self.createdAt = createdAt
+    }
+}
+
 // MARK: - Vault Item Record
 
 public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
