@@ -76,6 +76,30 @@ final class SettingsViewModel {
     /// Stored reference so all sync paths can update the cache without API churn.
     private var privacySettings: PrivacySettingsCache?
 
+    // MARK: - Server Baseline
+
+    /// The settings as the server last confirmed them. `nil` until a load has
+    /// succeeded.
+    ///
+    /// `UpdateSettings` replaces the whole row, and `buildSettings()` sends
+    /// every field. Without a baseline a failed load left the fields at their
+    /// hardcoded defaults, and the first toggle the user touched pushed all
+    /// of those defaults over their real settings. The baseline is also what
+    /// makes the sync loop-free: a push that would send exactly the baseline
+    /// is skipped, so hydrating the fields (which fires every toggle's
+    /// `onChange`) and reverting them after a failure never echo back to the
+    /// server.
+    private var lastServerSettings: Sanchr_Settings_UserSettings?
+
+    var hasLoadedSettings: Bool { lastServerSettings != nil }
+
+    /// Bumped per push so a slow response cannot overwrite the result of a
+    /// later one.
+    private var pushGeneration = 0
+
+    private static let notLoadedMessage =
+        "Your settings haven't loaded, so this change wasn't saved. Close and reopen this screen to try again."
+
     // MARK: - Debounce
 
     private var syncWorkItem: DispatchWorkItem?
@@ -112,7 +136,7 @@ final class SettingsViewModel {
     /// the rest of the session. Every screen that calls this must
     /// thread the container-scoped cache through.
     func loadSettings(
-        settingsDataSource: SettingsDataSource,
+        settingsDataSource: SettingsDataSourceProtocol,
         privacySettings: PrivacySettingsCache,
         appLockManager: AppLockManager? = nil
     ) async {
@@ -122,6 +146,7 @@ final class SettingsViewModel {
 
         do {
             let settings = try await settingsDataSource.getSettings()
+            lastServerSettings = settings
             applySettings(settings)
             privacySettings.update(from: settings)
             // Sync security prefs to local enforcement
@@ -133,7 +158,10 @@ final class SettingsViewModel {
             )
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            // The fields stay at their defaults but nothing will be pushed
+            // until a load succeeds, so the defaults cannot reach the server.
+            SanchrLogger.network.error("Settings load failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't load your settings. Close and reopen this screen to try again."
         }
     }
 
@@ -161,12 +189,17 @@ final class SettingsViewModel {
     // MARK: - Sync Settings (Debounced)
 
     /// Debounced sync that waits 500ms after the last change before pushing to server.
-    func debouncedSync(settingsDataSource: SettingsDataSource) {
+    func debouncedSync(settingsDataSource: SettingsDataSourceProtocol) {
         // Mirror straight away rather than waiting for the round trip, so
         // enforcement matches the picker the user is looking at even while
         // the sync is still in flight or the network is down.
         mirrorAutoDownloadSettings()
         syncWorkItem?.cancel()
+
+        guard hasLoadedSettings else {
+            errorMessage = Self.notLoadedMessage
+            return
+        }
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
@@ -180,18 +213,42 @@ final class SettingsViewModel {
     }
 
     /// Pushes the current settings state to the server.
-    private func pushSettings(settingsDataSource: SettingsDataSource) async {
+    private func pushSettings(settingsDataSource: SettingsDataSourceProtocol) async {
         let settings = buildSettings()
+        // Nothing the server doesn't already have. This is the echo from
+        // hydration and from a revert, not a user edit.
+        guard settings != lastServerSettings else { return }
+
+        pushGeneration += 1
+        let generation = pushGeneration
 
         do {
             let updated = try await settingsDataSource.updateSettings(settings: settings)
+            guard generation == pushGeneration else { return }
+            lastServerSettings = updated
             applySettings(updated)
             privacySettings?.update(from: updated)
+            errorMessage = nil
             SanchrLogger.network.info("Settings synced to backend")
         } catch {
-            errorMessage = "Failed to save settings. Please try again."
+            guard generation == pushGeneration else { return }
             SanchrLogger.network.error("Settings sync failed: \(error.localizedDescription)")
+            revertToServerState()
+            errorMessage = "Couldn't save that change. Please try again."
         }
+    }
+
+    /// Puts the toggles back to what the server holds after a failed push, so
+    /// the screen never shows a state the privacy gates are not enforcing.
+    ///
+    /// Appearance is the exception: theme, font size and wallpaper take
+    /// effect on this device the moment they are picked, and the server copy
+    /// only exists for cross-device sync. Reverting those fields would make
+    /// the next successful push send the old look while the device shows the
+    /// new one.
+    private func revertToServerState() {
+        guard let last = lastServerSettings else { return }
+        applySettings(last, keepingAppearance: true)
     }
 
     // MARK: - Toggle Sanchr Mode
@@ -200,26 +257,43 @@ final class SettingsViewModel {
     /// `enabled` must be the **desired** state (already reflected in `sanchrModeEnabled`
     /// by the Toggle binding before this is called). We never compute `!sanchrModeEnabled`
     /// here because that would read the post-tap value and invert it, causing a loop.
-    func setSanchrMode(enabled: Bool, settingsDataSource: SettingsDataSource) async {
+    func setSanchrMode(enabled: Bool, settingsDataSource: SettingsDataSourceProtocol) async {
+        guard let last = lastServerSettings else {
+            if sanchrModeEnabled { sanchrModeEnabled = false }
+            errorMessage = Self.notLoadedMessage
+            return
+        }
+        // Hydration and the revert below both fire the toggle's onChange with
+        // the value the server already holds. Sending it would, on a failure,
+        // revert again and call back in here forever.
+        guard enabled != last.sanchrModeEnabled else { return }
+
         do {
             let updated = try await settingsDataSource.toggleSanchrMode(enabled: enabled)
+            lastServerSettings?.sanchrModeEnabled = updated.sanchrModeEnabled
             privacySettings?.update(from: updated)
             // Only write sanchrModeEnabled back if the server overrode our value.
             // Writing the same value is a no-op, but it still fires @Observable's
-            // change tracking and re-triggers onChange → infinite loop.
+            // change tracking and re-triggers onChange.
             if updated.sanchrModeEnabled != sanchrModeEnabled {
                 sanchrModeEnabled = updated.sanchrModeEnabled
             }
+            errorMessage = nil
         } catch {
-            // Revert the Toggle to its pre-tap state on failure.
-            sanchrModeEnabled = !enabled
-            errorMessage = error.localizedDescription
+            SanchrLogger.network.error("Sanchr Mode toggle failed: \(error.localizedDescription)")
+            if sanchrModeEnabled != last.sanchrModeEnabled {
+                sanchrModeEnabled = last.sanchrModeEnabled
+            }
+            errorMessage = "Couldn't change Sanchr Mode. Please try again."
         }
     }
 
     // MARK: - Private Helpers
 
-    private func applySettings(_ settings: Sanchr_Settings_UserSettings) {
+    private func applySettings(
+        _ settings: Sanchr_Settings_UserSettings,
+        keepingAppearance: Bool = false
+    ) {
         readReceipts = settings.readReceipts
         onlineStatusVisible = settings.onlineStatusVisible
         typingIndicator = settings.typingIndicator
@@ -236,9 +310,11 @@ final class SettingsViewModel {
         notificationSound = settings.notificationSound
         notificationVibrate = settings.notificationVibrate
         showPreview = settings.showPreview
-        theme = settings.theme
-        fontSize = settings.fontSize
-        chatWallpaper = settings.chatWallpaper
+        if !keepingAppearance {
+            theme = settings.theme
+            fontSize = settings.fontSize
+            chatWallpaper = settings.chatWallpaper
+        }
         autoDownloadWifi = settings.autoDownloadWifi
         autoDownloadMobile = settings.autoDownloadMobile
         autoDownloadRoaming = settings.autoDownloadRoaming
