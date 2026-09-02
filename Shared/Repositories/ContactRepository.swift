@@ -7,9 +7,6 @@ protocol ContactRepositoryProtocol: AnyObject, Sendable {
     /// Fetches the user's contact list from the server.
     func fetchContacts() async throws -> [User]
 
-    /// Searches for a user by phone number.
-    func searchUser(phoneNumber: String) async throws -> User?
-
     /// Updates the current user's profile.
     func updateProfile(displayName: String?, bio: String?, avatarData: Data?) async throws -> User
 }
@@ -106,35 +103,6 @@ final class ContactRepositoryImpl: ContactRepositoryProtocol, @unchecked Sendabl
         }
 
         return users
-    }
-
-    func searchUser(phoneNumber: String) async throws -> User? {
-        SanchrLogger.sync.info("Searching for user by phone number")
-
-        // Use syncContacts with a single number to find the user
-        let normalized = phoneNumber.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
-        let hash = Data(SHA256.hash(data: Data(normalized.utf8)))
-
-        var request = Sanchr_Contacts_SyncContactsRequest()
-        request.phoneHashes = [hash]
-
-        let response = try await grpcClient.contactService.syncContacts(request)
-
-        guard let match = response.matches.first else {
-            return nil
-        }
-
-        return User(
-            id: match.userID,
-            phoneNumber: phoneNumber,
-            displayName: match.displayName,
-            avatarURL: URL(string: match.avatarURL),
-            bio: match.statusText.isEmpty ? nil : match.statusText,
-            isVerified: false,
-            lastSeen: nil,
-            identityKeyFingerprint: nil,
-            status: .offline
-        )
     }
 
     func updateProfile(displayName: String?, bio: String?, avatarData: Data?) async throws -> User {
