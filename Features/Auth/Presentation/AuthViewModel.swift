@@ -3,7 +3,7 @@ import Foundation
 import SanchrShared
 
 /// State machine for the authentication flow.
-/// Drives LoginView, OTPView, and RegisterView through a linear progression.
+/// Drives LoginView and OTPView through a linear progression.
 @MainActor
 @Observable
 final class AuthViewModel {
@@ -49,7 +49,6 @@ final class AuthViewModel {
     var isLoading: Bool = false
     var errorMessage: String?
     var showOTPView: Bool = false
-    var showRegisterView: Bool = false
     var resendCountdown: Int = 0
     var showRegistrationLockPIN: Bool = false
     var registrationLockPIN: String = ""
