@@ -15,13 +15,16 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     DEVELOPMENT_TEAM: UMTJNNPK6C
     CODE_SIGN_STYLE: Automatic
-    CODE_SIGN_IDENTITY: "Apple Development"
-    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
     ENABLE_USER_SCRIPT_SANDBOXING: false
     APS_ENVIRONMENT: development
   configs:
     Debug:
       APS_ENVIRONMENT: development
+      # Debug only. Forcing a development identity on Release made every
+      # archive undistributable: App Store export needs automatic signing
+      # to pick the distribution certificate.
+      CODE_SIGN_IDENTITY: "Apple Development"
+      "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Development"
     Release:
       APS_ENVIRONMENT: production
 
@@ -139,6 +142,9 @@ targets:
     info:
       path: SanchrShareExtension/Info.plist
       properties:
+        # Must equal the containing app's version or upload validation fails.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Sanchr
         CFBundlePackageType: XPC!
         NSExtension:
@@ -245,7 +251,14 @@ targets:
       properties:
         CFBundleDisplayName: Sanchr
         CFBundleName: Sanchr
-        UILaunchStoryboardName: ""
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.social-networking
+        # An empty storyboard name left the app with no launch screen at all,
+        # running letterboxed at a legacy resolution. The colour is the
+        # splash's always-dark ground so the handoff is seamless.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UIBackgroundModes:
@@ -253,6 +266,9 @@ targets:
           - fetch
           - processing
           - voip
+          # Without it the WebRTC audio session is torn down when the app
+          # backgrounds mid-call.
+          - audio
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
@@ -262,7 +278,7 @@ targets:
           - com.sanchr.sync.messages
           - com.sanchr.sync.refresh
         NSContactsUsageDescription: "Sanchr needs access to your contacts to find friends who use the app."
-        NSCameraUsageDescription: "Sanchr needs camera access for video calls and photos."
+        NSCameraUsageDescription: "Sanchr uses the camera to take photos and videos to send in chats."
         NSMicrophoneUsageDescription: "Sanchr uses the microphone for voice messages and calls."
         NSPhotoLibraryUsageDescription: "Sanchr needs photo library access to share photos and videos."
         NSPhotoLibraryAddUsageDescription: "Sanchr saves photos and videos from chats to your library when you tap Save."

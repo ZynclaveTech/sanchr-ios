@@ -22,17 +22,19 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Sanchr needs camera access for video calls and photos.</string>
+	<string>Sanchr uses the camera to take photos and videos to send in chats.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Sanchr needs access to your contacts to find friends who use the app.</string>
 	<key>NSFaceIDUsageDescription</key>
@@ -61,9 +63,13 @@
 		<string>fetch</string>
 		<string>processing</string>
 		<string>voip</string>
+		<string>audio</string>
 	</array>
-	<key>UILaunchStoryboardName</key>
-	<string></string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
