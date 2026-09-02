@@ -258,6 +258,19 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         self.callType = isVideo ? "video" : "voice"
         self.isVideoEnabled = isVideo
 
+        do {
+            try await performOutgoingCallSetup(
+                recipientId: recipientId, recipientName: recipientName, isVideo: isVideo
+            )
+        } catch {
+            abandonOutgoingCall(after: error)
+            throw error
+        }
+    }
+
+    private func performOutgoingCallSetup(
+        recipientId: String, recipientName: String, isVideo: Bool
+    ) async throws {
         // 1. Fetch TURN credentials
         let turnCredentials = try await callService.getTurnCredentials(
             Sanchr_Calling_GetTurnCredentialsRequest())
@@ -339,6 +352,28 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
         // 7. Open bidirectional signaling stream
         openSignalingStream(callId: callId, role: "caller")
+    }
+
+    /// Undoes whatever `startCall` managed to set up before it threw.
+    ///
+    /// Setup is seven steps and any of the last six can fail after local
+    /// media is running. Without this the microphone (and camera) stayed
+    /// live, the peer connection stayed configured, and `callState` stayed
+    /// `.idle`, so nothing could ever tear it down.
+    private func abandonOutgoingCall(after error: Error) {
+        SanchrLogger.calls.error("startCall failed: \(error.localizedDescription)")
+        if case .outgoing(let callId, _) = callState {
+            // The server accepted the call; tell it and the peer it is over.
+            endCallInternal(callId: callId, reason: .failed, notifyServer: true)
+            return
+        }
+        pendingLocalIceCandidates.removeAll()
+        webRTCClient.stopLocalMedia()
+        webRTCClient.close()
+        callType = "voice"
+        isVideoEnabled = false
+        callUUID = nil
+        shouldIgnoreOutgoingCallKitEnd = false
     }
 
     // MARK: - Incoming Call
@@ -692,6 +727,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         } catch {
             SanchrLogger.calls.error(
                 "CallKit answer request failed for \(callId): \(error.localizedDescription)")
+            lastCallError = "Couldn't answer the call. Please try again."
             throw error
         }
     }
@@ -729,6 +765,15 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
             throw AppError.callPermissionDenied
         }
 
+        do {
+            try await performAnswer(callId: callId)
+        } catch {
+            abandonAnswer(callId: callId, after: error)
+            throw error
+        }
+    }
+
+    private func performAnswer(callId: String) async throws {
         try await tokenRefresher()
 
         // For VoIP push calls the SDP is delivered by realtime replay; wait for the active ringing window.
@@ -790,6 +835,16 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         startDurationTimer(from: startTime)
 
         pendingSdpOffer = nil
+    }
+
+    /// A failed answer used to leave the call in `.incoming` with local media
+    /// possibly running and the peer still ringing, and the CallKit path that
+    /// calls `answerCall` swallows the error. Tear it down like any other
+    /// failed call and keep a reason for the app to show.
+    private func abandonAnswer(callId: String, after error: Error) {
+        SanchrLogger.calls.error("answerCall failed: \(error.localizedDescription)")
+        lastCallError = "Couldn't connect the call. Please try again."
+        endCallInternal(callId: callId, reason: .failed, notifyServer: true)
     }
 
     /// Declines an incoming call.
@@ -2263,7 +2318,11 @@ extension CallManager: WebRTCClientDelegate {
             return
         }
 
-        sendOrBufferLocalIceCandidate(candidateData)
+        // WebRTC delivers this on its own thread; the buffer and the
+        // continuation are main-actor state like everything else here.
+        Task { @MainActor [weak self] in
+            self?.sendOrBufferLocalIceCandidate(candidateData)
+        }
     }
 
     func webRTCClient(_ client: WebRTCClient, didReceiveRemoteVideoTrack track: RTCVideoTrack) {
