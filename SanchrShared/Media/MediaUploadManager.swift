@@ -105,79 +105,90 @@ public actor MediaUploadManager {
 
         SanchrLogger.media.info("Upload execute: starting \(taskId.prefix(8)), file=\(task.localFileURL.lastPathComponent)")
 
-        // Step 1: Encrypt
-        task.state = .encrypting
-        tasks[taskId] = task
-        notifyUpdate(task)
-
+        // A retry re-ran encryption from scratch: the whole file read and
+        // re-encrypted, and the conversation's media chain ratcheted again,
+        // for an upload that had already produced a perfectly good
+        // ciphertext. Keep the ciphertext across attempts.
         let tempDir = FileManager.default.temporaryDirectory
-        let encryptedURL = tempDir.appendingPathComponent("\(task.id).enc")
+        let encryptedURL = task.encryptedFileURL ?? tempDir.appendingPathComponent("\(task.id).enc")
+        let hasCiphertext = task.encryptionMetadata != nil
+            && FileManager.default.fileExists(atPath: encryptedURL.path)
 
-        do {
-            // 1. Read plaintext to compute file hash
-            let plaintextData = try Data(contentsOf: task.localFileURL)
-            let fileHash = Data(SHA256.hash(data: plaintextData))
-
-            // 2. Get current chain key and derive MediaK
-            //
-            // The key belongs to this conversation, which is why the same file
-            // sent to several conversations is uploaded several times. That
-            // redundancy is required, not an oversight:
-            //
-            //   MediaK_n = HKDF(CK_n, file_hash, "media-v1")     (paper, D2)
-            //
-            // CK_n is *this* conversation's media chain key, erased on the
-            // next line. One ciphertext has one key, so reusing an upload
-            // elsewhere would mean that conversation's media key was never
-            // derived from its own chain — and re-deriving means re-encrypting,
-            // which means re-uploading anyway.
-            //
-            // It would also break the paper's core invariant. MediaK is
-            // cross-domain (it transits the server inside a Signal-encrypted
-            // message) but not persistent, because the chain advances past it.
-            // Shared across conversations it would survive until the slowest
-            // chain advanced — cross-domain *and* persistent, which is the
-            // pair the design exists to keep apart. Compromising one
-            // conversation would then expose media delivered in another.
-            //
-            // Compression is the part that can be shared, and is: see
-            // `MessageSender.PreparedVideo`. Encryption and upload cannot be.
-            let chainKey = mediaChainState.getOrInitChainKey(conversationId: task.conversationId)
-            let mediaKey = mediaKeyDerivation.deriveMediaKey(chainKey: chainKey, fileHash: fileHash)
-
-            // 3. Advance the chain (forward secrecy — old chain key is erased)
-            mediaChainState.advanceChainKey(conversationId: task.conversationId)
-
-            // 4. Encrypt file with derived MediaK
-            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypting with ratchet-derived key...")
-            let metadata = try await mediaEncryption.encryptFile(
-                at: task.localFileURL,
-                to: encryptedURL,
-                withKey: mediaKey
-            )
-
-            // 5. Store AccessK for future re-access
-            let accessKey = mediaKeyDerivation.deriveAccessKey(
-                mediaKey: mediaKey,
-                mediaId: task.id,
-                deviceSecret: mediaChainState.deviceSecretData
-            )
-            try await accessKeyStore.store(
-                mediaId: task.id,
-                accessKey: accessKey,
-                conversationId: task.conversationId,
-                kind: .messageMedia
-            )
-
-            task.encryptedFileURL = encryptedURL
-            task.encryptionMetadata = metadata
-            SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted, \(metadata.fileSize) bytes plaintext")
-        } catch {
-            SanchrLogger.media.error("Upload \(taskId.prefix(8)): encryption failed: \(error)")
-            task.state = .failed(error: "Encryption failed: \(error.localizedDescription)", retryCount: task.retryCount)
+        if hasCiphertext {
+            SanchrLogger.media.info("Upload \(taskId.prefix(8)): reusing ciphertext from a previous attempt")
+        } else {
+            // Step 1: Encrypt
+            task.state = .encrypting
             tasks[taskId] = task
             notifyUpdate(task)
-            return task
+
+            do {
+                // 1. Read plaintext to compute file hash
+                let plaintextData = try Data(contentsOf: task.localFileURL)
+                let fileHash = Data(SHA256.hash(data: plaintextData))
+
+                // 2. Get current chain key and derive MediaK
+                //
+                // The key belongs to this conversation, which is why the same file
+                // sent to several conversations is uploaded several times. That
+                // redundancy is required, not an oversight:
+                //
+                //   MediaK_n = HKDF(CK_n, file_hash, "media-v1")     (paper, D2)
+                //
+                // CK_n is *this* conversation's media chain key, erased on the
+                // next line. One ciphertext has one key, so reusing an upload
+                // elsewhere would mean that conversation's media key was never
+                // derived from its own chain — and re-deriving means re-encrypting,
+                // which means re-uploading anyway.
+                //
+                // It would also break the paper's core invariant. MediaK is
+                // cross-domain (it transits the server inside a Signal-encrypted
+                // message) but not persistent, because the chain advances past it.
+                // Shared across conversations it would survive until the slowest
+                // chain advanced — cross-domain *and* persistent, which is the
+                // pair the design exists to keep apart. Compromising one
+                // conversation would then expose media delivered in another.
+                //
+                // Compression is the part that can be shared, and is: see
+                // `MessageSender.PreparedVideo`. Encryption and upload cannot be.
+                let chainKey = mediaChainState.getOrInitChainKey(conversationId: task.conversationId)
+                let mediaKey = mediaKeyDerivation.deriveMediaKey(chainKey: chainKey, fileHash: fileHash)
+
+                // 3. Advance the chain (forward secrecy — old chain key is erased)
+                mediaChainState.advanceChainKey(conversationId: task.conversationId)
+
+                // 4. Encrypt file with derived MediaK
+                SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypting with ratchet-derived key...")
+                let metadata = try await mediaEncryption.encryptFile(
+                    at: task.localFileURL,
+                    to: encryptedURL,
+                    withKey: mediaKey
+                )
+
+                // 5. Store AccessK for future re-access
+                let accessKey = mediaKeyDerivation.deriveAccessKey(
+                    mediaKey: mediaKey,
+                    mediaId: task.id,
+                    deviceSecret: mediaChainState.deviceSecretData
+                )
+                try await accessKeyStore.store(
+                    mediaId: task.id,
+                    accessKey: accessKey,
+                    conversationId: task.conversationId,
+                    kind: .messageMedia
+                )
+
+                task.encryptedFileURL = encryptedURL
+                task.encryptionMetadata = metadata
+                SanchrLogger.media.info("Upload \(taskId.prefix(8)): encrypted, \(metadata.fileSize) bytes plaintext")
+            } catch {
+                SanchrLogger.media.error("Upload \(taskId.prefix(8)): encryption failed: \(error)")
+                task.state = .failed(error: "Encryption failed: \(error.localizedDescription)", retryCount: task.retryCount)
+                tasks[taskId] = task
+                notifyUpdate(task)
+                return task
+            }
+
         }
 
         // Step 2: Get presigned upload URL
