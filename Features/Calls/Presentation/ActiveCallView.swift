@@ -965,8 +965,19 @@ private struct PulseRingView: View {
 
 // MARK: - Video Views (UIViewRepresentable wrappers for RTCMTLVideoView)
 
+/// Holds the manager for `dismantleUIView`, which is static and only
+/// receives the coordinator.
+final class VideoRendererCoordinator {
+    weak var callManager: CallManager?
+    init(callManager: CallManager) { self.callManager = callManager }
+}
+
 struct LocalVideoView: UIViewRepresentable {
     let callManager: CallManager
+
+    func makeCoordinator() -> VideoRendererCoordinator {
+        VideoRendererCoordinator(callManager: callManager)
+    }
 
     func makeUIView(context: Context) -> RTCMTLVideoView {
         let view = RTCMTLVideoView(frame: .zero)
@@ -978,13 +989,20 @@ struct LocalVideoView: UIViewRepresentable {
 
     func updateUIView(_ uiView: RTCMTLVideoView, context: Context) {}
 
-    static func dismantleUIView(_ uiView: RTCMTLVideoView, coordinator: ()) {
-        // Renderer will be cleaned up when CallManager closes WebRTC
+    /// The track keeps rendering into every attached view. These views are
+    /// rebuilt on layout changes within one call, and until this detached
+    /// them every discarded view was still being drawn into.
+    static func dismantleUIView(_ uiView: RTCMTLVideoView, coordinator: VideoRendererCoordinator) {
+        coordinator.callManager?.detachLocalRenderer(uiView)
     }
 }
 
 struct RemoteVideoView: UIViewRepresentable {
     let callManager: CallManager
+
+    func makeCoordinator() -> VideoRendererCoordinator {
+        VideoRendererCoordinator(callManager: callManager)
+    }
 
     func makeUIView(context: Context) -> RTCMTLVideoView {
         let view = RTCMTLVideoView(frame: .zero)
@@ -995,7 +1013,7 @@ struct RemoteVideoView: UIViewRepresentable {
 
     func updateUIView(_ uiView: RTCMTLVideoView, context: Context) {}
 
-    static func dismantleUIView(_ uiView: RTCMTLVideoView, coordinator: ()) {
-        // Renderer will be cleaned up when CallManager closes WebRTC
+    static func dismantleUIView(_ uiView: RTCMTLVideoView, coordinator: VideoRendererCoordinator) {
+        coordinator.callManager?.detachRemoteRenderer(uiView)
     }
 }
