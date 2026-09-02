@@ -22,7 +22,8 @@ final class SplashHandoffTests: XCTestCase {
         XCTAssertFalse(app.contains("} else if container.appLockManager.biometricLockEnabled && !hasAuthenticatedAtGate {"),
                        "the gate must not pre-empt the root")
         let splash = try XCTUnwrap(app.range(of: "if showSplash {"))
-        let after = String(app[splash.upperBound...].prefix(700))
+        // Wide enough to span the prewarm view that sits under the splash.
+        let after = String(app[splash.upperBound...].prefix(1400))
         XCTAssertTrue(after.contains("} else if needsGate {"))
         XCTAssertTrue(after.contains("AppLockGateView(isAuthenticated: $hasAuthenticatedAtGate, markNamespace: brandMark)"))
         XCTAssertTrue(app.contains("container.appLockManager.isLocked && !showSplash && !needsGate"),

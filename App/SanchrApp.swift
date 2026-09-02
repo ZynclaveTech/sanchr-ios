@@ -418,6 +418,10 @@ struct RootView: View {
     var body: some View {
         ZStack {
             if showSplash {
+                // Behind the splash, invisible: pays the chat screen's
+                // first-use costs during the idle second the splash already
+                // spends. See ChatSurfacePrewarmView for the measurements.
+                ChatSurfacePrewarmView()
                 SplashView(markNamespace: brandMark)
                     .transition(.opacity)
             } else if needsGate {
