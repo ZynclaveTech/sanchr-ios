@@ -350,9 +350,19 @@ struct MessageBubble: View {
             // A document message carries exactly one file.
             if let attachment = media.first {
                 HStack(spacing: 10) {
-                Image(systemName: "doc.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+                if let progress = uploadProgress {
+                    // Documents had no upload feedback at all: the icon sat
+                    // there until the message flipped to sent.
+                    UploadRing(
+                        progress: progress,
+                        tint: message.isOutgoing ? .white : SanchrColors.primary,
+                        diameter: 28, lineWidth: 2.5
+                    )
+                } else {
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(message.isOutgoing ? .white : SanchrColors.primary)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(attachment.filename ?? attachment.url.lastPathComponent)
                         .font(SanchrTypography.captionSmall)

@@ -224,7 +224,7 @@ actor FakeUploader: MediaUploading {
         mimeType: String,
         conversationId: String,
         recipientId: String,
-        progress: @Sendable (Double) -> Void
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws -> MediaUploadOutcome {
         calls.append(Call(
             localFileURL: localFileURL,

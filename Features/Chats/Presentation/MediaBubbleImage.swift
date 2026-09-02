@@ -531,15 +531,7 @@ struct MediaBubbleImage: View {
 
     private func progressOverlay(progress: Double) -> some View {
         VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 3)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            }
-            .frame(width: 36, height: 36)
+            UploadRing(progress: progress)
 
             if let label = uploadLabel {
                 Text(label)

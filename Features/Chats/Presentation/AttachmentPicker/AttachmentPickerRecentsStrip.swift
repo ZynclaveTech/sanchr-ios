@@ -63,10 +63,25 @@ final class AttachmentPickerRecentsStrip: UIView {
     }
 
     func update(recents: [RecentPhoto], selected: [String], multiSelecting: Bool) {
+        let recentsChanged = recents != self.recents
         self.recents = recents
         self.selectedIDs = selected
         self.isMultiSelecting = multiSelecting
-        collectionView.reloadData()
+        guard !recentsChanged else {
+            collectionView.reloadData()
+            return
+        }
+        // A selection tap used to reload the whole strip, and every reloaded
+        // cell blanked its thumbnail and fetched it again: the row flickered
+        // on each tap. Selection only changes the badges, so touch just those
+        // on the cells already on screen.
+        for indexPath in collectionView.indexPathsForVisibleItems {
+            guard indexPath.item < recents.count,
+                  let cell = collectionView.cellForItem(at: indexPath) as? RecentPhotoCell else { continue }
+            let photo = recents[indexPath.item]
+            cell.applySelection(index: selectedIDs.firstIndex(of: photo.id), multiSelecting: multiSelecting)
+            applyAccessibility(to: cell, photo: photo, at: indexPath)
+        }
     }
 
     @objc private func onLongPress(_ gr: UILongPressGestureRecognizer) {
@@ -92,6 +107,19 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
             return cv.dequeueReusableCell(withReuseIdentifier: "photo", for: ip)
         }
 
+        applyAccessibility(to: c, photo: photo, at: ip)
+        let src = photosSource
+        c.configure(photo: photo,
+                    selectionIndex: selectedIDs.firstIndex(of: photo.id),
+                    multiSelecting: isMultiSelecting,
+                    thumbnailLoader: { size in
+                        await src.loadThumbnail(assetID: photo.id, targetSize: size)
+                    })
+        return c
+    }
+
+
+    private func applyAccessibility(to c: RecentPhotoCell, photo: RecentPhoto, at ip: IndexPath) {
         c.isAccessibilityElement = true
         // Every cell used to be "Recent photo" — the same words for all of
         // them, so VoiceOver could not tell one from the next, say whether it
@@ -119,14 +147,6 @@ extension AttachmentPickerRecentsStrip: UICollectionViewDataSource, UICollection
                 return true
             }
         ]
-        let src = photosSource
-        c.configure(photo: photo,
-                    selectionIndex: selectedIDs.firstIndex(of: photo.id),
-                    multiSelecting: isMultiSelecting,
-                    thumbnailLoader: { size in
-                        await src.loadThumbnail(assetID: photo.id, targetSize: size)
-                    })
-        return c
     }
 
     func collectionView(_ cv: UICollectionView, didSelectItemAt ip: IndexPath) {
@@ -180,6 +200,9 @@ final class RecentPhotoCell: UICollectionViewCell {
     private let videoPlayIcon = UIImageView()
     private let videoDurationLabel = UILabel()
     private var loadTask: Task<Void, Never>?
+    /// Asset the image view shows (or is loading), so a reconfigure for the
+    /// same photo does not restart the load.
+    private var displayedAssetID: String?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -264,8 +287,9 @@ final class RecentPhotoCell: UICollectionViewCell {
         )
     }
 
-    func configure(photo: RecentPhoto, selectionIndex: Int?, multiSelecting: Bool,
-                   thumbnailLoader: @escaping @MainActor @Sendable (CGSize) async -> UIImage?) {
+    /// Only the badge: the numbered marker and its tint. Safe to call on a
+    /// cell that is already showing the photo.
+    func applySelection(index selectionIndex: Int?, multiSelecting: Bool) {
         selectionBadge.isHidden = !multiSelecting
         // Numbered rather than a bare tick: the send order is the tap order, so
         // the badge has to show it or the user cannot tell what they will get.
@@ -273,6 +297,11 @@ final class RecentPhotoCell: UICollectionViewCell {
         selectionBadgeLabel.text = selectionIndex.map { String($0 + 1) } ?? ""
         selectionBadgeLabel.isHidden = !isSelected
         selectionBadge.backgroundColor = isSelected ? .systemPurple : UIColor.black.withAlphaComponent(0.3)
+    }
+
+    func configure(photo: RecentPhoto, selectionIndex: Int?, multiSelecting: Bool,
+                   thumbnailLoader: @escaping @MainActor @Sendable (CGSize) async -> UIImage?) {
+        applySelection(index: selectionIndex, multiSelecting: multiSelecting)
 
         let isVideo = photo.kind == .video
         videoGradientLayer.isHidden = !isVideo
@@ -283,12 +312,19 @@ final class RecentPhotoCell: UICollectionViewCell {
             setNeedsLayout()
         }
 
+        // The same asset is already on screen: keep it. Blanking it and
+        // awaiting the loader again is a visible flash even on a cache hit,
+        // because `.opportunistic` delivery answers on a later run-loop turn.
+        if displayedAssetID == photo.id, imageView.image != nil { return }
+        displayedAssetID = photo.id
         imageView.image = nil
         loadTask?.cancel()
         let size = bounds.size
         loadTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            self.imageView.image = await thumbnailLoader(size)
+            let image = await thumbnailLoader(size)
+            guard !Task.isCancelled, self.displayedAssetID == photo.id else { return }
+            self.imageView.image = image
         }
     }
 
@@ -296,6 +332,7 @@ final class RecentPhotoCell: UICollectionViewCell {
         super.prepareForReuse()
         loadTask?.cancel()
         loadTask = nil
+        displayedAssetID = nil
         imageView.image = nil
         videoGradientLayer.isHidden = true
         videoPlayIcon.isHidden = true
