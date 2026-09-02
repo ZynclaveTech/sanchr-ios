@@ -32,6 +32,11 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
     /// `nil` means the profile has not yet been received with encrypted fields.
     public var profileKey: Data?
 
+    /// The name this person is saved under in the user's own address book.
+    /// Set by the contact sync and nothing else; shown verbatim, ahead of any
+    /// name the peer asserts about themselves.
+    public var addressBookName: String?
+
     /// Online presence status.
     public enum Status: String, Codable, Sendable {
         case online
@@ -74,7 +79,8 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
         identityKeyFingerprint: String? = nil,
         status: Status,
         isLocalUser: Bool = false,
-        profileKey: Data? = nil
+        profileKey: Data? = nil,
+        addressBookName: String? = nil
     ) {
         self.id = id
         self.phoneNumber = phoneNumber
@@ -87,6 +93,7 @@ public struct User: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.isLocalUser = isLocalUser
         self.profileKey = profileKey
+        self.addressBookName = addressBookName
     }
 
     // MARK: - Factory

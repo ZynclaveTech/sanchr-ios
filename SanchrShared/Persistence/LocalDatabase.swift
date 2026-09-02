@@ -774,8 +774,15 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     /// incoming name always wins.
     static func upsertUserPreservingResolvedName(_ user: User, into db: Database) throws {
         var record = UserRecord(from: user)
+        let existing = try UserRecord.fetchOne(db, key: user.id)
+        // Only the contact sync knows the address-book name. Every other
+        // writer — conversation saves, profile resolves — carries nil and
+        // must not erase it.
+        if record.addressBookName == nil {
+            record.addressBookName = existing?.addressBookName
+        }
         if user.displayName == User.serverPlaceholderDisplayName,
-            let existing = try UserRecord.fetchOne(db, key: user.id),
+            let existing,
             existing.displayName != User.serverPlaceholderDisplayName,
             !existing.displayName.isEmpty
         {

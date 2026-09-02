@@ -20,7 +20,9 @@ final class ContactDataSource: @unchecked Sendable {
     // MARK: - Sync Contacts
 
     /// Sends SHA-256 hashed phone numbers to the server and returns matched Sanchr users.
-    func syncContacts(phoneHashes: [Data]) async throws -> [User] {
+    /// - Parameter addressBookNames: the device contact's name per E.164
+    ///   number, so a match is stored under the name the user saved it as.
+    func syncContacts(phoneHashes: [Data], addressBookNames: [String: String] = [:]) async throws -> [User] {
         var request = Sanchr_Contacts_SyncContactsRequest()
         request.phoneHashes = phoneHashes
 
@@ -28,7 +30,12 @@ final class ContactDataSource: @unchecked Sendable {
             "ContactDataSource: syncContacts with \(phoneHashes.count) hashes")
         let response = try await contactClient.syncContacts(request)
 
-        let users = response.matches.map(Self.mapMatchedContactToUser)
+        let users = response.matches.map(Self.mapMatchedContactToUser).map { user -> User in
+            var user = user
+            user.addressBookName = addressBookNames[user.phoneNumber]
+                ?? addressBookNames[Self.normalizePhoneNumber(user.phoneNumber)]
+            return user
+        }
 
         // Cache locally
         for user in users {
