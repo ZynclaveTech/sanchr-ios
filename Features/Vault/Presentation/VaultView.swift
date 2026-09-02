@@ -419,6 +419,11 @@ struct VaultView: View {
                 .tint(.sanchrPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 48)
+        } else if viewModel.items.isEmpty, let error = viewModel.errorMessage {
+            // A failed first load is not an empty vault. Showing the empty
+            // state here told the user they had nothing when the fetch or
+            // decryption had failed.
+            loadFailedState(error)
         } else if viewModel.filteredItems.isEmpty {
             // While uploading the first item, suppress the empty state so
             // the upload progress card above is the only thing visible.
@@ -499,6 +504,36 @@ struct VaultView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: viewModel.isSelectMode)
+    }
+
+    private func loadFailedState(_ error: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("Couldn't load your vault")
+                .font(SanchrTypography.bodyBold)
+                .foregroundColor(SanchrExportColors.textPrimary)
+            Text(error)
+                .font(SanchrTypography.captionSmall)
+                .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Try again") {
+                Task {
+                    await viewModel.loadItems(
+                        vaultDataSource: vaultDataSource,
+                        accessKeyStore: container.accessKeyStore,
+                        mediaEncryption: container.mediaEncryption
+                    )
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.sanchrPrimary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 48)
+        .accessibilityElement(children: .combine)
     }
 
     private var emptyState: some View {
