@@ -78,8 +78,13 @@ final class OnboardingViewModel {
                 )
                 finalAvatarURL = try await uploadUseCase.execute(image: image)
             } catch {
-                SanchrLogger.auth.warning("Avatar upload failed, continuing without avatar: \(error)")
-                // Don't block onboarding — user can update avatar later in Settings
+                // Continuing silently saved a profile without the photo the
+                // user just chose, and nothing ever told them. Stop here: the
+                // step keeps the photo, so they can retry, or remove it and
+                // continue without one.
+                SanchrLogger.auth.warning("Avatar upload failed: \(error)")
+                errorMessage = "Couldn't upload your photo. Try again, or remove it to continue without one."
+                return false
             }
         }
 

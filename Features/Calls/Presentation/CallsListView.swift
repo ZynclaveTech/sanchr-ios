@@ -4,6 +4,7 @@ import SanchrShared
 
 struct CallsListView: View {
     @Environment(DependencyContainer.self) private var container
+    @Environment(AppRouter.self) private var router
     @State private var viewModel = CallsViewModel()
     @State private var showNewCallPicker = false
 
@@ -57,6 +58,16 @@ struct CallsListView: View {
         // can fix, with the app not foreground and nowhere to say so at the
         // time. Deliver it here instead, through the banner this screen
         // already has.
+        .task(id: router.pendingCallId) {
+            // "Answer" on a call notification lands here. Nothing consumed
+            // the pending call id before, so the tab opened and the call
+            // kept ringing.
+            guard let pendingCallId = router.pendingCallId else { return }
+            defer { router.clearPendingCall() }
+            if case .incoming(let callId, _, _) = container.callManager.callState, callId == pendingCallId {
+                try? await container.callManager.requestAnswerCall()
+            }
+        }
         .task(id: container.callManager.lastCallError) {
             guard let error = container.callManager.lastCallError else { return }
             viewModel.errorMessage = error
