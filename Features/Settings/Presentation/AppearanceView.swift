@@ -10,7 +10,7 @@ struct AppearanceView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var fontStep: Double = 2
     @AppStorage("sanchr.chatBubbleStyle") private var chatBubbleStyle = "modern"
-    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.light.rawValue
+    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.system.rawValue
     @AppStorage("sanchr.fontSize") private var storedFontSize = "medium"
 
     private var settingsDataSource: SettingsDataSource {
