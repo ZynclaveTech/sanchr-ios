@@ -570,23 +570,28 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 )
                 .fetchAll(db)
 
-            return try conversationRecords.map { convRecord in
-                // Fetch participants for this conversation
-                let participantIds = try ConversationParticipantRecord
-                    .filter(Column("conversationId") == convRecord.id)
+            // Three queries for the whole list. This used to run two per
+            // conversation — participants, then users — and the list is
+            // fetched several times before the user touches it.
+            let conversationIds = conversationRecords.map(\.id)
+            let participantRecords = try ConversationParticipantRecord
+                .filter(conversationIds.contains(Column("conversationId")))
+                .fetchAll(db)
+            let participantIdsByConversation = Dictionary(
+                grouping: participantRecords, by: \.conversationId
+            ).mapValues { $0.map(\.userId) }
+
+            let userIds = Set(participantRecords.map(\.userId))
+            let usersById: [String: User] = userIds.isEmpty ? [:] : Dictionary(
+                uniqueKeysWithValues: try UserRecord
+                    .filter(userIds.contains(Column("id")))
                     .fetchAll(db)
-                    .map(\.userId)
+                    .map { ($0.id, $0.toDomain()) }
+            )
 
-                let users: [User]
-                if participantIds.isEmpty {
-                    users = []
-                } else {
-                    users = try UserRecord
-                        .filter(participantIds.contains(Column("id")))
-                        .fetchAll(db)
-                        .map { $0.toDomain() }
-                }
-
+            return conversationRecords.map { convRecord in
+                let users = (participantIdsByConversation[convRecord.id] ?? [])
+                    .compactMap { usersById[$0] }
                 return convRecord.toDomain(participants: users)
             }
         }
