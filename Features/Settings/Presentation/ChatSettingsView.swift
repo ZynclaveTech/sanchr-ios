@@ -43,6 +43,8 @@ struct ChatSettingsView: View {
                 chatBehaviourSection
                 backupSection
                 disappearingSection
+
+                SettingsErrorLabel(message: viewModel.errorMessage)
             }
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)

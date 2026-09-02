@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import XCTest
 
 @testable import Sanchr
@@ -15,6 +16,7 @@ final class SettingsErrorRenderingTests: XCTestCase {
             contentsOf: URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent().deletingLastPathComponent()
                 .deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent()
                 .appendingPathComponent("Features/Settings/Presentation/\(name).swift"),
             encoding: .utf8
         )

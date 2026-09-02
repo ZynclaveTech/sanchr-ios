@@ -1,3 +1,4 @@
+import SanchrShared
 import SwiftUI
 
 /// The one line a settings screen shows when a load or save fails.
