@@ -186,7 +186,6 @@ targets:
       - path: Shared
       - path: Features
       - path: Resources/Assets.xcassets
-    resources:
       - path: Resources/Fonts
     dependencies:
       - target: LibSignalClient
@@ -268,6 +267,12 @@ targets:
         NSFaceIDUsageDescription: "Use Face ID to unlock Sanchr."
         NSLocationWhenInUseUsageDescription: "Sanchr uses your location only when you tap to share it in a chat. Coordinates are end-to-end encrypted and never sent to Sanchr servers."
         ITSAppUsesNonExemptEncryption: false
+        # Registers the bundled families at launch. SanchrTypography checks
+        # for Afacad and, when it is missing, falls back to a fixed-size
+        # system font that does not follow Dynamic Type.
+        UIAppFonts:
+          - Afacad-Variable.ttf
+          - Inter-Variable.ttf
     entitlements:
       path: Sanchr.entitlements
       properties:

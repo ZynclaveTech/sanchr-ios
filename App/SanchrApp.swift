@@ -55,7 +55,6 @@ struct SanchrApp: App {
                     // key on every theme pick, so this bridge actually fires.
                     .preferredColorScheme(SanchrTheme.Mode(rawValue: storedThemeMode)?.colorScheme)
                     .onAppear {
-                        configureFonts()
                         configureAppearance()
                         if container.localDataIssue == nil {
                             configureBackgroundSync()
@@ -113,12 +112,6 @@ struct SanchrApp: App {
     }
 
     // MARK: - Setup
-
-    /// Registers custom fonts bundled with the application.
-    private func configureFonts() {
-        // TODO: Register Afacad and Inter font families from Resources/Fonts
-        // CTFontManagerRegisterFontsForURL(fontURL, .process, nil)
-    }
 
     /// Applies global appearance overrides for UIKit components embedded in SwiftUI.
     private func configureAppearance() {

@@ -55,13 +55,22 @@ public enum SanchrTypography {
         font(size: size, weight: weight)
     }
 
+    /// Whether the bundled Afacad family is registered (via `UIAppFonts` in
+    /// the app's Info.plist). Resolved once: this used to be a CoreText
+    /// lookup on every font access, which is every view body.
+    ///
+    /// Checked by family, not `UIFont(name: "Afacad")`: that takes a
+    /// PostScript name, and the variable file's is "Afacad-Regular", so the
+    /// old check was false even once the font was registered.
+    private static let afacadIsRegistered = !UIFont.fontNames(forFamilyName: "Afacad").isEmpty
+
     public static func font(size: Size, weight: Weight = .regular) -> Font {
         let pointSize = size.rawValue
         // Apply Dynamic Type scaling — fonts scale with system text size preference.
         // Users with vision impairment who increase text size in Settings will see larger fonts.
         // SwiftUI's `Font.custom(_:size:relativeTo:)` and `.system(_:design:weight:)` tie a
         // font to a text style so the point size scales with the user's Dynamic Type preference.
-        if UIFont(name: "Afacad", size: pointSize) != nil {
+        if afacadIsRegistered {
             return .custom("Afacad", size: pointSize, relativeTo: .body)
                 .weight(weight.swiftUIWeight)
         } else {
