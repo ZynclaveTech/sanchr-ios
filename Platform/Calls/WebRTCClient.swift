@@ -42,6 +42,11 @@ final class WebRTCClient: NSObject {
     private var remoteVideoTrack: RTCVideoTrack?
     private var localAudioTrack: RTCAudioTrack?
     private var videoCapturer: FilteredVideoCapturer?
+
+    /// Read-only setup state, so a failed call setup can be checked for
+    /// leaks without reaching into the tracks.
+    var hasPeerConnection: Bool { peerConnection != nil }
+    var hasLocalMedia: Bool { localAudioTrack != nil || localVideoTrack != nil }
     private var localVideoSource: RTCVideoSource?
     private var pendingRemoteIceCandidates: [RTCIceCandidate] = []
     private var remoteRenderers: [RTCVideoRenderer] = []

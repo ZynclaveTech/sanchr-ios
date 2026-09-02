@@ -8,7 +8,8 @@ import SanchrShared
 
 // MARK: - MockSignalManager (identity cipher)
 
-private final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
+// Shared with CallSetupFailureTests.
+final class MockSignalManager: SignalProtocolManagerProtocol, @unchecked Sendable {
     let localUserId: String = "test-local-user"
     // Intentionally unsynchronised — MockSignalManager is only used from sequential XCTest flows.
     var encryptCallCount: Int = 0
