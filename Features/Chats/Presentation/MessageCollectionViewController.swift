@@ -361,6 +361,7 @@ final class MessageCollectionViewController: UIViewController {
         super.viewDidLayoutSubviews()
 
         guard collectionView != nil else { return }
+        republishHostedWidthIfChanged()
 
         if shouldPinToBottomOnLayout {
             scrollToBottomImmediate()
@@ -512,12 +513,31 @@ final class MessageCollectionViewController: UIViewController {
                     }
                 )
             }
+            .environment(\.messageAvailableWidth, self?.hostedWidth)
         }
         .margins(.horizontal, SanchrExportMetrics.sectionHorizontal)
         .margins(.vertical, item.isGroupedWithPrev ? 2 : 6)
         .background(.clear)
 
         attachSwipeGesture(to: cell, message: item.message)
+    }
+
+    // MARK: - Hosted Width
+
+    /// Width bubbles are laid out against, published to every cell through
+    /// the environment. Rotation and split-view changes re-publish it and
+    /// reconfigure the rows, which is what `UIScreen.main.bounds` never did.
+    private var hostedWidth: CGFloat?
+
+    private func republishHostedWidthIfChanged() {
+        let width = collectionView.bounds.width
+        guard width > 0, width != hostedWidth else { return }
+        let hadWidth = hostedWidth != nil
+        hostedWidth = width
+        guard hadWidth else { return }
+        var snapshot = dataSource.snapshot()
+        snapshot.reconfigureItems(snapshot.itemIdentifiers)
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
 
     // MARK: - Header Registration
