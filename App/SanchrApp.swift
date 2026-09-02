@@ -74,6 +74,11 @@ struct SanchrApp: App {
                         }
                         // One-time purge of AccessK entries derived under old HKDF params.
                         await container.accessKeyStore.migrateHKDFv2IfNeeded()
+                        // Client-side expiry of AccessK entries. The listener
+                        // existed but nothing ever started it, so expired keys
+                        // were never purged on this device.
+                        await container.ekfNotificationListener.purgeExpiredKeys()
+                        await container.ekfNotificationListener.startPeriodicPurge()
                         // Drop disappearing-message timers left in plaintext
                         // UserDefaults by earlier builds; they live in the
                         // encrypted conversation row now.
@@ -233,6 +238,7 @@ struct SanchrApp: App {
             // Check app lock
             lockManager.appDidBecomeActive()
             container.realtimeService.enterForeground()
+            Task { await container.ekfNotificationListener.purgeExpiredKeys() }
             // Rotate push token every 7 days to limit long-term token tracking.
             container.pushManager.rotateTokenIfNeeded()
 

@@ -840,6 +840,7 @@ final class DependencyContainer: @unchecked Sendable {
 
     private func wipeLocalSessionArtifacts() async {
         realtimeService.stop()
+        await ekfNotificationListener.stop()
         callManager.resetState()
         try? secureStorage.deleteSignalStateKeys()
         try? await localDatabase.purgeAllData()

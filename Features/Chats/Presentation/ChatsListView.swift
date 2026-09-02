@@ -9,6 +9,7 @@ import SanchrShared
 struct ChatsListView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
+    @Environment(SyncState.self) private var syncState
     @State private var viewModel = ChatsListViewModel()
     @State private var showNewConversation = false
     /// Height of the chat list viewport, used to centre the empty state in the
@@ -154,12 +155,20 @@ struct ChatsListView: View {
             Task { await viewModel.loadCachedConversations(messageRepository: container.messageRepository) }
         }
         .task {
+            // The view model reads isSyncing and the last sync time from
+            // here. Without this it observed nothing, so the syncing
+            // indicator never showed and a background sync never refreshed
+            // the list.
+            viewModel.observeSyncState(syncState)
             viewModel.restorePersistedSortOrder()
             await viewModel.loadCachedConversations(messageRepository: container.messageRepository)
             updatePresenceTrackingForVisibleConversations()
             await viewModel.loadConversations(messageRepository: container.messageRepository)
             updatePresenceTrackingForVisibleConversations()
             await openPendingConversationIfNeeded()
+        }
+        .onChange(of: syncState.lastSyncTimestamp) { _, _ in
+            Task { await viewModel.refreshIfSyncCompleted(messageRepository: container.messageRepository) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sanchrConversationStateDidChange)) { note in
             if let conversationId = note.userInfo?[RealtimeNotificationKey.conversationId] as? String,
