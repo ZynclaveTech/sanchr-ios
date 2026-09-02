@@ -241,6 +241,8 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    uploadProgress: uploadProgress,
+                    uploadLabel: uploadLabel,
                     onTapTile: { index in
                         onBubbleTap(
                             .openMedia(messageId: message.id, attachmentIndex: index)
@@ -293,6 +295,8 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    uploadProgress: uploadProgress,
+                    uploadLabel: uploadLabel,
                     onTapTile: { index in
                         onBubbleTap(
                             .openMedia(messageId: message.id, attachmentIndex: index)
