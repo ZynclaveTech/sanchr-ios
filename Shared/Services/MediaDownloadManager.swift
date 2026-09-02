@@ -125,6 +125,9 @@ actor MediaDownloadManager {
     /// attachment, so glob the directory for any file starting with
     /// the messageId prefix and remove all matches.
     func removeCachedFile(messageId: String) {
+        // The QuickLook hard link is a second name for the same bytes;
+        // without this the plaintext survived the cache removal.
+        QuickLookDisplayLinks.remove(messageId: messageId)
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(atPath: cacheDir.path) else { return }
         for entry in entries where entry.hasPrefix(messageId + ".") {

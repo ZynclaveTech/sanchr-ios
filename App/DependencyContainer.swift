@@ -824,6 +824,7 @@ final class DependencyContainer: @unchecked Sendable {
         try? secureStorage.deleteSignalStateKeys()
         try? await localDatabase.purgeAllData()
         try? await mediaManager.clearCache()
+        QuickLookDisplayLinks.sweep()
         removeSignalStoreDirectory()
         pushManager.resetUploadState()
         SanchrNotificationService.clearAllNotifications()
@@ -863,6 +864,8 @@ final class DependencyContainer: @unchecked Sendable {
                 catch { SanchrLogger.app.error("deleteAccount: failed to remove media cache entry \(entry.lastPathComponent): \(error.localizedDescription)") }
             }
         }
+        // Hard links to that media, handed to QuickLook.
+        QuickLookDisplayLinks.sweep()
 
         // Shared UserDefaults suite.
         AppGroup.userDefaults.removePersistentDomain(forName: AppGroup.identifier)
