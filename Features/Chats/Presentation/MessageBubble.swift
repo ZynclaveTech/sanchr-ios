@@ -307,14 +307,9 @@ struct MessageBubble: View {
                     isOutgoing: message.isOutgoing,
                     uploadProgress: uploadProgress,
                     uploadLabel: uploadLabel,
+                    showsPlayGlyph: true,
                     squaresBottomCorners: Self.hasCaption(single.caption)
                 )
-                .overlay {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundColor(.white.opacity(0.9))
-                        .shadow(radius: 4)
-                }
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onBubbleTap(.openMedia(messageId: message.id))
@@ -334,7 +329,7 @@ struct MessageBubble: View {
                let durationMs = attachment.audioDurationMs {
                 VoicePlaybackBubble(
                     messageId: message.id,
-                    url: attachment.url,
+                    attachment: attachment,
                     durationMs: durationMs,
                     waveform: attachment.audioWaveform ?? [],
                     isOutgoing: message.isOutgoing,

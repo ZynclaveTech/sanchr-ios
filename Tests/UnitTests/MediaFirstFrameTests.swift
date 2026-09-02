@@ -40,7 +40,7 @@ final class MediaFirstFrameTests: XCTestCase {
 
     func testAVoiceNoteIsSeededFromTheCacheBeforeTheFirstFrame() throws {
         let body = code(try source("Features/Chats/Presentation/VoiceMessage/VoicePlaybackBubble.swift"))
-        XCTAssertTrue(body.contains("_decoded = State(initialValue: VoiceWaveformCache.cached(for: url)"))
+        XCTAssertTrue(body.contains("_decoded = State(initialValue: VoiceWaveformCache.cached(for: attachment.url)"))
     }
 
     /// An actor can only be read from an async context, which is the whole
@@ -55,7 +55,7 @@ final class MediaFirstFrameTests: XCTestCase {
     /// later.
     func testASeededWaveformIsNotDecodedAgain() throws {
         let body = code(try source("Features/Chats/Presentation/VoiceMessage/VoicePlaybackBubble.swift"))
-        XCTAssertTrue(body.contains("guard waveform.isEmpty, decoded.isEmpty else { return }"))
+        XCTAssertTrue(body.contains("guard waveform.isEmpty, decoded.isEmpty, let playableURL else { return }"))
     }
 
     /// The synchronous store is read from any thread the view happens to be

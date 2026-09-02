@@ -59,7 +59,7 @@ final class VoicePlaybackBubbleTests: XCTestCase {
     /// arrives without one and the bubble drew an empty gap.
     func testAMissingWaveformIsDecodedLocally() throws {
         XCTAssertTrue(
-            try code(bubble).contains("VoiceWaveformCache.shared.waveform(for: url)"),
+            try code(bubble).contains("VoiceWaveformCache.shared.waveform(for: playableURL)"),
             "decode it from the audio rather than adding a field to the wire format"
         )
     }
