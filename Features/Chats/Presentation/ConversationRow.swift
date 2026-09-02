@@ -117,7 +117,7 @@ struct ConversationRow: View {
                     Circle()
                         .stroke(Color.sanchrAvatarBorder(colorScheme), lineWidth: 2)
                 }
-                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
+                .sanchrShadow(0.06, radius: 4, y: 1)
             statusDot
         }
         .frame(width: SanchrSpacing.chatAvatarSize, height: SanchrSpacing.chatAvatarSize)

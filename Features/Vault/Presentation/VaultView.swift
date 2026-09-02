@@ -602,6 +602,7 @@ struct VaultView: View {
                             .foregroundStyle(SanchrExportColors.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss failed upload")
                 }
             }
 
@@ -937,6 +938,7 @@ struct VaultItemCard: View {
                             .frame(width: 32, height: 32)
                             .background(SanchrExportColors.surfaceMuted)
                             .clipShape(Circle())
+                            .accessibilityLabel("More options")
                     }
                 }
 

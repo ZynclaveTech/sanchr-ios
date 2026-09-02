@@ -210,7 +210,7 @@ struct ChatDetailHeaderView: View {
                 Circle()
                     .stroke(Color.white, lineWidth: 2)
             }
-            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
+            .sanchrShadow(0.06, radius: 4, y: 1)
 
             if let recipient, recipient.status == .online || recipient.status == .typing {
                 Circle()

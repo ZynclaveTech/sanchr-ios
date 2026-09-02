@@ -1073,7 +1073,7 @@ struct ChatDetailView: View {
                             .frame(width: 40, height: 40)
                             .background(SanchrExportColors.surface)
                             .clipShape(Circle())
-                            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                            .sanchrShadow(0.1, radius: 8, y: 4)
                     }
                 }
 

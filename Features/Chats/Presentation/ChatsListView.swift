@@ -747,7 +747,7 @@ struct ChatsListView: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(SanchrColors.primary.opacity(0.18), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+            .sanchrShadow(0.04, radius: 6, y: 2)
         }
         .buttonStyle(.plain)
     }

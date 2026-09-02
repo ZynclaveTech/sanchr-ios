@@ -348,7 +348,7 @@ struct ConversationInfoView: View {
                 .overlay {
                     Circle().stroke(Color.white, lineWidth: 2)
                 }
-                .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 4)
+                .sanchrShadow(0.12, radius: 12, y: 4)
             }
 
             VStack(alignment: .leading, spacing: 2) {

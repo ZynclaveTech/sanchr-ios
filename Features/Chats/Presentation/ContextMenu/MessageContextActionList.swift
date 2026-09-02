@@ -61,7 +61,7 @@ struct MessageContextActionList: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08))
         }
-        .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
+        .sanchrShadow(0.18, radius: 16, y: 6)
         .fixedSize(horizontal: true, vertical: !scrolls)
         .accessibilityElement(children: .contain)
     }

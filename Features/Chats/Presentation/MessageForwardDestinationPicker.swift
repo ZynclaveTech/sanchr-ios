@@ -135,6 +135,9 @@ struct MessageForwardDestinationPicker: View {
                 }
             }
             .safeAreaInset(edge: .bottom) { approvalFooter }
+            // The footer declares a slide transition; without an animation
+            // on the state that inserts it, it just popped in.
+            .animation(.easeInOut(duration: 0.22), value: selected.isEmpty)
             .navigationTitle("Forward to")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

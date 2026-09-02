@@ -85,7 +85,7 @@ struct MessageReactionsPill: View {
             Capsule()
                 .fill(SanchrExportColors.surface)
                 .overlay(Capsule().strokeBorder(SanchrExportColors.line, lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+                .sanchrShadow(0.12, radius: 3, y: 1)
         )
         .accessibilityElement(children: .contain)
     }
