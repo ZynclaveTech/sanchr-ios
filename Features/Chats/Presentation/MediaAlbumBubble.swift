@@ -13,6 +13,11 @@ struct MediaAlbumBubble: View {
     let messageId: String
     let conversationId: String
     let isOutgoing: Bool
+    /// Upload state for the whole album: one ring over the collage, the way
+    /// a single photo shows one over itself. Albums were the one outgoing
+    /// media kind with no upload feedback at all.
+    var uploadProgress: Double? = nil
+    var uploadLabel: String? = nil
     /// Index into the album, so the viewer opens on the tile that was tapped.
     let onTapTile: (Int) -> Void
 
@@ -54,7 +59,28 @@ struct MediaAlbumBubble: View {
             }
         }
         .frame(width: width, height: layout.height, alignment: .topLeading)
+        .overlay {
+            if let progress = uploadProgress {
+                uploadOverlay(progress: progress)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func uploadOverlay(progress: Double) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+            VStack(spacing: 6) {
+                UploadRing(progress: progress)
+                if let label = uploadLabel {
+                    Text(label)
+                        .font(SanchrTypography.font(size: .xxxs, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        // Tiles stay tappable underneath, as they are for a single photo.
+        .allowsHitTesting(false)
     }
 
     private func attachment(at index: Int) -> Message.MediaAttachment? {

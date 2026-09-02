@@ -62,5 +62,13 @@ final class UploadByteProgressTests: XCTestCase {
         let bubble = try source("Features/Chats/Presentation/MessageBubble.swift")
         let doc = try XCTUnwrap(bubble.range(of: "case .document(let media):"))
         XCTAssertTrue(String(bubble[doc.upperBound...].prefix(900)).contains("UploadRing("), "documents get the ring too")
+        // Albums were the one kind with no ring: the bubble dropped the
+        // progress at both album call sites (photos, and video/mixed).
+        XCTAssertTrue(try source("Features/Chats/Presentation/MediaAlbumBubble.swift").contains("UploadRing(progress: progress)"))
+        let albumSites = bubble.components(separatedBy: "MediaAlbumBubble(\n").dropFirst()
+        XCTAssertEqual(albumSites.count, 2)
+        for site in albumSites {
+            XCTAssertTrue(site.prefix(400).contains("uploadProgress: uploadProgress"), "an album call site drops the progress")
+        }
     }
 }
