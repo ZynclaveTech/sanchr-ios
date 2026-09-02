@@ -251,8 +251,15 @@ struct PhoneNumberLookupView: View {
 
         withAnimation(.easeInOut(duration: 0.2)) { state = .searching }
 
+        let lookup = ContactUseCases.LookupUser(
+            contactDataSource: ContactDataSource(
+                grpcClient: container.grpcClient,
+                localDatabase: container.localDatabase
+            ),
+            discoveryRepository: container.discoveryRepository
+        )
         do {
-            if let user = try await container.contactRepository.searchUser(phoneNumber: fullNumber) {
+            if let user = try await lookup.execute(phoneNumber: fullNumber) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     state = .found(user)
                 }

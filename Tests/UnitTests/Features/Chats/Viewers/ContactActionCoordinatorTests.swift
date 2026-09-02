@@ -79,10 +79,6 @@ private final class MockContactRepository: ContactRepositoryProtocol, @unchecked
         contacts.filter { phoneNumbers.contains($0.phoneNumber) }
     }
 
-    func searchUser(phoneNumber: String) async throws -> User? {
-        contacts.first { $0.phoneNumber == phoneNumber }
-    }
-
     func updateProfile(
         displayName: String?,
         bio: String?,

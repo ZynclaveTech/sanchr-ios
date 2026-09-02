@@ -19,6 +19,44 @@ enum ContactUseCases {
     /// were queried. Only the numbers that actually matched are then resolved to
     /// user records, so the server observes the intersection — the people you are
     /// about to be able to message — instead of everyone you have ever met.
+    /// Finds the account behind a phone number the user typed in.
+    ///
+    /// This used to upload a bare SHA-256 of the number through the legacy
+    /// sync RPC. A phone number has ~10 digits of entropy, so that hash is
+    /// the number as far as the server is concerned, and the manual lookup
+    /// was the one path around the OPRF discovery the address-book sync
+    /// insists on. It now asks the same way: OPRF first, and only a number
+    /// the server confirmed as registered is then resolved to a user.
+    struct LookupUser: Sendable {
+        private let contactDataSource: ContactDataSource
+        private let discoveryRepository: DiscoveryRepositoryProtocol
+
+        init(contactDataSource: ContactDataSource, discoveryRepository: DiscoveryRepositoryProtocol) {
+            self.contactDataSource = contactDataSource
+            self.discoveryRepository = discoveryRepository
+        }
+
+        func execute(phoneNumber: String) async throws -> User? {
+            let normalized = phoneNumber.replacingOccurrences(
+                of: "[^0-9+]", with: "", options: .regularExpression)
+            guard !normalized.isEmpty else { return nil }
+
+            let matched: [String]
+            do {
+                matched = try await discoveryRepository.discoverContacts(phoneNumbers: [normalized])
+            } catch let status as GRPCStatus where status.code == .unavailable {
+                SanchrLogger.sync.error(
+                    "OPRF discovery unavailable: \(SignalSessionManager.detailedError(status))")
+                throw AppError.featureDisabled(feature: "contact_discovery")
+            }
+            guard matched.contains(normalized) else { return nil }
+
+            let users = try await contactDataSource.syncContacts(
+                phoneHashes: [ContactDataSource.hashPhoneNumber(normalized)])
+            return users.first
+        }
+    }
+
     struct SyncContacts: Sendable {
         private let contactDataSource: ContactDataSource
         private let discoveryRepository: DiscoveryRepositoryProtocol
