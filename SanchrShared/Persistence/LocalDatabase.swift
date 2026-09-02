@@ -444,10 +444,12 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {
         try await dbPool.write { db in
             // A delete queued twice keeps its first timestamp: the queue is
-            // settled oldest-first, and replacing the row would push a
-            // conversation to the back every time the user retried.
+            // settled oldest-first, and touching the row would push a
+            // conversation to the back every time the user retried. This has
+            // to be a plain insert — save() is update-or-insert, and the
+            // conflict policy only ever applied to the insert half.
             try PendingConversationDeleteRecord(conversationId: conversationId)
-                .save(db, onConflict: Database.ConflictResolution.ignore)
+                .insert(db, onConflict: Database.ConflictResolution.ignore)
         }
     }
 
