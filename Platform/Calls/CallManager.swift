@@ -54,6 +54,20 @@ enum CallState: Equatable, Sendable {
     case reconnecting(callId: String)
     case ended(callId: String, reason: EndReason)
 
+    /// Whether an ICE transition should change this state.
+    ///
+    /// `.ended` still carries its call id, and the peer connection is
+    /// deliberately kept open after `.ended` so the server cannot time the
+    /// call by watching its media stop. A late `.connected` on that lingering
+    /// connection used to pass a "has an id" guard and write `.active` — the
+    /// call screen came back for a call that was over.
+    var acceptsIceTransitions: Bool {
+        switch self {
+        case .outgoing, .ringing, .active, .reconnecting: return true
+        case .idle, .incoming, .ended: return false
+        }
+    }
+
     enum EndReason: Equatable, Sendable {
         case normal
         case busy
@@ -229,6 +243,11 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         guard case .idle = callState else {
             throw AppError.callAlreadyInProgress
         }
+        // A padded close from the previous call may still be waiting. Once
+        // this call configures a new peer connection, that close would be
+        // closing *this* call's — the guard in the padded close only covers
+        // the window before the new state is set.
+        paddingManager.cancel()
 
         if Self.shouldBlockVideoCall(isVideo: isVideo, isVideoCallEnabled: isVideoCallEnabled) {
             SanchrLogger.calls.warning("startCall: video requested but feature is disabled — blocking")
@@ -435,6 +454,7 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
     ) {
         SanchrLogger.calls.info(
             "Incoming \(isVideo ? "video" : "voice") call from \(callerName) [\(callId)]")
+        paddingManager.cancel()
 
         self.callType = isVideo ? "video" : "voice"
         self.isVideoEnabled = isVideo
@@ -1664,7 +1684,27 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         }
     }
 
+    /// Full teardown, for a session ending: sign-out, account deletion.
     func resetState() {
+        paddingManager.cancel()
+        webRTCClient.stopLocalMedia()
+        webRTCClient.close()
+        clearCallState()
+    }
+
+    /// The call screen going away after a call has ended.
+    ///
+    /// Not `resetState()`. That cancels the duration padding and closes the
+    /// peer connection — and the call screen dismisses itself 1.5 s after
+    /// `.ended`, so the padding that `endCallInternal` had just started was
+    /// cancelled on every hang-up and the server saw the exact duration.
+    /// Capture was already stopped by `endCallInternal`; the connection is
+    /// left to the padded close, which will find `.idle` and finish.
+    func dismissEndedCall() {
+        clearCallState()
+    }
+
+    private func clearCallState() {
         stopDurationTimer()
         signalingTask?.cancel()
         signalingTask = nil
@@ -1680,9 +1720,6 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         stopBatteryMonitoring()
         callStartTime = nil
         callUUID = nil
-        paddingManager.cancel()
-        webRTCClient.stopLocalMedia()
-        webRTCClient.close()
         callState = .idle
         isMuted = false
         isSpeakerOn = false
@@ -2179,7 +2216,9 @@ extension CallManager: WebRTCClientDelegate {
         SanchrLogger.calls.info("WebRTC ICE state: \(state.rawValue)")
 
         Task { @MainActor in
-            guard let callId = self.callState.callId else { return }
+            guard self.callState.acceptsIceTransitions,
+                  let callId = self.callState.callId
+            else { return }
 
             switch state {
             case .connected, .completed:
