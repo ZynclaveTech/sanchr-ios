@@ -25,6 +25,7 @@ struct ChatsListView: View {
     @State private var showHiddenChats = false
     @State private var conversationToDelete: Conversation?
     @State private var sanchrModeEnabled = false
+    @State private var sanchrModeChipError: String?
     @State private var showRegLockNudge = SecurityNudge.shouldShowRegistrationLockNudge
     @State private var showRegLockSheet = false
     @State private var showRegLockDismissToast = false
@@ -150,6 +151,10 @@ struct ChatsListView: View {
             // Sync chip with current Sanchr Mode state each time the screen is visible
             // (catches changes made in Settings while ChatsListView was in the nav stack).
             sanchrModeEnabled = container.privacySettings.sanchrModeEnabled
+            // onDisappear untracked every peer when a chat was pushed; coming
+            // back never re-tracked them, so online dots stayed stale until
+            // the next full reload.
+            updatePresenceTrackingForVisibleConversations()
             // Reload cached conversations so unread counts reflect any DB changes made
             // while this view was off-screen (e.g. ChatDetailView marking messages as read).
             Task { await viewModel.loadCachedConversations(messageRepository: container.messageRepository) }
@@ -213,6 +218,14 @@ struct ChatsListView: View {
             scheduledRefreshTask?.cancel()
             scheduledRefreshTask = nil
             untrackAllVisiblePresencePeers()
+        }
+        .alert("Couldn't change Sanchr Mode", isPresented: Binding(
+            get: { sanchrModeChipError != nil },
+            set: { if !$0 { sanchrModeChipError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(sanchrModeChipError ?? "")
         }
         .alert("Couldn't load media", isPresented: Binding(
             get: { homeMediaLoadErrorMessage != nil },
@@ -643,10 +656,13 @@ struct ChatsListView: View {
                             container.privacySettings.update(from: updated)
                             sanchrModeEnabled = updated.sanchrModeEnabled
                         } catch {
-                            // Revert on failure
+                            // Revert on failure, and say so: the chip
+                            // snapping back with no explanation read as a
+                            // broken tap.
                             withAnimation(.easeInOut(duration: 0.18)) {
                                 sanchrModeEnabled = !desired
                             }
+                            sanchrModeChipError = error.localizedDescription
                         }
                     }
                 }
