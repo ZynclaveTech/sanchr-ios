@@ -134,6 +134,18 @@ struct SanchrApp: App {
         // reference it without retaining `self` (which is a SwiftUI struct).
         let realtimeService = container.realtimeService
         let messageRepository = container.messageRepository
+        let messageSender = container.messageSender
+        let callManager = container.callManager
+        pushManager.onInlineReply = { @Sendable conversationId, text in
+            do {
+                _ = try await messageSender.sendText(text, to: conversationId)
+            } catch {
+                SanchrLogger.push.error("Inline reply failed: \(error.localizedDescription)")
+            }
+        }
+        pushManager.onDeclineCall = { @Sendable callId in
+            await callManager.declineCall(fromNotificationFor: callId)
+        }
         pushManager.onSilentWakeup = { @Sendable in
             let syncResult = await realtimeService.syncNowResult()
             guard syncResult.appliedCount > 0 else { return .noData }

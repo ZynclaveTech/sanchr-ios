@@ -847,6 +847,21 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
         endCallInternal(callId: callId, reason: .failed, notifyServer: true)
     }
 
+    /// Declines the call a notification's Decline button referred to.
+    ///
+    /// If it is the call currently ringing, this is a normal decline. If the
+    /// manager no longer holds it — the ring timed out, or the notification
+    /// outlived the CallKit session — the server is still told, so the
+    /// caller stops waiting and the record does not linger as "busy".
+    func declineCall(fromNotificationFor callId: String) async {
+        if callState.callId == callId {
+            declineCall()
+            return
+        }
+        SanchrLogger.calls.info("Declining \(callId) from a notification without an active session")
+        await endCallOnServer(callId: callId, reason: "declined")
+    }
+
     /// Declines an incoming call.
     func declineCall() {
         guard let callId = callState.callId else { return }
