@@ -16,6 +16,10 @@ struct PINEntryView: View {
     let isConfirmation: Bool
     let onComplete: (String) -> Void
     let onCancel: () -> Void
+    /// Bump to shake the dots and clear the entry. The parent owns the
+    /// verdict on a PIN; this is how it says "wrong" without tearing the
+    /// screen down.
+    var errorTrigger: Int = 0
 
     @State private var digits: [Int] = []
     @State private var shakeOffset: CGFloat = 0
@@ -69,6 +73,7 @@ struct PINEntryView: View {
                     }
                 }
                 .offset(x: shakeOffset)
+                .onChange(of: errorTrigger) { _, _ in triggerError() }
 
                 Spacer()
 
