@@ -22,12 +22,8 @@ final class AppLockManager: @unchecked Sendable {
 
     // MARK: - UserDefaults Keys
 
-    private enum Keys {
-        static let screenLockEnabled = "sanchr.security.screenLockEnabled"
-        static let biometricLockEnabled = "sanchr.security.biometricLockEnabled"
-        static let screenLockTimeout = "sanchr.security.screenLockTimeout"
-        static let screenshotProtection = "sanchr.security.screenshotProtection"
-    }
+    /// Shared with the extension so the two can never disagree again.
+    private typealias Keys = AppLockDefaultsKeys
 
     private static let migrationFlagKey = "applock_migrated_to_appgroup_v1"
 

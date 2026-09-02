@@ -53,6 +53,10 @@ struct ShareRootView: View {
 
     @State private var state: ShareRootState = .loadingPayload
 
+    /// Set by the unlock screen; see `isScreenLockEnabled`.
+
+    @State private var hasUnlockedThisShare = false
+
     var body: some View {
         Group {
             switch state {
@@ -64,7 +68,10 @@ struct ShareRootView: View {
 
             case .locked:
                 ShareUnlockView(
-                    onUnlocked: { state = .loadingPayload },
+                    onUnlocked: {
+                        hasUnlockedThisShare = true
+                        state = .loadingPayload
+                    },
                     onCancel: onCancel
                 )
 
@@ -154,8 +161,14 @@ struct ShareRootView: View {
         }
     }
 
+    /// Whether to gate this share behind the device's authentication.
+    ///
+    /// Reads the keys the app actually writes, through the shared definition.
+    /// Once unlocked, stays unlocked for this share: `loadPayload` runs again
+    /// after the unlock screen, and re-checking here would send the user
+    /// straight back to it, forever.
     private func isScreenLockEnabled() -> Bool {
-        AppGroup.userDefaults.bool(forKey: "screenLockEnabled")
+        !hasUnlockedThisShare && AppLockDefaultsKeys.isLockEnabled
     }
 }
 
