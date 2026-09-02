@@ -83,7 +83,7 @@ struct BackupRestoreOfferView: View {
                     .padding(.top, SanchrSpacing.xl)
 
                     Text("Restore your chats")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(SanchrTypography.scaled(size: 26, weight: .bold))
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
                     Text("We found an encrypted backup for this number. Restore it now to bring your history back — this is the only moment it can be restored.")
@@ -206,7 +206,7 @@ struct BackupRestoreOfferView: View {
                     systemName: selectedSource == source
                         ? "checkmark.circle.fill" : "circle"
                 )
-                .font(.system(size: 22))
+                .font(SanchrTypography.scaled(size: 22, weight: .regular))
                 .foregroundColor(
                     selectedSource == source
                         ? .sanchrPrimary : Color.sanchrTextTertiary(colorScheme))
@@ -263,7 +263,7 @@ struct BackupRestoreOfferView: View {
             }
 
             Text(completed ? "All set!" : "Restoring your chats")
-                .font(.system(size: 24, weight: .bold))
+                .font(SanchrTypography.font(size: .xl, weight: .bold))
                 .foregroundColor(Color.sanchrTextPrimary(colorScheme))
 
             VStack(alignment: .leading, spacing: SanchrSpacing.md) {

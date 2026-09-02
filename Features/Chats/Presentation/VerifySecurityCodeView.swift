@@ -240,7 +240,7 @@ struct VerifySecurityCodeView: View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
                 Text("Verify Security Code")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(SanchrTypography.font(size: .md, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
 
                 Text(
@@ -304,7 +304,7 @@ struct VerifySecurityCodeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Security Fingerprint")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(SanchrTypography.font(size: .sm, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
                 Spacer()
                 Button {
@@ -360,7 +360,7 @@ struct VerifySecurityCodeView: View {
                         HStack(spacing: 8) {
                             ForEach(0..<fingerprintDigits[row].count, id: \.self) { col in
                                 Text(fingerprintDigits[row][col])
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(SanchrTypography.scaled(size: 15, weight: .bold))
                                     .foregroundColor(SanchrExportColors.textPrimary)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -387,7 +387,7 @@ struct VerifySecurityCodeView: View {
     private var encryptionDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Encryption Details")
-                .font(.system(size: 16, weight: .bold))
+                .font(SanchrTypography.font(size: .sm, weight: .bold))
                 .foregroundColor(SanchrExportColors.textPrimary)
 
             encryptionDetailCard(

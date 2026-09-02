@@ -51,7 +51,7 @@ struct VoicePreviewBubble: View {
             waveform
 
             Text(Self.formatTime(remaining))
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(SanchrTypography.scaled(size: 13, weight: .medium).monospacedDigit())
                 .monospacedDigit()
                 .foregroundColor(SanchrExportColors.textSecondary)
                 .accessibilityHidden(true)

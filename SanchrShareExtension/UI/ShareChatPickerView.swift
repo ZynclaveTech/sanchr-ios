@@ -139,7 +139,7 @@ struct ShareChatPickerView: View {
                     .frame(width: 56, height: 56)
                     .overlay(
                         Text(String(summary.title.prefix(1)).uppercased())
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(SanchrTypography.scaled(size: 22, weight: .semibold))
                             .foregroundColor(selected ? .white : SanchrExportColors.textSecondary)
                     )
                     .overlay(alignment: .bottomTrailing) {

@@ -133,7 +133,7 @@ struct PINEntryView: View {
                 }
             } label: {
                 Text(key)
-                    .font(.system(size: 28, weight: .regular, design: .rounded))
+                    .font(SanchrTypography.scaled(size: 28, weight: .regular))
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(width: keySize, height: keySize)
                     .background(SanchrExportColors.surface, in: Circle())

@@ -53,7 +53,7 @@ struct RecordingHUD: View {
                 .accessibilityHidden(true)
 
             Text(Self.formatTime(elapsed))
-                .font(.system(size: 15, weight: .regular, design: .monospaced))
+                .font(SanchrTypography.scaled(size: 15, weight: .regular).monospacedDigit())
                 .monospacedDigit()
                 .foregroundColor(SanchrExportColors.textPrimary)
                 .accessibilityHidden(true)
