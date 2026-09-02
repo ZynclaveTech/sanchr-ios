@@ -1,5 +1,7 @@
 import Foundation
 import LocalAuthentication
+import SanchrShared
+import UIKit
 import XCTest
 
 @testable import Sanchr
@@ -43,6 +45,23 @@ final class LockScreenTests: XCTestCase {
     }
 
     /// The manager exposes prompt state so the overlay can show it.
+    /// The mark moved to a catalog both targets compile; the app must still
+    /// find it under the same name.
+    func testTheMarkStillResolvesInTheApp() {
+        XCTAssertNotNil(UIImage(named: "SanchrLogo"))
+    }
+
+    /// The extension shows the same screen, with a way out.
+    func testTheShareExtensionUsesTheSameScreen() throws {
+        let share = try source("SanchrShareExtension/UI/ShareUnlockView.swift")
+        XCTAssertTrue(share.contains("LockScreenView("))
+        XCTAssertTrue(share.contains("onCancel: onCancel"))
+        XCTAssertTrue(share.contains("subtitle: \"Unlock to share into Sanchr.\""))
+        let project = try source("project.yml")
+        XCTAssertEqual(project.components(separatedBy: "- path: Resources/BrandAssets.xcassets").count - 1, 2,
+                       "the mark must be compiled into both the app and the extension")
+    }
+
     func testTheLockManagerPublishesPromptState() throws {
         let manager = try source("Shared/Services/AppLockManager.swift")
         XCTAssertTrue(manager.contains("private(set) var isAuthenticating: Bool = false"))

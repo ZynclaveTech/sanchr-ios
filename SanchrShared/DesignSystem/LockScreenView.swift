@@ -1,5 +1,4 @@
 import LocalAuthentication
-import SanchrShared
 import SwiftUI
 
 /// The one lock screen: shown at cold launch by `AppLockGateView` and as the
@@ -9,10 +8,31 @@ import SwiftUI
 /// Design: the app's own mark with a small lock badge, on a quiet ground with
 /// a breathing indigo glow, and one full-width unlock button that names the
 /// method the device actually has. Nothing behind it is hinted at.
-struct LockScreenView: View {
-    var isAuthenticating: Bool = false
-    var errorMessage: String? = nil
+public struct LockScreenView: View {
+    let isAuthenticating: Bool
+    let errorMessage: String?
+    let subtitle: String
     let onUnlock: () -> Void
+    let onCancel: (() -> Void)?
+
+    /// - Parameters:
+    ///   - subtitle: one line under the title; the app and the share
+    ///     extension say different things about what unlocking gets you.
+    ///   - onCancel: the share extension can be dismissed instead of
+    ///     unlocked; the app cannot.
+    public init(
+        isAuthenticating: Bool = false,
+        errorMessage: String? = nil,
+        subtitle: String = "Your messages stay private until you unlock.",
+        onUnlock: @escaping () -> Void,
+        onCancel: (() -> Void)? = nil
+    ) {
+        self.isAuthenticating = isAuthenticating
+        self.errorMessage = errorMessage
+        self.subtitle = subtitle
+        self.onUnlock = onUnlock
+        self.onCancel = onCancel
+    }
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -21,7 +41,7 @@ struct LockScreenView: View {
 
     private let biometry = LockBiometry.current
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             SanchrExportColors.background.ignoresSafeArea()
 
@@ -36,7 +56,7 @@ struct LockScreenView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .multilineTextAlignment(.center)
 
-                Text("Your messages stay private until you unlock.")
+                Text(subtitle)
                     .font(SanchrTypography.body)
                     .foregroundColor(SanchrExportColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -47,6 +67,14 @@ struct LockScreenView: View {
 
                 unlockButton
                     .padding(.horizontal, SanchrSpacing.xl)
+
+                if let onCancel {
+                    Button("Cancel", action: onCancel)
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                        .frame(height: 44)
+                        .padding(.top, SanchrSpacing.xxs)
+                }
 
                 Group {
                     if let errorMessage {
@@ -161,7 +189,7 @@ struct LockScreenView: View {
     }
 }
 
-extension LockScreenView {
+public extension LockScreenView {
     /// What to show for a failed prompt. A cancel is the user's own doing
     /// and gets no message; a lockout or a missing passcode gets a specific
     /// one; anything else gets the system's wording.
@@ -183,10 +211,10 @@ extension LockScreenView {
 }
 
 /// Which unlock method the device offers, for the button's icon and title.
-enum LockBiometry {
+public enum LockBiometry {
     case faceID, touchID, opticID, passcode
 
-    static var current: LockBiometry {
+    public static var current: LockBiometry {
         let context = LAContext()
         guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else {
             return .passcode
@@ -199,7 +227,7 @@ enum LockBiometry {
         }
     }
 
-    var symbolName: String {
+    public var symbolName: String {
         switch self {
         case .faceID: return "faceid"
         case .touchID: return "touchid"
@@ -208,7 +236,7 @@ enum LockBiometry {
         }
     }
 
-    var buttonTitle: String {
+    public var buttonTitle: String {
         switch self {
         case .faceID: return "Unlock with Face ID"
         case .touchID: return "Unlock with Touch ID"
