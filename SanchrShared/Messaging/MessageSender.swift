@@ -136,7 +136,7 @@ public protocol MediaUploading: Sendable {
         mimeType: String,
         conversationId: String,
         recipientId: String,
-        progress: @Sendable (Double) -> Void
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws -> MediaUploadOutcome
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import os
 import CryptoKit
 
 /// Upload state for each media task.
@@ -226,9 +227,19 @@ public actor MediaUploadManager {
             urlRequest.setValue(task.mimeType, forHTTPHeaderField: "Content-Type")
             urlRequest.setValue("\(encryptedData.count)", forHTTPHeaderField: "Content-Length")
 
+            // Byte progress comes from the task delegate; the delegate-less
+            // `upload(for:from:)` only ever reported 0 and then 1, so the
+            // bubble's ring never moved.
+            let progressHandler = progressHandlers[taskId]
+            let progressDelegate = UploadProgressDelegate { [weak self] fraction in
+                progressHandler?(fraction)
+                guard let self else { return }
+                Task { await self.recordUploadProgress(taskId, fraction: fraction) }
+            }
             let (_, httpResponse) = try await URLSession.shared.upload(
                 for: urlRequest,
-                from: encryptedData
+                from: encryptedData,
+                delegate: progressDelegate
             )
 
             guard let response = httpResponse as? HTTPURLResponse,
@@ -296,6 +307,27 @@ public actor MediaUploadManager {
     }
 
     /// Cancel a task.
+    /// Per-task byte-progress sink, registered by the `MediaUploading` adapter
+    /// for the lifetime of its `execute` call. Kept out of `execute`'s
+    /// signature so the queue's entry point stays a plain task id.
+    private var progressHandlers: [String: @Sendable (Double) -> Void] = [:]
+
+    func setProgressHandler(_ handler: (@Sendable (Double) -> Void)?, for taskId: String) {
+        progressHandlers[taskId] = handler
+    }
+
+    private func recordUploadProgress(_ taskId: String, fraction: Double) {
+        guard var task = tasks[taskId] else { return }
+        switch task.state {
+        case .queued, .encrypting, .uploading: break
+        default: return   // a terminal or later state must not be dragged back
+        }
+        task.state = .uploading(progress: fraction)
+        task.progress = fraction
+        tasks[taskId] = task
+        notifyUpdate(task)
+    }
+
     func cancel(_ taskId: String) {
         guard var task = tasks[taskId] else { return }
         task.state = .cancelled
@@ -334,14 +366,13 @@ public actor MediaUploadManager {
 /// Adapts the richer `MediaUploadManager` pipeline (queue + multi-state
 /// progress + retries) to the minimal `MediaUploading` surface that
 /// `MessageSender` depends on. The adapter funnels a single file through
-/// `enqueue` + `execute`, reports the terminal 0/1 progress points, and
+/// `enqueue` + `execute`, forwards byte progress from the PUT, and
 /// surfaces the server identifiers in a `MediaUploadOutcome`.
 ///
-/// NOTE: `MediaUploadManager.execute` currently only emits coarse state
-/// transitions, not fine-grained byte progress, so `progress` is called
-/// with 0.0 at the start and 1.0 on success. Fine-grained progress will be
-/// wired up once the underlying `URLSession.upload` is migrated to the
-/// delegate-based variant (tracked separately).
+/// Byte progress: the adapter registers the caller's `progress` closure as
+/// the task's handler before `execute`, and the S3 PUT's task delegate
+/// feeds it as the body goes out. 0.0 is reported before encryption starts
+/// and 1.0 once the server has the whole file.
 ///
 /// `execute(_:)` is already an `async` entry point on the actor, so no
 /// `withCheckedThrowingContinuation` bridge is required — Swift concurrency
@@ -353,7 +384,7 @@ extension MediaUploadManager: MediaUploading {
         mimeType: String,
         conversationId: String,
         recipientId: String,
-        progress: @Sendable (Double) -> Void
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws -> MediaUploadOutcome {
         progress(0.0)
 
@@ -365,6 +396,8 @@ extension MediaUploadManager: MediaUploading {
                 mimeType: mimeType
             )
         )
+        setProgressHandler(progress, for: queued.id)
+        defer { setProgressHandler(nil, for: queued.id) }
 
         guard let completed = await execute(queued.id) else {
             throw AppError.mediaUploadFailed
@@ -405,5 +438,33 @@ extension MediaUploadManager: MediaUploading {
             encryptionTag: metadata.tag,
             plaintextDigest: metadata.digest
         )
+    }
+}
+
+/// Turns URLSession's body-bytes-sent callbacks into a 0...1 fraction. Steps
+/// smaller than one percent are dropped so a large file does not flood the
+/// main actor with reconfigures; 1.0 is always delivered.
+final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let onProgress: @Sendable (Double) -> Void
+    private let lastReported = OSAllocatedUnfairLock<Double>(initialState: -1)
+
+    init(onProgress: @escaping @Sendable (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64,
+                    totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        report(fraction: min(1, Double(totalBytesSent) / Double(totalBytesExpectedToSend)))
+    }
+
+    /// Exposed for tests; the delegate method above is what URLSession calls.
+    func report(fraction: Double) {
+        let shouldReport = lastReported.withLock { last -> Bool in
+            guard fraction >= 1 || fraction - last >= 0.01 else { return false }
+            last = fraction
+            return true
+        }
+        if shouldReport { onProgress(fraction) }
     }
 }
