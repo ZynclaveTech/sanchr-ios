@@ -106,8 +106,11 @@ final class MockSecureStorage: SecureStorageProtocol, @unchecked Sendable {
         return generated
     }
 
+    private(set) var sessionSnapshotWrites = 0
+
     func saveSessionSnapshot(_ snapshot: SessionSnapshot) throws {
         sessionSnapshot = snapshot
+        sessionSnapshotWrites += 1
     }
 
     func readSessionSnapshot() throws -> SessionSnapshot? {

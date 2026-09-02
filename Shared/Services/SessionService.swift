@@ -285,7 +285,45 @@ final class SessionService: @unchecked Sendable {
     func setLastMessageSyncTimestamp(_ timestamp: Int64) {
         guard timestamp > lastMessageSyncTimestamp else { return }
         lastMessageSyncTimestamp = timestamp
+        schedulePersistSnapshot()
+    }
+
+    // MARK: - Coalesced Snapshot Persistence
+
+    /// The snapshot lives in the Keychain, and this used to be written on
+    /// every realtime message — a Keychain round trip per message during a
+    /// burst. The high-water mark only has to be durable eventually: a
+    /// crash before the write replays a few messages, which the replay
+    /// gate already de-duplicates. So writes are coalesced, and anything
+    /// that ends the session or backgrounds the app flushes first.
+    private var pendingSnapshotPersist: Task<Void, Never>?
+    private static let snapshotPersistDelay: Duration = .seconds(2)
+
+    private func schedulePersistSnapshot() {
+        pendingSnapshotPersist?.cancel()
+        pendingSnapshotPersist = Task { [weak self] in
+            try? await Task.sleep(for: Self.snapshotPersistDelay)
+            guard !Task.isCancelled, let self else { return }
+            try? self.persistSnapshot()
+            self.pendingSnapshotPersist = nil
+        }
+    }
+
+    /// Writes any coalesced snapshot now. Call before the process may be
+    /// suspended or the session torn down.
+    func flushPendingSnapshot() {
+        guard pendingSnapshotPersist != nil else { return }
+        pendingSnapshotPersist?.cancel()
+        pendingSnapshotPersist = nil
         try? persistSnapshot()
+    }
+
+    /// Drops a coalesced write without performing it. Used when the
+    /// session data is about to be deleted, so a late write cannot
+    /// resurrect it.
+    private func cancelPendingSnapshot() {
+        pendingSnapshotPersist?.cancel()
+        pendingSnapshotPersist = nil
     }
 
     /// Resets the incremental-sync high-water mark to 0 and persists the
@@ -327,6 +365,7 @@ final class SessionService: @unchecked Sendable {
 
     @MainActor
     private func clearSessionState() {
+        cancelPendingSnapshot()
         periodicRefreshTask?.cancel()
         periodicRefreshTask = nil
         privacySettings.clear()
