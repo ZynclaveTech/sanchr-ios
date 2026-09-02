@@ -246,6 +246,12 @@ public enum DatabaseSchema {
         // Conversations the user deleted while the server could not be
         // reached. The row is hidden locally at once; this is the debt to
         // the server, settled on the next sync.
+        migrator.registerMigration("v12_user_address_book_name") { db in
+            try db.alter(table: "user") { t in
+                t.add(column: "addressBookName", .text)
+            }
+        }
+
         migrator.registerMigration("v11_pending_conversation_delete") { db in
             try db.create(table: "pendingConversationDelete", ifNotExists: true) { t in
                 t.column("conversationId", .text).primaryKey()

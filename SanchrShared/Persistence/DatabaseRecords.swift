@@ -17,6 +17,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
     public var status: String
     public var isLocalUser: Bool
     public var profileKey: Data?
+    public var addressBookName: String?
 
     // MARK: - Domain Conversion
 
@@ -34,6 +35,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         // Coerce to nil if not exactly 32 bytes — avoids persisting a malformed key
         // that would silently degrade to a deterministic subkey in HKDF later.
         self.profileKey = user.profileKey.flatMap { $0.count == 32 ? $0 : nil }
+        self.addressBookName = user.addressBookName
     }
 
     public init(
@@ -47,7 +49,8 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         identityKeyFingerprint: String?,
         status: String,
         isLocalUser: Bool,
-        profileKey: Data? = nil
+        profileKey: Data? = nil,
+        addressBookName: String? = nil
     ) {
         self.id = id
         self.phoneNumber = phoneNumber
@@ -60,6 +63,7 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
         self.status = status
         self.isLocalUser = isLocalUser
         self.profileKey = profileKey
+        self.addressBookName = addressBookName
     }
 
     public func toDomain() -> User {
@@ -74,7 +78,8 @@ public struct UserRecord: Codable, FetchableRecord, PersistableRecord, Sendable 
             identityKeyFingerprint: identityKeyFingerprint,
             status: User.Status(rawValue: status) ?? .offline,
             isLocalUser: isLocalUser,
-            profileKey: profileKey
+            profileKey: profileKey,
+            addressBookName: addressBookName
         )
     }
 }

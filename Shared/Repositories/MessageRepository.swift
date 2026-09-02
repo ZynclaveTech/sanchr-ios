@@ -2160,14 +2160,20 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// every refresh path agree. Priority, highest first:
     ///
     /// 1. A name saved in the local address book — trusted, shown verbatim.
-    ///    (Not wired yet: device-contact names are not captured, so this never
-    ///    fires today; it is the reserved top slot for that feature.)
+    ///    Captured by the contact sync from the device's own card for the
+    ///    number, so someone in your contacts reads by the name you gave them.
     /// 2. A known phone number for an unsaved peer — shown raw, WhatsApp-style, so
     ///    an unverified stranger reads as a number and not as a trusted name.
     /// 3. A decrypted Profile-Key name — prefixed with "~" to mark it as the
     ///    peer's self-asserted name rather than one the user verified.
     /// 4. "Unknown contact" — never the server's "Sanchr User" placeholder.
-    private static func displayTitle(for participant: User, contact: User?) -> String {
+    static func displayTitle(for participant: User, contact: User?) -> String {
+        if let saved = contact?.addressBookName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !saved.isEmpty
+        {
+            return saved
+        }
+
         func isPlaceholder(_ name: String) -> Bool {
             name.isEmpty
                 || name == participant.id

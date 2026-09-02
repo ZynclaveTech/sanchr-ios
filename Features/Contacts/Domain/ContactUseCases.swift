@@ -103,6 +103,10 @@ enum ContactUseCases {
 
             let request = CNContactFetchRequest(keysToFetch: keysToFetch)
             var phoneNumbers: [String] = []
+            // The name on the device card for each number. A match is stored
+            // under it, so the list shows the name the user gave the person
+            // rather than the "~name" the person asserts about themselves.
+            var namesByNumber: [String: String] = [:]
 
             // Accounts are registered in E.164 ("+919569740653"), so that is the
             // only form that can match. Address-book entries are frequently
@@ -113,6 +117,10 @@ enum ContactUseCases {
             let callingCode = ContactDataSource.callingCode(fromE164: own)
             let nationalLength = ContactDataSource.nationalNumberLength(ofE164: own)
             try store.enumerateContacts(with: request) { contact, _ in
+                let cardName = [contact.givenName, contact.familyName]
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
                 for number in contact.phoneNumbers {
                     let raw = number.value.stringValue
                     if let e164 = ContactDataSource.e164PhoneNumber(
@@ -121,6 +129,7 @@ enum ContactUseCases {
                         nationalNumberLength: nationalLength)
                     {
                         phoneNumbers.append(e164)
+                        if !cardName.isEmpty, namesByNumber[e164] == nil { namesByNumber[e164] = cardName }
                     }
                     // Also try the raw normalized form: it costs one extra
                     // blinded point and covers contacts already stored in the
@@ -128,6 +137,7 @@ enum ContactUseCases {
                     let normalized = ContactDataSource.normalizePhoneNumber(raw)
                     if !normalized.isEmpty, normalized.hasPrefix("+") {
                         phoneNumbers.append(normalized)
+                        if !cardName.isEmpty, namesByNumber[normalized] == nil { namesByNumber[normalized] = cardName }
                     }
                 }
             }
@@ -167,7 +177,7 @@ enum ContactUseCases {
             // learns this set — it has to, to return the accounts — but that is the
             // intersection, not the address book.
             let hashes = matched.map { ContactDataSource.hashPhoneNumber($0) }
-            return try await contactDataSource.syncContacts(phoneHashes: hashes)
+            return try await contactDataSource.syncContacts(phoneHashes: hashes, addressBookNames: namesByNumber)
         }
     }
 
