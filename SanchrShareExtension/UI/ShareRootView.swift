@@ -78,7 +78,7 @@ struct ShareRootView: View {
             case .picker(let payload):
                 ShareChatPickerView(
                     payload: payload,
-                    onCancel: onCancel,
+                    onCancel: { payload.removeFiles(); onCancel() },
                     onNext: { recipients in
                         state = .composer(payload, recipients: recipients)
                     }
@@ -88,7 +88,7 @@ struct ShareRootView: View {
                 ShareComposerView(
                     payload: payload,
                     recipients: recipients,
-                    onCancel: onCancel,
+                    onCancel: { payload.removeFiles(); onCancel() },
                     onSend: { caption in
                         state = .sending(payload, recipients: recipients, caption: caption)
                     }

@@ -87,6 +87,7 @@ final actor ShareSendCoordinator: ShareSendDriving {
         // text, say — must not come back as "Sent".
         guard !units.isEmpty else {
             SanchrLogger.chat.error("ShareSendCoordinator: payload produced no send units")
+            payload.removeFiles()
             for recipient in recipients {
                 progress(recipient.id, .failure("Nothing to share."), 1)
             }
@@ -95,6 +96,7 @@ final actor ShareSendCoordinator: ShareSendDriving {
         let dispatcher = ShareSendDispatcher(sender: deps.messageSender)
         let recipientIds = recipients.map(\.id)
 
+        let anySent = SentFlag()
         await dispatcher.send(units: units, to: recipientIds) { recipientId, outcome, overall in
             let mapped = Self.mapOutcome(outcome)
             if case .failure(let reason) = mapped {
@@ -102,8 +104,22 @@ final actor ShareSendCoordinator: ShareSendDriving {
                     "ShareSendCoordinator: send to \(recipientId.prefix(8)) failed: \(reason)"
                 )
             }
+            if case .success = mapped { anySent.set() }
             progress(recipientId, mapped, overall)
         }
+        // The copies in the App Group cache are the sent messages' local
+        // media. If nothing went out they are just leftovers — and until
+        // this, nothing ever deleted them.
+        if !anySent.value {
+            payload.removeFiles()
+        }
+    }
+
+    private final class SentFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var flag = false
+        func set() { lock.lock(); flag = true; lock.unlock() }
+        var value: Bool { lock.lock(); defer { lock.unlock() }; return flag }
     }
 
     private static func mapOutcome(_ outcome: ShareRecipientOutcome) -> ShareRecipientState {
