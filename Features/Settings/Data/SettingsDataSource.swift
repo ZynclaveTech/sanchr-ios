@@ -3,7 +3,16 @@ import SanchrShared
 
 /// Data source for settings-related gRPC service calls.
 /// Translates between domain state and Sanchr_Settings protobuf messages.
-final class SettingsDataSource: @unchecked Sendable {
+/// The three settings RPCs `SettingsViewModel` drives. The concrete data
+/// source is a final class over the gRPC client; this is the seam the view
+/// model's sync logic is tested through.
+protocol SettingsDataSourceProtocol: Sendable {
+    func getSettings() async throws -> Sanchr_Settings_UserSettings
+    func updateSettings(settings: Sanchr_Settings_UserSettings) async throws -> Sanchr_Settings_UserSettings
+    func toggleSanchrMode(enabled: Bool) async throws -> Sanchr_Settings_UserSettings
+}
+
+final class SettingsDataSource: SettingsDataSourceProtocol, @unchecked Sendable {
     private let grpcClient: GRPCClientProtocol
 
     private var settingsClient: Sanchr_Settings_SettingsServiceAsyncClientProtocol {
