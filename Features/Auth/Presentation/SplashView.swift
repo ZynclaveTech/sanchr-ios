@@ -12,6 +12,8 @@ import SanchrShared
 struct SplashView: View {
 
     @State private var appeared = false
+    /// Supplied by the root so the mark can glide into the lock screen.
+    var markNamespace: Namespace.ID? = nil
 
     var body: some View {
         ZStack {
@@ -57,6 +59,7 @@ struct SplashView: View {
                             .delay(0.10),
                             value: appeared
                         )
+                        .brandMark(in: markNamespace)
                 }
 
                 // ── Wordmark + tagline ───────────────────────────────────

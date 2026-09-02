@@ -37,12 +37,10 @@ struct SanchrApp: App {
         WindowGroup {
             if ProcessInfo.processInfo.sanchrIsRunningUnitTests {
                 Color.clear
-            } else if container.appLockManager.biometricLockEnabled && !hasAuthenticatedAtGate {
-                // App lock is enabled and user hasn't authenticated yet —
-                // Block access to the entire app until authentication succeeds.
-                AppLockGateView(isAuthenticated: $hasAuthenticatedAtGate)
             } else {
-                RootView(showSplash: $showSplash)
+                // The cold-launch lock gate lives inside RootView, after the
+                // splash, so the brand mark hands off from one to the other.
+                RootView(showSplash: $showSplash, hasAuthenticatedAtGate: $hasAuthenticatedAtGate)
                     .environment(container)
                     .environment(appRouter)
                     .environment(container.syncState)
@@ -365,6 +363,10 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
 /// based on the current session state.
 struct RootView: View {
     @Binding var showSplash: Bool
+    /// App Lock at cold launch (and on every return from the background).
+    /// Content is not built until this is true.
+    @Binding var hasAuthenticatedAtGate: Bool
+    @Namespace private var brandMark
     @Environment(DependencyContainer.self) private var container
     @Environment(AppRouter.self) private var router
     @AppStorage("sanchr.activeOnboardingFlow") private var activeOnboardingFlow = false
@@ -405,11 +407,23 @@ struct RootView: View {
         activeOnboardingFlow || !hasCompletedProfileBasics
     }
 
+    private var needsGate: Bool {
+        container.appLockManager.biometricLockEnabled && !hasAuthenticatedAtGate
+    }
+
     var body: some View {
         ZStack {
             if showSplash {
-                SplashView()
+                SplashView(markNamespace: brandMark)
                     .transition(.opacity)
+            } else if needsGate {
+                // Used to replace the whole root before the splash, so a
+                // locked launch went lock → splash → app. Now the splash
+                // plays, the mark glides into the lock screen, and the app
+                // appears once unlocked.
+                AppLockGateView(isAuthenticated: $hasAuthenticatedAtGate, markNamespace: brandMark)
+                    .transition(.opacity)
+                    .zIndex(90)
             } else {
                 Group {
                     if container.sessionService.isAuthenticated && sessionReady {
@@ -453,8 +467,9 @@ struct RootView: View {
                 }
             }
 
-            // Lock screen overlay
-            if container.appLockManager.isLocked && !showSplash {
+            // Lock screen overlay. Not while the gate is up: that is the same
+            // screen, and two of them would prompt twice.
+            if container.appLockManager.isLocked && !showSplash && !needsGate {
                 LockScreenView(
                     isAuthenticating: container.appLockManager.isAuthenticating,
                     errorMessage: container.appLockManager.authError
@@ -465,6 +480,7 @@ struct RootView: View {
                 .zIndex(100)
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: hasAuthenticatedAtGate)
         .screenshotProtection(
             isActive: container.appLockManager.isScreenshotProtectionActive
                 || container.privacySettings.sanchrModeEnabled
