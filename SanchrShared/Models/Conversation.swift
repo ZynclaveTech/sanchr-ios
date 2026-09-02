@@ -67,7 +67,10 @@ public struct Conversation: Identifiable, Codable, Hashable, Sendable {
             return participants.first(where: { !$0.isLocalUser })?.displayName ?? "Unknown"
         case .group:
             // TODO: Store group name separately
-            return participants.map(\.displayName).joined(separator: ", ")
+            // The local user is a participant too, and a title that names
+            // them reads as someone else's group.
+            let others = participants.filter { !$0.isLocalUser }.map(\.displayName)
+            return others.isEmpty ? "Group" : others.joined(separator: ", ")
         }
     }
 

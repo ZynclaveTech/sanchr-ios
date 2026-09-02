@@ -82,6 +82,16 @@ final actor ShareSendCoordinator: ShareSendDriving {
         // the main-app unit-test target without `@testable import`-ing this
         // app-extension binary.
         let units = Self.flatten(payload: payload, caption: caption)
+        // The dispatcher treats no units as an immediate success for every
+        // recipient. A share whose only part flattened to nothing — empty
+        // text, say — must not come back as "Sent".
+        guard !units.isEmpty else {
+            SanchrLogger.chat.error("ShareSendCoordinator: payload produced no send units")
+            for recipient in recipients {
+                progress(recipient.id, .failure("Nothing to share."), 1)
+            }
+            return
+        }
         let dispatcher = ShareSendDispatcher(sender: deps.messageSender)
         let recipientIds = recipients.map(\.id)
 
