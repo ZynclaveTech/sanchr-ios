@@ -7,7 +7,7 @@ private struct SendableNotificationPayload: @unchecked Sendable {
     let userInfo: [AnyHashable: Any]
 }
 
-private extension ProcessInfo {
+extension ProcessInfo {
     var sanchrIsRunningUnitTests: Bool {
         environment["XCTestConfigurationFilePath"] != nil
             || environment["XCTestBundlePath"] != nil

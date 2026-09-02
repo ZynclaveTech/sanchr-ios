@@ -47,6 +47,20 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var localDatabase: LocalDatabaseProtocol = makeLocalDatabase()
 
+    /// See `LocalDatabaseOpener`. Built from the key provider only, so the
+    /// open itself runs wherever `result()` is first called.
+    @ObservationIgnored private lazy var localDatabaseOpener = LocalDatabaseOpener(
+        open: { [keyProvider = localDatabaseKeyProvider] in
+            do {
+                return .success(try LocalDatabase(keyProvider: keyProvider))
+            } catch let error as AppError {
+                return .failure(error)
+            } catch {
+                return .failure(AppError.databaseError(reason: error.localizedDescription))
+            }
+        }
+    )
+
     // MARK: - Signal Protocol (E2EE)
 
     /// The unified Signal Protocol store backed by Keychain and local file persistence.
@@ -586,6 +600,14 @@ final class DependencyContainer: @unchecked Sendable {
     init() {
         Self.purgeKeychainIfFreshInstall()
 
+        // Start opening the database now, off the main thread, so the first
+        // view to need it does not pay for key derivation and migrations on
+        // its own render. The test host builds a container without ever
+        // touching the database; keep it that way.
+        if !ProcessInfo.processInfo.sanchrIsRunningUnitTests {
+            localDatabaseOpener.prewarm()
+        }
+
         // Eagerly start network monitoring if needed.
 
         // Vault share temp-file sweep. Runs detached at utility priority
@@ -600,16 +622,13 @@ final class DependencyContainer: @unchecked Sendable {
     }
 
     private func makeLocalDatabase() -> LocalDatabaseProtocol {
-        do {
+        switch localDatabaseOpener.result() {
+        case .success(let database):
             localDataIssue = nil
-            return try LocalDatabase(keyProvider: localDatabaseKeyProvider)
-        } catch let error as AppError {
+            return database
+        case .failure(let error):
             localDataIssue = error
             return UnavailableLocalDatabase(error: error)
-        } catch {
-            let wrapped = AppError.databaseError(reason: error.localizedDescription)
-            localDataIssue = wrapped
-            return UnavailableLocalDatabase(error: wrapped)
         }
     }
 
@@ -699,6 +718,7 @@ final class DependencyContainer: @unchecked Sendable {
         // syncPendingMessages() pulls the full server-side history instead
         // of only messages newer than the stale mark.
         sessionService.resetMessageSyncHighWaterMark()
+        localDatabaseOpener.reset()
         localDatabase = makeLocalDatabase()
     }
 
