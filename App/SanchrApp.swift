@@ -218,9 +218,13 @@ struct SanchrApp: App {
             orchestrator.scheduleAppRefresh()
             lockManager.appDidEnterBackground()
 
-            // Reset app lock gate authentication — when app returns to foreground,
-            // the gate will require re-authentication if biometric lock is enabled.
-            hasAuthenticatedAtGate = false
+            // The cold-launch gate is deliberately NOT re-armed here. It used
+            // to be, and on foreground both it and the lock manager prompted
+            // at once: Face ID satisfied one, the other was refused with
+            // interactionNotAllowed, and the refusal ended up on the lock
+            // screen right after a successful scan. A return from the
+            // background is the manager's alone — it also honours the lock
+            // timeout, which the gate ignored.
 
             container.realtimeService.enterBackground()
             SanchrLogger.sync.info("App entered background, scheduled background tasks")

@@ -204,6 +204,10 @@ public extension LockScreenView {
         switch laError.code {
         case .userCancel, .systemCancel, .appCancel:
             return nil
+        case .notInteractive:
+            // "Could not show a prompt right now" — not a verdict on the
+            // user. The next activation prompts again.
+            return nil
         case .biometryLockout:
             return "Too many attempts. Use your passcode to unlock."
         case .passcodeNotSet:
