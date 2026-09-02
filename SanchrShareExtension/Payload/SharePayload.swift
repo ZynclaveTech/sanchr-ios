@@ -19,6 +19,15 @@ enum SharePayload: Equatable {
     /// `multi` payloads are never themselves nested.
     indirect case multi([SharePayload])
 
+    /// Deletes the copies. A sent file is the message's local copy and must
+    /// stay; call this only when nothing was sent — a cancelled share, or a
+    /// send that failed for every recipient.
+    func removeFiles() {
+        for url in fileURLs {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// Total bytes across this payload (recursive for `.multi`).
     var sizeBytes: Int64 {
         switch self {
