@@ -210,13 +210,19 @@ struct ChatDetailView: View {
         let _ = container.chatAppearance.changeVersion
         return chatViewContent
             .task {
-                // Cache-warm the per-chat appearance override BEFORE messages
-                // load so the first paint already reflects the override —
-                // avoids a global → override flicker.
+                // The appearance override and vault policy are read first so
+                // the first paint already reflects them (no global → override
+                // flicker) and the realtime decode path finds a populated
+                // policy entry. They are small, and the messages fetch does
+                // not depend on them — so it is started alongside rather
+                // than after, which used to add three round trips to the
+                // time before the transcript could show anything.
+                async let messagesLoaded: Void = viewModel.loadMessages(
+                    conversationId: conversation.id,
+                    unreadCount: conversation.unreadCount,
+                    messageRepository: container.messageRepository
+                )
                 await container.chatAppearance.loadOverride(conversationId: conversation.id)
-                // Same for the per-chat vault policy so the realtime decode
-                // path's lock-protected mirror lookup hits a populated entry
-                // when subsequent messages arrive in this chat.
                 await container.chatVaultPolicy.loadPolicy(conversationId: conversation.id)
 
                 // Restore whatever was left half-typed. Only when the composer
@@ -231,11 +237,7 @@ struct ChatDetailView: View {
                 {
                     viewModel.inputText = draft
                 }
-                await viewModel.loadMessages(
-                    conversationId: conversation.id,
-                    unreadCount: conversation.unreadCount,
-                    messageRepository: container.messageRepository
-                )
+                await messagesLoaded
                 // If there are unread messages, scroll to the divider instead of bottom.
                 if let firstUnreadId = viewModel.firstUnreadMessageId {
                     transcriptScrollSequence &+= 1
