@@ -299,6 +299,7 @@ final class RealtimeService: @unchecked Sendable {
                 sinceTimestamp: sessionService.lastMessageSyncTimestamp
             )
             _ = try await messageRepository.flushPendingAcks()
+            _ = try? await messageRepository.flushPendingConversationDeletes()
             if result.latestTimestamp > sessionService.lastMessageSyncTimestamp {
                 sessionService.setLastMessageSyncTimestamp(result.latestTimestamp)
             }

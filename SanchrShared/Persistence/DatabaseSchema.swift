@@ -243,6 +243,16 @@ public enum DatabaseSchema {
             }
         }
 
+        // Conversations the user deleted while the server could not be
+        // reached. The row is hidden locally at once; this is the debt to
+        // the server, settled on the next sync.
+        migrator.registerMigration("v11_pending_conversation_delete") { db in
+            try db.create(table: "pendingConversationDelete", ifNotExists: true) { t in
+                t.column("conversationId", .text).primaryKey()
+                t.column("createdAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

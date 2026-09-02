@@ -83,6 +83,11 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Flushes locally persisted message delivery acks to the server.
     func flushPendingAcks() async throws -> Int
 
+    /// Records a conversation delete the server has not confirmed, and
+    /// retries every queued one. Defaulted so test doubles are untouched.
+    func enqueueConversationDelete(conversationId: String) async throws
+    func flushPendingConversationDeletes() async throws -> Int
+
     /// Creates (or fetches existing) 1:1 conversation with `peerUserId`.
     /// Returns the server-assigned conversation id so the caller can
     /// deep-link into it via `AppRouter`.
@@ -253,6 +258,11 @@ private actor SealedDropLogLimiter {
 }
 
 // MARK: - Implementation
+
+extension MessageRepositoryProtocol {
+    func enqueueConversationDelete(conversationId: String) async throws {}
+    func flushPendingConversationDeletes() async throws -> Int { 0 }
+}
 
 final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendable {
     private static let ackBatchSize = 100
@@ -1346,6 +1356,33 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             latestTimestamp: latestTimestamp,
             appliedCountsByConversation: appliedCountsByConversation
         )
+    }
+
+    func enqueueConversationDelete(conversationId: String) async throws {
+        try await localDatabase.enqueuePendingConversationDelete(conversationId: conversationId)
+    }
+
+    /// Settles conversation deletes that failed against the server. Each
+    /// success clears its row; a failure leaves it for the next sync.
+    func flushPendingConversationDeletes() async throws -> Int {
+        let pending = try await localDatabase.fetchPendingConversationDeletes()
+        var settled = 0
+        for conversationId in pending {
+            var request = Sanchr_Messaging_DeleteConversationRequest()
+            request.conversationID = conversationId
+            do {
+                _ = try await grpcClient.messagingService.deleteConversation(request)
+                try await localDatabase.removePendingConversationDelete(conversationId: conversationId)
+                settled += 1
+            } catch {
+                SanchrLogger.chat.warning(
+                    "Deferred delete of \(conversationId.prefix(8)) still failing: \(error.localizedDescription)")
+            }
+        }
+        if settled > 0 {
+            SanchrLogger.chat.info("Settled \(settled) deferred conversation delete(s)")
+        }
+        return settled
     }
 
     func flushPendingAcks() async throws -> Int {

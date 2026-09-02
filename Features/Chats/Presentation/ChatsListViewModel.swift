@@ -348,11 +348,15 @@ final class ChatsListViewModel {
         messageRepository: MessageRepositoryProtocol,
         chatDataSource: ChatDataSource
     ) async {
-        // Persist to backend (graceful degradation on failure)
+        // Persist to backend. On failure the row is still hidden below, but
+        // the delete is queued so the next sync settles it — otherwise the
+        // server kept the conversation and it came back on the next full
+        // fetch.
         do {
             try await chatDataSource.deleteConversation(conversationId: conversation.id)
         } catch {
-            SanchrLogger.chat.error("Backend conversation delete failed: \(error.localizedDescription)")
+            SanchrLogger.chat.error("Backend conversation delete failed, queuing: \(error.localizedDescription)")
+            try? await messageRepository.enqueueConversationDelete(conversationId: conversation.id)
         }
 
         // Always hide locally regardless of RPC result
