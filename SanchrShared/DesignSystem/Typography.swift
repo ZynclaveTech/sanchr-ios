@@ -45,6 +45,18 @@ public enum SanchrTypography {
         }
     }
 
+    /// A design-system font at a size that is not on the token scale.
+    ///
+    /// For the handful of places the design calls for an in-between size.
+    /// Still Afacad, still scaled with Dynamic Type — the point is that no
+    /// text in the app is a fixed-size system font.
+    public static func scaled(size: CGFloat, weight: Weight = .regular) -> Font {
+        if afacadIsRegistered {
+            return .custom("Afacad", size: size, relativeTo: .body).weight(weight.swiftUIWeight)
+        }
+        return .system(size: size, weight: weight.swiftUIWeight, design: .rounded)
+    }
+
     // MARK: - Semantic Styles
 
     public static func primary(size: Size, weight: Weight = .regular) -> Font {

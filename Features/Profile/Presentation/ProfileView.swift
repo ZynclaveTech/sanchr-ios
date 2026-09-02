@@ -358,7 +358,7 @@ struct ProfileView: View {
                             .fill(Color.green)
                             .frame(width: 6, height: 6)
                         Text("End-to-end encrypted")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(SanchrTypography.scaled(size: 11, weight: .medium))
                             .foregroundColor(.green)
                     }
                     .padding(.horizontal, SanchrSpacing.sm)

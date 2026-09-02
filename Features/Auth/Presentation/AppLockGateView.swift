@@ -1,4 +1,5 @@
 import LocalAuthentication
+import SanchrShared
 import SwiftUI
 
 /// Gate view that blocks app access until the device owner authenticates.
@@ -26,12 +27,12 @@ struct AppLockGateView: View {
                     .foregroundColor(.white)
 
                 Text("App Locked")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(SanchrTypography.font(size: .lg, weight: .semibold))
                     .foregroundColor(.white)
 
                 if let error = authError {
                     Text(error)
-                        .font(.system(size: 14))
+                        .font(SanchrTypography.font(size: .xs, weight: .regular))
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                 }
@@ -42,7 +43,7 @@ struct AppLockGateView: View {
                             .tint(.white)
                     } else {
                         Text("Unlock")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(SanchrTypography.font(size: .sm, weight: .semibold))
                     }
                 }
                 .disabled(isAuthenticating)

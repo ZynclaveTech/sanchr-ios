@@ -218,7 +218,7 @@ struct MediaBubbleImage: View {
                                     .tint(isOutgoing ? .white : .sanchrPrimary)
                                 if let label = uploadLabel {
                                     Text(label)
-                                        .font(.system(size: 10, weight: .semibold))
+                                        .font(SanchrTypography.font(size: .xxxs, weight: .semibold))
                                         .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
                                 }
                             }
@@ -232,7 +232,7 @@ struct MediaBubbleImage: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(isOutgoing ? .white.opacity(0.85) : .sanchrPrimary)
                                 Text(deferredPlaceholderLabel)
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(SanchrTypography.font(size: .xxxs, weight: .semibold))
                                     .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
                             }
                             .contentShape(Rectangle())
@@ -252,7 +252,7 @@ struct MediaBubbleImage: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(isOutgoing ? .white.opacity(0.85) : .sanchrPrimary)
                                 Text("Tap to retry")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(SanchrTypography.font(size: .xxxs, weight: .semibold))
                                     .foregroundColor(isOutgoing ? .white.opacity(0.7) : SanchrExportColors.textTertiary)
                             }
                             .contentShape(Rectangle())
@@ -480,7 +480,7 @@ struct MediaBubbleImage: View {
 
             if let label = uploadLabel {
                 Text(label)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(SanchrTypography.font(size: .xxxs, weight: .semibold))
                     .foregroundColor(.white)
             }
         }

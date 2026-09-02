@@ -69,7 +69,7 @@ struct ShareComposerView: View {
                             .frame(width: 22, height: 22)
                             .overlay(
                                 Text(String(recipient.title.prefix(1)).uppercased())
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(SanchrTypography.scaled(size: 11, weight: .semibold))
                                     .foregroundColor(SanchrColors.primary)
                             )
                         Text(recipient.title)

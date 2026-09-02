@@ -1079,7 +1079,7 @@ struct ChatDetailView: View {
 
                 if newMessageCountWhileScrolled > 0 {
                     Text("\(newMessageCountWhileScrolled)")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(SanchrTypography.scaled(size: 11, weight: .bold))
                         .foregroundColor(.white)
                         .frame(minWidth: 18, minHeight: 18)
                         .padding(.horizontal, 4)

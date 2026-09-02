@@ -1,3 +1,4 @@
+import SanchrShared
 import SwiftUI
 
 // MARK: - Crop Overlay
@@ -157,7 +158,7 @@ struct ImageEditorCropOverlay: View {
                         }
                     } label: {
                         Text(aspect.rawValue)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(SanchrTypography.scaled(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 9)

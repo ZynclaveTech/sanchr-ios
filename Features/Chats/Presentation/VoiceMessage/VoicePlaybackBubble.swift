@@ -73,7 +73,7 @@ struct VoicePlaybackBubble: View {
             waveformStrip
 
             Text(Self.formatTime(displayedTime))
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .font(SanchrTypography.font(size: .xxs, weight: .medium).monospacedDigit())
                 .monospacedDigit()
                 .foregroundColor(tint.opacity(0.7))
                 // The bubble hugs its content, and a monospaced clock is happy

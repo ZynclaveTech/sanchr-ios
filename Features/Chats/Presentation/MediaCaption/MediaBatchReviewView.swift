@@ -220,7 +220,7 @@ struct MediaBatchReviewView: View {
                         .font(.system(size: 36))
                         .foregroundStyle(.white)
                     Text("\(model.items.count)")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(SanchrTypography.scaled(size: 11, weight: .bold))
                         .foregroundStyle(.black)
                         .frame(minWidth: 17, minHeight: 17)
                         .background(.white, in: Circle())

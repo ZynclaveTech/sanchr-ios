@@ -55,7 +55,7 @@ struct MessageReactionsPill: View {
                         // every reaction is noise on the common case.
                         if entry.count > 1 {
                             Text("\(entry.count)")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(SanchrTypography.font(size: .xxs, weight: .medium))
                                 .foregroundColor(SanchrExportColors.textSecondary)
                                 .monospacedDigit()
                         }

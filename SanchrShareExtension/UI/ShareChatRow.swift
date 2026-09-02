@@ -67,7 +67,7 @@ struct ShareChatRow: View {
             .frame(width: 44, height: 44)
             .overlay(
                 Text(initials(for: summary.title))
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(SanchrTypography.scaled(size: 17, weight: .semibold))
                     .foregroundColor(SanchrExportColors.textSecondary)
             )
     }

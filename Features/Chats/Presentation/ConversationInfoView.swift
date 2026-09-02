@@ -353,7 +353,7 @@ struct ConversationInfoView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(conversation.displayName)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(SanchrTypography.font(size: .lg, weight: .bold))
                     .foregroundColor(SanchrExportColors.textPrimary)
 
                 Text(recipientPhoneDisplay)

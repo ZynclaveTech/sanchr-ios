@@ -64,7 +64,7 @@ struct ImageEditorView: View {
     private var topBar: some View {
         HStack {
             Button("Cancel", action: onCancel)
-                .font(.system(size: 16))
+                .font(SanchrTypography.font(size: .sm, weight: .regular))
                 .foregroundStyle(.white)
 
             Spacer()
@@ -93,7 +93,7 @@ struct ImageEditorView: View {
                 guard canvasSize != .zero else { onComplete(state.currentImage); return }
                 onComplete(state.render(canvasSize: canvasSize))
             }
-            .font(.system(size: 16, weight: .semibold))
+            .font(SanchrTypography.font(size: .sm, weight: .semibold))
             .foregroundStyle(SanchrColors.primary)
         }
     }

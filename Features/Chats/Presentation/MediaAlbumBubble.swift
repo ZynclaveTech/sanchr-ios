@@ -67,7 +67,7 @@ struct MediaAlbumBubble: View {
         ZStack {
             Color.black.opacity(0.45)
             Text("+\(hidden)")
-                .font(.system(size: 22, weight: .semibold))
+                .font(SanchrTypography.scaled(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
         }
         .allowsHitTesting(false)
