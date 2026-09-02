@@ -811,10 +811,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                         messageId: envelope.messageID,
                                         conversationId: envelope.conversationID
                                     )
-                                    if case .message = event {
-                                        let flushedCount = (try? await self.flushPendingAcks()) ?? 0
-                                        shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
-                                    }
                                     continuation.yield(event)
                                 case .dropped(let reason):
                                     SanchrLogger.chat.info(
@@ -881,10 +877,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                                     messageId: sealed.messageID,
                                     conversationId: Self.nilUUIDString
                                 )
-                                if case .message = event {
-                                    let flushedCount = (try? await self.flushPendingAcks()) ?? 0
-                                    shouldRememberEnvelope = shouldRememberEnvelope || flushedCount > 0
-                                }
                                 continuation.yield(event)
                             case .dropped(let reason):
                                 SanchrLogger.chat.info(
@@ -1513,24 +1505,46 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         return await decodeSealedMessage(from: Self.sealedInboundMessage(from: envelope))
     }
 
+    /// Queues the ack and schedules a batched flush.
+    ///
+    /// This used to be one AckMessages RPC per envelope, followed by a second
+    /// RPC to flush the queue — two round trips per message during a burst.
+    /// The queue is durable, so "remembered" is safe to return once the ack
+    /// is queued: if the process dies before the flush, the next sync flushes
+    /// it, and the server keeps redelivering until then.
     private func ackDeliveredEnvelope(messageId: String, conversationId: String) async -> Bool {
         guard !messageId.isEmpty else { return false }
-
-        var ref = Sanchr_Messaging_AckedMessageRef()
-        ref.conversationID = conversationId.isEmpty ? Self.nilUUIDString : conversationId
-        ref.messageID = messageId
-
-        var request = Sanchr_Messaging_AckMessagesRequest()
-        request.messages = [ref]
-
+        let ack = PendingMessageAck(
+            conversationId: conversationId.isEmpty ? Self.nilUUIDString : conversationId,
+            messageId: messageId,
+            createdAt: Date()
+        )
         do {
-            _ = try await grpcClient.messagingService.ackMessages(request)
+            try await localDatabase.enqueuePendingMessageAck(ack)
+            scheduleAckFlush()
             return true
         } catch {
             SanchrLogger.chat.warning(
-                "Failed to ack delivered envelope \(messageId.prefix(8)): \(error.localizedDescription)"
+                "Failed to queue ack for \(messageId.prefix(8)): \(error.localizedDescription)"
             )
             return false
+        }
+    }
+
+    private var ackFlushTask: Task<Void, Never>?
+    private static let ackFlushDelay: Duration = .milliseconds(300)
+
+    /// One flush shortly after the last envelope of a burst.
+    private func scheduleAckFlush() {
+        ackFlushTask?.cancel()
+        ackFlushTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.ackFlushDelay)
+            guard !Task.isCancelled, let self else { return }
+            do {
+                _ = try await self.flushPendingAcks()
+            } catch {
+                SanchrLogger.chat.warning("Batched ack flush failed: \(error.localizedDescription)")
+            }
         }
     }
 
