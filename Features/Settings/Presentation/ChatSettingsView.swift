@@ -49,7 +49,6 @@ struct ChatSettingsView: View {
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Chat Settings")
         .task {
             await viewModel.loadSettings(

@@ -57,7 +57,6 @@ struct BlockedContactsView: View {
                 }
             }
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Blocked Contacts")
         .alert("Error", isPresented: Binding(
             get: { errorMessage != nil },

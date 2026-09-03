@@ -28,7 +28,6 @@ struct PrivacyView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Privacy")
         .task {
             await viewModel.loadSettings(

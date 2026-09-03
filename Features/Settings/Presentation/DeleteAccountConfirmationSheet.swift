@@ -33,8 +33,7 @@ struct DeleteAccountConfirmationSheet: View {
                 .padding(SanchrExportMetrics.sectionHorizontal)
                 .padding(.top, 16)
             }
-            .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-            .navigationTitle("Delete Account")
+                .navigationTitle("Delete Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -117,7 +117,6 @@ struct NotificationsView: View {
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Notification Preferences")
         .task { @MainActor in
             await viewModel.checkSystemPermission()
@@ -284,7 +283,6 @@ struct NotificationSoundPicker: View {
                 .padding(.bottom, 28)
             }
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Notification Tone")
     }
 }

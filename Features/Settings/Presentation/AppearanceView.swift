@@ -42,7 +42,6 @@ struct AppearanceView: View {
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Appearance")
         .task {
             await viewModel.loadSettings(
