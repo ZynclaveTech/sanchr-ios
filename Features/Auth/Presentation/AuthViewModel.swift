@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import GRPC
 import SanchrShared
 
 /// State machine for the authentication flow.
@@ -22,16 +23,18 @@ final class AuthViewModel {
 
     // MARK: - Input State
 
-    var phoneNumber: String = ""
-    var countryCode: String = {
-        let countryCodes: [(code: String, region: String)] = [
-            ("+1", "US"), ("+44", "UK"), ("+91", "IN"), ("+61", "AU"),
-            ("+81", "JP"), ("+49", "DE"), ("+33", "FR"), ("+86", "CN"),
-            ("+55", "BR"), ("+234", "NG"),
-        ]
-        let region = Locale.current.region?.identifier ?? ""
-        return countryCodes.first { $0.region == region }?.code ?? "+1"
-    }()
+    /// National digits only: the field shows them formatted, the server gets
+    /// them as E.164 with the country's calling code.
+    var phoneNumber: String = "" {
+        didSet {
+            let national = country.nationalNumber(from: phoneNumber)
+            if national != phoneNumber { phoneNumber = national }
+        }
+    }
+    var country: PhoneCountry = PhoneCountry.detected {
+        didSet { phoneNumber = country.nationalNumber(from: phoneNumber) }
+    }
+    var countryCode: String { country.callingCode }
     var displayName: String = ""
     var profileImageData: Data?
     var otpCode: String = "" {
@@ -49,7 +52,13 @@ final class AuthViewModel {
     var isLoading: Bool = false
     var errorMessage: String?
     var showOTPView: Bool = false
+    /// Seconds until Resend is allowed. A short cooldown, independent of the
+    /// code's lifetime; this used to be the server TTL clamped to a minute,
+    /// which told the user nothing about when the code stopped working.
     var resendCountdown: Int = 0
+    /// Seconds until the code the server sent stops being accepted.
+    var otpSecondsRemaining: Int = 0
+    var isOTPExpired: Bool { otpRequestId != nil && otpSecondsRemaining == 0 }
     var showRegistrationLockPIN: Bool = false
     var registrationLockPIN: String = ""
 
@@ -57,8 +66,12 @@ final class AuthViewModel {
 
     /// Whether the phone input is valid for submission.
     var isPhoneValid: Bool {
-        let cleaned = phoneNumber.filter(\.isNumber)
-        return cleaned.count >= 7 && cleaned.count <= 15
+        country.isValid(nationalNumber: phoneNumber)
+    }
+
+    /// The field's text: formatted for reading, digits underneath.
+    var formattedPhoneNumber: String {
+        country.format(nationalNumber: phoneNumber)
     }
 
     /// Whether the OTP code is complete.
@@ -79,14 +92,20 @@ final class AuthViewModel {
     // MARK: - Computed
 
     var fullPhoneNumber: String {
-        "\(countryCode)\(phoneNumber)"
+        country.e164(nationalNumber: phoneNumber)
+    }
+
+    /// The number as a person would read it back: "+91 98765 43210".
+    var displayPhoneNumber: String {
+        "\(countryCode) \(formattedPhoneNumber)"
     }
 
     /// Formatted countdown for display: "0:30"
-    var formattedCountdown: String {
-        let minutes = resendCountdown / 60
-        let seconds = resendCountdown % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    var formattedCountdown: String { Self.clock(resendCountdown) }
+    var formattedOTPExpiry: String { Self.clock(otpSecondsRemaining) }
+
+    private static func clock(_ total: Int) -> String {
+        String(format: "%d:%02d", total / 60, total % 60)
     }
 
     /// Returns the digit at the given OTP position, or empty string.
@@ -109,9 +128,20 @@ final class AuthViewModel {
     func goBackToPhone() {
         authState = .enterPhone
         otpCode = ""
+        otpRequestId = nil
         errorMessage = nil
         resendTimer?.invalidate()
         resendCountdown = 0
+        otpSecondsRemaining = 0
+    }
+
+    /// The registration-lock prompt was dismissed. Six digits stayed in the
+    /// boxes with no error and no way to resubmit; clear them so the next
+    /// keystroke starts a fresh attempt.
+    func cancelRegistrationLockPIN() {
+        showRegistrationLockPIN = false
+        registrationLockPIN = ""
+        otpCode = ""
     }
 
     // MARK: - Actions
@@ -119,7 +149,7 @@ final class AuthViewModel {
     /// Request OTP: validates phone, calls auth service, transitions to OTP screen.
     func requestOTP(authService: AuthServiceProtocol) async {
         guard isPhoneValid else {
-            errorMessage = "Please enter a valid phone number."
+            errorMessage = "Enter a valid \(country.name) mobile number."
             return
         }
 
@@ -135,7 +165,7 @@ final class AuthViewModel {
             startResendCountdown(seconds: result.expiresInSeconds)
             SanchrLogger.auth.info("OTP requested successfully")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.userMessage(for: error)
             SanchrLogger.auth.error("OTP request failed: \(error.localizedDescription)")
         }
     }
@@ -149,6 +179,12 @@ final class AuthViewModel {
 
         guard isOTPComplete else {
             errorMessage = "Please enter all 6 digits."
+            return
+        }
+
+        guard !isOTPExpired else {
+            errorMessage = "That code has expired. Request a new one."
+            otpCode = ""
             return
         }
 
@@ -170,11 +206,8 @@ final class AuthViewModel {
         } catch let error as AppError where error == .registrationLockPinRequired {
             SanchrLogger.auth.info("Registration lock PIN required, showing prompt")
             showRegistrationLockPIN = true
-        } catch let error as AppError where error == .otpInvalid || error == .otpExpired {
-            errorMessage = error.localizedDescription
-            otpCode = ""
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.userMessage(for: error)
             otpCode = ""
         }
     }
@@ -221,15 +254,19 @@ final class AuthViewModel {
             startResendCountdown(seconds: result.expiresInSeconds)
             SanchrLogger.auth.info("Registration OTP requested successfully")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.userMessage(for: error)
             SanchrLogger.auth.error("Registration failed: \(error.localizedDescription)")
         }
     }
 
     // MARK: - Timer
 
+    /// How long the user waits before asking for another code.
+    static let resendCooldownSeconds = 30
+
     private func startResendCountdown(seconds: Int) {
-        resendCountdown = min(max(seconds, 30), 60)
+        resendCountdown = Self.resendCooldownSeconds
+        otpSecondsRemaining = max(seconds, 0)
         resendTimer?.invalidate()
 
         resendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {
@@ -240,13 +277,68 @@ final class AuthViewModel {
                     tmr.invalidate()
                     return
                 }
-                if self.resendCountdown > 0 {
-                    self.resendCountdown -= 1
-                } else {
+                if self.resendCountdown > 0 { self.resendCountdown -= 1 }
+                if self.otpSecondsRemaining > 0 { self.otpSecondsRemaining -= 1 }
+                if self.resendCountdown == 0, self.otpSecondsRemaining == 0 {
                     tmr.invalidate()
                 }
             }
         }
+    }
+
+    // MARK: - Error copy
+
+    /// What the user reads when sign-in fails. `GRPCStatus` is not a
+    /// `LocalizedError`, so showing `localizedDescription` produced
+    /// "The operation couldn't be completed. (GRPC.GRPCStatus error 16.)".
+    static func userMessage(for error: Error) -> String {
+        if let appError = error as? AppError {
+            switch appError {
+            case .otpInvalid, .invalidCredentials:
+                return "That code isn't right. Check the message and try again."
+            case .otpExpired:
+                return "That code has expired. Request a new one."
+            case .networkUnavailable, .serverUnreachable:
+                return "Can't reach Sanchr. Check your connection and try again."
+            case .requestTimeout:
+                return "That took too long. Check your connection and try again."
+            case .accountLocked:
+                return "This number is locked for now. Try again later."
+            case .registrationLockPinRequired:
+                return "This account has a registration lock. Enter your PIN to continue."
+            case .registrationFailed(let reason):
+                return reason.isEmpty ? "Couldn't register this number. Try again." : reason
+            default:
+                return appError.errorDescription ?? "Something went wrong. Try again in a moment."
+            }
+        }
+        if let status = error as? GRPCStatus {
+            switch status.code {
+            case .unauthenticated, .permissionDenied:
+                return "That code isn't right or has expired. Check the message and try again."
+            case .resourceExhausted:
+                return "Too many attempts. Wait a few minutes and try again."
+            case .unavailable, .deadlineExceeded, .aborted:
+                return "Can't reach Sanchr. Check your connection and try again."
+            case .invalidArgument, .failedPrecondition:
+                return "That doesn't look like a valid phone number for the selected country."
+            case .notFound:
+                return "No account was found for this number."
+            default:
+                return "Something went wrong. Try again in a moment."
+            }
+        }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                return "Can't reach Sanchr. Check your connection and try again."
+            case .timedOut:
+                return "That took too long. Check your connection and try again."
+            default:
+                break
+            }
+        }
+        return "Something went wrong. Try again in a moment."
     }
 
     deinit {
