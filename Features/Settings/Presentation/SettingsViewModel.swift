@@ -26,7 +26,7 @@ final class SettingsViewModel {
     var sanchrModeEnabled: Bool = false
     var screenLockEnabled: Bool = false
     var screenLockTimeout: Int32 = 60
-    var screenshotProtection: Bool = false
+    var screenshotProtection: Bool = true
     var biometricLock: Bool = false
     var registrationLockEnabled: Bool = false
 

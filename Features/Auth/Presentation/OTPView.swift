@@ -184,6 +184,11 @@ struct OTPView: View {
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .focused($isFocused)
+                // Kept at 1% opacity so it stays focusable, but with clear
+                // text and caret: at 1% the digits still showed as a faint
+                // ghost inside the first box.
+                .foregroundColor(.clear)
+                .tint(.clear)
                 .opacity(0.01)  // Invisible but captures input
                 .accessibilityLabel("Verification code")
                 .accessibilityValue("\(viewModel.otpCode.count) of 6 digits entered")
