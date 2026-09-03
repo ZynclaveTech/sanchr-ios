@@ -123,12 +123,9 @@ extension SettingsInfoRow where Trailing == SettingsChevron {
 
 extension View {
     func settingsCard(cornerRadius: CGFloat = 22) -> some View {
-        background(SanchrExportColors.surface)
+        background(SanchrExportColors.card)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-            }
+            .sanchrCardShadow()
             // A card used as a button label is tappable across its whole
             // face. Without this only the text and icon responded: padding,
             // spacers and the card background are transparent to hit-testing.

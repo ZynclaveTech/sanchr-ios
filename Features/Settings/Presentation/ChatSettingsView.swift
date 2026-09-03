@@ -159,8 +159,7 @@ struct ChatSettingsView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .settingsCard(cornerRadius: 24)
         }
     }
 

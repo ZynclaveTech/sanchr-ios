@@ -72,12 +72,7 @@ struct DeleteAccountConfirmationSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 18)
     }
 
     private func consequence(_ text: String) -> some View {
@@ -102,12 +97,7 @@ struct DeleteAccountConfirmationSheet: View {
         }
         .toggleStyle(SwitchToggleStyle(tint: Color.sanchrError))
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-        }
+        .settingsCard(cornerRadius: 18)
         .disabled(isDeletingAccount)
     }
 

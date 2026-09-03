@@ -48,8 +48,7 @@ struct BlockedContactsView: View {
                                 .foregroundColor(.sanchrError)
                             }
                             .padding(16)
-                            .background(SanchrExportColors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .settingsCard(cornerRadius: 22)
                         }
                     }
                     .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)

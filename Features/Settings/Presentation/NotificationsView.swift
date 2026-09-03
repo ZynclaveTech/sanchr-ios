@@ -273,12 +273,7 @@ struct NotificationSoundPicker: View {
                         }
                     }
                 }
-                .background(SanchrExportColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-                }
+                .settingsCard(cornerRadius: 24)
                 .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
                 .padding(.bottom, 28)
             }

@@ -2,6 +2,7 @@ import SwiftUI
 import SanchrShared
 
 struct ContactUsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var name = ""
     @State private var email = ""
     @State private var topic = "General Support"
@@ -103,7 +104,7 @@ struct ContactUsView: View {
                     }
                     .padding(.horizontal, 18)
                     .frame(height: 56)
-                    .background(SanchrExportColors.surfaceMuted)
+                    .sanchrFieldBackground(colorScheme)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .contentShape(Rectangle())
                 }
@@ -121,7 +122,7 @@ struct ContactUsView: View {
                     .frame(minHeight: 150)
                     .padding(12)
                     .scrollContentBackground(.hidden)
-                    .background(SanchrExportColors.surfaceMuted)
+                    .sanchrFieldBackground(colorScheme)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
 
@@ -192,7 +193,7 @@ struct ContactUsView: View {
                 .font(SanchrTypography.body)
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .background(SanchrExportColors.surfaceMuted)
+                .sanchrFieldBackground(colorScheme)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }

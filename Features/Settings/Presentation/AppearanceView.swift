@@ -247,8 +247,7 @@ struct AppearanceView: View {
                     .foregroundColor(SanchrExportColors.textSecondary)
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .settingsCard(cornerRadius: 18)
             }
             .padding(18)
             .background(SanchrExportColors.surfaceMuted)

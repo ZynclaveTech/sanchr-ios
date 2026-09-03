@@ -36,6 +36,17 @@ public enum SanchrExportColors {
     public static let textTertiary = Color(uiColor: .tertiaryLabel)
     public static let line = Color(uiColor: .separator)
     public static let selectedChip = SanchrColors.primary
+
+    /// The card the home tabs use: the elevated surface (white in light,
+    /// the raised dark surface in dark) lifted by `sanchrCardShadow()`.
+    /// Settings drew its cards in `secondarySystemBackground` with a
+    /// hairline instead, so the same list looked grey and flat beside
+    /// Calls and Profile.
+    public static let card = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(SanchrColors.surfaceElevatedDark)
+            : UIColor(SanchrColors.surfaceElevatedLight)
+    })
 }
 
 extension View {
@@ -450,7 +461,7 @@ public struct SanchrToastBadge: View {
     }
 }
 
-private struct SearchFieldBackgroundModifier: ViewModifier {
+struct SearchFieldBackgroundModifier: ViewModifier {
     let colorScheme: ColorScheme
 
     @ViewBuilder
@@ -555,5 +566,13 @@ public struct SanchrGradientButtonLabel: View {
         )
         .clipShape(Capsule())
         .shadow(color: SanchrColors.primary.opacity(0.25), radius: 20, x: 0, y: 10)
+    }
+}
+
+extension View {
+    /// The fill the home search field uses, for any other text field that
+    /// should look like it.
+    public func sanchrFieldBackground(_ colorScheme: ColorScheme) -> some View {
+        modifier(SearchFieldBackgroundModifier(colorScheme: colorScheme))
     }
 }

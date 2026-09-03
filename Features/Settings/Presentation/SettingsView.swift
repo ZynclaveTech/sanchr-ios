@@ -3,6 +3,7 @@ import SwiftUI
 import SanchrShared
 
 struct SettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var settingsSearchText = ""
@@ -164,8 +165,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 18)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .settingsCard(cornerRadius: 22)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -264,7 +264,7 @@ struct SettingsView: View {
         .foregroundColor(SanchrExportColors.textPrimary)
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(SanchrExportColors.surfaceMuted)
+        .sanchrFieldBackground(colorScheme)
         .clipShape(Capsule())
     }
 
@@ -296,8 +296,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .settingsCard(cornerRadius: 22)
         }
     }
 
