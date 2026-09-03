@@ -53,6 +53,12 @@ final class AppLockManager: @unchecked Sendable {
             }
             shared.set(true, forKey: Self.migrationFlagKey)
         }
+        // On by default for a private messenger: nothing had ever written the
+        // key, so `bool(forKey:)` read false and the app-switcher snapshot
+        // showed the chat list. An explicit choice, either way, is kept.
+        if shared.object(forKey: Keys.screenshotProtection) == nil {
+            shared.set(true, forKey: Keys.screenshotProtection)
+        }
         isScreenshotProtectionActive = shared.bool(forKey: Keys.screenshotProtection)
     }
 
