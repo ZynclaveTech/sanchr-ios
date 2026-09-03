@@ -8,6 +8,7 @@ struct ContactsView: View {
     @State private var navigateToConversation: Conversation?
     @State private var isStartingChat = false
     @State private var showAddContact = false
+    @State private var showContactSync = false
 
     var body: some View {
         Group {
@@ -23,14 +24,28 @@ struct ContactsView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showAddContact = true } label: {
+                Menu {
+                    Button { showAddContact = true } label: {
+                        Label("Add by number or QR", systemImage: "person.badge.plus")
+                    }
+                    Button { showContactSync = true } label: {
+                        Label("Find friends from contacts", systemImage: "person.2.badge.gearshape")
+                    }
+                } label: {
                     Image(systemName: "person.badge.plus")
                 }
-                .accessibilityLabel("Add contact")
+                .accessibilityLabel("Add contacts")
             }
         }
         .sheet(isPresented: $showAddContact) {
             AddContactSheet()
+        }
+        // Contact discovery was reachable only from onboarding; skipping it
+        // there was irreversible.
+        .sheet(isPresented: $showContactSync, onDismiss: {
+            Task { await viewModel.refreshContacts(contactDataSource: contactDataSource, localDatabase: container.localDatabase) }
+        }) {
+            ContactSyncView()
         }
         .sanchrInteractivePopEnabled()
         .refreshable {
@@ -267,7 +282,7 @@ struct ContactsView: View {
                     .font(SanchrTypography.cardTitle)
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text("Your secure Sanchr contacts will appear here after onboarding sync and discovery.")
+                Text("Find friends who already use Sanchr, or add someone by number or QR code.")
                     .font(SanchrTypography.body)
                     .foregroundColor(SanchrExportColors.textSecondary)
                     .multilineTextAlignment(.center)

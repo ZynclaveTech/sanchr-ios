@@ -132,18 +132,34 @@ struct NotificationsView: View {
                 Text("Notifications Disabled")
                     .font(SanchrTypography.bodyBold)
                     .foregroundColor(SanchrExportColors.textPrimary)
-                Text("Enable notifications in system settings to receive messages and calls.")
+                Text(viewModel.systemPermissionUndetermined
+                     ? "Turn on notifications to hear about new messages and calls."
+                     : "Enable notifications in system settings to receive messages and calls.")
                     .font(SanchrTypography.caption)
                     .foregroundColor(SanchrExportColors.textSecondary)
             }
 
             Spacer()
 
-            Button("Settings") {
-                viewModel.openSystemSettings()
+            // Never asked: the system prompt can still be shown from here.
+            // Denied: only Settings can change it.
+            if viewModel.systemPermissionUndetermined {
+                Button("Turn On") {
+                    Task {
+                        await container.pushManager.requestAuthorization()
+                        await viewModel.checkSystemPermission()
+                    }
+                }
+                .font(SanchrTypography.caption)
+                .foregroundColor(.sanchrPrimary)
+                .accessibilityHint("Shows the system permission prompt")
+            } else {
+                Button("Settings") {
+                    viewModel.openSystemSettings()
+                }
+                .font(SanchrTypography.caption)
+                .foregroundColor(.sanchrPrimary)
             }
-            .font(SanchrTypography.caption)
-            .foregroundColor(.sanchrPrimary)
         }
         .padding(18)
         .settingsCard(cornerRadius: 24)
@@ -325,6 +341,8 @@ final class NotificationsViewModel {
     // MARK: - System State
 
     var systemPermissionGranted: Bool = true
+    /// The prompt has never been shown, so it can be shown from the screen.
+    var systemPermissionUndetermined: Bool = false
     var errorMessage: String?
 
     // MARK: - Debounce
@@ -383,6 +401,7 @@ final class NotificationsViewModel {
         systemPermissionGranted =
             settings.authorizationStatus == .authorized
             || settings.authorizationStatus == .provisional
+        systemPermissionUndetermined = settings.authorizationStatus == .notDetermined
     }
 
     /// Open the system Settings app to the Sanchr notification settings.

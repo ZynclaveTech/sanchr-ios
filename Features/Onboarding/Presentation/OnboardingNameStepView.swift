@@ -26,7 +26,7 @@ struct OnboardingNameStepView: View {
                 }
                 .padding(.bottom, 28)
 
-            Text("STEP 1 OF 3")
+            Text("STEP 1 OF \(OnboardingViewModel.totalSteps)")
                 .font(SanchrTypography.micro)
                 .foregroundColor(.sanchrPrimary)
                 .kerning(2.5)

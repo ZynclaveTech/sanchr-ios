@@ -5,7 +5,7 @@ import SanchrShared
 
 struct OnboardingProgressIndicator: View {
     let currentStep: Int
-    private let totalSteps = 3
+    private let totalSteps = OnboardingViewModel.totalSteps
 
     var body: some View {
         HStack(spacing: 8) {
@@ -49,10 +49,18 @@ struct OnboardingView: View {
                 )
                 .transition(stepTransition)
             case 3:
+                OnboardingNotificationsStepView(
+                    viewModel: viewModel,
+                    pushManager: container.pushManager
+                )
+                .transition(stepTransition)
+            case 4:
                 OnboardingContactSyncStepView(
                     viewModel: viewModel,
-                    pushManager: container.pushManager,
-                    onFinish: onFinish
+                    onFinish: {
+                        viewModel.finish()
+                        onFinish()
+                    }
                 )
                 .transition(stepTransition)
             default:

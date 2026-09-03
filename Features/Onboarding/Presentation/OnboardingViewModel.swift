@@ -8,12 +8,38 @@ final class OnboardingViewModel {
 
     // MARK: - Step State
 
-    var currentStep: Int = 1
+    static let totalSteps = 4
+
+    /// Where a killed app resumes. The step and the typed name used to live
+    /// only in this object, while the onboarding latch persisted, so a kill
+    /// mid-flow restarted at an empty name field.
+    private static let stepKey = "sanchr.onboarding.step"
+    private static let nameKey = "sanchr.onboarding.name"
+    private let defaults: UserDefaults
+
+    var currentStep: Int = 1 {
+        didSet { defaults.set(currentStep, forKey: Self.stepKey) }
+    }
     var isForward: Bool = true
 
     // MARK: - Step 1: Name
 
-    var displayName: String = ""
+    var displayName: String = "" {
+        didSet { defaults.set(displayName, forKey: Self.nameKey) }
+    }
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let stored = defaults.integer(forKey: Self.stepKey)
+        currentStep = min(max(stored, 1), Self.totalSteps)
+        displayName = defaults.string(forKey: Self.nameKey) ?? ""
+    }
+
+    /// Onboarding is complete: forget the resume point.
+    func finish() {
+        defaults.removeObject(forKey: Self.stepKey)
+        defaults.removeObject(forKey: Self.nameKey)
+    }
 
     var isNameValid: Bool {
         displayName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
@@ -37,7 +63,7 @@ final class OnboardingViewModel {
     // MARK: - Navigation
 
     func goToNextStep() {
-        guard currentStep < 3 else { return }
+        guard currentStep < Self.totalSteps else { return }
         isForward = true
         currentStep += 1
     }
