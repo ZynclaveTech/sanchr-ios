@@ -35,7 +35,7 @@ struct OTPView: View {
                     .font(SanchrTypography.body)
                     .foregroundColor(Color.sanchrTextSecondary(colorScheme))
 
-                Text(viewModel.fullPhoneNumber)
+                Text(viewModel.displayPhoneNumber)
                     .font(SanchrTypography.bodyBold)
                     .foregroundColor(Color.sanchrTextPrimary(colorScheme))
             }
@@ -63,12 +63,28 @@ struct OTPView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // MARK: - Resend Section
+            // MARK: - Expiry + Resend
             VStack(spacing: SanchrSpacing.xs) {
+                // The code's real lifetime, from the server. The resend
+                // cooldown used to stand in for it, so nothing ever said a
+                // code had stopped working.
+                if viewModel.isOTPExpired {
+                    Text("This code has expired")
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(.sanchrError)
+                } else if viewModel.otpSecondsRemaining > 0 {
+                    Text("Code expires in \(viewModel.formattedOTPExpiry)")
+                        .font(SanchrTypography.caption)
+                        .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                        .monospacedDigit()
+                        .accessibilityLabel("Code expires in \(viewModel.otpSecondsRemaining) seconds")
+                }
+
                 if viewModel.resendCountdown > 0 {
                     Text("Resend in \(viewModel.formattedCountdown)")
                         .font(SanchrTypography.caption)
                         .foregroundColor(Color.sanchrTextTertiary(colorScheme))
+                        .monospacedDigit()
                 } else {
                     VStack(spacing: SanchrSpacing.xxs) {
                         Text("Didn't receive the code?")
@@ -82,6 +98,8 @@ struct OTPView: View {
                                 .font(SanchrTypography.bodyBold)
                                 .foregroundColor(.sanchrPrimary)
                         }
+                        .accessibilityLabel("Resend code")
+                        .accessibilityHint("Sends a new verification code by text message")
                     }
                 }
             }
@@ -105,6 +123,7 @@ struct OTPView: View {
                     }
                     .foregroundColor(.sanchrPrimary)
                 }
+                .accessibilityLabel("Back to phone number")
             }
         }
         .onAppear { isFocused = true }
@@ -117,7 +136,7 @@ struct OTPView: View {
                 }
             }
             Button("Cancel", role: .cancel) {
-                viewModel.registrationLockPIN = ""
+                viewModel.cancelRegistrationLockPIN()
             }
         } message: {
             Text("This account has a registration lock. Enter your PIN to continue.")
@@ -156,6 +175,9 @@ struct OTPView: View {
                     .animation(.easeInOut(duration: 0.15), value: digit)
             }
         }
+        // VoiceOver read six unlabelled characters; the real control is the
+        // hidden field, so it carries the label and the progress.
+        .accessibilityHidden(true)
         .overlay {
             // Hidden text field for keyboard input
             TextField("", text: $viewModel.otpCode)
@@ -163,6 +185,9 @@ struct OTPView: View {
                 .textContentType(.oneTimeCode)
                 .focused($isFocused)
                 .opacity(0.01)  // Invisible but captures input
+                .accessibilityLabel("Verification code")
+                .accessibilityValue("\(viewModel.otpCode.count) of 6 digits entered")
+                .accessibilityHint("Enter the 6-digit code from the text message")
                 .onChange(of: viewModel.otpCode) { _, newValue in
                     if newValue.count == 6 {
                         Task {

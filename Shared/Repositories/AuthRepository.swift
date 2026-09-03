@@ -122,6 +122,11 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol, @unchecked Sendable {
         } catch let error as GRPCStatus where error.message?.contains("registration_lock_pin_required") == true {
             SanchrLogger.auth.info("Server requires registration lock PIN")
             throw AppError.registrationLockPinRequired
+        } catch let error as GRPCStatus where error.code == .unauthenticated {
+            // The server answers a wrong or expired code with UNAUTHENTICATED;
+            // callers used to see a bare status number.
+            SanchrLogger.auth.error("verifyOTP rejected: \(Self.detailedError(error))")
+            throw AppError.otpInvalid
         } catch {
             SanchrLogger.auth.error("verifyOTP failed: \(Self.detailedError(error))")
             throw error

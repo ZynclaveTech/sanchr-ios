@@ -7,18 +7,7 @@ struct LoginView: View {
     @State private var viewModel = AuthViewModel()
     @State private var presentedLegalDocument: LegalDocument?
 
-    private let countryCodes = [
-        ("+1", "US"),
-        ("+44", "UK"),
-        ("+91", "IN"),
-        ("+61", "AU"),
-        ("+81", "JP"),
-        ("+49", "DE"),
-        ("+33", "FR"),
-        ("+86", "CN"),
-        ("+55", "BR"),
-        ("+234", "NG"),
-    ]
+    @State private var showCountryPicker = false
 
     var body: some View {
         NavigationStack {
@@ -65,7 +54,19 @@ struct LoginView: View {
             .navigationDestination(isPresented: $viewModel.showOTPView) {
                 OTPView(viewModel: viewModel)
             }
+            .sheet(isPresented: $showCountryPicker) {
+                CountryPickerView(selection: $viewModel.country)
+            }
         }
+    }
+
+    /// Shows the number formatted; stores digits. A formatted string in the
+    /// model would have had to be unformatted before every use.
+    private var phoneField: Binding<String> {
+        Binding(
+            get: { viewModel.formattedPhoneNumber },
+            set: { viewModel.phoneNumber = $0 }
+        )
     }
 
     private var heroSection: some View {
@@ -105,46 +106,41 @@ struct LoginView: View {
                 .frame(height: 14)
 
             HStack(spacing: 0) {
-                Menu {
-                    ForEach(countryCodes, id: \.0) { code, region in
-                        Button {
-                            viewModel.countryCode = code
-                        } label: {
-                            HStack {
-                                Text("\(code) \(region)")
-                                if viewModel.countryCode == code {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
+                Button {
+                    showCountryPicker = true
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "globe.europe.africa.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(SanchrColors.primary)
-
+                    HStack(spacing: 8) {
+                        Text(viewModel.country.flag)
+                            .font(.title2)
                         Text(viewModel.countryCode)
                             .font(SanchrTypography.body)
                             .foregroundColor(SanchrExportColors.textPrimary)
+                            .monospacedDigit()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SanchrExportColors.textTertiary)
                     }
-                    .frame(width: 88, height: 60)
+                    .padding(.horizontal, 12)
+                    .frame(height: 60)
                     .overlay(alignment: .trailing) {
                         Rectangle()
                             .fill(SanchrExportColors.line)
                             .frame(width: 1, height: 28)
-                            .padding(.trailing, 1)
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Country, \(viewModel.country.name) \(viewModel.countryCode)")
+                .accessibilityHint("Choose a different country")
 
-                TextField("(555) 123-4567", text: $viewModel.phoneNumber)
+                TextField(viewModel.country.placeholder, text: phoneField)
                     .font(SanchrTypography.bodyBold)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 14)
                     .frame(height: 60)
                     .foregroundColor(SanchrExportColors.textPrimary)
+                    .accessibilityLabel("Phone number")
+                    .accessibilityValue(viewModel.displayPhoneNumber)
             }
             .background(SanchrExportColors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -195,7 +191,7 @@ struct LoginView: View {
                     .font(SanchrTypography.cardTitle)
                     .foregroundColor(SanchrExportColors.textPrimary)
 
-                Text("Your messages are secured with military-grade encryption. Only you and your contacts can read them.")
+                Text("Messages are end-to-end encrypted with the Signal Protocol. Only you and the people you write to can read them.")
                     .font(SanchrTypography.body)
                     .foregroundColor(SanchrExportColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -248,6 +244,8 @@ struct LoginView: View {
         .buttonStyle(SanchrPrimaryCTA())
         .disabled(!viewModel.isPhoneValid || viewModel.isLoading)
         .opacity(viewModel.isPhoneValid ? 1 : 0.58)
+        .accessibilityLabel(viewModel.isLoading ? "Sending verification code" : "Continue")
+        .accessibilityHint(viewModel.isPhoneValid ? "Sends a verification code by text message" : "Enter your phone number first")
     }
 
     private var privacyLinks: some View {
