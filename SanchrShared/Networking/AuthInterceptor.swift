@@ -25,6 +25,15 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
         ]
     }
 
+    /// Paths that must reach the server carrying nothing that identifies the caller.
+    ///
+    /// `SendSealedMessage` authenticates with a single-use, anonymous delivery
+    /// token. Attaching either a bearer token or `x-device-id` would tell the
+    /// server who sent an envelope whose whole purpose is that it cannot.
+    private static var anonymousPaths: Set<String> {
+        ["/sanchr.messaging.MessagingService/SendSealedMessage"]
+    }
+
     init(
         headerCache: AuthHeaderCache,
         onUnauthenticated: @escaping @Sendable () -> Void = {}
@@ -46,6 +55,11 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
         code == .unauthenticated && needsAuth(path: path)
     }
 
+    /// Whether a call to `path` may carry `x-device-id`.
+    static func attachesDeviceID(path: String) -> Bool {
+        !anonymousPaths.contains(path)
+    }
+
     override func send(
         _ part: GRPCClientRequestPart<Request>,
         promise: EventLoopPromise<Void>?,
@@ -61,8 +75,8 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
                 headers.add(name: "authorization", value: "Bearer \(token)")
             }
 
-            // Always attach device ID if available
-            if let deviceId = cached.deviceId, !deviceId.isEmpty {
+            // Attach device ID unless this path must stay anonymous
+            if Self.attachesDeviceID(path: context.path), let deviceId = cached.deviceId, !deviceId.isEmpty {
                 headers.add(name: "x-device-id", value: deviceId)
             }
 
