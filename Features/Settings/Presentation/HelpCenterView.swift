@@ -1,53 +1,33 @@
 import SwiftUI
 import SanchrShared
 
-/// Help center screen.
-/// Matches Figma: help-center-screen.
-/// Provides FAQ sections, support entry points, and local topic cards.
+/// Help center: searchable articles about what the app does, grouped by
+/// category, plus the two support channels that exist.
 struct HelpCenterView: View {
     @State private var searchText = ""
     @State private var expandedFAQ: String?
     @State private var showContactForm = false
 
-    private let popularTopics: [(String, String, String)] = [
-        ("shield", "End-to-End Encryption", "How it works"),
-        ("key", "Verify Security Keys", "QR code verification"),
-        ("eye.slash", "Sanchr Mode Privacy", "Enhanced protection"),
-        ("clock.arrow.circlepath", "Self-Destructing Media", "Vault feature guide"),
-        ("icloud.and.arrow.up", "Backup & Restore", "Keep your data safe"),
-    ]
-
-    private let categories: [(String, String, String)] = [
-        ("sparkles", "Getting Started", "12 articles"),
-        ("lock", "Security", "18 articles"),
-        ("gearshape", "Settings", "15 articles"),
-        ("questionmark.circle", "Troubleshooting", "22 articles"),
-        ("phone", "Calls", "9 articles"),
-        ("person.3", "Groups", "11 articles"),
-    ]
-
-    private let faqs: [(String, String)] = [
-        ("How secure is Sanchr?", "Sanchr uses end-to-end encryption for messages, calls, and media. Only you and the intended recipient can decrypt the contents."),
-        ("What is Sanchr Mode?", "Sanchr Mode is an enhanced privacy feature that hides message previews and reduces passive visibility across the interface."),
-        ("Can I back up my chats?", "Yes. Sanchr supports encrypted backups so your data can be restored on a new device without exposing message contents."),
-        ("How do I verify contacts?", "Open a conversation, tap the contact header, and use Verify Security Code to compare the QR code or numeric fingerprint.")
-    ]
+    private var searchResults: [HelpArticle] { HelpContent.search(searchText) }
+    private var isSearching: Bool { searchText.trimmingCharacters(in: .whitespaces).count > 1 }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
                 searchSection
-                quickActions
-                popularTopicsSection
-                categoriesSection
-                faqSection
-                supportCTA
-                communitySection
+                if isSearching {
+                    searchResultsSection
+                } else {
+                    quickActions
+                    popularTopicsSection
+                    categoriesSection
+                    faqSection
+                    supportCTA
+                }
             }
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Help Center")
         .sheet(isPresented: $showContactForm) {
             ContactSupportForm()
@@ -60,27 +40,60 @@ struct HelpCenterView: View {
         }
     }
 
+    private var searchResultsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(searchResults.isEmpty ? "No matches" : "\(searchResults.count) result\(searchResults.count == 1 ? "" : "s")")
+            if searchResults.isEmpty {
+                VStack(spacing: 10) {
+                    Text("Nothing in the Help Center matches that.")
+                        .font(SanchrTypography.body)
+                        .foregroundColor(SanchrExportColors.textSecondary)
+                    Button("Ask support instead") { showContactForm = true }
+                        .font(SanchrTypography.bodyBold)
+                        .foregroundColor(.sanchrPrimary)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+                .settingsCard()
+            }
+            ForEach(searchResults) { article in
+                NavigationLink {
+                    HelpArticleView(article: article)
+                } label: {
+                    HelpArticleRow(article: article)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // Two things that exist: an email to support with device details, and
+    // a direct line for security reports. The old first card promised a
+    // chat channel Sanchr does not run.
     private var quickActions: some View {
         HStack(spacing: 12) {
             Button {
                 showContactForm = true
             } label: {
                 quickActionCard(
-                    title: "Live Chat",
-                    subtitle: "Get instant help",
-                    icon: "message"
+                    title: "Email Support",
+                    subtitle: "We reply by email",
+                    icon: "envelope"
                 )
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             Button {
-                showContactForm = true
+                if let url = URL(string: "mailto:security@sanchr.com?subject=Security%20report") {
+                    UIApplication.shared.open(url)
+                }
             } label: {
                 quickActionCard(
-                    title: "Email Us",
-                    subtitle: "We'll respond soon",
-                    icon: "envelope"
+                    title: "Report a Security Issue",
+                    subtitle: "security@sanchr.com",
+                    icon: "exclamationmark.shield"
                 )
                 .contentShape(Rectangle())
             }
@@ -93,28 +106,14 @@ struct HelpCenterView: View {
             sectionTitle("Popular Topics")
 
             VStack(spacing: 12) {
-                ForEach(popularTopics, id: \.1) { icon, title, subtitle in
-                    HStack(spacing: 14) {
-                        iconTile(systemName: icon)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(title)
-                                .font(SanchrTypography.bodyBold)
-                                .foregroundColor(SanchrExportColors.textPrimary)
-                            Text(subtitle)
-                                .font(SanchrTypography.caption)
-                                .foregroundColor(SanchrExportColors.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .symbolRenderingMode(.monochrome)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(SanchrExportColors.textTertiary)
+                ForEach(HelpContent.popularIDs.compactMap(HelpContent.article)) { article in
+                    NavigationLink {
+                        HelpArticleView(article: article)
+                    } label: {
+                        HelpArticleRow(article: article)
+                        .contentShape(Rectangle())
                     }
-                    .padding(16)
-                    .settingsCard()
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -125,20 +124,27 @@ struct HelpCenterView: View {
             sectionTitle("Browse by Category")
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                ForEach(categories, id: \.1) { icon, title, subtitle in
-                    VStack(alignment: .leading, spacing: 12) {
-                        SettingsIconTile(systemName: icon, size: 48, iconSize: 18)
+                ForEach(HelpCategory.allCases) { category in
+                    NavigationLink {
+                        HelpCategoryView(category: category)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SettingsIconTile(systemName: category.icon, size: 48, iconSize: 18)
 
-                        Text(title)
-                            .font(SanchrTypography.bodyBold)
-                            .foregroundColor(SanchrExportColors.textPrimary)
-                        Text(subtitle)
-                            .font(SanchrTypography.captionSmall)
-                            .foregroundColor(SanchrExportColors.textSecondary)
+                            Text(category.title)
+                                .font(SanchrTypography.bodyBold)
+                                .foregroundColor(SanchrExportColors.textPrimary)
+                                .multilineTextAlignment(.leading)
+                            Text("\(category.articles.count) article\(category.articles.count == 1 ? "" : "s")")
+                                .font(SanchrTypography.captionSmall)
+                                .foregroundColor(SanchrExportColors.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .settingsCard()
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .settingsCard()
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -149,15 +155,15 @@ struct HelpCenterView: View {
             sectionTitle("Frequently Asked")
 
             VStack(spacing: 12) {
-                ForEach(faqs, id: \.0) { question, answer in
+                ForEach(HelpContent.faqs, id: \.question) { faq in
                     VStack(spacing: 0) {
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                expandedFAQ = expandedFAQ == question ? nil : question
+                                expandedFAQ = expandedFAQ == faq.question ? nil : faq.question
                             }
                         } label: {
                             HStack {
-                                Text(question)
+                                Text(faq.question)
                                     .font(SanchrTypography.bodyBold)
                                     .foregroundColor(SanchrExportColors.textPrimary)
                                     .multilineTextAlignment(.leading)
@@ -165,16 +171,17 @@ struct HelpCenterView: View {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(SanchrExportColors.textTertiary)
-                                    .rotationEffect(.degrees(expandedFAQ == question ? 180 : 0))
+                                    .rotationEffect(.degrees(expandedFAQ == faq.question ? 180 : 0))
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 16)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityAddTraits(expandedFAQ == faq.question ? .isSelected : [])
 
-                        if expandedFAQ == question {
-                            Text(answer)
+                        if expandedFAQ == faq.question {
+                            Text(faq.answer)
                                 .font(SanchrTypography.caption)
                                 .foregroundColor(SanchrExportColors.textSecondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,12 +189,7 @@ struct HelpCenterView: View {
                                 .padding(.bottom, 16)
                         }
                     }
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-                    }
+                    .settingsCard()
                 }
             }
         }
@@ -201,7 +203,7 @@ struct HelpCenterView: View {
                 .font(SanchrTypography.sectionHeader)
                 .foregroundColor(SanchrExportColors.textPrimary)
 
-            Text("Our support team is available to help with setup, security, and account issues.")
+            Text("Tell us what is happening and we will reply by email, usually within a day.")
                 .font(SanchrTypography.caption)
                 .foregroundColor(SanchrExportColors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -221,18 +223,6 @@ struct HelpCenterView: View {
         .settingsCard(cornerRadius: 26)
     }
 
-    private var communitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Community")
-
-            VStack(spacing: 12) {
-                communityRow(icon: "at", title: "Twitter", subtitle: "@Sanchr")
-                communityRow(icon: "bubble.left.and.bubble.right", title: "Discord", subtitle: "Join our server")
-                communityRow(icon: "text.bubble", title: "Reddit", subtitle: "r/Sanchr")
-            }
-        }
-    }
-
     private func quickActionCard(
         title: String,
         subtitle: String,
@@ -244,40 +234,14 @@ struct HelpCenterView: View {
             Text(title)
                 .font(SanchrTypography.bodyBold)
                 .foregroundColor(SanchrExportColors.textPrimary)
+                .multilineTextAlignment(.leading)
 
             Text(subtitle)
                 .font(SanchrTypography.captionSmall)
                 .foregroundColor(SanchrExportColors.textSecondary)
+                .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .settingsCard()
-    }
-
-    private func iconTile(systemName: String) -> some View {
-        SettingsIconTile(systemName: systemName)
-    }
-
-    private func communityRow(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 14) {
-            iconTile(systemName: icon)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(SanchrTypography.bodyBold)
-                    .foregroundColor(SanchrExportColors.textPrimary)
-                Text(subtitle)
-                    .font(SanchrTypography.caption)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "arrow.up.right")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(SanchrExportColors.textTertiary)
-        }
         .padding(16)
         .settingsCard()
     }

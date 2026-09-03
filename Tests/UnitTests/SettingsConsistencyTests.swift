@@ -19,9 +19,7 @@ final class SettingsConsistencyTests: XCTestCase {
         for (name, text) in try screenSources() where name != "SettingsView.swift" {
             XCTAssertFalse(text.contains(".background(SanchrExportColors.background.ignoresSafeArea())"),
                            "\(name) uses the plain system background; the settings ground is surfaceSoft")
-            if text.contains("sanchrSettingsSubscreenNavigation") || text.contains(".navigationTitle(") {
-                XCTAssertFalse(text.contains(".navigationTitle(\""), "\(name) should use sanchrSettingsSubscreenNavigation, which paints the shared ground")
-            }
+            XCTAssertFalse(text.contains(".navigationTitle(\""), "\(name) should use sanchrSettingsSubscreenNavigation, which paints the shared ground")
         }
         let settings = try String(contentsOf: Self.screens.appendingPathComponent("SettingsView.swift"), encoding: .utf8)
         let nav = try XCTUnwrap(settings.range(of: "func sanchrSettingsSubscreenNavigation(title: String) -> some View {"))
@@ -32,8 +30,9 @@ final class SettingsConsistencyTests: XCTestCase {
         for (name, text) in try screenSources() {
             var searchStart = text.startIndex
             while let labelRange = text.range(of: "} label: {", range: searchStart..<text.endIndex) {
-                // walk to the matching close brace
-                var depth = 0; var idx = text.index(before: labelRange.upperBound); var close = text.endIndex
+                var depth = 0
+                var idx = text.index(before: labelRange.upperBound)
+                var close = text.endIndex
                 while idx < text.endIndex {
                     if text[idx] == "{" { depth += 1 } else if text[idx] == "}" { depth -= 1; if depth == 0 { close = idx; break } }
                     idx = text.index(after: idx)
@@ -50,9 +49,8 @@ final class SettingsConsistencyTests: XCTestCase {
     func testHelpCenterIconsResolve() throws {
         let help = try String(contentsOf: Self.screens.appendingPathComponent("HelpCenterView.swift"), encoding: .utf8)
         XCTAssertFalse(help.contains("\"rocket\""), "rocket did not render on the user's device")
-        let names = help.matches(of: /\("([a-z0-9.]+)", "/).map { String($0.1) }
-        XCTAssertFalse(names.isEmpty)
-        for name in names {
+        // Icons live in the content model, one per article and category.
+        for name in HelpContent.articles.map(\.icon) + HelpCategory.allCases.map(\.icon) {
             XCTAssertNotNil(UIImage(systemName: name), "Help Center uses a symbol that does not exist: \(name)")
         }
     }
