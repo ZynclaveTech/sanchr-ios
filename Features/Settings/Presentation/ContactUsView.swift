@@ -26,7 +26,7 @@ struct ContactUsView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.background.ignoresSafeArea())
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Contact Us")
     }
 
@@ -106,6 +106,7 @@ struct ContactUsView: View {
                     .frame(height: 56)
                     .background(SanchrExportColors.surfaceMuted)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -149,6 +150,7 @@ struct ContactUsView: View {
                 .frame(height: 54)
                 .background(Color.sanchrPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md, style: .continuous))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

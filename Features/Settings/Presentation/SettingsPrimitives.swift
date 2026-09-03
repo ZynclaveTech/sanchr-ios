@@ -104,6 +104,7 @@ struct SettingsInfoRow<Trailing: View>: View {
             Spacer()
             trailing
         }
+        .contentShape(Rectangle())
     }
 }
 
@@ -128,5 +129,9 @@ extension View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
             }
+            // A card used as a button label is tappable across its whole
+            // face. Without this only the text and icon responded: padding,
+            // spacers and the card background are transparent to hit-testing.
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }

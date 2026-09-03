@@ -14,6 +14,10 @@ import XCTest
 final class SFSymbolAvailabilityTests: XCTestCase {
 
     private let symbolsUsedInTheApp: [String] = [
+        // Help Center categories, topics and community rows.
+        "sparkles", "lock", "gearshape", "questionmark.circle", "phone", "person.3",
+        "eye.slash", "clock.arrow.circlepath", "icloud.and.arrow.up", "headphones",
+        "at", "bubble.left.and.bubble.right", "text.bubble", "arrow.up.right", "message", "envelope",
         "arrow.clockwise",
         "arrow.clockwise.circle",
         "arrow.clockwise.circle.fill",

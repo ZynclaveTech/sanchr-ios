@@ -119,6 +119,7 @@ struct ChatSettingsView: View {
                         title: "Security Code",
                         subtitle: "Verify encryption keys"
                     )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -174,6 +175,7 @@ struct ChatSettingsView: View {
                     title: "Backup & Recovery",
                     subtitle: backupSubtitle
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -214,6 +216,7 @@ struct ChatSettingsView: View {
                     title: "Default Timer",
                     subtitle: disappearingTimerOptions.first(where: { $0.1 == defaultDisappearingTimer })?.0 ?? "Off"
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -272,6 +275,7 @@ struct ChatSettingsView: View {
                 title: title,
                 subtitle: autoDownloadOptions.first(where: { $0.1 == value })?.0 ?? "Default"
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

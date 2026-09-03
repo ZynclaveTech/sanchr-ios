@@ -123,6 +123,7 @@ struct PINEntryView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(width: keySize, height: keySize)
                     .background(SanchrExportColors.surface, in: Circle())
+                .contentShape(Rectangle())
             }
         } else {
             Button {
@@ -137,6 +138,7 @@ struct PINEntryView: View {
                     .foregroundColor(SanchrExportColors.textPrimary)
                     .frame(width: keySize, height: keySize)
                     .background(SanchrExportColors.surface, in: Circle())
+                .contentShape(Rectangle())
             }
         }
     }

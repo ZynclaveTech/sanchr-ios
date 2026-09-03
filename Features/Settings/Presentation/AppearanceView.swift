@@ -110,6 +110,7 @@ struct AppearanceView: View {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
                                 .stroke(Color.sanchrPrimary, lineWidth: theme.mode == mode ? 2 : 0)
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -151,6 +152,7 @@ struct AppearanceView: View {
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                                     .stroke(Color.sanchrPrimary, lineWidth: viewModel.chatWallpaper == wp.id ? 2 : 0)
                             }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -205,6 +207,7 @@ struct AppearanceView: View {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
                                 .stroke(Color.sanchrPrimary, lineWidth: chatBubbleStyle == value ? 2 : 0)
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

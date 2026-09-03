@@ -32,8 +32,7 @@ struct BackupView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Backup & Recovery")
-        .navigationBarTitleDisplayMode(.inline)
+        .sanchrSettingsSubscreenNavigation(title: "Backup & Recovery")
         .task {
             container.backupCoordinator.reload()
             if container.backupCoordinator.isEnabled {
@@ -122,6 +121,7 @@ struct BackupView: View {
                             .padding(.vertical, 14)
                             .background(Color.sanchrPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.md))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -131,16 +131,20 @@ struct BackupView: View {
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
             // What gets backed up
-            Section("WHAT GETS BACKED UP") {
+            Section {
                 backupContentRow(icon: "message", title: "Messages & conversations", subtitle: "All chats, group info, contacts")
                 backupContentRow(icon: "lock.doc", title: "Vault items", subtitle: "Encrypted vault media & keys")
                 backupContentRow(icon: "photo.on.rectangle", title: "Photos & videos", subtitle: "Re-downloaded from Sanchr on restore")
+            } header: {
+                SettingsSectionTitle(title: "What gets backed up")
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
 
             // Restore row — always visible
-            Section("RESTORE") {
+            Section {
                 restoreRow
+            } header: {
+                SettingsSectionTitle(title: "Restore")
             }
             .listRowBackground(Color.sanchrSurface(colorScheme))
         }
@@ -235,6 +239,7 @@ struct BackupView: View {
                     Label("View Recovery Key", systemImage: "key")
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -245,6 +250,7 @@ struct BackupView: View {
                     Label("Rotate Recovery Key", systemImage: "arrow.clockwise")
                         .font(SanchrTypography.body)
                         .foregroundColor(Color.sanchrTextPrimary(colorScheme))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } header: {
@@ -277,6 +283,7 @@ struct BackupView: View {
                     Text("Delete All Backups")
                         .font(SanchrTypography.body)
                         .foregroundColor(.sanchrError)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .alert("Delete all backups?", isPresented: $showDeleteAlert) {
@@ -364,6 +371,7 @@ struct BackupView: View {
                 .padding(.vertical, 10)
                 .background(Color.sanchrPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: SanchrRadius.sm))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(container.backupCoordinator.isProcessing)
@@ -445,6 +453,7 @@ struct BackupView: View {
                         .foregroundColor(Color.sanchrTextSecondary(colorScheme))
                 }
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(container.backupCoordinator.isProcessing)
@@ -626,8 +635,7 @@ private struct BackupRecoveryKeySheet: View {
                 Spacer()
             }
             .padding(SanchrSpacing.lg)
-            .navigationTitle("Recovery Key")
-            .navigationBarTitleDisplayMode(.inline)
+            .sanchrSettingsSubscreenNavigation(title: "Recovery Key")
         }
     }
 }
@@ -671,8 +679,7 @@ private struct BackupRestoreSheet: View {
                 Spacer()
             }
             .padding(SanchrSpacing.lg)
-            .navigationTitle("Restore Backup")
-            .navigationBarTitleDisplayMode(.inline)
+            .sanchrSettingsSubscreenNavigation(title: "Restore Backup")
         }
     }
 }

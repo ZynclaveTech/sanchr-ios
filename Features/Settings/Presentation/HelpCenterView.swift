@@ -18,7 +18,7 @@ struct HelpCenterView: View {
     ]
 
     private let categories: [(String, String, String)] = [
-        ("rocket", "Getting Started", "12 articles"),
+        ("sparkles", "Getting Started", "12 articles"),
         ("lock", "Security", "18 articles"),
         ("gearshape", "Settings", "15 articles"),
         ("questionmark.circle", "Troubleshooting", "22 articles"),
@@ -70,6 +70,7 @@ struct HelpCenterView: View {
                     subtitle: "Get instant help",
                     icon: "message"
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -81,6 +82,7 @@ struct HelpCenterView: View {
                     subtitle: "We'll respond soon",
                     icon: "envelope"
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -167,6 +169,7 @@ struct HelpCenterView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 16)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
 
@@ -337,9 +340,7 @@ struct ContactSupportForm: View {
                 .padding(SanchrExportMetrics.sectionHorizontal)
                 .padding(.top, 16)
             }
-            .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
-            .navigationTitle("Contact Support")
-            .navigationBarTitleDisplayMode(.inline)
+            .sanchrSettingsSubscreenNavigation(title: "Contact Support")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

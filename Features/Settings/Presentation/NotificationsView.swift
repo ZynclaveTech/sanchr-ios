@@ -101,6 +101,7 @@ struct NotificationsView: View {
                         }
                         .padding(16)
                         .settingsCard()
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -263,6 +264,7 @@ struct NotificationSoundPicker: View {
                             }
                             .padding(.horizontal, 18)
                             .padding(.vertical, 16)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
 

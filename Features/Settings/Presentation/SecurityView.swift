@@ -106,6 +106,7 @@ struct SecurityView: View {
                     subtitle: "All messages secured",
                     showsStatusDot: true
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -117,6 +118,7 @@ struct SecurityView: View {
                     title: "Security Code Verification",
                     subtitle: "Verify contacts and device keys"
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -128,6 +130,7 @@ struct SecurityView: View {
                     title: "Vault Messages",
                     subtitle: "Self-destructing media and secure storage"
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -140,6 +143,7 @@ struct SecurityView: View {
                     subtitle: viewModel.registrationLockEnabled ? "PIN protection enabled" : "Protect account re-registration",
                     showsStatusDot: viewModel.registrationLockEnabled
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -209,6 +213,7 @@ struct SecurityView: View {
                                     ? SanchrExportColors.textTertiary
                                     : SanchrExportColors.textTertiary.opacity(0.4)
                             )
+                        .contentShape(Rectangle())
                     }
                     .disabled(!lockActive)
                 }
@@ -319,6 +324,7 @@ struct SecurityView: View {
                     subtitle: "Permanently erase your account and data",
                     role: .destructive
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

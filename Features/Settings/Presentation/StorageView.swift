@@ -171,6 +171,7 @@ struct StorageView: View {
                         subtitle: "Free up \(viewModel.formattedBytes(viewModel.otherBytes))",
                         role: .destructive
                     )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(isClearing)
@@ -183,6 +184,7 @@ struct StorageView: View {
                         title: "Free Up Space",
                         subtitle: "Remove local media and archived files"
                     )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(isClearing)
@@ -195,6 +197,7 @@ struct StorageView: View {
                         title: "Backup & Restore",
                         subtitle: "Manage encrypted backups"
                     )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -428,6 +431,7 @@ struct StorageView: View {
             }
             .padding(16)
             .settingsCard()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
