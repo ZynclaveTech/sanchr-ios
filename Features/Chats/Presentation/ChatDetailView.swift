@@ -725,7 +725,7 @@ struct ChatDetailView: View {
                 },
                 onInvite: {
                     contactCoordinator.dismiss()
-                    if let url = URL(string: "https://sanchr.io/invite?from=chat") {
+                    if let url = URL(string: "https://sanchr.com/invite?from=chat") {
                         invitePayload = GalleryIdentifiedURLBridge(url: url)
                     }
                 },

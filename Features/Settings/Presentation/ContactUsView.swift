@@ -60,13 +60,13 @@ struct ContactUsView: View {
 
             ContactLinkRow(
                 icon: "envelope.badge",
-                title: "support@sanchr.io",
+                title: "support@sanchr.com",
                 subtitle: "General support inbox"
             )
 
             ContactLinkRow(
                 icon: "exclamationmark.shield",
-                title: "emergency@sanchr.io",
+                title: "emergency@sanchr.com",
                 subtitle: "Urgent account or safety concerns",
                 role: .destructive
             )
@@ -174,10 +174,10 @@ struct ContactUsView: View {
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
 
-        if let url = URL(string: "mailto:support@sanchr.io?subject=\(encodedSubject)&body=\(encodedBody)") {
+        if let url = URL(string: "mailto:support@sanchr.com?subject=\(encodedSubject)&body=\(encodedBody)") {
             UIApplication.shared.open(url) { success in
                 if !success {
-                    UIPasteboard.general.string = "To: support@sanchr.io\nSubject: \(subject)\n\n\(body)"
+                    UIPasteboard.general.string = "To: support@sanchr.com\nSubject: \(subject)\n\n\(body)"
                 }
             }
         }

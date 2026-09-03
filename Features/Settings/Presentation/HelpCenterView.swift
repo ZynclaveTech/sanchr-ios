@@ -350,7 +350,7 @@ struct ContactSupportForm: View {
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
 
-        if let url = URL(string: "mailto:support@sanchr.io?subject=\(encodedSubject)&body=\(encodedBody)") {
+        if let url = URL(string: "mailto:support@sanchr.com?subject=\(encodedSubject)&body=\(encodedBody)") {
             UIApplication.shared.open(url)
         }
     }

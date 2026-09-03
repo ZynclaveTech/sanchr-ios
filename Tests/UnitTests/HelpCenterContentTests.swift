@@ -59,4 +59,13 @@ final class HelpCenterContentTests: XCTestCase {
         XCTAssertTrue(view.contains("HelpCategoryView(category: category)"))
         XCTAssertTrue(view.contains("HelpArticleView(article: article)"))
     }
+
+    /// The mailboxes are on sanchr.com; the .io addresses were never monitored.
+    func testSupportAddressesAreOnTheCanonicalDomain() throws {
+        for path in ["Features/Settings/Presentation/ContactUsView.swift", "Features/Settings/Presentation/HelpCenterView.swift",
+                     "Features/Chats/Presentation/ChatDetailView.swift"] {
+            let text = try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8)
+            XCTAssertFalse(text.contains("@sanchr.io") || text.contains("https://sanchr.io"), "\(path) still points at sanchr.io")
+        }
+    }
 }
