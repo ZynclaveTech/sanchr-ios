@@ -60,6 +60,7 @@ struct PrivacyView: View {
                     subtitle: displayVisibility(viewModel.profilePhotoVisibility),
                     trailing: AnyView(chevron)
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -103,6 +104,7 @@ struct PrivacyView: View {
                     subtitle: "Biometric and timeout controls",
                     trailing: AnyView(chevron)
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -115,6 +117,7 @@ struct PrivacyView: View {
                     subtitle: "Hide sensitive files and chats",
                     trailing: AnyView(chevron)
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -166,6 +169,7 @@ struct PrivacyView: View {
                     subtitle: "Review and unblock people at any time",
                     trailing: AnyView(chevron)
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

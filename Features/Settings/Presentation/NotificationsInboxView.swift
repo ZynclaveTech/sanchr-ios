@@ -70,9 +70,11 @@ struct NotificationsInboxView: View {
                         showPreferences = true
                     } label: {
                         Label("Notification Preferences", systemImage: "bell.badge")
+                        .contentShape(Rectangle())
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                    .contentShape(Rectangle())
                 }
             }
         }
@@ -98,6 +100,7 @@ struct NotificationsInboxView: View {
                                     : SanchrExportColors.surface
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

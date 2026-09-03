@@ -166,6 +166,7 @@ struct SettingsView: View {
             .padding(.vertical, 18)
             .background(SanchrExportColors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -364,14 +365,20 @@ private struct AnySettingsRow: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
 extension View {
+    /// Title plus the ground every settings screen shares. Subscreens used
+    /// to pick their own background: most the grouped surface, Contact Us
+    /// and Terms & Privacy the plain system background, Backup and
+    /// Encryption Keys none at all, so pushing between them changed colour.
     func sanchrSettingsSubscreenNavigation(title: String) -> some View {
         navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
     }
 }

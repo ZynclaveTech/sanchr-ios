@@ -76,7 +76,7 @@ struct LegalView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.background.ignoresSafeArea())
+        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Terms & Privacy")
         .sheet(item: $presented) { document in
             SafariSheet(url: document.url)

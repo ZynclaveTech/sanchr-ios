@@ -237,6 +237,7 @@ struct RegistrationLockView: View {
                     phase = .verifyCurrentForChange
                 } label: {
                     actionLabel("Change PIN", icon: "pencil", role: .primary)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -244,6 +245,7 @@ struct RegistrationLockView: View {
                     phase = .enterCurrent
                 } label: {
                     actionLabel("Disable Registration Lock", icon: "lock.open", role: .destructive)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -251,6 +253,7 @@ struct RegistrationLockView: View {
                     phase = .enterNew
                 } label: {
                     actionLabel("Enable Registration Lock", icon: "lock.fill", role: .primary)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

@@ -64,6 +64,7 @@ struct EncryptionKeysView: View {
                             }
                             .font(SanchrTypography.caption)
                             .foregroundColor(copiedToClipboard ? .sanchrSuccess : .sanchrPrimary)
+                            .contentShape(Rectangle())
                         }
 
                         Button {
@@ -75,6 +76,7 @@ struct EncryptionKeysView: View {
                             }
                             .font(SanchrTypography.caption)
                             .foregroundColor(.sanchrPrimary)
+                            .contentShape(Rectangle())
                         }
                     }
                 }
@@ -160,6 +162,7 @@ struct EncryptionKeysView: View {
                     }
                     .font(SanchrTypography.body)
                     .foregroundColor(.sanchrPrimary)
+                    .contentShape(Rectangle())
                 }
                 .disabled(isLoadingMetadata)
             }
@@ -179,6 +182,7 @@ struct EncryptionKeysView: View {
                     showingResetAlert = true
                 } label: {
                     Text(isResettingKeys ? "Resetting…" : "Reset encryption keys")
+                    .contentShape(Rectangle())
                 }
                 .disabled(isResettingKeys)
                 .alert("Reset Encryption Keys?", isPresented: $showingResetAlert) {
@@ -218,8 +222,7 @@ struct EncryptionKeysView: View {
             .listRowBackground(Color.sanchrSurface(colorScheme))
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Encryption Keys")
-        .navigationBarTitleDisplayMode(.inline)
+        .sanchrSettingsSubscreenNavigation(title: "Encryption Keys")
         .task {
             await loadKeyInfo()
         }
