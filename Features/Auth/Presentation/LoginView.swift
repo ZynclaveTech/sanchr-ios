@@ -5,6 +5,7 @@ struct LoginView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = AuthViewModel()
+    @State private var presentedLegalDocument: LegalDocument?
 
     private let countryCodes = [
         ("+1", "US"),
@@ -250,11 +251,23 @@ struct LoginView: View {
     }
 
     private var privacyLinks: some View {
-        Text("By continuing, you agree to our Privacy Policy and Terms of Service")
+        // Real links, opened in-app. Plain text here claimed agreement to
+        // documents the user had no way to read.
+        Text(.init("By continuing, you agree to our [Privacy Policy](\(LegalDocument.privacy.url)) and [Terms of Service](\(LegalDocument.terms.url))"))
             .font(SanchrTypography.captionSmall)
             .foregroundColor(SanchrExportColors.textSecondary)
+            .tint(SanchrColors.primary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
+            .environment(\.openURL, OpenURLAction { url in
+                guard let document = LegalDocument(url: url) else { return .systemAction }
+                presentedLegalDocument = document
+                return .handled
+            })
+            .sheet(item: $presentedLegalDocument) { document in
+                SafariSheet(url: document.url)
+                    .ignoresSafeArea()
+            }
     }
 
     #if DEBUG
