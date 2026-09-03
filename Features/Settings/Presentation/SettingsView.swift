@@ -98,8 +98,8 @@ struct SettingsView: View {
                         AnySettingsRow(
                             icon: "doc.text",
                             title: "Terms & Privacy",
-                            subtitle: "Policies and legal information",
-                            destination: AnyView(PrivacyView())
+                            subtitle: "Privacy Policy and Terms of Service",
+                            destination: AnyView(LegalView())
                         ),
                     ]
                 )
