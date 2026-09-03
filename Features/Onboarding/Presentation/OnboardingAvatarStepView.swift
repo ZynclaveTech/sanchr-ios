@@ -26,7 +26,7 @@ struct OnboardingAvatarStepView: View {
 
             Spacer(minLength: 28)
 
-            Text("STEP 2 OF 3")
+            Text("STEP 2 OF \(OnboardingViewModel.totalSteps)")
                 .font(SanchrTypography.micro)
                 .foregroundColor(.sanchrPrimary)
                 .kerning(2.5)

@@ -160,6 +160,21 @@ final class PushManager: NSObject, PushManagerProtocol, @unchecked Sendable {
         }
     }
 
+    /// Whether the system prompt has never been shown for this install.
+    func authorizationIsUndetermined() async -> Bool {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .notDetermined
+    }
+
+    /// Shows the prompt only if it has never been shown. The onboarding
+    /// step is the one place it used to be requested, so a user who
+    /// force-quit there reached the chat list with the prompt never shown
+    /// and no way to trigger it again: a messenger permanently without push.
+    @discardableResult
+    func requestAuthorizationIfUndetermined() async -> Bool {
+        guard await authorizationIsUndetermined() else { return isPermissionGranted }
+        return await requestAuthorization()
+    }
+
     /// Conforms to `PushManagerProtocol` -- delegates to `requestAuthorization`.
     func requestPermission() async throws -> Bool {
         return await requestAuthorization()

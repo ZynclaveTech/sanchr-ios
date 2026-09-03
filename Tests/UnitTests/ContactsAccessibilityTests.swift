@@ -18,7 +18,8 @@ final class ContactsAccessibilityTests: XCTestCase {
 
     func testTheIconOnlyControlsAreLabelled() throws {
         let view = try source("Features/Contacts/Presentation/ContactsView.swift")
-        for label in ["\"Add contact\"", "\"Clear search\""] {
+        // The add control became a two-action menu (by number/QR, from contacts).
+        for label in ["\"Add contacts\"", "\"Clear search\""] {
             XCTAssertTrue(view.contains(label), "missing an accessibility label for \(label)")
         }
     }

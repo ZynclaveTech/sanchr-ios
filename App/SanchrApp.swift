@@ -449,6 +449,9 @@ struct RootView: View {
                             }
                         } else {
                             MainTabView()
+                                // Covers a force-quit during onboarding: the
+                                // prompt was never shown, so show it now.
+                                .task { await container.pushManager.requestAuthorizationIfUndetermined() }
                         }
                     } else if container.sessionService.isAuthenticated && !sessionReady {
                         // Authenticated but waiting for token refresh
