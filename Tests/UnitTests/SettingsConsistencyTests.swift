@@ -59,4 +59,26 @@ final class SettingsConsistencyTests: XCTestCase {
             XCTAssertNotNil(UIImage(systemName: name), "Help Center uses a symbol that does not exist: \(name)")
         }
     }
+
+    func testSettingsSearchesWithTheHomeTabsField() throws {
+        let settings = try String(contentsOf: Self.screens.appendingPathComponent("SettingsView.swift"), encoding: .utf8)
+        XCTAssertTrue(settings.contains("SanchrSearchField(placeholder: \"Search settings...\""))
+        XCTAssertFalse(settings.contains(".searchable("), "the system search bar looked nothing like the tabs' field")
+    }
+
+    func testAppearanceRowReportsTheStoredTheme() throws {
+        let settings = try String(contentsOf: Self.screens.appendingPathComponent("SettingsView.swift"), encoding: .utf8)
+        let subtitle = try XCTUnwrap(settings.range(of: "private var themeSubtitle: String {"))
+        let body = String(settings[subtitle.upperBound...].prefix(260))
+        XCTAssertTrue(body.contains("SanchrTheme.Mode(rawValue: storedThemeMode)"), "the row must read the theme the app applies")
+        XCTAssertTrue(body.contains("case .system: return \"System\""))
+        XCTAssertFalse(body.contains("viewModel.theme"))
+    }
+
+    func testDarkCardsAreNeutralLikeTheHomeTabs() throws {
+        let tokens = try String(contentsOf: Self.root.appendingPathComponent("SanchrShared/DesignSystem/ExportComponents.swift"), encoding: .utf8)
+        let card = try XCTUnwrap(tokens.range(of: "public static let card = Color(uiColor: UIColor { traits in"))
+        XCTAssertTrue(String(tokens[card.upperBound...].prefix(400)).contains("? UIColor.secondarySystemBackground"), "the brand's dark elevated surface has a blue cast")
+    }
 }
+

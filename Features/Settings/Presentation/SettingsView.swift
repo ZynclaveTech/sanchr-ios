@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
     @State private var settingsSearchText = ""
+    @AppStorage("sanchr.themeMode") private var storedThemeMode = SanchrTheme.Mode.system.rawValue
 
     private var settingsDataSource: SettingsDataSource {
         SettingsDataSource(grpcClient: container.grpcClient)
@@ -15,6 +16,8 @@ struct SettingsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
+                // The home tabs' search field, not the system one: same font, fill and height.
+                SanchrSearchField(placeholder: "Search settings...", text: $settingsSearchText) { EmptyView() }
                 profileCard
                 sanchrModeCard
                 filteredSettingsGroup(
@@ -122,7 +125,6 @@ struct SettingsView: View {
         .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $settingsSearchText, prompt: "Search settings")
         .sanchrInteractivePopEnabled()
         .task {
             viewModel.loadProfile(from: container.sessionService)
@@ -300,14 +302,14 @@ struct SettingsView: View {
         }
     }
 
+    /// The theme the app actually applies is the stored one that
+    /// SanchrApp and AppearanceView share; the server's `theme` field
+    /// defaulted to "light" and the row said Light no matter what.
     private var themeSubtitle: String {
-        switch viewModel.theme.lowercased() {
-        case "dark":
-            return "Dark"
-        case "light":
-            return "Light"
-        default:
-            return "Light"
+        switch SanchrTheme.Mode(rawValue: storedThemeMode) ?? .system {
+        case .dark: return "Dark"
+        case .light: return "Light"
+        case .system: return "System"
         }
     }
 
