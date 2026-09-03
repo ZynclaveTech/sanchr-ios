@@ -136,6 +136,32 @@ final class SessionLayerConcurrencyTests: XCTestCase {
         XCTAssertTrue(Interceptor.needsAuth(path: "/sanchr.keys.KeyService/GetPreKeyBundle"))
     }
 
+    func testSealedSendCarriesNoDeviceIDButOtherPathsDo() {
+        typealias Interceptor = AuthInterceptor<Sanchr_Auth_LoginRequest, Sanchr_Auth_AuthResponse>
+
+        // The one path that must reach the server carrying nothing that
+        // identifies the caller: no bearer token, no device id.
+        XCTAssertFalse(Interceptor.attachesDeviceID(path: "/sanchr.messaging.MessagingService/SendSealedMessage"),
+                        "a sealed envelope must not be labelled with the sending device")
+
+        // The four auth paths withhold the bearer token but still need the
+        // device id - registration depends on it.
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.auth.AuthService/Register"))
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.auth.AuthService/VerifyOTP"))
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.auth.AuthService/Login"))
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.auth.AuthService/RefreshToken"))
+
+        // Ordinary authenticated paths are unaffected.
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.messaging.MessagingService/SendMessage"))
+        XCTAssertTrue(Interceptor.attachesDeviceID(path: "/sanchr.keys.KeyService/GetPreKeyBundle"))
+
+        // needsAuth and shouldTriggerRefresh are related but distinct: the
+        // sealed path withholds the bearer token and skips the refresh
+        // trigger, independent of the device-id decision above.
+        XCTAssertFalse(Interceptor.needsAuth(path: "/sanchr.messaging.MessagingService/SendSealedMessage"))
+        XCTAssertFalse(Interceptor.shouldTriggerRefresh(path: "/sanchr.messaging.MessagingService/SendSealedMessage", code: .unauthenticated))
+    }
+
     func testHeaderCacheReadsStorageOnceUntilInvalidated() {
         let reads = NSLock(); nonisolated(unsafe) var tokenReads = 0
         nonisolated(unsafe) var token: String? = "t1"
