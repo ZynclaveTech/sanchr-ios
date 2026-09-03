@@ -135,7 +135,6 @@ struct RegistrationLockView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Registration Lock")
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }

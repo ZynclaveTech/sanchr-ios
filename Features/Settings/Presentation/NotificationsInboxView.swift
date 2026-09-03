@@ -61,7 +61,6 @@ struct NotificationsInboxView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 32)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Notifications")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

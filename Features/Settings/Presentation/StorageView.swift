@@ -41,7 +41,6 @@ struct StorageView: View {
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Storage & Data")
         .alert("Clear Media Cache", isPresented: $showClearCacheConfirm) {
             Button("Cancel", role: .cancel) {}

@@ -36,7 +36,6 @@ struct SecurityView: View {
             .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
             .padding(.bottom, 28)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
         .sanchrSettingsSubscreenNavigation(title: "Security")
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountConfirmationSheet()

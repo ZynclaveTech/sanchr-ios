@@ -17,13 +17,18 @@ final class SettingsConsistencyTests: XCTestCase {
 
     func testNoSubscreenPaintsItsOwnDifferentGround() throws {
         for (name, text) in try screenSources() where name != "SettingsView.swift" {
-            XCTAssertFalse(text.contains(".background(SanchrExportColors.background.ignoresSafeArea())"),
-                           "\(name) uses the plain system background; the settings ground is surfaceSoft")
+            XCTAssertFalse(text.contains(".background(SanchrExportColors.surfaceSoft.ignoresSafeArea())"),
+                           "\(name) paints the grouped surface over the shared ground; the tabs use `background`")
             XCTAssertFalse(text.contains(".navigationTitle(\""), "\(name) should use sanchrSettingsSubscreenNavigation, which paints the shared ground")
         }
         let settings = try String(contentsOf: Self.screens.appendingPathComponent("SettingsView.swift"), encoding: .utf8)
         let nav = try XCTUnwrap(settings.range(of: "func sanchrSettingsSubscreenNavigation(title: String) -> some View {"))
-        XCTAssertTrue(String(settings[nav.upperBound...].prefix(300)).contains(".background(SanchrExportColors.surfaceSoft.ignoresSafeArea())"))
+        XCTAssertTrue(String(settings[nav.upperBound...].prefix(300)).contains(".background(SanchrExportColors.background.ignoresSafeArea())"),
+                      "the settings ground is the same colour the Chats, Calls and Contacts tabs paint")
+        for tab in ["Features/Chats/Presentation/ChatsListView.swift", "Features/Calls/Presentation/CallsListView.swift", "Features/Contacts/Presentation/ContactsView.swift"] {
+            let text = try String(contentsOf: Self.root.appendingPathComponent(tab), encoding: .utf8)
+            XCTAssertTrue(text.contains(".background(SanchrExportColors.background)"), "\(tab) is the reference ground")
+        }
     }
 
     func testEveryButtonLabelIsTappableAcrossItsWholeFace() throws {

@@ -118,7 +118,7 @@ struct SettingsView: View {
             .padding(.horizontal, SanchrExportMetrics.sectionHorizontal)
             .padding(.bottom, 24)
         }
-        .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+        .background(SanchrExportColors.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $settingsSearchText, prompt: "Search settings")
@@ -372,13 +372,13 @@ private struct AnySettingsRow: View {
 }
 
 extension View {
-    /// Title plus the ground every settings screen shares. Subscreens used
-    /// to pick their own background: most the grouped surface, Contact Us
-    /// and Terms & Privacy the plain system background, Backup and
-    /// Encryption Keys none at all, so pushing between them changed colour.
+    /// Title plus the ground every settings screen shares: the same
+    /// `background` the Chats, Calls and Contacts tabs paint, so Settings
+    /// no longer looks like a different app. Subscreens used to pick their
+    /// own (grouped, plain, or none), so pushing between them changed colour.
     func sanchrSettingsSubscreenNavigation(title: String) -> some View {
         navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .background(SanchrExportColors.surfaceSoft.ignoresSafeArea())
+            .background(SanchrExportColors.background.ignoresSafeArea())
     }
 }
