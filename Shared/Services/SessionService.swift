@@ -384,7 +384,10 @@ final class SessionService: @unchecked Sendable {
         try await authRepository.deleteAccount()
         SanchrLogger.auth.warning("Account deletion confirmed; wiping local artifacts")
 
-        try? secureStorage.deleteSessionData()
+        // Everything, not just the session: the device master secret, the
+        // database key, the identity key and the rest survived a "permanent"
+        // delete before, and a later sign-in on this device inherited them.
+        try? secureStorage.purgeAllKeychainItems()
         onCredentialsChanged()
         await clearSessionState()
         await cleanup()

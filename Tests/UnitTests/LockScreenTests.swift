@@ -79,7 +79,9 @@ final class LockScreenTests: XCTestCase {
         let manager = try source("Shared/Services/AppLockManager.swift")
         XCTAssertTrue(manager.contains("private(set) var isAuthenticating: Bool = false"))
         XCTAssertTrue(manager.contains("private(set) var authError: String?"))
-        XCTAssertEqual(manager.components(separatedBy: "guard !isAuthenticating else { return }").count - 1, 2,
-                       "both prompt paths must refuse to stack a second prompt")
+        // One prompt path since the passcode fallback moved into the policy
+        // itself; it must still refuse to stack a second prompt.
+        XCTAssertEqual(manager.components(separatedBy: "guard !isAuthenticating else { return }").count - 1, 1,
+                       "the prompt path must refuse to stack a second prompt")
     }
 }
