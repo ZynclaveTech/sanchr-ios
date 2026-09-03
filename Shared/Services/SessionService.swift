@@ -67,20 +67,6 @@ final class SessionService: @unchecked Sendable {
     }
 
 
-    // MARK: - Token Validity
-
-    /// Whether the current access token is valid and not expired.
-    var isTokenValid: Bool {
-        guard isAuthenticated else { return false }
-        guard (try? secureStorage.readAccessToken()) != nil else { return false }
-
-        // If we have no expiry info, assume valid (will be checked on next API call).
-        guard let expiresAt = tokenExpiresAt else { return true }
-
-        // Token is valid if it has more than 0 seconds remaining.
-        return expiresAt.timeIntervalSinceNow > 0
-    }
-
     /// Stores authentication tokens and updates session state.
     func storeTokens(_ tokens: AuthTokens) async throws {
         try secureStorage.saveAccessToken(tokens.accessToken)
