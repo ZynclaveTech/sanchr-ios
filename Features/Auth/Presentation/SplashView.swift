@@ -17,8 +17,9 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            // Always-dark background — does not follow system appearance.
-            Color(hex: 0x08080E)
+            // The same ground as every screen, so the launch frame, the
+            // splash and the app share one colour in either appearance.
+            SanchrExportColors.background
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -43,13 +44,11 @@ struct SplashView: View {
                         .opacity(appeared ? 1 : 0)
                         .animation(.easeOut(duration: 0.60).delay(0.00), value: appeared)
 
-                    // Real SanchrLogo asset — blends into dark bg via .screen
                     Image("SanchrLogo")
                         .renderingMode(.original)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 96, height: 96)
-                        .blendMode(.screen)
                         .scaleEffect(appeared ? 1.0 : 0.75)
                         .opacity(appeared ? 1 : 0)
                         .animation(
@@ -100,7 +99,6 @@ struct SplashView: View {
         .onAppear {
             appeared = true
         }
-        .preferredColorScheme(.dark)
     }
 }
 

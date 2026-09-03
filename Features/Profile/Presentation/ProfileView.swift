@@ -422,59 +422,16 @@ struct ProfileView: View {
 
     // MARK: - QR Code Helpers
 
-    /// Renders the Sanchr logo mark as a gradient-filled UIImage for QR center overlay.
-    private func sanchrLogoMark() -> UIImage {
-        let size: CGFloat = 36
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
-        return renderer.image { ctx in
-            let rect = CGRect(origin: .zero, size: CGSize(width: size, height: size))
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: size * 0.22)
-            path.addClip()
-            // Indigo-to-cyan gradient matching SanchrGradients.primary
-            let colors: [CGColor] = [
-                UIColor(red: 99 / 255, green: 102 / 255, blue: 241 / 255, alpha: 1).cgColor,  // #6366F1
-                UIColor(red: 6 / 255, green: 182 / 255, blue: 212 / 255, alpha: 1).cgColor,   // #06B6D4
-            ]
-            if let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors as CFArray,
-                locations: [0.0, 1.0]
-            ) {
-                ctx.cgContext.drawLinearGradient(
-                    gradient,
-                    start: .zero,
-                    end: CGPoint(x: size, y: size),
-                    options: []
-                )
-            }
-            // "S" letter centered
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .center
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: size * 0.55),
-                .foregroundColor: UIColor.white,
-                .paragraphStyle: paragraphStyle,
-            ]
-            let text = "S"
-            let textSize = text.size(withAttributes: attrs)
-            let textRect = CGRect(
-                x: (size - textSize.width) / 2,
-                y: (size - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect, withAttributes: attrs)
-        }
-    }
-
     /// Generates the QR code image with the Sanchr logo mark at center.
     private func generateQRCode() -> UIImage? {
         let deepLink = "https://sanchr.com/u/\(viewModel.userId)"
         return QRCodeGenerator.generate(
             from: deepLink,
             size: 190,
-            logoImage: sanchrLogoMark(),
-            logoSizeFraction: 0.18
+            // The real mark, not a drawn stand-in. "H" correction in the
+            // generator keeps the code scannable under it.
+            logoImage: UIImage(named: "SanchrLogo"),
+            logoSizeFraction: 0.22
         )
     }
 

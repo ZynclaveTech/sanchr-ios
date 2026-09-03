@@ -178,7 +178,6 @@ public struct SanchrBrandHeader<Trailing: View>: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 40, height: 40)
-                    .clipShape(SquircleShape())
 
                 Text(title)
                     .font(SanchrTypography.chatListTitle)
@@ -504,38 +503,6 @@ public struct SanchrSectionEyebrow: View {
         .padding(.horizontal, SanchrExportMetrics.screenHorizontal)
         .padding(.top, SanchrSpacing.sectionHeaderTop)
         .padding(.bottom, 4)
-    }
-}
-
-public struct SquircleShape: Shape {
-    public init() {}
-
-    public func path(in rect: CGRect) -> Path {
-        let w = rect.width
-        let h = rect.height
-        var path = Path()
-        path.move(to: CGPoint(x: w * 0.28, y: 0))
-        path.addCurve(
-            to: CGPoint(x: w, y: h * 0.30),
-            control1: CGPoint(x: w * 0.72, y: 0),
-            control2: CGPoint(x: w, y: h * 0.0)
-        )
-        path.addCurve(
-            to: CGPoint(x: w * 0.70, y: h),
-            control1: CGPoint(x: w, y: h * 0.70),
-            control2: CGPoint(x: w, y: h)
-        )
-        path.addCurve(
-            to: CGPoint(x: 0, y: h * 0.70),
-            control1: CGPoint(x: w * 0.30, y: h),
-            control2: CGPoint(x: 0, y: h)
-        )
-        path.addCurve(
-            to: CGPoint(x: w * 0.28, y: 0),
-            control1: CGPoint(x: 0, y: h * 0.30),
-            control2: CGPoint(x: 0, y: 0)
-        )
-        return path
     }
 }
 

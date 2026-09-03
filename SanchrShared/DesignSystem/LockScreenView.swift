@@ -135,7 +135,6 @@ public struct LockScreenView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 104, height: 104)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .sanchrShadow(0.18, radius: 24, y: 12)
                 .brandMark(in: markNamespace)
 
