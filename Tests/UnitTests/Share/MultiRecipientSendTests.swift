@@ -228,9 +228,23 @@ private actor OutcomeObserver {
     /// `await` on the dispatcher's `send(...)` is not enough — we have to
     /// flush the actor's mailbox.
     func drain() async {
-        // Two yields are enough in practice to let pending Tasks land.
-        for _ in 0..<8 {
+        // Eight bare yields were "enough in practice" until the machine ran a
+        // full suite at a load average near 200, when the fire-and-forget
+        // append tasks had not landed and every outcome read as nil. Wait
+        // for the mailbox to go quiet instead: the count unchanged across
+        // three polls, bounded so a genuinely missing event still fails fast.
+        var lastCount = -1
+        var stablePolls = 0
+        for _ in 0..<200 {
             await Task.yield()
+            if events.count == lastCount, !events.isEmpty {
+                stablePolls += 1
+                if stablePolls >= 3 { return }
+            } else {
+                stablePolls = 0
+                lastCount = events.count
+            }
+            try? await Task.sleep(for: .milliseconds(15))
         }
     }
 

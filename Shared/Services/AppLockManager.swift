@@ -73,6 +73,12 @@ final class AppLockManager: @unchecked Sendable {
         set { AppGroup.userDefaults.set(Int(newValue), forKey: Keys.screenLockTimeout) }
     }
 
+    /// App Lock is on when either flavour is: the Security screen turns on
+    /// `screenLockEnabled` alone when a timeout is picked without Face ID.
+    /// The cold-launch gate used to check only the biometric flag, so that
+    /// configuration locked the share extension but never the app.
+    var isLockConfigured: Bool { screenLockEnabled || biometricLockEnabled }
+
     var screenshotProtectionEnabled: Bool {
         get { AppGroup.userDefaults.bool(forKey: Keys.screenshotProtection) }
         set {
@@ -101,7 +107,7 @@ final class AppLockManager: @unchecked Sendable {
     /// Called when the app enters the background.
     func appDidEnterBackground() {
         backgroundedAt = Date()
-        if screenLockEnabled || biometricLockEnabled {
+        if isLockConfigured {
             // Lock immediately if timeout is 0
             if screenLockTimeout == 0 {
                 isLocked = true
@@ -111,7 +117,7 @@ final class AppLockManager: @unchecked Sendable {
 
     /// Called when the app becomes active. Checks if lock timeout has elapsed.
     func appDidBecomeActive() {
-        guard screenLockEnabled || biometricLockEnabled else {
+        guard isLockConfigured else {
             isLocked = false
             return
         }
@@ -130,46 +136,22 @@ final class AppLockManager: @unchecked Sendable {
 
     // MARK: - Authentication
 
-    /// Attempts biometric authentication and unlocks on success.
+    /// Prompts to unlock. `.deviceOwnerAuthentication`, the same policy as
+    /// the cold-launch gate and the share extension: iOS tries Face ID or
+    /// Touch ID first and offers the passcode itself, including after a
+    /// biometry lockout. The biometrics-only policy this used before told a
+    /// locked-out user to "use your passcode" with no way to enter it.
     func authenticate() {
-        let context = LAContext()
-        var error: NSError?
+        guard !isAuthenticating else { return }
 
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            // Biometrics unavailable — fall back to device passcode
-            authenticateWithPasscode()
+        let context = LAContext()
+        context.localizedFallbackTitle = "Use Passcode"
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            authError = error.map(LockScreenView.message(for:)) ?? "Set a device passcode to unlock Sanchr."
             return
         }
 
-        guard !isAuthenticating else { return }
-        isAuthenticating = true
-        authError = nil
-        Task {
-            defer { isAuthenticating = false }
-            do {
-                let success = try await context.evaluatePolicy(
-                    .deviceOwnerAuthenticationWithBiometrics,
-                    localizedReason: "Unlock Sanchr"
-                )
-                if success {
-                    isLocked = false
-                    backgroundedAt = nil
-                } else {
-                    authError = "Couldn't unlock. Try again."
-                }
-            } catch {
-                SanchrLogger.auth.error("Biometric auth failed: \(error.localizedDescription)")
-                // Don't unlock — user stays on lock screen
-                authError = LockScreenView.message(for: error)
-            }
-        }
-    }
-
-    /// Falls back to device passcode when biometrics aren't available.
-    private func authenticateWithPasscode() {
-        let context = LAContext()
-
-        guard !isAuthenticating else { return }
         isAuthenticating = true
         authError = nil
         Task {
@@ -186,7 +168,8 @@ final class AppLockManager: @unchecked Sendable {
                     authError = "Couldn't unlock. Try again."
                 }
             } catch {
-                SanchrLogger.auth.error("Passcode auth failed: \(error.localizedDescription)")
+                SanchrLogger.auth.error("App unlock failed: \(error.localizedDescription)")
+                // Don't unlock — user stays on lock screen
                 authError = LockScreenView.message(for: error)
             }
         }

@@ -412,7 +412,7 @@ struct RootView: View {
     }
 
     private var needsGate: Bool {
-        container.appLockManager.biometricLockEnabled && !hasAuthenticatedAtGate
+        container.appLockManager.isLockConfigured && !hasAuthenticatedAtGate
     }
 
     var body: some View {
@@ -434,17 +434,21 @@ struct RootView: View {
                     .zIndex(90)
             } else {
                 Group {
-                    if container.sessionService.isAuthenticated && sessionReady {
+                    // First: a database that could not be opened has no working
+                    // app behind it. This branch sat below the authenticated one,
+                    // so a signed-in user with a broken database got the main
+                    // tabs over an unavailable store and never saw recovery.
+                    if let localDataIssue = container.localDataIssue {
+                        LocalDataRecoveryView(error: localDataIssue) {
+                            await container.resetLocalDataAfterBootstrapFailure()
+                        }
+                    } else if container.sessionService.isAuthenticated && sessionReady {
                         if needsOnboarding {
                             OnboardingView {
                                 activeOnboardingFlow = false
                             }
                         } else {
                             MainTabView()
-                        }
-                    } else if let localDataIssue = container.localDataIssue {
-                        LocalDataRecoveryView(error: localDataIssue) {
-                            await container.resetLocalDataAfterBootstrapFailure()
                         }
                     } else if container.sessionService.isAuthenticated && !sessionReady {
                         // Authenticated but waiting for token refresh

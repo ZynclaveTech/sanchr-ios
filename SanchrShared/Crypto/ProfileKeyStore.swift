@@ -10,6 +10,10 @@ import Security
 /// Contact key lifecycle: populated from the `profile_key` bytes field in `GetContactsResponse`
 /// whenever a contact is fetched. Used by `ContactRepositoryImpl` to decrypt profile fields.
 public protocol ProfileKeyStoreProtocol: AnyObject, Sendable {
+    /// Removes the own Profile Key from both Keychain namespaces. Account
+    /// deletion only; see the store for why it is otherwise never deleted.
+    func deleteOwnProfileKey() throws
+
     /// Returns the local user's 32-byte Profile Key, generating and persisting it on first call.
     func ownProfileKey() throws -> Data
 
@@ -130,6 +134,14 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
         ((try? ownProfileKeyFromKeychain()) ?? nil) != nil
     }
 
+    /// Removes the own Profile Key from both namespaces. Only for account
+    /// deletion: the key is what makes the profile recoverable after a
+    /// reinstall, and a deleted account has no profile to recover.
+    public func deleteOwnProfileKey() throws {
+        try keychain.deleteSynchronized(forKey: Keys.ownKey)
+        try keychain.delete(forKey: Keys.ownKey)
+    }
+
     public func clearOwnProfileKeyDeliveryMarkers() {
         let defaults = UserDefaults.standard
         for key in defaults.dictionaryRepresentation().keys
@@ -149,4 +161,8 @@ public final class ProfileKeyStore: ProfileKeyStoreProtocol, @unchecked Sendable
     public func deleteContactProfileKey(forUserId userId: String) throws {
         try keychain.delete(forKey: Keys.contactKey(for: userId))
     }
+}
+
+public extension ProfileKeyStoreProtocol {
+    func deleteOwnProfileKey() throws {}
 }

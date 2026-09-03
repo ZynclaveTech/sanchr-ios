@@ -899,6 +899,18 @@ final class DependencyContainer: @unchecked Sendable {
     private func wipeAppGroupArtifacts() async {
         let fm = FileManager.default
 
+        // Standard defaults hold the push token, restore-offer flags and
+        // delivery markers; a deleted account leaves none of them behind.
+        // (The install marker goes too, which is right: the next launch is a
+        // fresh install over a Keychain that is already empty.)
+        if let bundleId = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleId)
+        }
+        // The Profile Key is iCloud-synchronized so it survives reinstalls;
+        // a deleted account must not leave it for the next sign-in.
+        try? profileKeyStore.deleteOwnProfileKey()
+        profileKeyStore.clearOwnProfileKeyDeliveryMarkers()
+
         // Database file and any -wal/-shm sidecars.
         let dbURL = AppGroup.databaseURL
         for url in [dbURL, dbURL.appendingPathExtension("wal"), dbURL.appendingPathExtension("shm")] {
