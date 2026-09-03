@@ -85,8 +85,7 @@ struct PrivacyView: View {
                     }
             }
             .padding(16)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .settingsCard(cornerRadius: 22)
         }
     }
 
@@ -150,8 +149,7 @@ struct PrivacyView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(SanchrExportColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .settingsCard(cornerRadius: 24)
         }
     }
 
@@ -201,8 +199,7 @@ struct PrivacyView: View {
             trailing
         }
         .padding(16)
-        .background(SanchrExportColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .settingsCard(cornerRadius: 22)
     }
 
     private func stackedToggleRow(

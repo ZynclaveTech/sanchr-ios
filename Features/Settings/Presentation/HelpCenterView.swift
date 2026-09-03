@@ -274,12 +274,7 @@ struct ContactSupportForm: View {
                             .frame(minHeight: 180)
                             .padding(12)
                             .scrollContentBackground(.hidden)
-                            .background(SanchrExportColors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-                            }
+                            .settingsCard(cornerRadius: 18)
                     }
 
                     Toggle(isOn: $includeDeviceInfo) {
@@ -294,12 +289,7 @@ struct ContactSupportForm: View {
                     }
                     .tint(.sanchrPrimary)
                     .padding(18)
-                    .background(SanchrExportColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-                    }
+                    .settingsCard(cornerRadius: 18)
                 }
                 .padding(SanchrExportMetrics.sectionHorizontal)
                 .padding(.top, 16)
@@ -330,12 +320,7 @@ struct ContactSupportForm: View {
                 .font(SanchrTypography.body)
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .background(SanchrExportColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(SanchrExportColors.line.opacity(0.55), lineWidth: 1)
-                }
+                .settingsCard(cornerRadius: 18)
         }
     }
 
