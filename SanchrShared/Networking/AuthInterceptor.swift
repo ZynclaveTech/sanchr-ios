@@ -10,7 +10,7 @@ import SwiftProtobuf
 /// status on responses and triggers token refresh via SessionService.
 final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProtobuf.Message>: ClientInterceptor<Request, Response>, @unchecked Sendable {
 
-    private let secureStorage: SecureStorageProtocol
+    private let headerCache: AuthHeaderCache
     private let onUnauthenticated: @Sendable () -> Void
 
     /// gRPC method paths that do not require an authorization header.
@@ -26,11 +26,24 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
     }
 
     init(
-        secureStorage: SecureStorageProtocol,
+        headerCache: AuthHeaderCache,
         onUnauthenticated: @escaping @Sendable () -> Void = {}
     ) {
-        self.secureStorage = secureStorage
+        self.headerCache = headerCache
         self.onUnauthenticated = onUnauthenticated
+    }
+
+    /// Whether a call to `path` carries the bearer token.
+    static func needsAuth(path: String) -> Bool {
+        !unauthenticatedPaths.contains(path)
+    }
+
+    /// Whether an UNAUTHENTICATED end status on `path` means the session's
+    /// token is bad. A wrong OTP or a rejected refresh comes back with the
+    /// same status, and firing the refresh for those re-entered the very
+    /// path being torn down.
+    static func shouldTriggerRefresh(path: String, code: GRPCStatus.Code) -> Bool {
+        code == .unauthenticated && needsAuth(path: path)
     }
 
     override func send(
@@ -42,15 +55,14 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
         switch part {
         case .metadata(var headers):
             // Determine if this path requires auth
-            let path = context.path
-            let needsAuth = !Self.unauthenticatedPaths.contains(path)
+            let cached = headerCache.headers()
 
-            if needsAuth, let token = try? secureStorage.readAccessToken() {
+            if Self.needsAuth(path: context.path), let token = cached.accessToken {
                 headers.add(name: "authorization", value: "Bearer \(token)")
             }
 
             // Always attach device ID if available
-            if let deviceId = try? secureStorage.readDeviceId(), !deviceId.isEmpty {
+            if let deviceId = cached.deviceId, !deviceId.isEmpty {
                 headers.add(name: "x-device-id", value: deviceId)
             }
 
@@ -67,7 +79,7 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
         context: ClientInterceptorContext<Request, Response>
     ) {
         switch part {
-        case .end(let status, _) where status.code == .unauthenticated:
+        case .end(let status, _) where Self.shouldTriggerRefresh(path: context.path, code: status.code):
             SanchrLogger.auth.warning("Received UNAUTHENTICATED from \(context.path) - triggering token refresh")
             onUnauthenticated()
         default:
@@ -82,20 +94,22 @@ final class AuthInterceptor<Request: SwiftProtobuf.Message, Response: SwiftProto
 /// A single factory that conforms to all generated service interceptor factory protocols.
 /// Returns an `AuthInterceptor` for every RPC method so that auth headers are always injected.
 public final class AuthInterceptorFactory: @unchecked Sendable {
-    private let secureStorage: SecureStorageProtocol
+    /// Shared by every interceptor; the session invalidates it when
+    /// credentials change.
+    public let headerCache: AuthHeaderCache
     private let onUnauthenticated: @Sendable () -> Void
 
     public init(
         secureStorage: SecureStorageProtocol,
         onUnauthenticated: @escaping @Sendable () -> Void = {}
     ) {
-        self.secureStorage = secureStorage
+        self.headerCache = AuthHeaderCache(secureStorage: secureStorage)
         self.onUnauthenticated = onUnauthenticated
     }
 
     /// Creates a single-element array containing the auth interceptor for a given request/response pair.
     private func makeInterceptors<Req: SwiftProtobuf.Message, Resp: SwiftProtobuf.Message>() -> [ClientInterceptor<Req, Resp>] {
-        [AuthInterceptor<Req, Resp>(secureStorage: secureStorage, onUnauthenticated: onUnauthenticated)]
+        [AuthInterceptor<Req, Resp>(headerCache: headerCache, onUnauthenticated: onUnauthenticated)]
     }
 }
 

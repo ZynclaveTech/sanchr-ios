@@ -360,6 +360,9 @@ final class DependencyContainer: @unchecked Sendable {
         deepWipe: {
             nonisolated(unsafe) weak var weakSelf = self
             await weakSelf?.wipeAppGroupArtifacts()
+        },
+        onCredentialsChanged: { [headerCache = authInterceptorFactory.headerCache] in
+            headerCache.invalidate()
         }
     )
 
@@ -567,9 +570,45 @@ final class DependencyContainer: @unchecked Sendable {
     ///
     /// UserDefaults is wiped on delete, so its emptiness is the signal that this
     /// container is new.
+    /// What the launch-time Keychain check should do.
+    enum FreshInstallAction: Equatable {
+        /// The marker is present: an ordinary launch.
+        case nothing
+        /// No marker, but a database from before the marker existed: an
+        /// upgrade, not a reinstall. Seed the marker and keep everything.
+        case seedMarkerOnly
+        /// No marker and no data: a reinstall over stale Keychain items.
+        case purge
+    }
+
+    /// The marker was introduced after users already existed. On their
+    /// first launch of a build that has it, the marker is absent for the
+    /// same reason it is absent on a reinstall, and purging would throw
+    /// away their database key and sign them out. The local database is
+    /// the tie-breaker: a reinstall cannot have one.
+    static func freshInstallAction(markerPresent: Bool, databaseExists: Bool) -> FreshInstallAction {
+        if markerPresent { return .nothing }
+        return databaseExists ? .seedMarkerOnly : .purge
+    }
+
     private static func purgeKeychainIfFreshInstall() {
         let defaults = UserDefaults.standard
-        guard defaults.object(forKey: installMarkerKey) == nil else { return }
+        let databaseExists = FileManager.default.fileExists(atPath: AppGroup.databaseURL.path)
+            || FileManager.default.fileExists(atPath: AppGroupMigration.legacyDatabaseURL.path)
+        switch freshInstallAction(
+            markerPresent: defaults.object(forKey: installMarkerKey) != nil,
+            databaseExists: databaseExists
+        ) {
+        case .nothing:
+            return
+        case .seedMarkerOnly:
+            defaults.set(true, forKey: installMarkerKey)
+            SanchrLogger.auth.info(
+                "install marker seeded for an existing install — Keychain left intact")
+            return
+        case .purge:
+            break
+        }
 
         // Written first: if the purge throws, the next launch must not retry it
         // forever and wipe a session established since.
@@ -717,7 +756,7 @@ final class DependencyContainer: @unchecked Sendable {
         // mark still points at the last message we had. Reset it so the next
         // syncPendingMessages() pulls the full server-side history instead
         // of only messages newer than the stale mark.
-        sessionService.resetMessageSyncHighWaterMark()
+        await sessionService.resetMessageSyncHighWaterMark()
         localDatabaseOpener.reset()
         localDatabase = makeLocalDatabase()
     }

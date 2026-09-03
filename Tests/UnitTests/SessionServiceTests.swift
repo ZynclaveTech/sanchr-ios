@@ -3,6 +3,7 @@ import SanchrShared
 
 @testable import Sanchr
 
+@MainActor
 final class SessionServiceTests: XCTestCase {
     private actor CleanupCounter {
         private(set) var value = 0
