@@ -254,7 +254,7 @@ final class ChatsListViewModel {
             conversations = try await messageRepository.fetchConversations()
             SanchrLogger.chat.info("Loaded \(self.conversations.count) conversations")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to load conversations: \(error.localizedDescription)")
         }
     }
@@ -321,7 +321,7 @@ final class ChatsListViewModel {
                 SanchrLogger.chat.info(
                     "Pull-to-refresh via sync: \(self.conversations.count) conversations")
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.message(for: error)
                 SanchrLogger.chat.error("Post-sync fetch failed: \(error.localizedDescription)")
             }
             return
@@ -333,7 +333,7 @@ final class ChatsListViewModel {
             errorMessage = nil
             SanchrLogger.chat.info("Refreshed \(self.conversations.count) conversations")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Refresh failed: \(error.localizedDescription)")
         }
     }
@@ -365,7 +365,7 @@ final class ChatsListViewModel {
             conversations.removeAll { $0.id == conversation.id }
             SanchrLogger.chat.info("Deleted conversation \(conversation.id.prefix(8))")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to hide conversation locally: \(error.localizedDescription)")
         }
     }
@@ -382,7 +382,7 @@ final class ChatsListViewModel {
                 isPinned: newValue
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to persist pin state: \(error.localizedDescription)")
             return
         }
@@ -413,7 +413,7 @@ final class ChatsListViewModel {
                 isMuted: newValue
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to persist mute state: \(error.localizedDescription)")
             return
         }
@@ -435,7 +435,7 @@ final class ChatsListViewModel {
                 isArchived: true
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to persist archive state: \(error.localizedDescription)")
             return
         }

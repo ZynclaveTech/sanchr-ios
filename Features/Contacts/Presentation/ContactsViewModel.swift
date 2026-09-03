@@ -82,7 +82,7 @@ final class ContactsViewModel {
             hasCompletedSync = !contacts.isEmpty
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -100,7 +100,7 @@ final class ContactsViewModel {
             contacts = try await getContacts.execute()
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -114,7 +114,7 @@ final class ContactsViewModel {
             blockedUserIDs.insert(userId)
             SanchrLogger.sync.info("Blocked contact \(userId.prefix(8))...")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -126,7 +126,7 @@ final class ContactsViewModel {
             blockedUserIDs.remove(userId)
             SanchrLogger.sync.info("Unblocked contact \(userId.prefix(8))...")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 

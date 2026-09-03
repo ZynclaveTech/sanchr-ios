@@ -265,7 +265,7 @@ final class VaultViewModel {
             hasMorePages = !cursor.isEmpty
             recomputeCounters()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             // Only clear items on initial load failure — on refresh failure
             // keep the stale items visible so the user doesn't lose context.
             if isInitialLoad { items = [] }
@@ -297,7 +297,7 @@ final class VaultViewModel {
             hasMorePages = !cursor.isEmpty
             recomputeCounters()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -338,7 +338,7 @@ final class VaultViewModel {
         do {
             data = try await vaultRepository.downloadItem(id: item.id)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.vault.error("requestSave: download failed: \(error.localizedDescription)")
             return
         }
@@ -363,7 +363,7 @@ final class VaultViewModel {
                     errorMessage = photosError.localizedDescription
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.message(for: error)
             }
 
         case .document, .audio, .note:
@@ -480,7 +480,7 @@ final class VaultViewModel {
             let tempURL = try await sharingCoordinator.prepareForExternalShare(item: item)
             shareState = .externalSharing(item, tempURL: tempURL)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             shareState = nil
         }
     }
@@ -588,7 +588,7 @@ final class VaultViewModel {
             shareCompletionToast = "Sent to \(conversationName)"
             shareState = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             shareState = nil
         }
     }
@@ -682,7 +682,7 @@ final class VaultViewModel {
                 items.removeAll { $0.id == id }
                 await ThumbnailCache.shared.remove(for: id)
             } catch {
-                lastError = error.localizedDescription
+                lastError = UserFacingError.message(for: error)
             }
         }
 
@@ -717,7 +717,7 @@ final class VaultViewModel {
             case .document, .audio, .note: totalFiles = max(0, totalFiles - 1)
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 

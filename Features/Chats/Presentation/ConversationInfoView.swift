@@ -471,7 +471,7 @@ struct ConversationInfoView: View {
             }
             SanchrLogger.chat.info("Cleared \(ids.count) message(s) from \(conversation.id.prefix(8))")
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Clear chat failed: \(error.localizedDescription)")
         }
     }
@@ -510,7 +510,7 @@ struct ConversationInfoView: View {
 
             exportedTranscript = ExportedTranscript(url: url)
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Export failed: \(error.localizedDescription)")
         }
     }
@@ -747,7 +747,7 @@ struct ConversationInfoView: View {
                 dismiss()
             }
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -757,7 +757,7 @@ struct ConversationInfoView: View {
             try await container.messageRepository.hideConversationLocally(conversationId: conversation.id)
             dismiss()
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -814,7 +814,7 @@ struct ConversationInfoView: View {
             )
         } catch {
             notificationsMuted = oldValue
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
         }
     }
 

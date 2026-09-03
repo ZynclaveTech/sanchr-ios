@@ -94,7 +94,7 @@ struct HomeMediaDestinationPicker: View {
                 .sorted { $0.lastActivityMs > $1.lastActivityMs }
             isLoading = false
         } catch {
-            loadError = error.localizedDescription
+            loadError = UserFacingError.message(for: error)
             isLoading = false
         }
     }

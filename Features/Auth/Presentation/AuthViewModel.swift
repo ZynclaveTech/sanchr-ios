@@ -313,32 +313,19 @@ final class AuthViewModel {
             }
         }
         if let status = error as? GRPCStatus {
+            // Sign-in reads a few statuses differently from the rest of the app.
             switch status.code {
             case .unauthenticated, .permissionDenied:
                 return "That code isn't right or has expired. Check the message and try again."
-            case .resourceExhausted:
-                return "Too many attempts. Wait a few minutes and try again."
-            case .unavailable, .deadlineExceeded, .aborted:
-                return "Can't reach Sanchr. Check your connection and try again."
             case .invalidArgument, .failedPrecondition:
                 return "That doesn't look like a valid phone number for the selected country."
             case .notFound:
                 return "No account was found for this number."
             default:
-                return "Something went wrong. Try again in a moment."
+                return UserFacingError.message(for: error)
             }
         }
-        if let urlError = error as? URLError {
-            switch urlError.code {
-            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-                return "Can't reach Sanchr. Check your connection and try again."
-            case .timedOut:
-                return "That took too long. Check your connection and try again."
-            default:
-                break
-            }
-        }
-        return "Something went wrong. Try again in a moment."
+        return UserFacingError.message(for: error)
     }
 
     deinit {

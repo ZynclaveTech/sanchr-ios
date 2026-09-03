@@ -343,7 +343,7 @@ struct ContactSyncView: View {
             // naming neither the status code nor the message. Log the real one.
             SanchrLogger.sync.error(
                 "Contact sync failed: \(SignalSessionManager.detailedError(error))")
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
 
         isSyncing = false

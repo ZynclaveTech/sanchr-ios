@@ -208,7 +208,7 @@ final class CallsViewModel {
             let entries = try await useCase.execute()
             callHistory = await enrichCallHistory(entries, localDatabase: localDatabase)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.calls.error("Failed to load call history: \(error.localizedDescription)")
         }
     }
@@ -259,7 +259,7 @@ final class CallsViewModel {
             do {
                 newCallContacts = try await localDatabase.fetchContacts()
             } catch {
-                newCallErrorMessage = error.localizedDescription
+                newCallErrorMessage = UserFacingError.message(for: error)
                 SanchrLogger.calls.error("Failed to load contacts for calls: \(error.localizedDescription)")
             }
         }

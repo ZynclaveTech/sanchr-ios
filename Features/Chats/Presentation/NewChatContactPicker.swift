@@ -134,7 +134,7 @@ struct NewChatContactPickerSheet: View {
             do {
                 contacts = try await localDatabase.fetchContacts()
             } catch {
-                loadError = error.localizedDescription
+                loadError = UserFacingError.message(for: error)
             }
         }
         isLoadingContacts = false
@@ -149,7 +149,7 @@ struct NewChatContactPickerSheet: View {
                 onConversationReady(conversationId)
             } catch {
                 startingContactId = nil
-                loadError = error.localizedDescription
+                loadError = UserFacingError.message(for: error)
             }
         }
     }

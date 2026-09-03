@@ -25,8 +25,8 @@ final class ListScreenErrorTests: XCTestCase {
             let view = try source(file)
             let removal = try XCTUnwrap(view.range(of: remover, options: .backwards))
             let before = String(view[..<removal.lowerBound].suffix(120))
-            XCTAssertTrue(before.contains("actionError = error.localizedDescription"), file)
-            XCTAssertFalse(before.contains("loadError = error.localizedDescription"), file)
+            XCTAssertTrue(before.contains("actionError = UserFacingError.message(for: error)"), file)
+            XCTAssertFalse(before.contains("loadError = UserFacingError.message(for: error)"), file)
             XCTAssertTrue(view.contains("get: { actionError != nil }"), file)
         }
     }
@@ -41,7 +41,7 @@ final class ListScreenErrorTests: XCTestCase {
 
     func testTheSanchrModeChipExplainsAFailure() throws {
         let view = try source("Features/Chats/Presentation/ChatsListView.swift")
-        XCTAssertTrue(view.contains("sanchrModeChipError = error.localizedDescription"))
+        XCTAssertTrue(view.contains("sanchrModeChipError = UserFacingError.message(for: error)"))
         XCTAssertTrue(view.contains(".alert(\"Couldn't change Sanchr Mode\""))
     }
 }

@@ -278,7 +278,7 @@ struct MediaGalleryView: View {
             )
             toast = item.kind == .video ? "Video saved to Photos" : "Image saved to Photos"
         } catch {
-            saveError = error.localizedDescription
+            saveError = UserFacingError.message(for: error)
         }
     }
 

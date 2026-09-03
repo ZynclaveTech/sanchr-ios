@@ -57,7 +57,7 @@ final class DocumentPreviewCoordinator: ObservableObject {
             presentation = DocumentPresentation(fileURL: url)
         } catch {
             resolveErrorIsExpiry = (error as? AppError) == .mediaExpired
-            resolveError = error.localizedDescription
+            resolveError = UserFacingError.message(for: error)
         }
     }
 

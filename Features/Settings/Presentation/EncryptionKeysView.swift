@@ -193,7 +193,7 @@ struct EncryptionKeysView: View {
                                 try await container.keyManager.resetIdentityKeys()
                                 await loadKeyInfo()
                             } catch {
-                                resetError = error.localizedDescription
+                                resetError = UserFacingError.message(for: error)
                             }
                             isResettingKeys = false
                         }
@@ -276,7 +276,7 @@ struct EncryptionKeysView: View {
             }
             SanchrLogger.crypto.info("One-time pre-keys replenished")
         } catch {
-            regenerateError = error.localizedDescription
+            regenerateError = UserFacingError.message(for: error)
             SanchrLogger.crypto.error("Failed to replenish pre-keys: \(error)")
         }
     }
