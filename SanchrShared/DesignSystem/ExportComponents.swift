@@ -43,8 +43,11 @@ public enum SanchrExportColors {
     /// hairline instead, so the same list looked grey and flat beside
     /// Calls and Profile.
     public static let card = Color(uiColor: UIColor { traits in
+        // Dark: the neutral secondary system surface, like the home tabs.
+        // The brand's elevated dark surface has a blue cast, and a whole
+        // settings list of it read as blue cards on a black ground.
         traits.userInterfaceStyle == .dark
-            ? UIColor(SanchrColors.surfaceElevatedDark)
+            ? UIColor.secondarySystemBackground
             : UIColor(SanchrColors.surfaceElevatedLight)
     })
 }

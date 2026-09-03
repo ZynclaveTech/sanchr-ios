@@ -56,4 +56,16 @@ final class ReleaseConfigurationTests: XCTestCase {
         let camera = try XCTUnwrap(app["NSCameraUsageDescription"] as? String)
         XCTAssertFalse(camera.localizedCaseInsensitiveContains("video call"), "release disables video calling")
     }
+
+    /// ITMS-90717 rejects a marketing icon with an alpha channel. The icon is
+    /// composed on the app's navy and saved opaque; PNG colour type 2 is RGB.
+    func testAppIconIsOpaque1024() throws {
+        let data = try Data(contentsOf: Self.root.appendingPathComponent("Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"))
+        XCTAssertGreaterThan(data.count, 33)
+        let width = data[16..<20].reduce(0) { $0 << 8 | UInt32($1) }
+        let height = data[20..<24].reduce(0) { $0 << 8 | UInt32($1) }
+        XCTAssertEqual(width, 1024); XCTAssertEqual(height, 1024)
+        XCTAssertEqual(data[25], 2, "PNG colour type 2 = RGB without alpha (6 would be RGBA)")
+    }
 }
+
