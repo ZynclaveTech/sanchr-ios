@@ -79,7 +79,7 @@ struct ChatDetailHeaderView: View {
                                                 isVideo: true
                                             )
                                         } catch {
-                                            callErrorMessage = error.localizedDescription
+                                            callErrorMessage = UserFacingError.message(for: error)
                                         }
                                     }
                                 }
@@ -94,7 +94,7 @@ struct ChatDetailHeaderView: View {
                                             isVideo: false
                                         )
                                     } catch {
-                                        callErrorMessage = error.localizedDescription
+                                        callErrorMessage = UserFacingError.message(for: error)
                                     }
                                 }
                             }
@@ -290,7 +290,7 @@ struct ChatDetailHeaderView: View {
                 onDismiss()
             }
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -300,7 +300,7 @@ struct ChatDetailHeaderView: View {
             try await container.messageRepository.hideConversationLocally(conversationId: conversation.id)
             onDismiss()
         } catch {
-            conversationActionErrorMessage = error.localizedDescription
+            conversationActionErrorMessage = UserFacingError.message(for: error)
         }
     }
 

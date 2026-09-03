@@ -223,7 +223,7 @@ struct MessageForwardDestinationPicker: View {
             conversations = all.sorted { $0.lastActivityAt > $1.lastActivityAt }
             isLoading = false
         } catch {
-            loadError = error.localizedDescription
+            loadError = UserFacingError.message(for: error)
             isLoading = false
         }
     }

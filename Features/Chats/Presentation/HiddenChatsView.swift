@@ -96,7 +96,7 @@ struct HiddenChatsView: View {
             isLoading = false
             loadError = nil
         } catch {
-            loadError = error.localizedDescription
+            loadError = UserFacingError.message(for: error)
             isLoading = false
         }
     }
@@ -116,7 +116,7 @@ struct HiddenChatsView: View {
                 }
             } catch {
                 await MainActor.run {
-                    actionError = error.localizedDescription
+                    actionError = UserFacingError.message(for: error)
                     isRestoringConversationIds.remove(conversationId)
                 }
             }

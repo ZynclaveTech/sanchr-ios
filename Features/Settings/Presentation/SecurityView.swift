@@ -434,7 +434,7 @@ struct SecurityView: View {
                 }
             } catch {
                 viewModel.biometricLock = false
-                viewModel.errorMessage = error.localizedDescription
+                viewModel.errorMessage = UserFacingError.message(for: error)
             }
         }
     }

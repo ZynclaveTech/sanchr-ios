@@ -40,7 +40,7 @@ extension ChatDetailViewModel {
             SanchrLogger.chat.info(
                 "Loaded \(self.messages.count) messages for \(conversationId.prefix(8))")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.chat.error("Failed to load messages: \(error.localizedDescription)")
         }
     }
@@ -250,7 +250,7 @@ extension ChatDetailViewModel {
             rebuildSections()
             SanchrLogger.chat.info("Deleted message \(message.id.prefix(8))")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 }

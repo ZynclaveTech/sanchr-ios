@@ -456,7 +456,7 @@ struct StorageView: View {
             try await container.mediaManager.clearCache()
             await viewModel.loadStorageUsage()
         } catch {
-            viewModel.errorMessage = error.localizedDescription
+            viewModel.errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -473,7 +473,7 @@ struct StorageView: View {
             try await useCase.execute()
             await viewModel.loadStorageUsage()
         } catch {
-            viewModel.errorMessage = error.localizedDescription
+            viewModel.errorMessage = UserFacingError.message(for: error)
         }
     }
 }

@@ -662,7 +662,7 @@ struct ChatsListView: View {
                             withAnimation(.easeInOut(duration: 0.18)) {
                                 sanchrModeEnabled = !desired
                             }
-                            sanchrModeChipError = error.localizedDescription
+                            sanchrModeChipError = UserFacingError.message(for: error)
                         }
                     }
                 }

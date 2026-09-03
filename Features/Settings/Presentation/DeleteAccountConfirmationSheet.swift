@@ -161,7 +161,7 @@ struct DeleteAccountConfirmationSheet: View {
             // will route back to onboarding; we just close the sheet.
             dismiss()
         } catch {
-            deleteAccountError = error.localizedDescription
+            deleteAccountError = UserFacingError.message(for: error)
         }
     }
 }

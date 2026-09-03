@@ -674,7 +674,7 @@ extension ChatDetailViewModel {
                     "vault reshare: sent \(item.id.prefix(8)) to \(context.conversationId.prefix(8))"
                 )
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.message(for: error)
                 SanchrLogger.chat.error(
                     "vault reshare failed for \(item.id.prefix(8)): \(error.localizedDescription)"
                 )

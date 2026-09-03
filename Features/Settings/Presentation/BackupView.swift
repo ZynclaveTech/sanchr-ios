@@ -577,7 +577,7 @@ struct BackupView: View {
             historyState = .loaded
             lastLoadError = nil
         } catch {
-            lastLoadError = error.localizedDescription
+            lastLoadError = UserFacingError.message(for: error)
             historyState = .failed
         }
     }

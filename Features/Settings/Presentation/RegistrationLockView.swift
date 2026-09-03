@@ -330,7 +330,7 @@ struct RegistrationLockView: View {
                 phase = .idle
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             phase = .idle
         }
     }
@@ -354,7 +354,7 @@ struct RegistrationLockView: View {
                 pinErrorTrigger += 1
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             phase = .idle
         }
     }

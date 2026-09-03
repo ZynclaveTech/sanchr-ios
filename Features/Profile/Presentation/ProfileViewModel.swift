@@ -107,7 +107,7 @@ final class ProfileViewModel {
 
             SanchrLogger.network.info("Profile saved successfully")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 
@@ -142,7 +142,7 @@ final class ProfileViewModel {
                 sessionService: sessionService
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
         }
     }
 

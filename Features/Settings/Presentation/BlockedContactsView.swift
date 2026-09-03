@@ -117,7 +117,7 @@ struct BlockedContactsView: View {
             blockedIDs = try await dataSource.getBlockedList()
             await resolveNames(for: blockedIDs)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.sync.error("Failed to load blocked list: \(error.localizedDescription)")
         }
     }
@@ -132,7 +132,7 @@ struct BlockedContactsView: View {
             container.privacySettings.setBlocked(userId, false)
             blockedIDs.removeAll { $0 == userId }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.message(for: error)
             SanchrLogger.sync.error("Failed to unblock: \(error.localizedDescription)")
         }
     }
