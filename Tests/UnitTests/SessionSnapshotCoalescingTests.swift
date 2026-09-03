@@ -6,6 +6,7 @@ import XCTest
 
 /// The session snapshot is a Keychain item. Updating the sync high-water
 /// mark used to write it on every realtime message.
+@MainActor
 final class SessionSnapshotCoalescingTests: XCTestCase {
 
     private func makeService() async throws -> (SessionService, MockSecureStorage) {

@@ -3,6 +3,14 @@ import GRPC
 import SanchrShared
 
 /// Manages the current user session: token storage, refresh, and auth state.
+///
+/// Isolation contract: the observed properties are *read* from anywhere
+/// (sync orchestration, the realtime stream, provider closures) but are
+/// *written* only on the main actor. Every method that mutates them, and
+/// the refresh single-flight bookkeeping, is `@MainActor`; the async ones
+/// cost callers nothing because they already await. Mutating observed
+/// state off the main actor raced SwiftUI's observation and let two
+/// refreshes start at once.
 @Observable
 final class SessionService: @unchecked Sendable {
     private let secureStorage: SecureStorageProtocol
@@ -10,6 +18,9 @@ final class SessionService: @unchecked Sendable {
     private let cleanup: @Sendable () async -> Void
     private let deepWipe: @Sendable () async -> Void
     private let privacySettings: PrivacySettingsCache
+    /// Fired after tokens or the device id change on disk, so the gRPC
+    /// interceptor's header cache reloads instead of sending a stale token.
+    private let onCredentialsChanged: @Sendable () -> Void
 
     /// Whether the user is currently authenticated.
     private(set) var isAuthenticated: Bool = false
@@ -41,8 +52,15 @@ final class SessionService: @unchecked Sendable {
     /// Token expiration date.
     private var tokenExpiresAt: Date?
 
-    /// Guards against concurrent refresh requests.
+    /// Guards against concurrent refresh requests. Main-actor only: the
+    /// task used to be stored *after* it was created from an arbitrary
+    /// thread, so its own completion could run first, leave a finished task
+    /// behind, and every later refresh would join that and get an expired
+    /// token forever.
     private var activeRefreshTask: Task<String, Error>?
+    /// Identifies the refresh a completion belongs to, so a stale completion
+    /// never clears a newer task.
+    private var refreshGeneration: UInt64 = 0
 
     /// Fires every 3 minutes while authenticated to proactively refresh the access
     /// token before it expires. This catches the case where the app stays in the
@@ -55,6 +73,7 @@ final class SessionService: @unchecked Sendable {
         privacySettings: PrivacySettingsCache,
         cleanup: @escaping @Sendable () async -> Void = {},
         deepWipe: @escaping @Sendable () async -> Void = {},
+        onCredentialsChanged: @escaping @Sendable () -> Void = {},
         snapshotPersistDelay: Duration = .seconds(2)
     ) {
         self.snapshotPersistDelay = snapshotPersistDelay
@@ -63,11 +82,13 @@ final class SessionService: @unchecked Sendable {
         self.privacySettings = privacySettings
         self.cleanup = cleanup
         self.deepWipe = deepWipe
+        self.onCredentialsChanged = onCredentialsChanged
         restorePersistedSession()
     }
 
 
     /// Stores authentication tokens and updates session state.
+    @MainActor
     func storeTokens(_ tokens: AuthTokens) async throws {
         try secureStorage.saveAccessToken(tokens.accessToken)
         // Only overwrite the stored refresh token if the server returned a non-empty one.
@@ -103,11 +124,13 @@ final class SessionService: @unchecked Sendable {
         isAuthenticated = true
         startPeriodicTokenRefresh()
         try persistSnapshot()
+        onCredentialsChanged()
 
         SanchrLogger.auth.info("Session tokens stored, expires at \(tokens.expiresAt)")
     }
 
     /// Returns the current access token, refreshing if necessary.
+    @MainActor
     func validAccessToken() async throws -> String {
         guard let token = try secureStorage.readAccessToken() else {
             throw AppError.sessionExpired
@@ -126,6 +149,7 @@ final class SessionService: @unchecked Sendable {
     /// Refreshes the access token if it will expire within 5 minutes.
     /// Does nothing if the token is still valid with more than 5 minutes remaining.
     /// - Throws: `AppError.sessionExpired` if the refresh fails.
+    @MainActor
     @discardableResult
     func refreshTokenIfExpiringSoon() async throws -> String {
         guard isAuthenticated else {
@@ -157,6 +181,7 @@ final class SessionService: @unchecked Sendable {
     /// Forces a token refresh regardless of expiry state.
     /// Called by the auth interceptor when the server returns UNAUTHENTICATED.
     /// Coalesces concurrent calls — if a refresh is already in progress, joins it.
+    @MainActor
     @discardableResult
     func forceRefreshToken() async throws -> String {
         guard isAuthenticated else {
@@ -181,19 +206,24 @@ final class SessionService: @unchecked Sendable {
     /// - Network/server errors: retry up to 2 times with 1 s / 3 s backoff.
     ///   If all retries fail, the session is kept alive (user is offline) and the
     ///   raw error is rethrown so the caller can handle gracefully.
+    @MainActor
     private func refreshToken() async throws -> String {
         // If a refresh is already running, join it
         if let existing = activeRefreshTask {
             return try await existing.value
         }
 
-        let task = Task<String, Error> {
-            defer { activeRefreshTask = nil }
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
 
-            guard let storedRefreshToken = try? secureStorage.readRefreshToken(),
-                  !storedRefreshToken.isEmpty else {
-                await clearSessionForReauth()
-                throw AppError.sessionExpired
+        // Created and stored on the main actor without a suspension between,
+        // so the body (which inherits the actor) cannot run, let alone
+        // finish, before `activeRefreshTask` holds it.
+        let task = Task<String, Error> {
+            defer {
+                // Only the task's own completion clears the slot; a completion
+                // that lost a race to a newer refresh leaves that one alone.
+                if refreshGeneration == generation { activeRefreshTask = nil }
             }
 
             SanchrLogger.auth.info("Refreshing access token")
@@ -201,6 +231,16 @@ final class SessionService: @unchecked Sendable {
             let retryDelays: [UInt64] = [1_000_000_000, 3_000_000_000] // 1 s, 3 s
 
             for attempt in 0...2 {
+                // Read per attempt: a server that rotates refresh tokens may
+                // have issued a new one on an attempt whose reply was lost,
+                // and replaying the consumed one would be rejected as
+                // UNAUTHENTICATED and end the session.
+                guard let storedRefreshToken = try? secureStorage.readRefreshToken(),
+                      !storedRefreshToken.isEmpty else {
+                    await clearSessionForReauth()
+                    throw AppError.sessionExpired
+                }
+
                 do {
                     let tokens = try await authRepository.refreshToken(refreshToken: storedRefreshToken)
                     try await storeTokens(tokens)
@@ -257,6 +297,7 @@ final class SessionService: @unchecked Sendable {
     }
 
     /// Updates the locally cached profile fields (after a profile save).
+    @MainActor
     func updateProfile(displayName: String?, avatarURL: String?, statusText: String? = nil) {
         if let displayName, !displayName.isEmpty {
             currentDisplayName = displayName
@@ -270,6 +311,7 @@ final class SessionService: @unchecked Sendable {
         try? persistSnapshot()
     }
 
+    @MainActor
     func setLastMessageSyncTimestamp(_ timestamp: Int64) {
         guard timestamp > lastMessageSyncTimestamp else { return }
         lastMessageSyncTimestamp = timestamp
@@ -288,6 +330,7 @@ final class SessionService: @unchecked Sendable {
     /// Injected so tests do not have to wait out the production delay.
     private let snapshotPersistDelay: Duration
 
+    @MainActor
     private func schedulePersistSnapshot() {
         pendingSnapshotPersist?.cancel()
         let delay = snapshotPersistDelay
@@ -301,6 +344,7 @@ final class SessionService: @unchecked Sendable {
 
     /// Writes any coalesced snapshot now. Call before the process may be
     /// suspended or the session torn down.
+    @MainActor
     func flushPendingSnapshot() {
         guard pendingSnapshotPersist != nil else { return }
         pendingSnapshotPersist?.cancel()
@@ -311,6 +355,7 @@ final class SessionService: @unchecked Sendable {
     /// Drops a coalesced write without performing it. Used when the
     /// session data is about to be deleted, so a late write cannot
     /// resurrect it.
+    @MainActor
     private func cancelPendingSnapshot() {
         pendingSnapshotPersist?.cancel()
         pendingSnapshotPersist = nil
@@ -324,6 +369,7 @@ final class SessionService: @unchecked Sendable {
     ///
     /// Bypasses the forward-only guard in `setLastMessageSyncTimestamp`
     /// because this is an explicit reset, not a sync-progress update.
+    @MainActor
     func resetMessageSyncHighWaterMark() {
         lastMessageSyncTimestamp = 0
         try? persistSnapshot()
@@ -332,23 +378,27 @@ final class SessionService: @unchecked Sendable {
     /// Permanently deletes the user's account on the server and wipes ALL
     /// local artifacts (including App Group state). On server failure no
     /// local wipe is performed so the user can retry without being stranded.
+    @MainActor
     func deleteAccount() async throws {
         SanchrLogger.auth.warning("Attempting account deletion on server")
         try await authRepository.deleteAccount()
         SanchrLogger.auth.warning("Account deletion confirmed; wiping local artifacts")
 
         try? secureStorage.deleteSessionData()
+        onCredentialsChanged()
         await clearSessionState()
         await cleanup()
         await deepWipe()
     }
 
     /// Clears the session and logs out.
+    @MainActor
     func clearSession() async throws {
         if let token = try? secureStorage.readAccessToken() {
             try? await authRepository.logout(accessToken: token)
         }
         try secureStorage.deleteSessionData()
+        onCredentialsChanged()
         await clearSessionState()
         await cleanup()
     }
@@ -381,8 +431,10 @@ final class SessionService: @unchecked Sendable {
     /// re-authenticating as the same device restores the account seamlessly. The
     /// destructive `cleanup()`/`deleteSessionData()` wipe is reserved for a
     /// deliberate logout or account deletion, never a token timeout.
+    @MainActor
     private func clearSessionForReauth() async {
         try? secureStorage.deleteAllTokens()
+        onCredentialsChanged()
         await clearSessionState()
     }
 
@@ -438,6 +490,7 @@ final class SessionService: @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func persistSnapshot() throws {
         guard
             let currentUserId,

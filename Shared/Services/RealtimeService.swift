@@ -301,7 +301,7 @@ final class RealtimeService: @unchecked Sendable {
             _ = try await messageRepository.flushPendingAcks()
             _ = try? await messageRepository.flushPendingConversationDeletes()
             if result.latestTimestamp > sessionService.lastMessageSyncTimestamp {
-                sessionService.setLastMessageSyncTimestamp(result.latestTimestamp)
+                await sessionService.setLastMessageSyncTimestamp(result.latestTimestamp)
             }
             if result.appliedCount > 0 {
                 await MainActor.run {
@@ -327,7 +327,7 @@ final class RealtimeService: @unchecked Sendable {
     private func handle(_ event: RealtimeEvent) async {
         switch event {
         case .message(let message):
-            sessionService.setLastMessageSyncTimestamp(
+            await sessionService.setLastMessageSyncTimestamp(
                 Int64(message.timestamp.timeIntervalSince1970 * 1000)
             )
             await MainActor.run {

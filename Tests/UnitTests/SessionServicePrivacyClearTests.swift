@@ -3,6 +3,7 @@ import SanchrShared
 
 @testable import Sanchr
 
+@MainActor
 final class SessionServicePrivacyClearTests: XCTestCase {
 
     func test_clearSession_resetsCacheToDefaults() async throws {
