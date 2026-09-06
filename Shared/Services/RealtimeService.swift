@@ -53,7 +53,14 @@ final class RealtimeService: @unchecked Sendable {
     private var streamTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private(set) var isRunning = false
-    private(set) var presenceCache: [String: Sanchr_Messaging_PresenceUpdate] = [:]
+    /// Every write happens on the main actor (`applyPresenceUpdate`,
+    /// `expireOnlinePresenceIfStillCurrent`), so reads are isolated there too.
+    ///
+    /// This class is `@unchecked Sendable`, so the compiler will not catch an
+    /// unisolated read; one crashed `testOnlinePresenceExpiresToOfflineLocally`
+    /// with `-[NSIndirectTaggedPointerString objectForKey:]` — a Dictionary
+    /// lookup landing mid-mutation, not a type error.
+    @MainActor private(set) var presenceCache: [String: Sanchr_Messaging_PresenceUpdate] = [:]
     private var trackedPeerRefCounts: [String: Int] = [:]
     private var presenceExpiryTasks: [String: Task<Void, Never>] = [:]
     private var reconnectAttempt: Int = 0
@@ -281,6 +288,7 @@ final class RealtimeService: @unchecked Sendable {
         }
     }
 
+    @MainActor
     func cachedPresence(for userId: String) -> Sanchr_Messaging_PresenceUpdate? {
         presenceCache[userId]
     }
