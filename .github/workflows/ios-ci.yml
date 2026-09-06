@@ -1,7 +1,6 @@
 name: ios-ci
 
-# Builds the app on every pull request and on main. The unit suite is not
-# run here yet; see the note above the Build step for exactly why.
+# Builds the app and runs the unit suite on every pull request and on main.
 on:
   pull_request:
     branches: [main]
@@ -110,21 +109,48 @@ jobs:
           path: build.log
           if-no-files-found: ignore
 
-      # The unit suite is deliberately NOT run here yet, and this is a real
-      # gap rather than an oversight.
+      # Unsigned, on purpose. The suite used to need a signing identity
+      # because AppGroup.containerURL trapped without the App Group
+      # entitlement; it now falls back to a temporary directory when XCTest
+      # is hosting the process, so no secret is involved and this job runs
+      # on fork pull requests like any other.
       #
-      # SanchrTests boots the app, which reads its App Group container.
-      # AppGroup.swift calls preconditionFailure when the container is
-      # missing, and the container needs an entitlement, which needs a
-      # provisioning profile, which needs a signing identity. Built with
-      # CODE_SIGNING_ALLOWED=NO the suite dies before its first assertion:
-      #
-      #   Fatal error: App Group container missing for group.io.sanchr.sh
-      #
-      # Signed locally the suite does run — 307 tests, and one of them
-      # (RealtimeServiceTests.testOnlinePresenceExpiresToOfflineLocally)
-      # currently fails on main. Turning tests on here needs both: an import
-      # of a signing identity from secrets, and that failure fixed.
-      #
-      # Secrets are withheld from fork pull requests, so a signed test job
-      # would have to be skipped for forks rather than failing them.
+      # The simulator model is resolved rather than hardcoded: the runner
+      # image's device list changes with Xcode, and a stale name fails with
+      # "Unable to find a destination", which reads like a project fault.
+      - name: Test
+        run: |
+          set -o pipefail
+          device=$(xcrun simctl list devices available \
+            | grep -oE '^ *iPhone [^(]+' | sed -E 's/^ *//; s/ *$//' | head -1)
+          if [ -z "$device" ]; then
+            echo "::error::No iPhone simulator available on this image."
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Testing on $device"
+          xcodebuild test \
+            -project Sanchr.xcodeproj \
+            -scheme Sanchr \
+            -destination "platform=iOS Simulator,name=$device" \
+            -configuration Debug \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            > test.log 2>&1 || {
+              echo "::group::Test failures"
+              grep -nE "error:|failed|Fatal error|XCTAssert" test.log | head -60
+              echo "::endgroup::"
+              echo "::group::Last 60 lines"
+              tail -60 test.log
+              echo "::endgroup::"
+              exit 1
+            }
+          grep -E "Executed .* tests" test.log | tail -1
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: test.log
+          if-no-files-found: ignore
