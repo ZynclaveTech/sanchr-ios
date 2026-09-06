@@ -1,0 +1,130 @@
+name: ios-ci
+
+# Builds the app on every pull request and on main. The unit suite is not
+# run here yet; see the note above the Build step for exactly why.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS minutes bill at ten times the Linux rate on private repos. This
+    # repository is public, so the standard allowance applies; even so the
+    # job is deliberately single rather than fanned out across simulators.
+    # macos-26, not macos-15. The design system uses SwiftUI's `Glass`
+    # (Liquid Glass), which only exists in the iOS 26 SDK; on the older image
+    # the build dies with "cannot find type 'Glass' in scope".
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      # LFS is fetched below rather than here. `lfs: true` on checkout
+      # re-downloads every object on every run, and Vendor/**/*.a is 513 MB
+      # of static libraries — two runs would exhaust a month's free LFS
+      # bandwidth. Caching the objects means we pay that once per change to
+      # them.
+      - uses: actions/checkout@v4
+
+      - name: Cache Git LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          # Before `git lfs pull` these paths hold the pointer files, whose
+          # contents are the object hashes — so the key changes exactly when
+          # a vendored binary does.
+          key: ${{ runner.os }}-lfs-${{ hashFiles('Vendor/**/*.a') }}
+
+      # Without this the vendored libraries are 130-byte pointer files and
+      # the link fails with "ld: unknown file type in libsignal_ffi.a",
+      # which reads like a corrupt binary rather than a missing fetch.
+      - name: Fetch LFS objects
+        run: git lfs pull
+
+      # Fail loudly and early if the image ships an Xcode older than the SDK
+      # this project needs, rather than 4 minutes later inside a compile.
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          major=$(xcodebuild -version | head -1 | sed -E 's/Xcode ([0-9]+).*/\1/')
+          if [ "$major" -lt 26 ]; then
+            echo "::error::Xcode $major is too old; the design system needs the iOS 26 SDK (SwiftUI Glass)."
+            exit 1
+          fi
+
+      # `*.xcodeproj/` is gitignored: the project is generated from
+      # project.yml, so a fresh clone has no project at all until this runs.
+      # Without it every step below fails with "does not exist".
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      # SwiftPM checkouts dominate a cold build. Keyed on the spec and the
+      # resolved file so the cache is rebuilt only when dependencies move.
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      # ARCHS=arm64 is required, not an optimisation: the vendored PSI static
+      # library in Vendor/SanchrPSI/simulator ships arm64 slices only, so a
+      # generic simulator destination fails at link trying to satisfy x86_64.
+      # The raw log is kept and grepped on failure. Piping straight through a
+      # formatter hides the compiler diagnostic and leaves only "exit 65",
+      # which says nothing about what broke.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Sanchr.xcodeproj \
+            -scheme Sanchr \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            > build.log 2>&1 || {
+              echo "::group::Build errors"
+              grep -nE "error:|Error:|ld: |fatal error" build.log | head -40
+              echo "::endgroup::"
+              echo "::group::Last 60 lines"
+              tail -60 build.log
+              echo "::endgroup::"
+              exit 1
+            }
+          echo "build ok"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
+
+      # The unit suite is deliberately NOT run here yet, and this is a real
+      # gap rather than an oversight.
+      #
+      # SanchrTests boots the app, which reads its App Group container.
+      # AppGroup.swift calls preconditionFailure when the container is
+      # missing, and the container needs an entitlement, which needs a
+      # provisioning profile, which needs a signing identity. Built with
+      # CODE_SIGNING_ALLOWED=NO the suite dies before its first assertion:
+      #
+      #   Fatal error: App Group container missing for group.io.sanchr.sh
+      #
+      # Signed locally the suite does run — 307 tests, and one of them
+      # (RealtimeServiceTests.testOnlinePresenceExpiresToOfflineLocally)
+      # currently fails on main. Turning tests on here needs both: an import
+      # of a signing identity from secrets, and that failure fixed.
+      #
+      # Secrets are withheld from fork pull requests, so a signed test job
+      # would have to be skipped for forks rather than failing them.
