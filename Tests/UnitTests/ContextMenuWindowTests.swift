@@ -14,11 +14,28 @@ import XCTest
 @MainActor
 final class ContextMenuWindowTests: XCTestCase {
 
+    /// The host window, once the test host has actually come to the front.
+    ///
+    /// `MessageContextMenuWindow.host` requires a `foregroundActive` scene,
+    /// and the host app is not yet active when the first test in a run
+    /// starts. That made these three pass or fail depending on where they
+    /// landed in the order — adding tests elsewhere in the suite was enough
+    /// to flip them, which is the worst kind of red build: real-looking and
+    /// unrelated to the change.
+    ///
+    /// Spin the runloop until the scene activates rather than asserting on
+    /// the first sample. If it never activates the environment cannot host
+    /// these at all, so skip rather than fail — a headless run should not
+    /// report a UI regression it did not observe.
     private func hostWindow() throws -> UIWindow {
-        try XCTUnwrap(
-            MessageContextMenuWindow.host,
-            "no foreground key window; this test needs the app host"
-        )
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline {
+            if let host = MessageContextMenuWindow.host {
+                return host
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        throw XCTSkip("no foreground key window; this environment cannot host the app's window")
     }
 
     func testTheChatIsHiddenFromVoiceOverOnlyWhileTheMenuIsUp() throws {

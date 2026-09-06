@@ -72,15 +72,41 @@ public enum AppGroup {
         return d
     }
 
-    /// Root URL for the shared container. Force-unwraps because absence
-    /// of the App Group entitlement is a programmer error, not a runtime
-    /// condition we should silently fall back from.
+    /// Root URL for the shared container. Absence of the App Group
+    /// entitlement is a programmer error in a shipped build, not a runtime
+    /// condition to fall back from silently — so it still traps there.
     public static var containerURL: URL {
-        guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) else {
-            preconditionFailure("App Group container missing for \(identifier) — entitlement missing?")
+        if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) {
+            return url
         }
-        return url
+        if let url = testContainerURL {
+            return url
+        }
+        preconditionFailure("App Group container missing for \(identifier) — entitlement missing?")
     }
+
+    /// A stand-in container for unsigned test runs.
+    ///
+    /// The real container needs the App Group entitlement, which needs a
+    /// provisioning profile, which needs a signing identity that CI has no
+    /// way to hold for fork pull requests. Without this the suite trapped
+    /// before its first assertion, so the whole unit suite guarded nothing
+    /// on a pull request and only ran on a developer's own machine.
+    ///
+    /// Gated on XCTest actually hosting the process, not on a build
+    /// configuration: a shipped build whose entitlement went missing must
+    /// still trip the precondition above rather than quietly write to a
+    /// directory the share extension cannot read. Signed runs never reach
+    /// this — the real container resolves first.
+    private static let testContainerURL: URL? = {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil else {
+            return nil
+        }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SanchrTestContainer", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }()
 
     public static var databaseURL: URL {
         let dir = containerURL.appendingPathComponent("Database", isDirectory: true)

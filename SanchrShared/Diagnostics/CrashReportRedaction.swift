@@ -13,21 +13,30 @@ public enum CrashReportRedaction {
     private static let email = try! NSRegularExpression(pattern: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     private static let phone = try! NSRegularExpression(pattern: "\\+?\\d[\\d ()-]{7,}\\d")
     private static let fileURL = try! NSRegularExpression(pattern: "file://\\S+")
-    private static let longBase64 = try! NSRegularExpression(pattern: "[A-Za-z0-9+/=]{24,}")
+    // `=` only ever pads the end of base64, and including it at the front
+    // let the rule swallow a preceding "key=" and report the label as data.
+    private static let longBase64 = try! NSRegularExpression(pattern: "[A-Za-z0-9+/]{24,}={0,2}")
     private static let path = try! NSRegularExpression(pattern: "(/[\\w.-]+){2,}")
 
     /// `text` with anything that could identify a person or a message replaced.
     ///
-    /// Order matters: emails and phone numbers go first, because a path or a
+    /// Order matters. Emails and phone numbers go first, because a path or a
     /// base64 run could otherwise swallow them and leave a partial number.
+    /// Paths then precede base64, whose character class contains `/` and so
+    /// matches any sufficiently long path.
     public static func redact(_ text: String?) -> String {
         guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
         var out = text
         out = replace(out, email, with: "[email]")
         out = replace(out, phone, with: "[phone]")
         out = replace(out, fileURL, with: "[url]")
-        out = replace(out, longBase64, with: "[data]")
+        // Paths before base64: `/` is a base64 character, so the base64 rule
+        // matches any path long enough and reports it as [data]. Nothing
+        // leaked — it over-redacts — but a report in which every path is
+        // [data] is markedly harder to act on, which is the whole point of
+        // keeping the non-identifying parts.
         out = replace(out, path, with: "[path]")
+        out = replace(out, longBase64, with: "[data]")
         return out
     }
 
