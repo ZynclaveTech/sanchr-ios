@@ -12,15 +12,29 @@ struct GIFResult: Identifiable, Sendable {
 // MARK: - GIFService
 
 /// Tenor v2 API client for GIF search and trending.
-/// Requires a Tenor API key — set the `apiKey` constant or inject via env.
-/// Returns empty arrays (no crash) when the key is missing / request fails.
+/// Requires a Tenor API key, read from the app's Info.plist so it is injected
+/// at build time rather than committed — this repository is public, and a key
+/// in source is a key anyone can spend.
+///
+/// Returns empty arrays (no crash) when the key is missing or a request
+/// fails, and `isAvailable` says which, so the picker can explain itself
+/// rather than showing an empty grid forever.
 final class GIFService: Sendable {
 
     static let shared = GIFService()
     private init() {}
 
-    // Replace with a real Tenor API key from console.cloud.google.com/apis.
-    private let apiKey = "TENOR_API_KEY"
+    /// Set `SANCHR_TENOR_API_KEY` in CI or a local xcconfig; it reaches the
+    /// bundle through `SanchrTenorAPIKey` in Info.plist.
+    private var apiKey: String? {
+        let value = Bundle.main.object(forInfoDictionaryKey: "SanchrTenorAPIKey") as? String
+        guard let value, !value.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return value
+    }
+
+    /// Whether a key is configured at all.
+    var isAvailable: Bool { apiKey != nil }
+
     private let clientKey = "sanchr_ios"
     private let limit = 24
 
@@ -37,6 +51,10 @@ final class GIFService: Sendable {
     // MARK: - Private
 
     private func fetch(path: String, params: [String: String]) async -> [GIFResult] {
+        // No key, no request. Calling Tenor with an empty key returns an
+        // error the picker would render as "no results", which reads as
+        // "Tenor has no cat GIFs" rather than "this build has no key".
+        guard let apiKey else { return [] }
         var components = URLComponents(string: "https://tenor.googleapis.com/v2/\(path)")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "key", value: apiKey),

@@ -19,6 +19,9 @@ settings:
     # Empty unless a build supplies one, so a fork or a local build reports
     # nowhere. Set it in CI or in a local xcconfig.
     SANCHR_SENTRY_DSN: $(SANCHR_SENTRY_DSN)
+    # Tenor, for the GIF picker. Same treatment as the DSN: supplied by CI or
+    # a local xcconfig, never committed.
+    SANCHR_TENOR_API_KEY: $(SANCHR_TENOR_API_KEY)
     APS_ENVIRONMENT: development
   configs:
     Debug:
@@ -259,6 +262,13 @@ targets:
     info:
       path: Info.plist
       properties:
+        # Injected at build time, empty by default. These live here and not in
+        # Info.plist because XcodeGen regenerates that file from this block —
+        # a key added to the plist by hand is silently dropped on the next
+        # `xcodegen generate`, which is exactly how crash reporting shipped
+        # inert: the reader existed, the key never survived.
+        SanchrSentryDSN: $(SANCHR_SENTRY_DSN)
+        SanchrTenorAPIKey: $(SANCHR_TENOR_API_KEY)
         CFBundleDisplayName: Sanchr
         CFBundleName: Sanchr
         CFBundleShortVersionString: $(MARKETING_VERSION)
