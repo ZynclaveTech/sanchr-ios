@@ -47,6 +47,10 @@
 	<string>Sanchr saves photos and videos from chats to your library when you tap Save.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Sanchr needs photo library access to share photos and videos.</string>
+	<key>SanchrSentryDSN</key>
+	<string>$(SANCHR_SENTRY_DSN)</string>
+	<key>SanchrTenorAPIKey</key>
+	<string>$(SANCHR_TENOR_API_KEY)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Afacad-Variable.ttf</string>
