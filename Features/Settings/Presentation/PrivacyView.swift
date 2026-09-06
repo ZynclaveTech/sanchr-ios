@@ -3,8 +3,12 @@ import SanchrShared
 
 /// Privacy settings screen.
 /// Matches Figma: privacy-screen.
-/// All toggles sync to the backend via SettingsService.UpdateSettings.
+/// Most toggles sync to the backend via SettingsService.UpdateSettings.
+/// Send Crash Reports is the exception: it stays on this device, because
+/// whether diagnostics leave the device is a property of the device rather
+/// than of the account.
 struct PrivacyView: View {
+    @State private var crashReportingEnabled = CrashReportingConsent.isEnabled()
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = SettingsViewModel()
 
@@ -145,6 +149,21 @@ struct PrivacyView: View {
                     isOn: $viewModel.typingIndicator
                 ) {
                     viewModel.debouncedSync(settingsDataSource: settingsDataSource)
+                }
+
+                Divider()
+                    .padding(.leading, 56)
+
+                // Local only: this one is never synced to the server, because
+                // whether diagnostics leave this device is a property of this
+                // device, not of the account.
+                stackedToggleRow(
+                    icon: "ladybug",
+                    title: "Send Crash Reports",
+                    subtitle: "Share anonymous crash diagnostics. Never message content, and off by default",
+                    isOn: $crashReportingEnabled
+                ) {
+                    CrashReporter.shared.setEnabled(crashReportingEnabled)
                 }
             }
             .padding(.horizontal, 18)

@@ -299,6 +299,11 @@ final class SanchrAppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         SanchrLogger.app.info("Application didFinishLaunching")
 
+        // First, so a crash in the rest of launch is still captured for a
+        // user who opted in. Inert without consent, and inert in a build
+        // with no Sentry DSN configured.
+        CrashReporter.shared.start()
+
         // Run the App Group database migration BEFORE anything touches the
         // local database. `DependencyContainer.localDatabase` is lazy and
         // the first access opens the SQLCipher file at the App Group path;

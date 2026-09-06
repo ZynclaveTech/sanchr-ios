@@ -16,6 +16,9 @@ settings:
     DEVELOPMENT_TEAM: UMTJNNPK6C
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: false
+    # Empty unless a build supplies one, so a fork or a local build reports
+    # nowhere. Set it in CI or in a local xcconfig.
+    SANCHR_SENTRY_DSN: $(SANCHR_SENTRY_DSN)
     APS_ENVIRONMENT: development
   configs:
     Debug:
@@ -59,6 +62,10 @@ packages:
     url: https://github.com/apple/swift-log.git
     minVersion: "1.4.0"
     maxVersion: "2.0.0"
+  sentry-cocoa:
+    url: https://github.com/getsentry/sentry-cocoa.git
+    minVersion: "9.27.0"
+    maxVersion: "10.0.0"
 
 targets:
   LibSignalClient:
@@ -207,6 +214,8 @@ targets:
         product: WebRTC
       - package: Kingfisher
         product: Kingfisher
+      - package: sentry-cocoa
+        product: Sentry
       - package: GRDB
         product: GRDBSQLCipher
       - package: grpc-swift
