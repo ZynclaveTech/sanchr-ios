@@ -211,10 +211,12 @@ final class RealtimeServiceTests: XCTestCase {
         presence.statusCode = .online
         messageRepository.emit(.presence(presence))
 
-        try await waitUntil {
+        // Read on the main actor, where the cache lives. Polling it from the
+        // waitUntil closure's thread is what raced the expiry task's write.
+        try await waitUntilOnMain {
             service.cachedPresence(for: "peer-1")?.statusCode == .online
         }
-        try await waitUntil(timeoutNanoseconds: 300_000_000) {
+        try await waitUntilOnMain(timeoutNanoseconds: 300_000_000) {
             service.cachedPresence(for: "peer-1")?.statusCode == .offline
         }
 
@@ -244,6 +246,21 @@ final class RealtimeServiceTests: XCTestCase {
         )
 
         return service
+    }
+
+    /// [waitUntil] for state that is isolated to the main actor.
+    private func waitUntilOnMain(
+        timeoutNanoseconds: UInt64 = 1_000_000_000,
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
+        while !(await MainActor.run { condition() }) {
+            if DispatchTime.now().uptimeNanoseconds >= deadline {
+                XCTFail("condition not met before timeout")
+                return
+            }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
     }
 
     private func waitUntil(
