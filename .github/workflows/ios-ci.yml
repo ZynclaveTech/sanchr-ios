@@ -17,7 +17,10 @@ jobs:
     # macOS minutes bill at ten times the Linux rate on private repos. This
     # repository is public, so the standard allowance applies; even so the
     # job is deliberately single rather than fanned out across simulators.
-    runs-on: macos-15
+    # macos-26, not macos-15. The design system uses SwiftUI's `Glass`
+    # (Liquid Glass), which only exists in the iOS 26 SDK; on the older image
+    # the build dies with "cannot find type 'Glass' in scope".
+    runs-on: macos-26
     timeout-minutes: 60
 
     steps:
@@ -43,8 +46,17 @@ jobs:
       - name: Fetch LFS objects
         run: git lfs pull
 
+      # Fail loudly and early if the image ships an Xcode older than the SDK
+      # this project needs, rather than 4 minutes later inside a compile.
       - name: Show toolchain
-        run: xcodebuild -version && swift --version
+        run: |
+          xcodebuild -version
+          swift --version
+          major=$(xcodebuild -version | head -1 | sed -E 's/Xcode ([0-9]+).*/\1/')
+          if [ "$major" -lt 26 ]; then
+            echo "::error::Xcode $major is too old; the design system needs the iOS 26 SDK (SwiftUI Glass)."
+            exit 1
+          fi
 
       # `*.xcodeproj/` is gitignored: the project is generated from
       # project.yml, so a fresh clone has no project at all until this runs.
