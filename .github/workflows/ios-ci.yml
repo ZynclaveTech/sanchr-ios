@@ -21,7 +21,27 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # LFS is fetched below rather than here. `lfs: true` on checkout
+      # re-downloads every object on every run, and Vendor/**/*.a is 513 MB
+      # of static libraries — two runs would exhaust a month's free LFS
+      # bandwidth. Caching the objects means we pay that once per change to
+      # them.
       - uses: actions/checkout@v4
+
+      - name: Cache Git LFS objects
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          # Before `git lfs pull` these paths hold the pointer files, whose
+          # contents are the object hashes — so the key changes exactly when
+          # a vendored binary does.
+          key: ${{ runner.os }}-lfs-${{ hashFiles('Vendor/**/*.a') }}
+
+      # Without this the vendored libraries are 130-byte pointer files and
+      # the link fails with "ld: unknown file type in libsignal_ffi.a",
+      # which reads like a corrupt binary rather than a missing fetch.
+      - name: Fetch LFS objects
+        run: git lfs pull
 
       - name: Show toolchain
         run: xcodebuild -version && swift --version
