@@ -2,7 +2,6 @@ import SwiftUI
 import SanchrShared
 
 struct LoginView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel = AuthViewModel()
     @State private var presentedLegalDocument: LegalDocument?
@@ -22,11 +21,6 @@ struct LoginView: View {
                         .frame(height: 44)
 
                     phoneSection
-
-                    Spacer()
-                        .frame(height: 18)
-
-                    securityCard
 
                     Spacer()
                         .frame(height: 28)
@@ -171,42 +165,6 @@ struct LoginView: View {
                 }
                 .foregroundColor(SanchrColors.error)
             }
-        }
-    }
-
-    private var securityCard: some View {
-        HStack(alignment: .top, spacing: 16) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(SanchrColors.primary.opacity(0.1))
-                .frame(width: 52, height: 52)
-                .overlay {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(SanchrColors.primary)
-                }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("End-to-End Encrypted")
-                    .font(SanchrTypography.cardTitle)
-                    .foregroundColor(SanchrExportColors.textPrimary)
-
-                Text("Messages are end-to-end encrypted with the Signal Protocol. Only you and the people you write to can read them.")
-                    .font(SanchrTypography.body)
-                    .foregroundColor(SanchrExportColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(SanchrExportColors.surface)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(SanchrColors.primary.opacity(colorScheme == .dark ? 0.15 : 0.12), lineWidth: 1)
         }
     }
 

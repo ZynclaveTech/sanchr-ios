@@ -61,8 +61,8 @@ struct SettingsView: View {
                         AnySettingsRow(
                             icon: "bell",
                             title: "Notifications",
-                            subtitle: "Activity & preferences",
-                            destination: AnyView(NotificationsInboxView())
+                            subtitle: "Alerts, sounds & previews",
+                            destination: AnyView(NotificationsView())
                         ),
                         AnySettingsRow(
                             icon: "paintpalette",
