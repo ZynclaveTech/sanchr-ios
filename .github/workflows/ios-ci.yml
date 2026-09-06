@@ -1,0 +1,78 @@
+name: ios-ci
+
+# Builds the app on every pull request and on main. The unit suite is not
+# run here yet; see the note above the Build step for exactly why.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS minutes bill at ten times the Linux rate on private repos. This
+    # repository is public, so the standard allowance applies; even so the
+    # job is deliberately single rather than fanned out across simulators.
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version && swift --version
+
+      # `*.xcodeproj/` is gitignored: the project is generated from
+      # project.yml, so a fresh clone has no project at all until this runs.
+      # Without it every step below fails with "does not exist".
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      # SwiftPM checkouts dominate a cold build. Keyed on the spec and the
+      # resolved file so the cache is rebuilt only when dependencies move.
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      # ARCHS=arm64 is required, not an optimisation: the vendored PSI static
+      # library in Vendor/SanchrPSI/simulator ships arm64 slices only, so a
+      # generic simulator destination fails at link trying to satisfy x86_64.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Sanchr.xcodeproj \
+            -scheme Sanchr \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify
+
+      # The unit suite is deliberately NOT run here yet, and this is a real
+      # gap rather than an oversight.
+      #
+      # SanchrTests boots the app, which reads its App Group container.
+      # AppGroup.swift calls preconditionFailure when the container is
+      # missing, and the container needs an entitlement, which needs a
+      # provisioning profile, which needs a signing identity. Built with
+      # CODE_SIGNING_ALLOWED=NO the suite dies before its first assertion:
+      #
+      #   Fatal error: App Group container missing for group.io.sanchr.sh
+      #
+      # Signed locally the suite does run — 307 tests, and one of them
+      # (RealtimeServiceTests.testOnlinePresenceExpiresToOfflineLocally)
+      # currently fails on main. Turning tests on here needs both: an import
+      # of a signing identity from secrets, and that failure fixed.
+      #
+      # Secrets are withheld from fork pull requests, so a signed test job
+      # would have to be skipped for forks rather than failing them.
