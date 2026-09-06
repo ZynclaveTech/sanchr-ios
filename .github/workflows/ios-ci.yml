@@ -66,6 +66,9 @@ jobs:
       # ARCHS=arm64 is required, not an optimisation: the vendored PSI static
       # library in Vendor/SanchrPSI/simulator ships arm64 slices only, so a
       # generic simulator destination fails at link trying to satisfy x86_64.
+      # The raw log is kept and grepped on failure. Piping straight through a
+      # formatter hides the compiler diagnostic and leaves only "exit 65",
+      # which says nothing about what broke.
       - name: Build
         run: |
           set -o pipefail
@@ -76,7 +79,24 @@ jobs:
             -configuration Debug \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
-            | xcbeautify
+            > build.log 2>&1 || {
+              echo "::group::Build errors"
+              grep -nE "error:|Error:|ld: |fatal error" build.log | head -40
+              echo "::endgroup::"
+              echo "::group::Last 60 lines"
+              tail -60 build.log
+              echo "::endgroup::"
+              exit 1
+            }
+          echo "build ok"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
 
       # The unit suite is deliberately NOT run here yet, and this is a real
       # gap rather than an oversight.
