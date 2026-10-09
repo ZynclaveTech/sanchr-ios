@@ -15,6 +15,7 @@ public enum DefaultDisappearingTimer {
     /// choose is a duration a conversation can actually hold.
     private static let secondsByToken: [String: Int64] = [
         "off": 0,
+        "30s": 30,
         "5m": 300,
         "1h": 3600,
         "24h": 86400,

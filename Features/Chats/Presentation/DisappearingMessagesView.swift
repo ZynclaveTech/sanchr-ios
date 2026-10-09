@@ -14,6 +14,10 @@ struct DisappearingMessagesView: View {
 
     private let options: [(String, String, Int)] = [
         ("Off", "Messages won't be deleted", 0),
+        // 30 seconds exists on Android. Without it a chat set there matched no
+        // row here, so this screen rendered with nothing selected and the value
+        // was lost on the next tap.
+        ("30 seconds", "Gone almost at once", 30),
         ("5 minutes", "For sensitive conversations", 300),
         ("1 hour", "Short-lived messages", 3600),
         ("24 hours", "Daily cleanup", 86400),

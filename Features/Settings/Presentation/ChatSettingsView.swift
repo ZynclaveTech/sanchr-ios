@@ -28,6 +28,7 @@ struct ChatSettingsView: View {
         // (5 seconds, 30 seconds, 1 minute) that no conversation could
         // actually be set to.
         ("Off", "off"),
+        ("30 seconds", "30s"),
         ("5 minutes", "5m"),
         ("1 hour", "1h"),
         ("24 hours", "24h"),
