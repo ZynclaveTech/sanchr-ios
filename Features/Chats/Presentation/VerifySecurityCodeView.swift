@@ -412,20 +412,31 @@ struct VerifySecurityCodeView: View {
                 borderColor: SanchrColors.accent.opacity(0.1)
             )
 
+            // Coloured by the state, not by the card. "Not verified" used to
+            // be rendered in success green, on a green card, with a green
+            // shield — the one row on this screen that says whether the
+            // contact has been checked, reporting "no" as if it were "yes".
+            let verifiedGreen = Color(hex: 0x16A34A)
+            let statusColor = isVerified ? verifiedGreen : SanchrExportColors.textSecondary
             encryptionDetailCard(
-                icon: "shield.fill",
-                iconBg: colorScheme == .dark
-                    ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xDCFCE7),
-                iconColor: Color(hex: 0x16A34A),
+                icon: isVerified ? "shield.fill" : "shield",
+                iconBg: isVerified
+                    ? (colorScheme == .dark ? verifiedGreen.opacity(0.2) : Color(hex: 0xDCFCE7))
+                    : SanchrExportColors.surfaceSoft,
+                iconColor: statusColor,
                 title: "Verification Status",
                 subtitle: nil,
                 statusText: verificationStatusText,
-                gradientStart: colorScheme == .dark
-                    ? Color(hex: 0x16A34A).opacity(0.08) : Color(hex: 0xF0FDF4),
-                gradientEnd: colorScheme == .dark
-                    ? Color(hex: 0x16A34A).opacity(0.05) : Color(hex: 0xECFDF5),
-                borderColor: colorScheme == .dark
-                    ? Color(hex: 0x16A34A).opacity(0.2) : Color(hex: 0xBBF7D0)
+                statusColor: statusColor,
+                gradientStart: isVerified
+                    ? (colorScheme == .dark ? verifiedGreen.opacity(0.08) : Color(hex: 0xF0FDF4))
+                    : .clear,
+                gradientEnd: isVerified
+                    ? (colorScheme == .dark ? verifiedGreen.opacity(0.05) : Color(hex: 0xECFDF5))
+                    : .clear,
+                borderColor: isVerified
+                    ? (colorScheme == .dark ? verifiedGreen.opacity(0.2) : Color(hex: 0xBBF7D0))
+                    : Color.sanchrDivider(colorScheme)
             )
         }
     }
@@ -437,6 +448,7 @@ struct VerifySecurityCodeView: View {
         title: String,
         subtitle: String?,
         statusText: String? = nil,
+        statusColor: Color = Color(hex: 0x16A34A),
         gradientStart: Color,
         gradientEnd: Color,
         borderColor: Color
@@ -467,7 +479,7 @@ struct VerifySecurityCodeView: View {
                     Text(statusText)
                         .font(SanchrTypography.captionSmall)
                         .fontWeight(.semibold)
-                        .foregroundColor(Color(hex: 0x16A34A))
+                        .foregroundColor(statusColor)
                 }
             }
         }
