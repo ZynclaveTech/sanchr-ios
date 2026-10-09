@@ -42,6 +42,22 @@ final class ViewOnceMediaTests: XCTestCase {
         )
     }
 
+    /// A disappearing message makes the same promise over a longer interval:
+    /// the media goes away. A photo-library copy outlives the timer, the
+    /// message, and any later deletion.
+    func test_disappearingMedia_isExcludedFromAutoSave() {
+        XCTAssertFalse(
+            MediaAutoSavePolicy.shouldAutoSave(
+                attachment: attachment(viewOnce: nil),
+                isEphemeral: true,
+                autoSaveEnabled: true,
+                galleryVisible: true,
+                isOutgoing: false
+            ),
+            "media on a disappearing timer must never be copied into the photo library"
+        )
+    }
+
     func test_ordinaryMedia_stillAutoSavesWhenEnabled() {
         XCTAssertTrue(
             MediaAutoSavePolicy.shouldAutoSave(

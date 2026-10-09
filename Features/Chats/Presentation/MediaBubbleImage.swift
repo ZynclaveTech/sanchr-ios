@@ -11,6 +11,9 @@ struct MediaBubbleImage: View {
     let messageId: String
     let conversationId: String
     let isOutgoing: Bool
+    /// Whether the message is on a disappearing-messages timer, which excludes
+    /// its media from auto-save the way view-once does.
+    let isEphemeral: Bool
     var uploadProgress: Double?
     var uploadLabel: String?
     /// Draw the video play glyph. Owned here rather than by the caller so
@@ -64,6 +67,7 @@ struct MediaBubbleImage: View {
         messageId: String,
         conversationId: String,
         isOutgoing: Bool,
+        isEphemeral: Bool = false,
         uploadProgress: Double? = nil,
         uploadLabel: String? = nil,
         showsPlayGlyph: Bool = false,
@@ -75,6 +79,7 @@ struct MediaBubbleImage: View {
         self.messageId = messageId
         self.conversationId = conversationId
         self.isOutgoing = isOutgoing
+        self.isEphemeral = isEphemeral
         self.uploadProgress = uploadProgress
         self.uploadLabel = uploadLabel
         self.showsPlayGlyph = showsPlayGlyph
@@ -150,6 +155,7 @@ struct MediaBubbleImage: View {
     private var shouldAutoSaveToPhotos: Bool {
         MediaAutoSavePolicy.shouldAutoSave(
             attachment: attachment,
+            isEphemeral: isEphemeral,
             autoSaveEnabled: mediaAutoSave,
             galleryVisible: ChatMediaVisibilityStore.isVisibleInGallery(
                 conversationId: conversationId),
@@ -630,6 +636,7 @@ enum BubbleImagePipeline {
 enum MediaAutoSavePolicy {
     static func shouldAutoSave(
         attachment: Message.MediaAttachment,
+        isEphemeral: Bool = false,
         autoSaveEnabled: Bool,
         galleryVisible: Bool,
         isOutgoing: Bool
@@ -638,6 +645,10 @@ enum MediaAutoSavePolicy {
         // permanently what the sender chose to show once, and no later deletion
         // reaches a photo library that has already synced.
         guard attachment.isViewOnce != true else { return false }
+        // Disappearing media is excluded for the same reason: the timer is a
+        // promise that the picture goes away, and a photo-library copy outlives
+        // both the message and any later deletion.
+        guard !isEphemeral else { return false }
         return autoSaveEnabled && galleryVisible && !isOutgoing
     }
 }

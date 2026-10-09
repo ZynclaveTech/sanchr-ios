@@ -13,6 +13,9 @@ struct MediaAlbumBubble: View {
     let messageId: String
     let conversationId: String
     let isOutgoing: Bool
+    /// Passed through to each tile so a disappearing album is excluded from
+    /// auto-save exactly as a single disappearing photo is.
+    var isEphemeral: Bool = false
     /// Upload state for the whole album: one ring over the collage, the way
     /// a single photo shows one over itself. Albums were the one outgoing
     /// media kind with no upload feedback at all.
@@ -37,6 +40,7 @@ struct MediaAlbumBubble: View {
                         messageId: "\(messageId)#\(tile.index)",
                         conversationId: conversationId,
                         isOutgoing: isOutgoing,
+                        isEphemeral: isEphemeral,
                         fixedSize: tile.rect.size,
                         // Square: the collage rounds its own outer corners, and
                         // a tile rounding all four of its own made an album read
