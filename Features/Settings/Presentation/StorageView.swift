@@ -261,33 +261,12 @@ struct StorageView: View {
                         }
                 }
 
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(SanchrExportColors.surfaceMuted)
-                    .frame(height: 94)
-                    .overlay {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Sent")
-                                    .font(SanchrTypography.captionSmall)
-                                    .foregroundColor(SanchrExportColors.textSecondary)
-                                Text(viewModel.formattedBytes(max(124_000_000, viewModel.documentsBytes / 2)))
-                                    .font(SanchrTypography.cardTitle)
-                                    .foregroundColor(SanchrExportColors.textPrimary)
-                            }
-
-                            Spacer()
-
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("Received")
-                                    .font(SanchrTypography.captionSmall)
-                                    .foregroundColor(SanchrExportColors.textSecondary)
-                                Text(viewModel.formattedBytes(max(2_300_000_000, viewModel.totalBytes)))
-                                    .font(SanchrTypography.cardTitle)
-                                    .foregroundColor(SanchrExportColors.textPrimary)
-                            }
-                        }
-                        .padding(.horizontal, 18)
-                    }
+                // The "Sent"/"Received" card that used to sit here reported
+                // `max(124_000_000, documentsBytes / 2)` and
+                // `max(2_300_000_000, totalBytes)` — numbers floored at 124 MB
+                // and 2.3 GB, so a fresh install claimed it had received 2.3 GB.
+                // Nothing counts bytes on the wire, so there is nothing
+                // truthful to show; the row is gone until there is.
             }
             .padding(18)
             .settingsCard()

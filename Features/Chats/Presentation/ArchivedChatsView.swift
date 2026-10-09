@@ -115,7 +115,9 @@ struct ArchivedChatsView: View {
                 await MainActor.run {
                     summaries.removeAll { $0.id == conversationId }
                     isUpdatingConversationIds.remove(conversationId)
-                    router.deepLinkToConversation(conversationId: conversationId)
+                    // No deep link: the row has its own tap-to-open, so a
+                    // button labelled only "unarchive" also opened the chat, which
+                    // is not what it says it does.
                 }
             } catch {
                 await MainActor.run {

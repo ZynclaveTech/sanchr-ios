@@ -112,7 +112,9 @@ struct HiddenChatsView: View {
                 await MainActor.run {
                     summaries.removeAll { $0.id == conversationId }
                     isRestoringConversationIds.remove(conversationId)
-                    router.deepLinkToConversation(conversationId: conversationId)
+                    // No deep link: the row has its own tap-to-open, so a
+                    // button labelled only "Restore" also opened the chat,
+                    // which is not what it says it does.
                 }
             } catch {
                 await MainActor.run {
