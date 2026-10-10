@@ -40,6 +40,17 @@ public protocol KeyManagerProtocol: AnyObject, Sendable {
 
     /// Returns `true` if identity keys have been generated for this device.
     var hasIdentityKeys: Bool { get }
+
+    /// Replaces the signed pre-key and Kyber pre-key if they are due.
+    /// Returns whether a new pair was published.
+    @discardableResult
+    func rotateSignedPreKeyIfNeeded() async throws -> Bool
+}
+
+extension KeyManagerProtocol {
+    /// For conformers with no keys to rotate.
+    @discardableResult
+    public func rotateSignedPreKeyIfNeeded() async throws -> Bool { false }
 }
 
 /// Manages Signal Protocol key generation, secure storage, and server synchronization.
@@ -62,9 +73,22 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
+    private let rotation: PreKeyRotation
+
     public init(store: SanchrSignalStore, keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol) {
         self.store = store
         self.keyService = keyService
+        self.rotation = PreKeyRotation(
+            signedPreKeys: store.signedPreKeyStore,
+            kyberPreKeys: store.kyberPreKeyStore,
+            identity: {
+                (
+                    try store.identityStore.identityKeyPair(context: NullContext()),
+                    try store.identityStore.localRegistrationId(context: NullContext())
+                )
+            },
+            upload: { bundle in _ = try await keyService.uploadKeyBundle(bundle) }
+        )
         SanchrLogger.crypto.info("SignalKeyManager initialized")
     }
 
@@ -128,6 +152,10 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Server Sync
 
     public func uploadInitialKeyBundle() async throws {
+        // A rotation left unfinished is abandoned: this publishes a fresh
+        // pair of its own, and after an identity reset the pending one is
+        // signed by a key that no longer exists.
+        store.signedPreKeyStore.pendingRotation = nil
         let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
         let registrationId = try store.identityStore.localRegistrationId(context: NullContext())
         let signedPreKey = try generateSignedPreKey()
@@ -197,6 +225,11 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let request = Sanchr_Keys_GetPreKeyCountRequest()
         let response = try await keyService.getPreKeyCount(request)
         return Int(response.count)
+    }
+
+    @discardableResult
+    public func rotateSignedPreKeyIfNeeded() async throws -> Bool {
+        try await rotation.rotateIfNeeded()
     }
 
     public func signedPreKeyCreatedAt() throws -> Date? {

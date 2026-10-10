@@ -38,12 +38,52 @@ public final class SanchrKyberPreKeyStore: KyberPreKeyStore {
 
         let record = try KyberPreKeyRecord(bytes: [UInt8](data))
         queue.sync(flags: .barrier) { cache[id] = record }
+        // A key stored before the list of held ids existed is added to it the
+        // first time it is used, so it too can be let go when it is old.
+        remember(id)
         return record
     }
 
     public func storeKyberPreKey(_ record: KyberPreKeyRecord, id: UInt32, context: StoreContext) throws {
         try keychain.save(Data(record.serialize()), forKey: keychainKey(for: id))
         queue.sync(flags: .barrier) { cache[id] = record }
+        remember(id)
+    }
+
+    // MARK: - Rotation
+
+    /// Every id a key is known to be held for.
+    public func heldIds() -> [UInt32] {
+        loadHeldIds().sorted()
+    }
+
+    /// Forgets a key. The base keys recorded against it go with it the next
+    /// time that record is written; see `SeenBaseKeys`.
+    public func remove(id: UInt32) {
+        try? keychain.delete(forKey: keychainKey(for: id))
+        queue.sync(flags: .barrier) { cache[id] = nil }
+        saveHeldIds(loadHeldIds().filter { $0 != id })
+    }
+
+    private func heldIdsKeychainKey() -> String {
+        "io.sanchr.signal.kyber_prekey_ids.\(userId)"
+    }
+
+    private func loadHeldIds() -> [UInt32] {
+        guard let data = try? keychain.read(forKey: heldIdsKeychainKey()),
+              let ids = try? JSONDecoder().decode([UInt32].self, from: data)
+        else { return [] }
+        return ids
+    }
+
+    private func saveHeldIds(_ ids: [UInt32]) {
+        guard let data = try? JSONEncoder().encode(ids) else { return }
+        try? keychain.save(data, forKey: heldIdsKeychainKey())
+    }
+
+    private func remember(_ id: UInt32) {
+        let ids = loadHeldIds()
+        if !ids.contains(id) { saveHeldIds(ids + [id]) }
     }
 
     public func markKyberPreKeyUsed(

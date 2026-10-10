@@ -320,6 +320,13 @@ final class SyncOrchestrator: SyncOrchestratorProtocol, @unchecked Sendable {
     private func replenishPreKeysIfNeeded() async throws {
         SanchrLogger.sync.info("Checking pre-key count")
         try await signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+        // Not allowed to fail the sync: the old pair goes on working, and
+        // rotation is tried again next time.
+        do {
+            try await signalKeyManager.rotateSignedPreKeyIfNeeded()
+        } catch {
+            SanchrLogger.sync.warning("Pre-key rotation failed: \(error.localizedDescription)")
+        }
     }
 
     /// Refreshes the auth token if it is expiring within 5 minutes.
