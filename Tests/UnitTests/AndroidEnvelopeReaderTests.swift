@@ -251,6 +251,24 @@ final class AndroidEnvelopeReaderTests: XCTestCase {
         }
     }
 
+    /// Only a failure that is about the session starts a re-key. A store that
+    /// cannot be read fails every message, and must not cost good sessions.
+    func testOnlyFailuresAboutTheSessionCountAsLosingIt() {
+        for lost in [
+            SignalError.sessionNotFound("x"), .invalidSession("x"), .invalidMessage("x"),
+        ] {
+            XCTAssertTrue(AndroidEnvelopeReader.meansSessionLost(lost), "\(lost)")
+        }
+        for other in [
+            SignalError.duplicatedMessage("x"), .untrustedIdentity("x"), .callbackError("x"),
+            .internalError("x"), .invalidState("x"), .protobufError("x"), .invalidKey("x"),
+            .unrecognizedMessageVersion("x"),
+        ] {
+            XCTAssertFalse(AndroidEnvelopeReader.meansSessionLost(other), "\(other)")
+        }
+        XCTAssertFalse(AndroidEnvelopeReader.meansSessionLost(CocoaError(.fileReadNoPermission)))
+    }
+
     /// A replay is a replay, not a lost session.
     func testAReplayedLaterMessageIsADuplicateNotALostSession() throws {
         let alice = AndroidPeer("alice")
