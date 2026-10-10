@@ -1758,7 +1758,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) async -> SealedDecodeOutcome {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
-            var result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
+            var result = try await signalProtocol.decryptSealedEnvelope(
+                sealed.sealedEnvelope,
+                // A missing timestamp must not read as 1970, when no
+                // certificate had yet expired.
+                receivedAt: sealed.serverTimestamp > 0
+                    ? Date(timeIntervalSince1970: TimeInterval(sealed.serverTimestamp) / 1000.0)
+                    : Date()
+            )
 
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
