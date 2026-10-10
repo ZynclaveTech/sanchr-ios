@@ -189,7 +189,10 @@ struct StorageView: View {
                 .disabled(isClearing)
 
                 NavigationLink {
-                    ChatSettingsView()
+                    // The screen this row names. It used to open the whole of
+                    // Chat Settings, where the user then had to find and tap a
+                    // second Backup row to get here.
+                    BackupView()
                 } label: {
                     manageRow(
                         icon: "arrow.clockwise.circle",
