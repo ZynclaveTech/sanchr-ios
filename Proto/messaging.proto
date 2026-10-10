@@ -273,10 +273,42 @@ message SealedDeviceMessage {
   // it buys back an alert that told the recipient's screen the same thing far
   // more loudly. Signal's envelope carries the same distinction as `urgent`.
   bool silent = 5;
+  // The registration id of the device the sender's session is with, when the
+  // sender wants it checked. Zero means it does not say, and nothing is
+  // checked — which is what a client too old to set this sends.
+  //
+  // A device that is set up again (reinstalled, re-registered) gets a new
+  // registration id and has lost every session it had. Someone who was already
+  // talking to it has no way to know: their session still encrypts, the server
+  // still accepts the result, and the recipient cannot read it. Nothing told
+  // the sender, so every message went the same way until the recipient
+  // happened to write first.
+  //
+  // With this set, the server compares it with the id the device now
+  // publishes and, if they differ, delivers nothing and says so in
+  // `stale_devices`.
+  //
+  // The server learns nothing by it. It already knows the recipient, the
+  // device, and the id that device published.
+  uint32 recipient_registration_id = 6;
 }
 
 message SendSealedMessageResponse {
   int64 server_timestamp = 1;
+  // Devices the sender's sessions are out of date for. When this is not
+  // empty NOTHING in the request was delivered, to any device: the sender
+  // starts new sessions with the ones listed and sends the whole message
+  // again. All or nothing, so that a retry cannot deliver a second copy to
+  // the devices that were fine.
+  repeated StaleDevice stale_devices = 2;
+}
+
+message StaleDevice {
+  string recipient_id = 1;
+  int32 device_id = 2;
+  // False when the device no longer publishes keys at all: there is nothing
+  // to start a new session with, and it should be dropped from the send.
+  bool registered = 3;
 }
 
 message SealedInboundMessage {

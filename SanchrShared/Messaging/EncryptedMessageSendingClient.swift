@@ -194,6 +194,7 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
     /// are filtered out so the server does not echo the message back to the
     /// sending device — which would cause a duplicate row in the transcript.
     private let localDeviceId: Int32
+    private let dispatcher: SealedSendDispatcher
 
     public init(
         grpcClient: GRPCClientProtocol,
@@ -205,6 +206,11 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         self.signalManager = signalManager
         self.sealedSenderManager = sealedSenderManager
         self.localDeviceId = localDeviceId
+        self.dispatcher = SealedSendDispatcher(
+            grpcClient: grpcClient,
+            signalManager: signalManager,
+            sealedSenderManager: sealedSenderManager
+        )
     }
 
     public func sendSealedMessage(
@@ -238,68 +244,72 @@ public final class DefaultSealedMessageSendingClient: SealedMessageSendingClient
         //    using Signal-encrypt + delivery token auth).
         _ = try await sealedSenderManager.getSenderCertificate()
 
-        // 3. Per-device encryption for each peer recipient.
-        var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
-        for recipientId in recipientIds {
-            let deviceMessages = try await signalManager.encryptForAllDevices(
-                plaintext: innerPayloadData,
-                recipientId: recipientId
-            )
-            for dm in deviceMessages {
-                var sealed = Sanchr_Messaging_SealedDeviceMessage()
-                sealed.recipientID = dm.recipientID
-                sealed.deviceID = dm.deviceID
-                sealed.sealedEnvelope = dm.ciphertext
-                sealed.conversationID = conversationId
-                sealedDeviceMessages.append(sealed)
+        // 3–6. Encrypt per device and dispatch. The encryption is a closure
+        //    because it may run twice: if the server answers that a device
+        //    was set up again since our session with it, the dispatcher
+        //    drops that session and asks for the message to be encrypted
+        //    afresh, which starts a new one.
+        let signalManager = self.signalManager
+        let localDeviceId = self.localDeviceId
+        let response = try await dispatcher.dispatch {
+            // Per-device encryption for each peer recipient.
+            var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
+            for recipientId in recipientIds {
+                let deviceMessages = try await signalManager.encryptForAllDevices(
+                    plaintext: innerPayloadData,
+                    recipientId: recipientId
+                )
+                for dm in deviceMessages {
+                    var sealed = Sanchr_Messaging_SealedDeviceMessage()
+                    sealed.recipientID = dm.recipientID
+                    sealed.deviceID = dm.deviceID
+                    sealed.sealedEnvelope = dm.ciphertext
+                    sealed.conversationID = conversationId
+                    sealedDeviceMessages.append(sealed)
+                }
             }
-        }
 
-        // 4. Self-sync: build InnerPayload with isSync=true and encrypt for
-        //    the sender's own OTHER devices so multi-device stays in sync.
-        //    The current sending device is explicitly excluded — routing a
-        //    self-sync envelope back to ourselves would produce a duplicate
-        //    transcript row (the local optimistic message already covers it).
-        let syncPayloadData = try sealedSenderManager.encodeInnerPayload(
-            conversationId: conversationId,
-            messageId: messageId,
-            contentType: contentType,
-            content: plaintext,
-            isSync: true,
-            expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil,
-            replyToMessageId: replyToMessageId
-        )
-        do {
-            let selfDeviceMessages = try await signalManager.encryptForAllDevices(
-                plaintext: syncPayloadData,
-                recipientId: senderId
+            // Self-sync: build InnerPayload with isSync=true and encrypt for
+            //    the sender's own OTHER devices so multi-device stays in sync.
+            //    The current sending device is explicitly excluded — routing a
+            //    self-sync envelope back to ourselves would produce a duplicate
+            //    transcript row (the local optimistic message already covers it).
+            let syncPayloadData = try sealedSenderManager.encodeInnerPayload(
+                conversationId: conversationId,
+                messageId: messageId,
+                contentType: contentType,
+                content: plaintext,
+                isSync: true,
+                expiresAfterSecs: expiresAfterSecs > 0 ? expiresAfterSecs : nil,
+                replyToMessageId: replyToMessageId
             )
-            for dm in selfDeviceMessages where dm.deviceID != localDeviceId {
-                var sealed = Sanchr_Messaging_SealedDeviceMessage()
-                sealed.recipientID = dm.recipientID
-                sealed.deviceID = dm.deviceID
-                sealed.sealedEnvelope = dm.ciphertext
-                sealed.conversationID = conversationId
-                sealedDeviceMessages.append(sealed)
+            do {
+                let selfDeviceMessages = try await signalManager.encryptForAllDevices(
+                    plaintext: syncPayloadData,
+                    recipientId: senderId
+                )
+                for dm in selfDeviceMessages where dm.deviceID != localDeviceId {
+                    var sealed = Sanchr_Messaging_SealedDeviceMessage()
+                    sealed.recipientID = dm.recipientID
+                    sealed.deviceID = dm.deviceID
+                    sealed.sealedEnvelope = dm.ciphertext
+                    sealed.conversationID = conversationId
+                    sealedDeviceMessages.append(sealed)
+                }
+            } catch {
+                // Self-sync failure is non-fatal: the message still reaches
+                // the peer. Log and continue so the send is not blocked by a
+                // missing self-device key bundle (e.g. single-device user).
+                SanchrLogger.crypto.warning(
+                    "Sealed sender self-sync encrypt failed (non-fatal): \(error.localizedDescription)"
+                )
             }
-        } catch {
-            // Self-sync failure is non-fatal: the message still reaches
-            // the peer. Log and continue so the send is not blocked by a
-            // missing self-device key bundle (e.g. single-device user).
-            SanchrLogger.crypto.warning(
-                "Sealed sender self-sync encrypt failed (non-fatal): \(error.localizedDescription)"
-            )
+
+            return sealedDeviceMessages
         }
-
-        // 5. Acquire delivery token (replaces JWT for this call).
-        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
-
-        // 6. Build and dispatch the unauthenticated gRPC request.
-        var request = Sanchr_Messaging_SendSealedMessageRequest()
-        request.deliveryToken = deliveryToken
-        request.deviceMessages = sealedDeviceMessages
-
-        let response = try await grpcClient.messagingService.sendSealedMessage(request)
+        guard let response else {
+            throw AppError.sessionNotEstablished
+        }
 
         // 7. Background-replenish the token pool.
         await sealedSenderManager.replenishIfNeeded()

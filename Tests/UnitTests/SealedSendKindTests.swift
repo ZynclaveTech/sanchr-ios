@@ -27,7 +27,7 @@ final class SealedSendKindTests: XCTestCase {
     }
 
     func testControlSendsAreMarkedSilent() {
-        let built = repository().buildSealedDeviceMessages(from: deviceMessages(3), kind: .control)
+        let built = MessageRepositoryImpl.buildSealedDeviceMessages(from: deviceMessages(3), kind: .control)
         XCTAssertEqual(built.count, 3)
         XCTAssertTrue(built.allSatisfy(\.silent), "receipts, presence and keys must not alert")
     }
@@ -35,7 +35,7 @@ final class SealedSendKindTests: XCTestCase {
     /// The half that matters most. If a real message is ever marked silent, the
     /// recipient stops being notified — and only their phone shows it.
     func testMessageSendsAreNotSilent() {
-        let built = repository().buildSealedDeviceMessages(from: deviceMessages(2), kind: .message)
+        let built = MessageRepositoryImpl.buildSealedDeviceMessages(from: deviceMessages(2), kind: .message)
         XCTAssertTrue(built.allSatisfy { !$0.silent }, "a message a person wrote must alert")
     }
 
@@ -49,7 +49,7 @@ final class SealedSendKindTests: XCTestCase {
     /// wrong device with the wrong bytes.
     func testEveryFieldIsCarriedThrough() {
         let source = deviceMessages(2)
-        let built = repository().buildSealedDeviceMessages(from: source, kind: .message)
+        let built = MessageRepositoryImpl.buildSealedDeviceMessages(from: source, kind: .message)
 
         for (original, wire) in zip(source, built) {
             XCTAssertEqual(wire.recipientID, original.recipientID)
@@ -63,10 +63,10 @@ final class SealedSendKindTests: XCTestCase {
     /// empty until that is a deliberate decision — populating it would tell
     /// the server which conversation every sealed message belongs to.
     func testConversationIdIsOmittedUnlessAsked() {
-        let built = repository().buildSealedDeviceMessages(from: deviceMessages(1), kind: .message)
+        let built = MessageRepositoryImpl.buildSealedDeviceMessages(from: deviceMessages(1), kind: .message)
         XCTAssertTrue(built[0].conversationID.isEmpty)
 
-        let tagged = repository().buildSealedDeviceMessages(
+        let tagged = MessageRepositoryImpl.buildSealedDeviceMessages(
             from: deviceMessages(1), kind: .message, conversationId: "conv-1"
         )
         XCTAssertEqual(tagged[0].conversationID, "conv-1")
@@ -75,6 +75,6 @@ final class SealedSendKindTests: XCTestCase {
     /// An empty input must produce an empty request rather than a send with no
     /// recipients.
     func testEmptyInputProducesNothing() {
-        XCTAssertTrue(repository().buildSealedDeviceMessages(from: [], kind: .control).isEmpty)
+        XCTAssertTrue(MessageRepositoryImpl.buildSealedDeviceMessages(from: [], kind: .control).isEmpty)
     }
 }

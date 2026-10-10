@@ -299,6 +299,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let localDatabase: LocalDatabaseProtocol
     private let signalProtocol: SignalProtocolManagerProtocol
     private let sealedSenderManager: SealedSenderManagerProtocol
+    /// Every sealed send leaves through this, so that each one states which
+    /// registration it was encrypted for and is repaired if the server says
+    /// that device has been set up again.
+    private let sealedSendDispatcher: SealedSendDispatcher
     private let chatVaultPolicyMirror: ChatVaultPolicyMirror
     private let vaultRepository: VaultRepositoryProtocol
     private let mediaDownloadManager: MediaDownloadManager
@@ -335,6 +339,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.localDatabase = localDatabase
         self.signalProtocol = signalProtocol
         self.sealedSenderManager = sealedSenderManager
+        self.sealedSendDispatcher = SealedSendDispatcher(
+            grpcClient: grpcClient,
+            signalManager: signalProtocol,
+            sealedSenderManager: sealedSenderManager
+        )
         self.chatVaultPolicyMirror = chatVaultPolicyMirror
         self.vaultRepository = vaultRepository
         self.mediaDownloadManager = mediaDownloadManager
@@ -447,32 +456,35 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // Control traffic never answers a message.
             replyToMessageId: nil
         )
-        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
-
-        var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
-        // Encryption is all-or-nothing: if any peer's device fails, the whole send throws
-        // and no device messages are delivered. This is correct Signal behavior — partial
-        // device-set delivery on first send would break session consistency.
-        for peerId in peerIds {
-            let encrypted = try await signalProtocol.encryptForAllDevices(
-                plaintext: innerPayload,
-                recipientId: peerId
-            )
-            sealedDeviceMessages.append(
-                contentsOf: buildSealedDeviceMessages(from: encrypted, kind: .message)
-            )
-        }
-
-        var request = Sanchr_Messaging_SendSealedMessageRequest()
-        request.deliveryToken = deliveryToken
-        request.deviceMessages = sealedDeviceMessages
         // SendSealedMessageRequest deliberately carries no TTL field: the timer
         // travels inside the sealed InnerPayload instead, so the server never
         // learns it. Expiry is enforced on each device by
         // DisappearingMessageSweeper, and fetchMessages hides anything past its
         // deadline in the window before a sweep runs.
-
-        let response = try await grpcClient.messagingService.sendSealedMessage(request)
+        //
+        // The encryption is handed over as a closure because it may run twice:
+        // see SealedSendDispatcher.
+        let signalProtocol = self.signalProtocol
+        let sent = try await sealedSendDispatcher.dispatch {
+            var sealedDeviceMessages: [Sanchr_Messaging_SealedDeviceMessage] = []
+            // Encryption is all-or-nothing: if any peer's device fails, the whole send throws
+            // and no device messages are delivered. This is correct Signal behavior — partial
+            // device-set delivery on first send would break session consistency.
+            for peerId in peerIds {
+                let encrypted = try await signalProtocol.encryptForAllDevices(
+                    plaintext: innerPayload,
+                    recipientId: peerId
+                )
+                sealedDeviceMessages.append(
+                    contentsOf: Self.buildSealedDeviceMessages(from: encrypted, kind: .message)
+                )
+            }
+            return sealedDeviceMessages
+        }
+        guard let response = sent else {
+            // Nobody to encrypt for. Reported, not passed off as sent.
+            throw AppError.sessionNotEstablished
+        }
 
         // Schedule background token pool replenishment (fire-and-forget).
         Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
@@ -697,7 +709,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// Four call sites had grown four identical copies of this loop, so the
     /// `silent` flag would have had to be remembered in each of them
     /// separately. One builder, one argument, no way to omit it.
-    func buildSealedDeviceMessages(
+    static func buildSealedDeviceMessages(
         from encrypted: [Sanchr_Messaging_DeviceMessage],
         kind: SealedSendKind,
         conversationId: String? = nil
@@ -711,6 +723,23 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             if let conversationId { sdm.conversationID = conversationId }
             return sdm
         }
+    }
+
+    /// Sends something that is not a message a person wrote — a receipt,
+    /// presence, a profile key — to every device of one contact.
+    ///
+    /// False when the contact has no device to send to, in which case nothing
+    /// was sent and no delivery token was spent.
+    private func sendSealedControl(_ innerPayload: Data, to userId: String) async throws -> Bool {
+        let signalProtocol = self.signalProtocol
+        let response = try await sealedSendDispatcher.dispatch {
+            Self.buildSealedDeviceMessages(
+                from: try await signalProtocol.encryptForAllDevices(
+                    plaintext: innerPayload, recipientId: userId),
+                kind: .control
+            )
+        }
+        return response != nil
     }
 
     private func sendSealedReceipt(
@@ -743,20 +772,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 // Control traffic never answers a message.
                 replyToMessageId: nil
             )
-            let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
-
-            let encrypted = try await signalProtocol.encryptForAllDevices(
-                plaintext: innerPayload,
-                recipientId: peerUserId
-            )
-            guard !encrypted.isEmpty else { return }
-
-            let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
-
-            var request = Sanchr_Messaging_SendSealedMessageRequest()
-            request.deliveryToken = deliveryToken
-            request.deviceMessages = deviceMessages
-            _ = try await grpcClient.messagingService.sendSealedMessage(request)
+            guard try await sendSealedControl(innerPayload, to: peerUserId) else { return }
 
             Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
             SanchrLogger.chat.debug(
@@ -1053,20 +1069,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // Control traffic never answers a message.
             replyToMessageId: nil
         )
-        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
-
-        let encrypted = try await signalProtocol.encryptForAllDevices(
-            plaintext: innerPayload,
-            recipientId: recipientUserId
-        )
-        guard !encrypted.isEmpty else { return }
-
-        let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
-
-        var request = Sanchr_Messaging_SendSealedMessageRequest()
-        request.deliveryToken = deliveryToken
-        request.deviceMessages = deviceMessages
-        _ = try await grpcClient.messagingService.sendSealedMessage(request)
+        guard try await sendSealedControl(innerPayload, to: recipientUserId) else { return }
 
         Task { [sealedSenderManager] in await sealedSenderManager.replenishIfNeeded() }
     }
@@ -1303,20 +1306,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // Control traffic never answers a message.
             replyToMessageId: nil
         )
-        let deliveryToken = try await sealedSenderManager.acquireDeliveryToken()
-
-        let encrypted = try await signalProtocol.encryptForAllDevices(
-            plaintext: innerPayload,
-            recipientId: recipientUserId
-        )
-        guard !encrypted.isEmpty else { return }
-
-        let deviceMessages = buildSealedDeviceMessages(from: encrypted, kind: .control)
-
-        var request = Sanchr_Messaging_SendSealedMessageRequest()
-        request.deliveryToken = deliveryToken
-        request.deviceMessages = deviceMessages
-        _ = try await grpcClient.messagingService.sendSealedMessage(request)
+        guard try await sendSealedControl(innerPayload, to: recipientUserId) else { return }
 
         profileKeyStore.markOwnProfileKeySent(toUserId: recipientUserId)
         SanchrLogger.chat.debug("Sent profile key to \(recipientUserId.prefix(8))")
