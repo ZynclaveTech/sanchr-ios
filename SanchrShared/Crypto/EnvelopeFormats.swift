@@ -77,6 +77,10 @@ public enum AndroidEnvelopeReader {
         /// The envelope came with a named sender, and is from someone else.
         case senderMismatch
         case unsupportedMessageType
+        /// The certificate is good and names this sender, but the message is
+        /// from inside a session this device does not hold: they are
+        /// encrypting to a session that has been lost here.
+        case sessionLost(senderUserId: String, senderDeviceId: UInt32)
     }
 
     /// Opens a sealed-sender envelope.
@@ -104,7 +108,20 @@ public enum AndroidEnvelopeReader {
         }
 
         let sender = try ProtocolAddress(name: certificate.senderUuid, deviceId: certificate.deviceId)
-        let padded = try decrypt(content.contents, type: content.messageType, from: sender, stores: stores)
+        let padded: Data
+        do {
+            padded = try decrypt(content.contents, type: content.messageType, from: sender, stores: stores)
+        } catch SignalError.duplicatedMessage(let reason) {
+            throw SignalError.duplicatedMessage(reason)
+        } catch {
+            // Past this point the sender is known and vouched for, which this
+            // app's own envelope never offers. If what they sent is a message
+            // from inside a session and it will not open, say so and say who:
+            // the caller can then put it right with that one contact, instead
+            // of with everyone or with nobody.
+            guard content.messageType == .whisper else { throw error }
+            throw ReadError.sessionLost(senderUserId: certificate.senderUuid, senderDeviceId: certificate.deviceId)
+        }
         return SealedDecryptResult(
             plaintext: try MessagePadding.strip(padded),
             senderUserId: certificate.senderUuid,

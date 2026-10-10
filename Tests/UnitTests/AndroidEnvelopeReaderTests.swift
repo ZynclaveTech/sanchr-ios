@@ -233,6 +233,59 @@ final class AndroidEnvelopeReaderTests: XCTestCase {
         XCTAssertThrowsError(try open(envelope))
     }
 
+    /// The sender is known by this point, so a lost session can be repaired
+    /// with that one contact.
+    func testALaterMessageToASessionThisDeviceLostSaysWhoSentIt() throws {
+        let alice = AndroidPeer("alice", deviceId: 2)
+        try startSession(alice)
+        _ = try open(try sealedEnvelope(from: alice, "one"))
+        try reply(to: alice)
+        let later = try sealedEnvelope(from: alice, "two")
+        // As after a reinstall here: her session is gone.
+        me = InMemorySignalProtocolStore(identity: myIdentity, registrationId: 4242)
+
+        XCTAssertThrowsError(try open(later)) { error in
+            XCTAssertEqual(
+                error as? AndroidEnvelopeReader.ReadError,
+                .sessionLost(senderUserId: "alice", senderDeviceId: 2))
+        }
+    }
+
+    /// A replay is a replay, not a lost session.
+    func testAReplayedLaterMessageIsADuplicateNotALostSession() throws {
+        let alice = AndroidPeer("alice")
+        try startSession(alice)
+        _ = try open(try sealedEnvelope(from: alice, "one"))
+        try reply(to: alice)
+        let later = try sealedEnvelope(from: alice, "two")
+        _ = try open(later)
+
+        XCTAssertThrowsError(try open(later)) { error in
+            guard case SignalError.duplicatedMessage = error else {
+                return XCTFail("expected a duplicate, got \(error)")
+            }
+        }
+    }
+
+    /// A certificate that does not validate names nobody worth repairing with.
+    func testAnInvalidCertificateIsNeverReportedAsALostSession() throws {
+        let alice = AndroidPeer("alice")
+        try startSession(alice)
+        _ = try open(try sealedEnvelope(from: alice, "one"))
+        try reply(to: alice)
+        let otherRoot = PrivateKey.generate()
+        let otherServer = PrivateKey.generate()
+        let forged = try certificate(
+            for: alice,
+            signedBy: (try ServerCertificate(keyId: 1, publicKey: otherServer.publicKey, trustRoot: otherRoot), otherServer))
+        let later = try sealedEnvelope(from: alice, "two", certificate: forged)
+        me = InMemorySignalProtocolStore(identity: myIdentity, registrationId: 4242)
+
+        XCTAssertThrowsError(try open(later)) { error in
+            XCTAssertEqual(error as? AndroidEnvelopeReader.ReadError, .certificateNotValid)
+        }
+    }
+
     // MARK: - A bare Signal message with a named sender
 
     func testABareSignalMessageIsReadFirstAndLater() throws {
