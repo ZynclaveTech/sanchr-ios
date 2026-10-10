@@ -55,9 +55,17 @@ enum QuickLookDisplayLinks {
     static let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("sanchr-quicklook", isDirectory: true)
 
-    /// Removes the link directory for one message. No-op if there is none.
+    /// Removes the link directories for one message: its own, and those of an
+    /// album's tiles, which are keyed "<messageId>#<n>". Matching the message
+    /// id alone left every tile but the first linked — and readable — after a
+    /// view-once album was consumed. No-op if there are none.
     static func remove(messageId: String, root: URL = root) {
-        try? FileManager.default.removeItem(at: root.appendingPathComponent(messageId, isDirectory: true))
+        let fm = FileManager.default
+        try? fm.removeItem(at: root.appendingPathComponent(messageId, isDirectory: true))
+        guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { return }
+        for entry in entries where entry.hasPrefix(messageId + "#") {
+            try? fm.removeItem(at: root.appendingPathComponent(entry, isDirectory: true))
+        }
     }
 
     /// Removes every link. The links are recreated on demand, so this is

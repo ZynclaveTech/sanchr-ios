@@ -86,7 +86,13 @@ struct MediaGalleryView: View {
         default:
             isViewOnce = false
         }
-        if isViewOnce { openedViewOnceItems.insert(item.id) }
+        // The *message* id, not the page id. An album tile's page id is
+        // "<messageId>#<n>", and `deleteViewOnceMessage` looks a row up by
+        // what it is given: no row, early return, and the decrypted plaintext
+        // of every view-once album item after the first survived on disk
+        // indefinitely. A view-once message is consumed whole, so the message
+        // is what gets deleted.
+        if isViewOnce { openedViewOnceItems.insert(item.messageId) }
     }
 
     var body: some View {

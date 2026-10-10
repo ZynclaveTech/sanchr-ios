@@ -131,7 +131,11 @@ actor MediaDownloadManager {
         QuickLookDisplayLinks.remove(messageId: messageId)
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(atPath: cacheDir.path) else { return }
-        for entry in entries where entry.hasPrefix(messageId + ".") {
+        // Both namings: a single attachment caches as "<messageId>.<ext>", and
+        // an album's tiles as "<messageId>#<n>.<ext>". Matching only the first
+        // meant deleting a view-once album removed the lead photo's plaintext
+        // and left every other tile readable on disk.
+        for entry in entries where entry.hasPrefix(messageId + ".") || entry.hasPrefix(messageId + "#") {
             try? fm.removeItem(at: cacheDir.appendingPathComponent(entry))
         }
     }
