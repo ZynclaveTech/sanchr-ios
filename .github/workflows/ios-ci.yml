@@ -138,7 +138,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             > test.log 2>&1 || {
               echo "::group::Test failures"
-              grep -nE "error:|failed|Fatal error|XCTAssert" test.log | head -60
+              # Specific patterns, not "failed": the broad grep filled sixty
+              # lines with assertion source text and app log noise ("endCall
+              # RPC failed", "Keychain delete failed") and never reached the
+              # one assertion that actually failed — the name had to be dug
+              # out of the uploaded artifact by hand.
+              grep -nE "error: -\[|Test Case '.*' failed|\*\* TEST FAILED|Fatal error|error: Build input|Testing failed" test.log | head -40 \
+                || echo "(no assertion failure matched; see the full log below and the test-log artifact)"
+              echo "::endgroup::"
+              echo "::group::Test counts"
+              grep -E "Executed [0-9]+ tests" test.log | tail -5
               echo "::endgroup::"
               echo "::group::Last 60 lines"
               tail -60 test.log
