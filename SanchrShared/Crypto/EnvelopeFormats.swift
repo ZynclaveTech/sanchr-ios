@@ -77,6 +77,10 @@ public enum AndroidEnvelopeReader {
         /// The envelope came with a named sender, and is from someone else.
         case senderMismatch
         case unsupportedMessageType
+        /// The certificate is good and names this sender, but the message is
+        /// from inside a session this device does not hold: they are
+        /// encrypting to a session that has been lost here.
+        case sessionLost(senderUserId: String, senderDeviceId: UInt32)
     }
 
     /// Opens a sealed-sender envelope.
@@ -104,12 +108,42 @@ public enum AndroidEnvelopeReader {
         }
 
         let sender = try ProtocolAddress(name: certificate.senderUuid, deviceId: certificate.deviceId)
-        let padded = try decrypt(content.contents, type: content.messageType, from: sender, stores: stores)
+        let padded: Data
+        do {
+            padded = try decrypt(content.contents, type: content.messageType, from: sender, stores: stores)
+        } catch {
+            // Past this point the sender is known and vouched for, which this
+            // app's own envelope never offers. If what they sent is a message
+            // from inside a session and no session here opens it, say so and
+            // say who: the caller can then put it right with that one contact,
+            // instead of with everyone or with nobody.
+            guard content.messageType == .whisper, Self.meansSessionLost(error) else { throw error }
+            throw ReadError.sessionLost(senderUserId: certificate.senderUuid, senderDeviceId: certificate.deviceId)
+        }
         return SealedDecryptResult(
             plaintext: try MessagePadding.strip(padded),
             senderUserId: certificate.senderUuid,
             senderDeviceId: Int32(certificate.deviceId)
         )
+    }
+
+    /// Whether a failure to open a message from inside a session says the
+    /// session is gone, rather than that something else went wrong.
+    ///
+    /// The answer starts a re-key with the sender, so it is given only for
+    /// the failures that are about the session: there is none, or none of
+    /// the ones held authenticates the message. Everything else is left as
+    /// it was — a replay, an identity that is not trusted, a message that
+    /// does not parse, and above all a store that could not be read. A
+    /// keychain that is locked makes every message fail, and that is not a
+    /// reason to throw away sessions that are perfectly good.
+    public static func meansSessionLost(_ error: Error) -> Bool {
+        switch error {
+        case SignalError.sessionNotFound, SignalError.invalidSession, SignalError.invalidMessage:
+            return true
+        default:
+            return false
+        }
     }
 
     /// Opens a Signal message that arrived with nothing in front of it, from a

@@ -35,6 +35,46 @@ final class SessionHealTriggerTests: XCTestCase {
         }
     }
 
+    // MARK: - Who
+
+    /// Android's envelope says who sent it, so only they are re-keyed.
+    func testALostSessionWithANamedSenderIsRepairedWithThatSenderAlone() {
+        let error = AndroidEnvelopeReader.ReadError.sessionLost(senderUserId: "alice", senderDeviceId: 2)
+
+        XCTAssertEqual(MessageRepositoryImpl.peerToHealAfterUndeliverable(error), "alice")
+        // And it does not also set off the heal of everyone.
+        XCTAssertFalse(MessageRepositoryImpl.shouldHealAfterUndeliverable(error))
+    }
+
+    func testNothingElseNamesAPeerToRepairWith() {
+        let others: [Error] = [
+            AndroidEnvelopeReader.ReadError.certificateNotValid,
+            AndroidEnvelopeReader.ReadError.senderMismatch,
+            AndroidEnvelopeReader.ReadError.sessionLost(senderUserId: "", senderDeviceId: 1),
+            TypedEnvelopeOpener.OpenError.noSessionAuthenticates,
+            TypedEnvelopeOpener.OpenError.senderNotVouchedFor,
+            SignalError.invalidMessage("garbage"),
+        ]
+        for error in others {
+            XCTAssertNil(MessageRepositoryImpl.peerToHealAfterUndeliverable(error), "\(error)")
+        }
+    }
+
+    /// A valid certificate says who a sender is, not that they are someone to
+    /// send this account's Profile Key to.
+    func testATargetedHealIsOnlyForSomeoneAlreadyInAOneToOneConversation() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("Shared/Repositories/MessageRepository.swift"),
+            encoding: .utf8)
+        let targeted = try XCTUnwrap(source.range(of: "private func healStaleSession(with peer: String) async {"))
+        let body = String(source[targeted.upperBound...].prefix(260))
+
+        XCTAssertTrue(body.contains("guard await oneToOnePeers().contains(peer) else { return }"))
+        XCTAssertTrue(body.contains("guard await sessionHealLimiter.begin(peer) else { return }"))
+    }
+
     // MARK: - How often
 
     private final class Clock: @unchecked Sendable {

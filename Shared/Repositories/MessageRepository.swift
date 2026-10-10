@@ -1667,8 +1667,25 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // (typically after a reinstall rebuilt our Signal state). Sealed
             // sender hides who, so heal by re-keying every 1:1 peer.
             Task { [weak self] in await self?.healStaleSessions() }
+        } else if acked, let peer = Self.peerToHealAfterUndeliverable(error) {
+            // An Android envelope says who sent it, so only they are re-keyed.
+            Task { [weak self] in await self?.healStaleSession(with: peer) }
         }
         return acked
+    }
+
+    /// The one contact to re-key, when the unreadable message itself says who
+    /// is encrypting to a lost session.
+    ///
+    /// Android's envelope carries a server-signed certificate naming its
+    /// sender, so a lost session with an Android contact can be repaired with
+    /// that contact alone. This app's own envelope names nobody, which is why
+    /// its equivalent has to re-key everyone.
+    static func peerToHealAfterUndeliverable(_ error: Error) -> String? {
+        guard case .sessionLost(let senderUserId, _)? = error as? AndroidEnvelopeReader.ReadError,
+              !senderUserId.isEmpty
+        else { return nil }
+        return senderUserId
     }
 
     /// Whether a sealed message that could not be read is evidence of a
@@ -1692,7 +1709,24 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// decrypt again — without either user doing anything.
     private func healStaleSessions() async {
         guard await sessionHealLimiter.beginPass() else { return }
-        guard let conversations = try? await localDatabase.fetchConversations() else { return }
+        for peer in await oneToOnePeers() where await sessionHealLimiter.begin(peer) {
+            await heal(peer)
+        }
+    }
+
+    /// Re-keys with one contact whose message could not be read.
+    ///
+    /// Only someone this device already has a 1:1 conversation with. A heal
+    /// sends the peer this account's Profile Key, and a valid certificate
+    /// says who a sender is, not that they are someone to hand that to.
+    private func healStaleSession(with peer: String) async {
+        guard await oneToOnePeers().contains(peer) else { return }
+        guard await sessionHealLimiter.begin(peer) else { return }
+        await heal(peer)
+    }
+
+    private func oneToOnePeers() async -> Set<String> {
+        guard let conversations = try? await localDatabase.fetchConversations() else { return [] }
         let localUserId = currentUserIdProvider()
         var peers = Set<String>()
         for conversation in conversations where conversation.type == .oneToOne {
@@ -1701,16 +1735,18 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 peers.insert(participant.id)
             }
         }
-        for peer in peers where await sessionHealLimiter.begin(peer) {
-            SanchrLogger.chat.info("Healing stale sessions with \(peer.prefix(8))")
-            await signalProtocol.resetSessions(with: peer)
-            do {
-                try await sendProfileKey(recipientUserId: peer)
-            } catch {
-                SanchrLogger.chat.warning(
-                    "Session heal send failed for \(peer.prefix(8)): \(error.localizedDescription)"
-                )
-            }
+        return peers
+    }
+
+    private func heal(_ peer: String) async {
+        SanchrLogger.chat.info("Healing stale sessions with \(peer.prefix(8))")
+        await signalProtocol.resetSessions(with: peer)
+        do {
+            try await sendProfileKey(recipientUserId: peer)
+        } catch {
+            SanchrLogger.chat.warning(
+                "Session heal send failed for \(peer.prefix(8)): \(error.localizedDescription)"
+            )
         }
     }
 
