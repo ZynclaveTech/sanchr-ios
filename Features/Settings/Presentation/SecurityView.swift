@@ -109,17 +109,10 @@ struct SecurityView: View {
             }
             .buttonStyle(.plain)
 
-            NavigationLink {
-                EncryptionKeysView()
-            } label: {
-                featureRow(
-                    icon: "qrcode",
-                    title: "Security Code Verification",
-                    subtitle: "Verify contacts and device keys"
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            // "Security Code Verification" used to sit here as a second row
+            // leading to the same screen as the one above, promising something
+            // the first already delivers. Verifying a contact needs a contact,
+            // and that is reached from the conversation itself.
 
             NavigationLink {
                 VaultView()

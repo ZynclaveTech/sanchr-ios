@@ -177,6 +177,7 @@ extension AuthInterceptorFactory: Sanchr_Keys_KeyServiceClientInterceptorFactory
     public func makeGetPreKeyCountInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetPreKeyCountRequest, Sanchr_Keys_PreKeyCountResponse>] { makeInterceptors() }
     public func makeGetUserDevicesInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetUserDevicesRequest, Sanchr_Keys_GetUserDevicesResponse>] { makeInterceptors() }
     public func makeRemoveDeviceInterceptors() -> [ClientInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>] { makeInterceptors() }
+    public func makeGetIdentityKeyInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse>] { makeInterceptors() }
 }
 
 // MARK: - MediaService Interceptors

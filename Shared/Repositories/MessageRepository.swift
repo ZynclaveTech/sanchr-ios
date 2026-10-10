@@ -327,13 +327,45 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         }
     }
 
-    static func attachmentFromContent(_ content: Message.MessageContent) -> Message.MediaAttachment? {
+    /// Whether Auto-Vault Incoming may move this message.
+    ///
+    /// The content type is not enough. The vault keeps things, so two kinds
+    /// of media are off limits however the switch is set: view-once media,
+    /// which was shown once on purpose, and anything on a disappearing timer,
+    /// which both people can see. Vaulting either turned "gone after this"
+    /// into "kept" on the recipient's say-so alone — and the check used to be
+    /// the content type only, so that is what happened. One view-once item
+    /// excludes the whole message: it becomes a single tombstone and cannot
+    /// be half moved.
+    static func isVaultEligible(_ message: Message) -> Bool {
+        guard isVaultEligibleContent(message.content), message.expiresAt == nil else { return false }
+        let attachments = attachmentsFromContent(message.content)
+        return !attachments.isEmpty && !attachments.contains { $0.isViewOnce == true }
+    }
+
+    /// Every attachment the message carries — all of an album, not its first
+    /// item.
+    static func attachmentsFromContent(_ content: Message.MessageContent) -> [Message.MediaAttachment] {
         switch content {
         case .image(let media), .video(let media), .audio(let media), .document(let media):
-            return media.first
+            return media.items
         default:
-            return nil
+            return []
         }
+    }
+
+    /// The id an attachment is cached under, which for an album is per item.
+    /// Has to agree with `MediaAlbumBubble`'s own keys, or vaulting would
+    /// download a second copy and leave the first behind in the cache.
+    static func vaultCacheId(messageId: String, index: Int, count: Int) -> String {
+        count > 1 ? "\(messageId)#\(index)" : messageId
+    }
+
+    static func vaultItemType(forMimeType mimeType: String) -> VaultItem.VaultItemType {
+        if mimeType.hasPrefix("image/") { return .photo }
+        if mimeType.hasPrefix("video/") { return .video }
+        if mimeType.hasPrefix("audio/") { return .audio }
+        return .document
     }
 
     func sendMessage(_ message: Message) async throws -> Message {
@@ -1694,7 +1726,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // tombstone. Fails → leaves the original row in place.
             let policy = chatVaultPolicyMirror.policy(for: envelope.conversationID)
                 ?? .defaults(for: envelope.conversationID)
-            if policy.autoVaultIncoming, Self.isVaultEligibleContent(content) {
+            if policy.autoVaultIncoming, Self.isVaultEligible(message) {
                 Task { [weak self] in
                     await self?.routeIncomingMessageToVault(message)
                 }
@@ -1726,7 +1758,14 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) async -> SealedDecodeOutcome {
         do {
             // 1. Trial-decrypt: iterate all known sessions until one succeeds.
-            var result = try await signalProtocol.decryptSealedEnvelope(sealed.sealedEnvelope)
+            var result = try await signalProtocol.decryptSealedEnvelope(
+                sealed.sealedEnvelope,
+                // A missing timestamp must not read as 1970, when no
+                // certificate had yet expired.
+                receivedAt: sealed.serverTimestamp > 0
+                    ? Date(timeIntervalSince1970: TimeInterval(sealed.serverTimestamp) / 1000.0)
+                    : Date()
+            )
 
             // 2. Decode the InnerPayload from the decrypted plaintext.
             let innerPayload = try sealedSenderManager.decodeInnerPayload(result.plaintext)
@@ -1900,7 +1939,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let policy = chatVaultPolicyMirror.policy(for: innerPayload.conversationId)
                 ?? .defaults(for: innerPayload.conversationId)
             if !isOutgoing, policy.autoVaultIncoming,
-               Self.isVaultEligibleContent(content) {
+               Self.isVaultEligible(message) {
                 Task { [weak self] in
                     await self?.routeIncomingMessageToVault(message)
                 }
@@ -1921,7 +1960,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) -> String {
         let candidate = innerPayloadMessageId?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let candidate, !candidate.isEmpty {
+        // The payload is the sender's. Its id becomes a row key and a cache
+        // filename here, so one that is not the plain shape of an id is
+        // treated like a missing one rather than carried further.
+        if let candidate, MediaCacheFile.isWellFormedId(candidate) {
             return candidate
         }
         return sealedEnvelopeId
@@ -1933,43 +1975,50 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// tombstone. On failure leaves the original row in place so the
     /// user doesn't lose the media entirely.
     private func routeIncomingMessageToVault(_ message: Message) async {
-        guard let attachment = Self.attachmentFromContent(message.content) else { return }
+        let attachments = Self.attachmentsFromContent(message.content)
+        guard !attachments.isEmpty else { return }
         do {
-            let localFile = try await mediaDownloadManager.download(
-                messageId: message.id,
-                attachment: attachment
-            )
-            let data = try Data(contentsOf: localFile)
-            let vaultType: VaultItem.VaultItemType = {
-                switch message.content {
-                case .image: return .photo
-                case .video: return .video
-                case .audio: return .audio
-                case .document: return .document
-                default: return .document
-                }
-            }()
-            let uploadedItem = try await vaultRepository.uploadItem(
-                data: data,
-                name: attachment.filename ?? "vaulted-\(message.id).bin",
-                type: vaultType
-            )
+            // Every item, and every download before any upload. This used to
+            // take `media.first`, vault that one, and then replace the whole
+            // message with a tombstone: an album of four left one photo in
+            // the vault and the other three nowhere.
+            var localFiles: [URL] = []
+            for (index, attachment) in attachments.enumerated() {
+                localFiles.append(
+                    try await mediaDownloadManager.download(
+                        messageId: Self.vaultCacheId(
+                            messageId: message.id, index: index, count: attachments.count),
+                        attachment: attachment
+                    )
+                )
+            }
 
-            // Generate a local thumbnail blob so the Vault browser
-            // shows a preview instead of a generic placeholder. The
-            // existing VaultRepository.uploadItem doesn't set this
-            // today; we patch it onto the local cache row so the
-            // Vault tab at least has a preview immediately after
-            // auto-vaulting. Remote thumbnail upload is a separate
-            // follow-up.
-            let thumbnailData: Data? = await Self.generateThumbnailBlob(
-                fromDecryptedFile: localFile,
-                type: vaultType
-            )
-            if let thumbnailData {
-                var itemWithThumb = uploadedItem
-                itemWithThumb.thumbnailData = thumbnailData
-                try? await localDatabase.saveVaultItem(itemWithThumb)
+            for (index, attachment) in attachments.enumerated() {
+                let localFile = localFiles[index]
+                let data = try Data(contentsOf: localFile)
+                let vaultType = Self.vaultItemType(forMimeType: attachment.mimeType)
+                let uploadedItem = try await vaultRepository.uploadItem(
+                    data: data,
+                    name: attachment.filename ?? "vaulted-\(message.id)-\(index).bin",
+                    type: vaultType
+                )
+
+                // Generate a local thumbnail blob so the Vault browser
+                // shows a preview instead of a generic placeholder. The
+                // existing VaultRepository.uploadItem doesn't set this
+                // today; we patch it onto the local cache row so the
+                // Vault tab at least has a preview immediately after
+                // auto-vaulting. Remote thumbnail upload is a separate
+                // follow-up.
+                let thumbnailData: Data? = await Self.generateThumbnailBlob(
+                    fromDecryptedFile: localFile,
+                    type: vaultType
+                )
+                if let thumbnailData {
+                    var itemWithThumb = uploadedItem
+                    itemWithThumb.thumbnailData = thumbnailData
+                    try? await localDatabase.saveVaultItem(itemWithThumb)
+                }
             }
 
             // Replace the original chat row with a tombstone.
@@ -2228,11 +2277,45 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
         default:
             if let content = try? JSONDecoder().decode(Message.MessageContent.self, from: plaintext) {
-                return content
+                return Self.acceptedFromWire(content)
             }
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
         }
     }
+
+    /// What a decoded payload is allowed to become.
+    ///
+    /// The fallback branch decodes a whole `MessageContent`, which is a wider
+    /// thing than anything a peer has a reason to send. Two of its cases are
+    /// this device talking to itself, and a message is not permitted to speak
+    /// in that voice:
+    ///
+    /// - `.system` is how the app tells the user that a safety number changed
+    ///   or that media was moved to the vault. Decoded off the wire, anyone in
+    ///   the chat could put those words in the app's mouth.
+    /// - An attachment whose URL is `file://` means "already on this device".
+    ///   The bubble, the gallery, QuickLook and the forwarder all take that at
+    ///   its word and open the path — which, on an incoming message, is a path
+    ///   the sender chose inside the recipient's container.
+    ///
+    /// Either is replaced by a plain notice rather than dropped, so the
+    /// conversation still shows that something arrived.
+    static func acceptedFromWire(_ content: Message.MessageContent) -> Message.MessageContent {
+        switch content {
+        case .system:
+            return .text(Self.unsupportedMessageNotice)
+        case .image(let media), .video(let media), .audio(let media), .document(let media):
+            let allowed: Set<String> = ["sanchr-media", "https", "http"]
+            let acceptable = !media.items.isEmpty && media.items.allSatisfy {
+                allowed.contains($0.url.scheme?.lowercased() ?? "")
+            }
+            return acceptable ? content : .text(Self.unsupportedMessageNotice)
+        case .text, .location, .contact:
+            return content
+        }
+    }
+
+    static let unsupportedMessageNotice = "Unsupported message"
 
     private static func presenceStatusString(_ status: Sanchr_Messaging_PresenceStatus) -> String {
         switch status {

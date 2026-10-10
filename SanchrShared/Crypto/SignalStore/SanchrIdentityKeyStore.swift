@@ -256,6 +256,18 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
         SanchrLogger.crypto.info("Marked identity verified for \(userId.prefix(8))...")
     }
 
+    // MARK: - For TypedEnvelopeOpener
+
+    /// The addresses whose key on record is `identity` and is not awaiting
+    /// review. See `TypedEnvelopeStores.establishedAddresses(holding:)`.
+    public func establishedAddresses(holding identity: IdentityKey) -> [ProtocolAddress] {
+        queue.sync {
+            self.trustedIdentities
+                .filter { $0.value == identity && self.pendingIdentityChanges[$0.key] == nil }
+                .map(\.key)
+        }
+    }
+
     // MARK: - Identity Change Review
 
     /// Whether `userId` has an identity change the local user has not yet reviewed.

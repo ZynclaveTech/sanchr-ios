@@ -241,6 +241,7 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    isEphemeral: message.expiresAt != nil,
                     uploadProgress: uploadProgress,
                     uploadLabel: uploadLabel,
                     onTapTile: { index in
@@ -256,6 +257,7 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    isEphemeral: message.expiresAt != nil,
                     uploadProgress: uploadProgress,
                     uploadLabel: uploadLabel,
                     squaresBottomCorners: Self.hasCaption(single.caption)
@@ -295,6 +297,7 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    isEphemeral: message.expiresAt != nil,
                     uploadProgress: uploadProgress,
                     uploadLabel: uploadLabel,
                     onTapTile: { index in
@@ -310,6 +313,7 @@ struct MessageBubble: View {
                     messageId: message.id,
                     conversationId: message.conversationId,
                     isOutgoing: message.isOutgoing,
+                    isEphemeral: message.expiresAt != nil,
                     uploadProgress: uploadProgress,
                     uploadLabel: uploadLabel,
                     showsPlayGlyph: true,

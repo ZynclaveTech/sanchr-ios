@@ -672,6 +672,14 @@ struct RootView: View {
                 } else {
                     // Keys exist; just make sure server has enough pre-keys
                     try await container.signalKeyManager.checkAndReplenishPreKeys(threshold: 25)
+                    // Its own failure is not a reason to skip anything else
+                    // here: the old pair goes on working, and it is tried
+                    // again at the next launch or sync.
+                    do {
+                        try await container.signalKeyManager.rotateSignedPreKeyIfNeeded()
+                    } catch {
+                        SanchrLogger.crypto.warning("Pre-key rotation failed: \(error.localizedDescription)")
+                    }
                 }
             }
         } catch {

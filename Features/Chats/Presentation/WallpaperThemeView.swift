@@ -13,6 +13,13 @@ struct WallpaperThemeView: View {
     @State private var darkMode: Bool = false
     @State private var hasOverride: Bool = false
     @State private var isLoading: Bool = true
+    /// The wallpaper last chosen for each tone, keyed by `isDark`.
+    ///
+    /// Toggling Dark Mode changes the wallpaper when the current one does not
+    /// match the new tone, and toggling back used to land on the first light
+    /// wallpaper rather than the one the user had picked — an unrelated switch
+    /// quietly destroying their choice, with no way to get it back.
+    @State private var wallpaperByTone: [Bool: String] = [:]
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -173,20 +180,27 @@ struct WallpaperThemeView: View {
         let appearance = container.chatAppearance.effectiveAppearance(for: conversationId)
         selectedWallpaperId = appearance.wallpaperId
         darkMode = (appearance.appearanceMode == .dark)
-        hasOverride = false
+        // Read back rather than assumed false: the banner says whether this
+        // chat overrides the global choice, and asserting it does not — when
+        // the store may disagree — makes the banner lie.
+        hasOverride = appearance.isPerChatOverride
     }
 
-    /// When the user toggles dark mode on/off, switch the selected
-    /// wallpaper to the first matching-tone wallpaper from the registry
-    /// IF the current selection doesn't already match. Avoids the
-    /// incoherent "dark mode on, but light wallpaper selected" state
-    /// while preserving the user's explicit pick when they pick it
-    /// after toggling.
+    /// When the user toggles dark mode, move to a wallpaper of the matching
+    /// tone — but to the one they last chose for that tone when there is one,
+    /// so toggling twice returns them to where they were instead of to the
+    /// first wallpaper in the registry.
     private func autoSwitchWallpaperForMode(_ isDark: Bool) {
         let currentWp = WallpaperPainter.wallpaper(for: selectedWallpaperId)
         guard currentWp.isDark != isDark else { return }
-        let candidates = WallpaperPainter.allWallpapers.filter { $0.isDark == isDark }
-        if let first = candidates.first {
+        wallpaperByTone[currentWp.isDark] = selectedWallpaperId
+        if let remembered = wallpaperByTone[isDark],
+           WallpaperPainter.allWallpapers.contains(where: { $0.id == remembered && $0.isDark == isDark })
+        {
+            selectedWallpaperId = remembered
+            return
+        }
+        if let first = WallpaperPainter.allWallpapers.first(where: { $0.isDark == isDark }) {
             selectedWallpaperId = first.id
         }
     }

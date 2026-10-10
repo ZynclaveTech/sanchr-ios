@@ -17,6 +17,9 @@ struct ConversationInfoView: View {
     @State private var mediaVisibility = true
     @State private var isConversationArchived: Bool
     @State private var showDisappearingMessages = false
+    /// This chat's timer in seconds, read from the store. The row's subtitle
+    /// was the literal "Off", so a chat that did expire said it did not.
+    @State private var disappearingSeconds: Int = 0
     @State private var showVaultMedia = false
     @State private var showWallpaper = false
     @State private var recentMedia: [Message] = []
@@ -41,6 +44,21 @@ struct ConversationInfoView: View {
             initialValue: ChatMediaVisibilityStore.isVisibleInGallery(conversationId: conversation.id)
         )
         _isConversationArchived = State(initialValue: conversation.isArchived)
+    }
+
+    /// How a timer of [seconds] reads in a row subtitle. The same ladder the
+    /// picker offers, so the two cannot disagree.
+    static func disappearingLabel(seconds: Int) -> String {
+        switch seconds {
+        case ..<1: return "Off"
+        case 30: return "30 seconds"
+        case 300: return "5 minutes"
+        case 3600: return "1 hour"
+        case 86400: return "24 hours"
+        case 604_800: return "7 days"
+        case 2_592_000: return "30 days"
+        default: return "On"
+        }
     }
 
     /// Use refreshed data if available, fall back to initial snapshot
@@ -178,7 +196,12 @@ struct ConversationInfoView: View {
             }
         }
         .background(SanchrExportColors.background.ignoresSafeArea())
-        .navigationTitle("Chat Settings")
+        // Named for the conversation it describes. "Chat Settings" is the
+        // account-wide screen's own title, so the two were indistinguishable.
+        .navigationTitle(
+            activeRecipient?.displayName.isEmpty == false
+                ? activeRecipient!.displayName
+                : (conversation.type == .group ? "Group Info" : "Contact Info"))
         .navigationBarTitleDisplayMode(.inline)
         .sanchrInteractivePopEnabled()
         .task {
@@ -243,6 +266,14 @@ struct ConversationInfoView: View {
         .task {
             await loadRecentMediaIfNeeded()
         }
+        .task(id: showDisappearingMessages) {
+            // Re-read when the picker closes, so the subtitle reflects a
+            // change made there without leaving the screen.
+            disappearingSeconds = Int(
+                (try? await container.localDatabase.disappearingDuration(
+                    conversationId: conversation.id)) ?? 0
+            )
+        }
         .navigationDestination(isPresented: $showDisappearingMessages) {
             DisappearingMessagesView(conversationId: conversation.id)
         }
@@ -276,7 +307,14 @@ struct ConversationInfoView: View {
         .alert("Block Contact", isPresented: $showBlockContact) {
             Button("Block", role: .destructive) {
                 Task {
-                    guard let userId = recipient?.id else { return }
+                    // `activeRecipient`, as everywhere else on this screen:
+                    // reading the initial snapshot meant a group — or a chat
+                    // opened before the recipient resolved — silently did
+                    // nothing after the user confirmed a destructive action.
+                    guard let userId = activeRecipient?.id else {
+                        conversationActionErrorMessage = "This conversation has no single contact to block."
+                        return
+                    }
                     let dataSource = ContactDataSource(
                         grpcClient: container.grpcClient,
                         localDatabase: container.localDatabase
@@ -531,7 +569,8 @@ struct ConversationInfoView: View {
     }
 
     private func loadRecentMediaIfNeeded() async {
-        guard recentMedia.isEmpty else { return }
+        // Re-read every time. The early return on a non-empty list meant media
+        // sent after the screen first loaded never appeared in the strip.
         let messages = (try? await container.localDatabase.fetchMessages(
             conversationId: conversation.id,
             before: nil,
@@ -640,7 +679,7 @@ struct ConversationInfoView: View {
                     iconBg: SanchrExportColors.surfaceSoft,
                     iconColor: SanchrExportColors.textSecondary,
                     title: "Disappearing Messages",
-                    subtitle: "Off"
+                    subtitle: Self.disappearingLabel(seconds: disappearingSeconds)
                 )
             }
             .buttonStyle(.plain)

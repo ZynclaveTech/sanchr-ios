@@ -7,6 +7,9 @@ final class DefaultDisappearingTimerTests: XCTestCase {
 
     func testKnownTokensMapToConversationDurations() {
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "off"), 0)
+        // 30 seconds is a real option again: Android offers it, and a chat set
+        // there used to match no row on this side at all.
+        XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "30s"), 30)
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "5m"), 300)
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "1h"), 3600)
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "24h"), 86400)
@@ -14,12 +17,11 @@ final class DefaultDisappearingTimerTests: XCTestCase {
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "30d"), 2_592_000)
     }
 
-    /// Builds before this change offered 5s/30s/1m defaults that no
-    /// conversation could hold. Those stale values must read as "off" rather
-    /// than turning on a timer nobody chose.
+    /// Older builds offered 5s and 1m defaults that no conversation could
+    /// hold. Those stale values must read as "off" rather than turning on a
+    /// timer nobody chose.
     func testRetiredAndUnknownTokensReadAsOff() {
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "5s"), 0)
-        XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "30s"), 0)
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: "1m"), 0)
         XCTAssertEqual(DefaultDisappearingTimer.seconds(forToken: ""), 0)
     }

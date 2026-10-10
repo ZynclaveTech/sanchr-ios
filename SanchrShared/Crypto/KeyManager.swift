@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 import LibSignalClient
 
 /// Protocol for cryptographic key lifecycle management using libsignal.
@@ -39,6 +40,17 @@ public protocol KeyManagerProtocol: AnyObject, Sendable {
 
     /// Returns `true` if identity keys have been generated for this device.
     var hasIdentityKeys: Bool { get }
+
+    /// Replaces the signed pre-key and Kyber pre-key if they are due.
+    /// Returns whether a new pair was published.
+    @discardableResult
+    func rotateSignedPreKeyIfNeeded() async throws -> Bool
+}
+
+extension KeyManagerProtocol {
+    /// For conformers with no keys to rotate.
+    @discardableResult
+    public func rotateSignedPreKeyIfNeeded() async throws -> Bool { false }
 }
 
 /// Manages Signal Protocol key generation, secure storage, and server synchronization.
@@ -61,9 +73,22 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
 
     // MARK: - Init
 
+    private let rotation: PreKeyRotation
+
     public init(store: SanchrSignalStore, keyService: Sanchr_Keys_KeyServiceAsyncClientProtocol) {
         self.store = store
         self.keyService = keyService
+        self.rotation = PreKeyRotation(
+            signedPreKeys: store.signedPreKeyStore,
+            kyberPreKeys: store.kyberPreKeyStore,
+            identity: {
+                (
+                    try store.identityStore.identityKeyPair(context: NullContext()),
+                    try store.identityStore.localRegistrationId(context: NullContext())
+                )
+            },
+            upload: { bundle in _ = try await keyService.uploadKeyBundle(bundle) }
+        )
         SanchrLogger.crypto.info("SignalKeyManager initialized")
     }
 
@@ -127,6 +152,10 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Server Sync
 
     public func uploadInitialKeyBundle() async throws {
+        // A rotation left unfinished is abandoned: this publishes a fresh
+        // pair of its own, and after an identity reset the pending one is
+        // signed by a key that no longer exists.
+        store.signedPreKeyStore.pendingRotation = nil
         let identityKeyPair = try store.identityStore.identityKeyPair(context: NullContext())
         let registrationId = try store.identityStore.localRegistrationId(context: NullContext())
         let signedPreKey = try generateSignedPreKey()
@@ -198,6 +227,11 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         return Int(response.count)
     }
 
+    @discardableResult
+    public func rotateSignedPreKeyIfNeeded() async throws -> Bool {
+        try await rotation.rotateIfNeeded()
+    }
+
     public func signedPreKeyCreatedAt() throws -> Date? {
         let id = store.signedPreKeyStore.currentSignedPreKeyId
         guard id != 0 else { return nil }
@@ -240,6 +274,54 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         // 3. Upload new key bundle to server
         try await uploadInitialKeyBundle()
         SanchrLogger.crypto.info("Identity keys reset, \(allAddresses.count) sessions cleared, new bundle uploaded")
+    }
+
+    // MARK: - Published Identity
+
+    /// The identity key the server publishes for a user's device, or nil when
+    /// it publishes none.
+    ///
+    /// Asked with the call made for it, which costs that person nothing. The
+    /// only way to ask used to be for a whole pre-key bundle, which spends one
+    /// of their one-time pre-keys each time — on a question anyone can
+    /// trigger by sending a first message that names them.
+    public func fetchPublishedIdentityKey(userId: String, deviceId: Int32) async throws -> IdentityKey? {
+        try await Self.publishedIdentityKey(
+            lookup: {
+                var request = Sanchr_Keys_GetIdentityKeyRequest()
+                request.userID = userId
+                request.deviceID = deviceId
+                return try await self.keyService.getIdentityKey(request).identityPublicKey
+            },
+            bundle: { try await self.fetchPreKeyBundle(userId: userId, deviceId: deviceId).identityKey }
+        )
+    }
+
+    /// The rule for where the answer comes from, apart from the transport so
+    /// it can be tested.
+    ///
+    /// - "No such key" is an answer.
+    /// - A server that predates the call says `unimplemented`, and only then
+    ///   is a bundle asked for, as before.
+    /// - Anything else is a failure and is thrown. Falling back on any error
+    ///   would spend a pre-key every time the network blipped.
+    static func publishedIdentityKey(
+        lookup: () async throws -> Data,
+        bundle: () async throws -> IdentityKey
+    ) async throws -> IdentityKey? {
+        do {
+            let bytes = try await lookup()
+            return bytes.isEmpty ? nil : try IdentityKey(bytes: [UInt8](bytes))
+        } catch let status as GRPCStatus where status.code == .notFound {
+            return nil
+        } catch let status as GRPCStatus where status.code == .unimplemented {
+            do {
+                return try await bundle()
+            } catch let status as GRPCStatus where status.code == .notFound {
+                // The old way of saying the same thing.
+                return nil
+            }
+        }
     }
 
     // MARK: - Pre-Key Bundle Fetching

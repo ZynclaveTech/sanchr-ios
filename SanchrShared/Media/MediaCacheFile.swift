@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Filenames for cached media.
@@ -49,7 +50,75 @@ public enum MediaCacheFile {
 
     /// Cache filename for a message's media.
     public static func fileName(messageId: String, mimeType: String) -> String {
-        "\(messageId).\(fileExtension(for: mimeType))"
+        fileName(messageId: messageId, ext: fileExtension(for: mimeType))
+    }
+
+    /// Cache filename for a message's media, for a caller that already holds
+    /// the extension.
+    public static func fileName(messageId: String, ext: String) -> String {
+        "\(safeId(messageId)).\(ext)"
+    }
+
+    // MARK: - Ids as path components
+
+    /// `messageId` as something that is safe to use as one path component.
+    ///
+    /// The id comes out of the message, and the message comes from someone
+    /// else: a sealed payload may carry any string as its `message_id`. Used
+    /// as a filename as it stood, `../../Library/x` named a file outside the
+    /// cache directory, which the download path then wrote decrypted bytes to.
+    ///
+    /// An id of the shape both apps actually produce is returned unchanged, so
+    /// files cached before this existed are still found and still removed.
+    /// Anything else is replaced by its hash: still a stable name for that
+    /// message, and one with no separators in it. A trailing `#<n>` — an album
+    /// tile — is kept apart from the hashing so that a message's tiles still
+    /// share its prefix, which is how they are found when it is deleted.
+    public static func safeId(_ messageId: String) -> String {
+        var base = Substring(messageId)
+        var tile = ""
+        if let hash = messageId.lastIndex(of: "#") {
+            let suffix = messageId[messageId.index(after: hash)...]
+            if !suffix.isEmpty, suffix.count <= 4, suffix.utf8.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }) {
+                base = messageId[..<hash]
+                tile = "#" + suffix
+            }
+        }
+        let safeBase = isWellFormedId(String(base)) ? String(base) : sha256Hex(String(base))
+        return safeBase + tile
+    }
+
+    /// Whether `id` is a shape a message id is allowed to have: ASCII letters,
+    /// digits, `-` and `_`, and not unreasonably long.
+    public static func isWellFormedId(_ id: String) -> Bool {
+        guard !id.isEmpty, id.utf8.count <= 96 else { return false }
+        return id.utf8.allSatisfy { byte in
+            (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
+                || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D || byte == 0x5F
+        }
+    }
+
+    /// A sender's filename as something safe to use as one path component, or
+    /// nil when nothing usable is left.
+    ///
+    /// The filename travels in the message. It is shown to the user and, for
+    /// documents, becomes the name of a link on disk so that QuickLook and the
+    /// share sheet say "report.pdf" rather than a message id. `../../x` there
+    /// placed that link — to decrypted bytes — wherever the sender liked
+    /// inside the app's container.
+    public static func safeDisplayName(_ filename: String?) -> String? {
+        guard let filename else { return nil }
+        // Both separators: a name built on Windows is still a path here once
+        // something splits on the other one.
+        let last = filename.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? ""
+        let cleaned = String(last.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })
+            .trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty, cleaned != ".", cleaned != ".." else { return nil }
+        return String(cleaned.prefix(255))
+    }
+
+    private static func sha256Hex(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Cache filename for one tile of a multi-attachment message.

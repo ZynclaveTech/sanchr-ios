@@ -120,6 +120,9 @@ struct ChatDetailView: View {
     @State private var presentingNewContact: NewContactPayload?
     @State private var invitePayload: GalleryIdentifiedURLBridge?
     @State private var messageToForward: Message?
+    /// The message a delete was asked for. Deleting for everyone needs a
+    /// choice, so the menu's Delete opens this rather than acting at once.
+    @State private var messageToDelete: Message?
     @State private var callErrorMessage: String?
     @State private var conversationActionErrorMessage: String?
     @State private var isConversationArchived: Bool
@@ -140,6 +143,17 @@ struct ChatDetailView: View {
     /// this holds, so the banner is the user's only route back to a working chat.
     @State private var hasUnreviewedIdentityChange = false
     @State private var showIdentityReview = false
+
+    /// Performs a confirmed delete. Split out so the dialog's two buttons
+    /// differ only in the flag, and so neither duplicates the dependencies.
+    private func delete(_ message: Message, forEveryone: Bool) async {
+        await viewModel.deleteMessage(
+            message,
+            forEveryone: forEveryone,
+            messageRepository: container.messageRepository,
+            chatDataSource: container.chatDataSource
+        )
+    }
 
     private func refreshIdentityChangeState() {
         guard let id = recipient?.id, !id.isEmpty else {
@@ -400,16 +414,7 @@ struct ChatDetailView: View {
                         )
                     },
                     onDeleteMessage: { message in
-                        Task {
-                            // Local-only: deleting for everyone needs a
-                            // confirmation step this menu does not present.
-                            await viewModel.deleteMessage(
-                                message,
-                                forEveryone: false,
-                                messageRepository: container.messageRepository,
-                                chatDataSource: container.chatDataSource
-                            )
-                        }
+                        messageToDelete = message
                     },
                     onRetry: { message in
                         await viewModel.retryMessage(
@@ -831,6 +836,38 @@ struct ChatDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(documentCoordinator.resolveError ?? "")
+        }
+        .confirmationDialog(
+            "Delete message?",
+            isPresented: Binding(
+                get: { messageToDelete != nil },
+                set: { if !$0 { messageToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            // "For everyone" was never reachable: the menu hardcoded
+            // `forEveryone: false` with a comment saying the confirmation step
+            // did not exist, so a sent message could not be retracted at all,
+            // although the use case and the repository both supported it.
+            if let message = messageToDelete, message.isOutgoing {
+                Button("Delete for everyone", role: .destructive) {
+                    let target = message
+                    messageToDelete = nil
+                    Task { await delete(target, forEveryone: true) }
+                }
+            }
+            Button("Delete for me", role: .destructive) {
+                guard let target = messageToDelete else { return }
+                messageToDelete = nil
+                Task { await delete(target, forEveryone: false) }
+            }
+            Button("Cancel", role: .cancel) { messageToDelete = nil }
+        } message: {
+            Text(
+                messageToDelete?.isOutgoing == true
+                    ? "Deleting for everyone removes it from this chat for both of you."
+                    : "This removes the message from this device only."
+            )
         }
         .alert("Call Failed", isPresented: Binding(
             get: { callErrorMessage != nil },

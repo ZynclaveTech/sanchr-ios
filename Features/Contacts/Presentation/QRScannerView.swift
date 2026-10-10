@@ -51,9 +51,20 @@ struct QRScannerView: View {
         .statusBarHidden()
     }
 
+    /// Whether [code] is a `https://sanchr.com/...` link — the shape
+    /// `ProfileView` encodes (`https://sanchr.com/u/{userId}`).
+    static func isSanchrContactCode(_ code: String) -> Bool {
+        guard let url = URL(string: code.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let host = url.host?.lowercased()
+        else { return false }
+        return host == "sanchr.com" || host.hasSuffix(".sanchr.com")
+    }
+
     private func handleCode(_ code: String) {
         guard !hasScanned else { return }
-        guard code.contains("sanchr.com") else {
+        // Host, not substring: `contains("sanchr.com")` matched anywhere in the
+        // payload, so `https://evil.example/?x=sanchr.com` passed the check.
+        guard Self.isSanchrContactCode(code) else {
             SanchrLogger.contacts.debug("Ignored non-Sanchr QR code")
             return
         }
@@ -192,7 +203,122 @@ private final class QRCameraViewController: UIViewController, AVCaptureMetadataO
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupCamera()
+        view.backgroundColor = .black
+        configureForCurrentAuthorization()
+    }
+
+    // MARK: - Authorization
+
+    /// Decides what the sheet shows.
+    ///
+    /// There was no check at all: a denied or not-yet-asked permission fell
+    /// through `try?` in `setupCamera` and returned silently, leaving the user
+    /// looking at a black rectangle with viewfinder brackets forever, with no
+    /// explanation and no way forward. The same bug was found and fixed in the
+    /// security-code scanner; this copy was missed.
+    private func configureForCurrentAuthorization() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            setupCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if granted {
+                        self.setupCamera()
+                        self.startSessionIfNeeded()
+                    } else {
+                        self.showMessage(
+                            title: "Camera access needed",
+                            body: "Sanchr needs the camera to scan a contact's QR code.",
+                            showSettings: true)
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showMessage(
+                title: "Camera access is off",
+                body: "Enable camera access for Sanchr to scan a contact's QR code. You can still add them by phone number.",
+                showSettings: true)
+        @unknown default:
+            showMessage(
+                title: "Camera unavailable",
+                body: "The camera could not be used for scanning. Add the contact by phone number instead.",
+                showSettings: false)
+        }
+    }
+
+    private func startSessionIfNeeded() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self, !self.captureSession.isRunning else { return }
+            self.captureSession.startRunning()
+        }
+    }
+
+    // MARK: - Explanatory state
+
+    private var messageStack: UIView?
+
+    /// Replaces the black rectangle with something that says what happened and,
+    /// where it helps, offers a way to fix it.
+    private func showMessage(title: String, body: String, showSettings: Bool) {
+        messageStack?.removeFromSuperview()
+
+        let container = UIView(frame: view.bounds)
+        container.backgroundColor = .black
+        container.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let icon = UIImageView(image: UIImage(systemName: "video.slash.fill"))
+        icon.tintColor = .white
+        icon.contentMode = .scaleAspectFit
+
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = .preferredFont(forTextStyle: .headline)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+
+        let bodyLabel = UILabel()
+        bodyLabel.text = body
+        bodyLabel.font = .preferredFont(forTextStyle: .footnote)
+        bodyLabel.textColor = .white.withAlphaComponent(0.75)
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+
+        stack.addArrangedSubview(icon)
+        stack.addArrangedSubview(titleLabel)
+        stack.addArrangedSubview(bodyLabel)
+
+        if showSettings {
+            let button = UIButton(type: .system)
+            button.setTitle("Open Settings", for: .normal)
+            button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+            button.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+            stack.addArrangedSubview(button)
+        }
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+        ])
+
+        view.addSubview(container)
+        messageStack = container
+    }
+
+    @objc private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     override func viewDidLayoutSubviews() {
@@ -202,10 +328,11 @@ private final class QRCameraViewController: UIViewController, AVCaptureMetadataO
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self, !self.captureSession.isRunning else { return }
-            self.captureSession.startRunning()
-        }
+        // Only once an input has actually been added: starting a session with
+        // no input logs an error every time the sheet appears without the
+        // permission.
+        guard !captureSession.inputs.isEmpty else { return }
+        startSessionIfNeeded()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -221,6 +348,10 @@ private final class QRCameraViewController: UIViewController, AVCaptureMetadataO
               let input = try? AVCaptureDeviceInput(device: device)
         else {
             SanchrLogger.contacts.error("QR scanner: camera unavailable")
+            showMessage(
+                title: "No camera available",
+                body: "This device has no usable camera. Add the contact by phone number instead.",
+                showSettings: false)
             return
         }
 
@@ -239,6 +370,8 @@ private final class QRCameraViewController: UIViewController, AVCaptureMetadataO
         layer.frame = view.bounds
         view.layer.addSublayer(layer)
         previewLayer = layer
+        messageStack?.removeFromSuperview()
+        messageStack = nil
     }
 
     // MARK: - AVCaptureMetadataOutputObjectsDelegate

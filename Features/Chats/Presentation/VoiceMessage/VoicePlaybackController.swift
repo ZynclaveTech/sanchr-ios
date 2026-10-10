@@ -20,6 +20,7 @@ final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked
         if currentlyPlayingMessageId != messageId {
             stop()
         }
+        activateSession()
         if player == nil {
             let p = try AVAudioPlayer(contentsOf: url)
             p.delegate = self
@@ -44,6 +45,43 @@ final class VoicePlaybackController: NSObject, AVAudioPlayerDelegate, @unchecked
         currentlyPlayingMessageId = nil
         isPlaying = false
         progress = 0
+        progressTimer?.invalidate()
+        progressTimer = nil
+        deactivateSession()
+    }
+
+    /// Playback never configured the audio session at all.
+    ///
+    /// Without a category of its own the app falls under `.soloAmbient`, which
+    /// is silenced by the Ring/Silent switch: a voice note played cold was
+    /// mute with no indication why. Played right after recording it inherited
+    /// `.playAndRecord` and worked, which is why this survived.
+    ///
+    /// `.playback` is the category for media the user asked to hear, and it
+    /// plays with the switch on, as every messenger's voice notes do.
+    private func activateSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            try session.setActive(true)
+        } catch {
+            // Not fatal: the clip may still play under whatever category is
+            // active. Worth knowing about, though, because it is the reason a
+            // silent-switch mute would come back.
+            SanchrLogger.chat.error("Voice playback session setup failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Hands the session back so other apps' audio resumes. Nothing did this,
+    /// so music paused for a voice note stayed paused.
+    private func deactivateSession() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    deinit {
+        // `pause()` invalidates the timer but leaves it non-nil, and there was
+        // no deinit: releasing the controller mid-playback left a repeating
+        // main-run-loop timer firing forever.
         progressTimer?.invalidate()
         progressTimer = nil
     }

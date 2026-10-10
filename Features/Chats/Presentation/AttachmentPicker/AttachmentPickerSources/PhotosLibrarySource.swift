@@ -138,11 +138,21 @@ final class PhotosLibrarySource: NSObject, PHPhotoLibraryChangeObserver {
                 targetSize: targetSize,
                 contentMode: .aspectFill,
                 options: opts
-            ) { img, _ in
-                guard let img else { return }
-                if resumed.tryConsume() {
-                    cont.resume(returning: img)
+            ) { img, info in
+                // A nil image used to return without resuming, so if PhotoKit
+                // only ever delivered nil — an iCloud fetch that fails, a
+                // cancelled request — the continuation never resumed: the
+                // awaiting task leaked and the cell stayed blank forever, with
+                // no error path. Resume with nil once the request is finished.
+                if let img {
+                    if resumed.tryConsume() { cont.resume(returning: img) }
+                    return
                 }
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? NSNumber)?.boolValue ?? false
+                // `.opportunistic` may deliver a nil low-res pass before the
+                // real one; only a final nil is a failure.
+                guard !isDegraded else { return }
+                if resumed.tryConsume() { cont.resume(returning: nil) }
             }
         }
     }
@@ -262,7 +272,10 @@ private final class PHAssetCache {
     private var storage: [String: PHAsset] = [:]
 
     func replace(with assets: [PHAsset]) {
-        storage = Dictionary(uniqueKeysWithValues: assets.map { ($0.localIdentifier, $0) })
+        // `uniqueKeysWithValues` traps at runtime on a repeated key, and the
+        // keys come from whatever PhotoKit enumerates — undeduped. A library
+        // that reports the same `localIdentifier` twice crashed the picker.
+        storage = Dictionary(assets.map { ($0.localIdentifier, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     func asset(forLocalIdentifier id: String) -> PHAsset? {

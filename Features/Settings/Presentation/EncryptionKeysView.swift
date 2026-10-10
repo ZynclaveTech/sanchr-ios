@@ -11,6 +11,10 @@ struct EncryptionKeysView: View {
     @State private var identityKeyFingerprint: String = "Loading..."
     @State private var preKeyCount: Int? = nil
     @State private var signedPreKeyAge: String = ""
+    /// Whether a signed pre-key actually exists. The status row rendered a
+    /// green dot and "Active" unconditionally — it still said "Active" when
+    /// the identity key had come back as "No identity key generated".
+    @State private var hasSignedPreKey: Bool = false
     @State private var copiedToClipboard = false
     @State private var isLoadingMetadata = false
     @State private var showingShareSheet = false
@@ -95,11 +99,12 @@ struct EncryptionKeysView: View {
                     Spacer()
                     HStack(spacing: SanchrSpacing.xxs) {
                         Circle()
-                            .fill(Color.sanchrSuccess)
+                            .fill(hasSignedPreKey ? Color.sanchrSuccess : Color.sanchrTextSecondary(colorScheme))
                             .frame(width: 8, height: 8)
-                        Text("Active")
+                        Text(hasSignedPreKey ? "Active" : "Not generated yet")
                             .font(SanchrTypography.caption)
-                            .foregroundColor(.sanchrSuccess)
+                            .foregroundColor(
+                                hasSignedPreKey ? .sanchrSuccess : Color.sanchrTextSecondary(colorScheme))
                     }
                 }
 
@@ -251,8 +256,10 @@ struct EncryptionKeysView: View {
         if let date = try? container.keyManager.signedPreKeyCreatedAt() {
             let days = Calendar.current.dateComponents([.day], from: date, to: .now).day ?? 0
             signedPreKeyAge = days == 0 ? "Today" : "\(days) day\(days == 1 ? "" : "s") ago"
+            hasSignedPreKey = true
         } else {
             signedPreKeyAge = "Unknown"
+            hasSignedPreKey = false
         }
     }
 

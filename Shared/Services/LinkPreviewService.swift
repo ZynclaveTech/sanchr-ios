@@ -1,6 +1,5 @@
 import CryptoKit
 import Foundation
-import LinkPresentation
 import SanchrShared
 
 /// Fetches and caches Open Graph metadata for URLs.
@@ -25,6 +24,10 @@ actor LinkPreviewService {
 
     /// Returns cached preview (memory → disk) or fetches from network.
     func preview(for url: URL) async -> LinkPreviewData? {
+        // Before the caches as well as the network: a link this device will
+        // not fetch has no business being answered from an old fetch either.
+        guard LinkPreviewHostPolicy.isFetchable(url) else { return nil }
+
         let key = url.absoluteString as NSString
 
         // 1. Memory cache (instant)
@@ -119,37 +122,44 @@ actor LinkPreviewService {
 
     // MARK: - Network Fetch
 
+    /// The page's own description of itself, fetched by `GuardedLinkFetcher`.
+    ///
+    /// Not the system's link-metadata provider, which this used: it loads the
+    /// page in a web view of its own and follows wherever that leads, with no
+    /// way to see or refuse the addresses involved.
     private nonisolated func fetchMetadata(for url: URL) async -> LinkPreviewData? {
-        let provider = LPMetadataProvider()
-        provider.timeout = 10
+        let fetcher = GuardedLinkFetcher.shared
+        guard let page = try? await fetcher.fetch(
+            url, accept: "text/html", maxBytes: Self.maxPageBytes, truncate: true),
+            (page.mimeType ?? "").lowercased().contains("html")
+        else { return nil }
 
-        do {
-            let metadata = try await provider.startFetchingMetadata(for: url)
-            let title = metadata.title
-            let domain = url.host ?? url.absoluteString
+        let parsed = OpenGraphParser.parse(html: String(decoding: page.data, as: UTF8.self), pageURL: page.finalURL)
 
-            var imageData: Data?
-            if let imageProvider = metadata.imageProvider {
-                imageData = try? await withCheckedThrowingContinuation { cont in
-                    imageProvider.loadDataRepresentation(forTypeIdentifier: "public.image") { data, error in
-                        if let data {
-                            cont.resume(returning: data)
-                        } else {
-                            cont.resume(throwing: error ?? NSError(domain: "", code: 0))
-                        }
-                    }
-                }
-            }
-
-            return LinkPreviewData(
-                url: url,
-                title: title,
-                domain: domain,
-                imageData: imageData
-            )
-        } catch {
-            return nil
+        var imageData: Data?
+        if let imageURL = parsed.imageURL,
+           let image = try? await fetcher.fetch(
+               imageURL, accept: "image/*", maxBytes: Self.maxImageBytes, truncate: false),
+           (image.mimeType ?? "").lowercased().hasPrefix("image/") {
+            imageData = image.data
         }
+
+        return LinkPreviewData(
+            url: url,
+            title: parsed.title,
+            domain: Self.displayDomain(for: url),
+            imageData: imageData
+        )
+    }
+
+    private static let maxPageBytes = 512 * 1024
+    private static let maxImageBytes = 2 * 1024 * 1024
+
+    /// The site named on the card: the parsed host, which is never the
+    /// userinfo in front of it.
+    nonisolated static func displayDomain(for url: URL) -> String {
+        let host = url.host ?? url.absoluteString
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     /// Detect first URL in a text string.

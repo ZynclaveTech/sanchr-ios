@@ -78,7 +78,7 @@ actor MediaDownloadManager {
 
     /// Returns the local file URL if already cached.
     func cachedURL(for messageId: String, ext: String) -> URL? {
-        let fileURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
+        let fileURL = cacheDir.appendingPathComponent(MediaCacheFile.fileName(messageId: messageId, ext: ext))
         return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
@@ -131,8 +131,64 @@ actor MediaDownloadManager {
         QuickLookDisplayLinks.remove(messageId: messageId)
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(atPath: cacheDir.path) else { return }
-        for entry in entries where entry.hasPrefix(messageId + ".") {
+        // Both namings: a single attachment caches as "<messageId>.<ext>", and
+        // an album's tiles as "<messageId>#<n>.<ext>". Matching only the first
+        // meant deleting a view-once album removed the lead photo's plaintext
+        // and left every other tile readable on disk.
+        // Matched on the name the file was actually written under; see
+        // `MediaCacheFile.safeId`.
+        let name = MediaCacheFile.safeId(messageId)
+        for entry in entries where entry.hasPrefix(name + ".") || entry.hasPrefix(name + "#") {
             try? fm.removeItem(at: cacheDir.appendingPathComponent(entry))
+        }
+    }
+
+    /// Fetches a URL this app's own server signed.
+    private static func fetchSigned(_ url: URL) async throws -> Data {
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            SanchrLogger.media.error("Download failed: HTTP \(status)")
+            // The storage answered and said no: the object is gone or the
+            // presigned URL will never be honoured. A retry would get the
+            // same answer.
+            if [403, 404, 410].contains(status) {
+                throw AppError.mediaExpired
+            }
+            throw AppError.mediaDownloadFailed
+        }
+        return data
+    }
+
+    /// The most a sender's link may deliver: the ceiling on an attachment that
+    /// is sent.
+    static let maxSenderLinkBytes = 100 * 1024 * 1024
+
+    /// Whether a plain-URL attachment may be requested at all: `https`, and a
+    /// host the link policy reads as a site on the internet.
+    static func isFetchableSenderLink(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == "https" && LinkPreviewHostPolicy.isFetchable(url)
+    }
+
+    /// Fetches an attachment whose URL the sender wrote.
+    ///
+    /// This used the shared session like a presigned URL, which trusts where
+    /// it points: nothing looked at what the name resolved to or where it
+    /// redirected, and it can run on auto-download with nobody tapping
+    /// anything. `GuardedLinkFetcher` checks each hop and caps what is read.
+    private static func fetchSenderLink(_ url: URL) async throws -> Data {
+        guard isFetchableSenderLink(url) else {
+            SanchrLogger.media.error("Refusing an attachment link this device will not fetch")
+            throw AppError.mediaDownloadFailed
+        }
+        do {
+            return try await GuardedLinkFetcher.attachments.fetch(
+                url, accept: "*/*", maxBytes: maxSenderLinkBytes, truncate: false
+            ).data
+        } catch {
+            SanchrLogger.media.error("Attachment link download failed: \(error.localizedDescription)")
+            throw AppError.mediaDownloadFailed
         }
     }
 
@@ -164,6 +220,9 @@ actor MediaDownloadManager {
 
         // Resolve download URL
         let downloadURL: URL
+        // Whether the URL is one the sender wrote, as opposed to one this
+        // app's server signed.
+        var isSenderLink = false
         if attachment.url.scheme == "sanchr-media" {
             // Vault media — get presigned GET URL from server
             let mediaId = attachment.url.host ?? attachment.url.lastPathComponent
@@ -197,23 +256,14 @@ actor MediaDownloadManager {
         } else {
             // Direct HTTPS URL (legacy or CDN)
             downloadURL = attachment.url
+            isSenderLink = true
             SanchrLogger.media.info("Using direct URL for download")
         }
 
         // Download encrypted blob
-        let (encryptedData, response) = try await URLSession.shared.data(from: downloadURL)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            SanchrLogger.media.error("Download failed: HTTP \(status)")
-            // The storage answered and said no: the object is gone or the
-            // presigned URL will never be honoured. A retry would get the
-            // same answer.
-            if [403, 404, 410].contains(status) {
-                throw AppError.mediaExpired
-            }
-            throw AppError.mediaDownloadFailed
-        }
+        let encryptedData = isSenderLink
+            ? try await Self.fetchSenderLink(downloadURL)
+            : try await Self.fetchSigned(downloadURL)
         SanchrLogger.media.info("Downloaded \(encryptedData.count) bytes, decrypting...")
 
         // Decrypt — try E2EE message key first, fall back to AccessK
@@ -261,7 +311,7 @@ actor MediaDownloadManager {
         }
 
         // Cache to local disk
-        let outputURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
+        let outputURL = cacheDir.appendingPathComponent(MediaCacheFile.fileName(messageId: messageId, ext: ext))
         try plaintext.write(to: outputURL, options: .atomic)
 
         SanchrLogger.media.info("Media cached for message \(messageId.prefix(8)): \(plaintext.count) bytes plaintext")

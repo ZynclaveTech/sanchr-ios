@@ -55,6 +55,11 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// succeeds.
     func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult
 
+    /// As `decryptSealedEnvelope(_:)`, for a caller that knows when the server
+    /// took delivery. An Android envelope carries a certificate that is judged
+    /// at that moment, so a message that waited in the queue is still read.
+    func decryptSealedEnvelope(_ ciphertext: Data, receivedAt: Date) async throws -> SealedDecryptResult
+
     /// Resets (deletes) the session with a specific user/device for session recovery.
     func resetSession(with userId: String, deviceId: Int32) throws
 
@@ -122,6 +127,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     var localUserId: String { get }
 }
 
+extension SignalProtocolManagerProtocol {
+    /// For conformers that have no use for the time of receipt.
+    public func decryptSealedEnvelope(_ ciphertext: Data, receivedAt: Date) async throws -> SealedDecryptResult {
+        try await decryptSealedEnvelope(ciphertext)
+    }
+}
+
 /// Signal Protocol session management and message encryption/decryption engine.
 ///
 /// Uses libsignal-swift to implement X3DH key agreement and Double Ratchet messaging.
@@ -135,9 +147,23 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
 
     // MARK: - Init
 
+    /// Opens this app's own envelope when it arrives with no sender attached.
+    private let typedEnvelopeOpener: TypedEnvelopeOpener
+
     public init(store: SanchrSignalStore, keyManager: SignalKeyManager) {
         self.store = store
         self.keyManager = keyManager
+        self.typedEnvelopeOpener = TypedEnvelopeOpener(
+            stores: store,
+            localUserId: store.userId,
+            // Costs the person asked about nothing on a current server; one
+            // that predates the call is asked for a whole bundle instead, so
+            // the opener still asks only when it has to and remembers the
+            // answer.
+            publishedIdentity: { userId, deviceId in
+                try await keyManager.fetchPublishedIdentityKey(userId: userId, deviceId: deviceId)
+            }
+        )
         SanchrLogger.crypto.info("SignalSessionManager initialized")
     }
 
@@ -361,10 +387,35 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             )
             plaintext = Data(decryptedBytes)
         default:
-            throw AppError.decryptionFailed(reason: "Unknown ciphertext type byte: \(typeByte)")
+            // Not this app's framing, so one of Android's: see `EnvelopeFormat`.
+            return try decryptFromAndroid(ciphertext, from: address)
         }
 
         return plaintext
+    }
+
+    /// An envelope in one of Android's two formats, from a sender the server
+    /// named.
+    private func decryptFromAndroid(_ ciphertext: Data, from address: ProtocolAddress) throws -> Data {
+        switch EnvelopeFormat(of: ciphertext) {
+        case .sealedSender:
+            let opened = try AndroidEnvelopeReader.openSealedSender(
+                ciphertext, trustRoot: try sealedSenderTrustRoot(), receivedAt: Date(), stores: store)
+            // The certificate is the authority on who sent it. If the server
+            // said someone else, the envelope is not what it was delivered as.
+            guard opened.senderUserId.lowercased() == address.name.lowercased(),
+                  opened.senderDeviceId == Int32(address.deviceId)
+            else { throw AndroidEnvelopeReader.ReadError.senderMismatch }
+            return opened.plaintext
+        case .bareSignal:
+            return try AndroidEnvelopeReader.openBareSignal(ciphertext, from: address, stores: store)
+        case .typed:
+            throw AppError.decryptionFailed(reason: "Unknown ciphertext type byte: \(ciphertext.first ?? 0)")
+        }
+    }
+
+    private func sealedSenderTrustRoot() throws -> PublicKey {
+        try PublicKey(SealedSenderManager.serverTrustRootBytes)
     }
 
     public func decryptEnvelope(_ envelope: Sanchr_Messaging_EncryptedEnvelope) async throws -> Data {
@@ -378,45 +429,35 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     // MARK: - Sealed Sender Decryption
 
     public func decryptSealedEnvelope(_ ciphertext: Data) async throws -> SealedDecryptResult {
+        try await decryptSealedEnvelope(ciphertext, receivedAt: Date())
+    }
+
+    public func decryptSealedEnvelope(_ ciphertext: Data, receivedAt: Date) async throws -> SealedDecryptResult {
         guard !ciphertext.isEmpty else {
             throw AppError.decryptionFailed(reason: "Empty sealed ciphertext")
         }
 
-        let addresses = store.sessionStore.allSessionAddresses()
-        guard !addresses.isEmpty else {
-            throw AppError.decryptionFailed(
-                reason: "No active sessions to trial-decrypt sealed envelope")
+        // Android's envelope names its sender in a signed certificate, so it
+        // is opened directly. This app's own format names nobody; see
+        // `TypedEnvelopeOpener` for how its sender is found.
+        if EnvelopeFormat(of: ciphertext) != .typed {
+            let opened = try AndroidEnvelopeReader.openSealedSender(
+                ciphertext, trustRoot: try sealedSenderTrustRoot(), receivedAt: receivedAt, stores: store)
+            SanchrLogger.crypto.info(
+                "Sealed-sender envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
+            )
+            return opened
         }
 
-        // Sort addresses so the local user's own sessions are tried last
-        // (self-sync messages are less common than peer messages).
-        let localUserId = store.userId
-        let sorted = addresses.sorted { a, _ in a.name != localUserId }
-
-        for address in sorted {
-            do {
-                let plaintext = try await decrypt(
-                    ciphertext: ciphertext,
-                    from: address.name,
-                    senderDevice: Int32(address.deviceId)
-                )
-                SanchrLogger.crypto.info(
-                    "Sealed envelope decrypted from \(address.name.prefix(8))... device \(address.deviceId)"
-                )
-                return SealedDecryptResult(
-                    plaintext: plaintext,
-                    senderUserId: address.name,
-                    senderDeviceId: Int32(address.deviceId)
-                )
-            } catch {
-                // Trial failed for this session — try next.
-                continue
-            }
+        do {
+            let opened = try await typedEnvelopeOpener.open(ciphertext)
+            SanchrLogger.crypto.info(
+                "Sealed envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
+            )
+            return opened
+        } catch let error as TypedEnvelopeOpener.OpenError {
+            throw AppError.decryptionFailed(reason: "Sealed envelope refused: \(error)")
         }
-
-        throw AppError.decryptionFailed(
-            reason: "Sealed envelope could not be decrypted by any of \(addresses.count) known session(s)"
-        )
     }
 
     // MARK: - Session Maintenance
