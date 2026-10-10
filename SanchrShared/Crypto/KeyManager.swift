@@ -327,13 +327,44 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
     // MARK: - Pre-Key Bundle Fetching
 
     public func fetchPreKeyBundle(userId: String, deviceId: Int32) async throws -> PreKeyBundle {
+        try await fetchPreKeyBundle(userId: userId, deviceId: deviceId, withoutOneTimePreKey: false)
+    }
+
+    /// Fetches a bundle, optionally one with no one-time pre-key in it.
+    ///
+    /// Every ordinary bundle takes one of the recipient's one-time pre-keys.
+    /// A caller that opens fresh sessions often — call setup does, before
+    /// every call — should not be spending them: asked for this way, the
+    /// server takes nothing from the recipient. A server that predates the
+    /// option ignores it and answers as it always has.
+    public func fetchPreKeyBundle(
+        userId: String,
+        deviceId: Int32,
+        withoutOneTimePreKey: Bool
+    ) async throws -> PreKeyBundle {
+        let request = Self.bundleRequest(
+            userId: userId, deviceId: deviceId, withoutOneTimePreKey: withoutOneTimePreKey)
+        let bundle = try Self.bundle(from: try await keyService.getPreKeyBundle(request), deviceId: deviceId)
+        SanchrLogger.crypto.info(
+            "Fetched pre-key bundle for \(userId.prefix(8))... device \(deviceId)")
+        return bundle
+    }
+
+    static func bundleRequest(
+        userId: String,
+        deviceId: Int32,
+        withoutOneTimePreKey: Bool
+    ) -> Sanchr_Keys_GetPreKeyBundleRequest {
         var request = Sanchr_Keys_GetPreKeyBundleRequest()
         request.userID = userId
         request.deviceID = deviceId
+        request.withoutOneTimePreKey = withoutOneTimePreKey
+        return request
+    }
 
-        let response = try await keyService.getPreKeyBundle(request)
-
-        // Parse the server response into a libsignal PreKeyBundle
+    /// Parses the server's answer into a libsignal bundle. A one-time pre-key
+    /// is optional: the server may have run out, or not have been asked for one.
+    static func bundle(from response: Sanchr_Keys_PreKeyBundleResponse, deviceId: Int32) throws -> PreKeyBundle {
         let identityKey = try IdentityKey(bytes: [UInt8](response.identityPublicKey))
 
         guard response.hasSignedPreKey else {
@@ -349,28 +380,13 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         let kyberPreKeyPublic = try KEMPublicKey(kyberPreKeyProto.publicKey)
         let registrationId = UInt32(response.registrationID)
 
-        // One-time pre-key is optional (may be exhausted on server)
-        let bundle: PreKeyBundle
         if response.hasOneTimePreKey, !response.oneTimePreKey.publicKey.isEmpty {
             let otpk = response.oneTimePreKey
-            let preKeyPublic = try PublicKey(otpk.publicKey)
-            bundle = try PreKeyBundle(
+            return try PreKeyBundle(
                 registrationId: registrationId,
                 deviceId: UInt32(deviceId),
                 prekeyId: UInt32(otpk.keyID),
-                prekey: preKeyPublic,
-                signedPrekeyId: UInt32(signedPreKeyProto.keyID),
-                signedPrekey: signedPreKeyPublic,
-                signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
-                identity: identityKey,
-                kyberPrekeyId: UInt32(kyberPreKeyProto.keyID),
-                kyberPrekey: kyberPreKeyPublic,
-                kyberPrekeySignature: [UInt8](kyberPreKeyProto.signature)
-            )
-        } else {
-            bundle = try PreKeyBundle(
-                registrationId: registrationId,
-                deviceId: UInt32(deviceId),
+                prekey: try PublicKey(otpk.publicKey),
                 signedPrekeyId: UInt32(signedPreKeyProto.keyID),
                 signedPrekey: signedPreKeyPublic,
                 signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
@@ -380,10 +396,17 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
                 kyberPrekeySignature: [UInt8](kyberPreKeyProto.signature)
             )
         }
-
-        SanchrLogger.crypto.info(
-            "Fetched pre-key bundle for \(userId.prefix(8))... device \(deviceId)")
-        return bundle
+        return try PreKeyBundle(
+            registrationId: registrationId,
+            deviceId: UInt32(deviceId),
+            signedPrekeyId: UInt32(signedPreKeyProto.keyID),
+            signedPrekey: signedPreKeyPublic,
+            signedPrekeySignature: [UInt8](signedPreKeyProto.signature),
+            identity: identityKey,
+            kyberPrekeyId: UInt32(kyberPreKeyProto.keyID),
+            kyberPrekey: kyberPreKeyPublic,
+            kyberPrekeySignature: [UInt8](kyberPreKeyProto.signature)
+        )
     }
 
     // MARK: - Device Management

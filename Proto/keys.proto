@@ -50,6 +50,14 @@ message UploadKeyBundleResponse {}
 message GetPreKeyBundleRequest {
   string user_id = 1;
   int32 device_id = 2;
+  // Ask for the bundle with no one-time pre-key in it. Nothing is taken from
+  // the target, so the response's one_time_pre_key is always absent.
+  //
+  // For a caller that starts a fresh session often and does not need what a
+  // one-time key adds — call setup on iOS, which opens a new session with
+  // each of the callee's devices before every call. Taking a one-time key
+  // each time let a run of calls empty the callee's supply.
+  bool without_one_time_pre_key = 3;
 }
 
 message PreKeyBundleResponse {

@@ -133,6 +133,15 @@ public struct Sanchr_Keys_GetPreKeyBundleRequest: Sendable {
 
   public var deviceID: Int32 = 0
 
+  /// Ask for the bundle with no one-time pre-key in it. Nothing is taken from
+  /// the target, so the response's one_time_pre_key is always absent.
+  ///
+  /// For a caller that starts a fresh session often and does not need what a
+  /// one-time key adds — call setup on iOS, which opens a new session with
+  /// each of the callee's devices before every call. Taking a one-time key
+  /// each time let a run of calls empty the callee's supply.
+  public var withoutOneTimePreKey: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -522,7 +531,7 @@ extension Sanchr_Keys_UploadKeyBundleResponse: SwiftProtobuf.Message, SwiftProto
 
 extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPreKeyBundleRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}device_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}device_id\0\u{3}without_one_time_pre_key\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -532,6 +541,7 @@ extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtob
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.userID) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.withoutOneTimePreKey) }()
       default: break
       }
     }
@@ -544,12 +554,16 @@ extension Sanchr_Keys_GetPreKeyBundleRequest: SwiftProtobuf.Message, SwiftProtob
     if self.deviceID != 0 {
       try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 2)
     }
+    if self.withoutOneTimePreKey != false {
+      try visitor.visitSingularBoolField(value: self.withoutOneTimePreKey, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Sanchr_Keys_GetPreKeyBundleRequest, rhs: Sanchr_Keys_GetPreKeyBundleRequest) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.withoutOneTimePreKey != rhs.withoutOneTimePreKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

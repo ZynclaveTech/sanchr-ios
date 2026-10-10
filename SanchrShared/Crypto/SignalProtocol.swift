@@ -170,6 +170,12 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     // MARK: - Session Management
 
     public func establishSession(with userId: String, deviceId: Int32) async throws {
+        try await establishSession(with: userId, deviceId: deviceId, spendingOneTimePreKey: true)
+    }
+
+    /// Establishes a session, saying whether the bundle fetched for it may
+    /// take one of the recipient's one-time pre-keys.
+    func establishSession(with userId: String, deviceId: Int32, spendingOneTimePreKey: Bool) async throws {
         let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
 
         SanchrLogger.crypto.info(
@@ -179,7 +185,7 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         let preKeyBundle: PreKeyBundle
         do {
             preKeyBundle = try await keyManager.fetchPreKeyBundle(
-                userId: userId, deviceId: deviceId)
+                userId: userId, deviceId: deviceId, withoutOneTimePreKey: !spendingOneTimePreKey)
         } catch {
             SanchrLogger.crypto.error(
                 "fetchPreKeyBundle FAILED for \(userId.prefix(8))... device \(deviceId): \(Self.detailedError(error))")
@@ -336,6 +342,12 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             // SignalMessage the recipient cannot decrypt — that case is
             // self-healed by the next call's reset.
             try? resetSession(with: recipientId, deviceId: deviceId)
+            // Established here, explicitly, and without a one-time pre-key.
+            // Left to `encrypt`, the fresh session took one from the callee
+            // on every call to every one of their devices: nothing else
+            // spends them at that rate, and a run of calls could leave the
+            // callee with none for the conversations that need them.
+            try await establishSession(with: recipientId, deviceId: deviceId, spendingOneTimePreKey: false)
             let ct = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
             var entry = Sanchr_Calling_DeviceCallOffer()
             entry.deviceID = deviceId
@@ -449,15 +461,13 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             return opened
         }
 
-        do {
-            let opened = try await typedEnvelopeOpener.open(ciphertext)
-            SanchrLogger.crypto.info(
-                "Sealed envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
-            )
-            return opened
-        } catch let error as TypedEnvelopeOpener.OpenError {
-            throw AppError.decryptionFailed(reason: "Sealed envelope refused: \(error)")
-        }
+        // The opener's own errors are thrown as they are: what happens next
+        // depends on which one it was, and a reason string would lose that.
+        let opened = try await typedEnvelopeOpener.open(ciphertext)
+        SanchrLogger.crypto.info(
+            "Sealed envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
+        )
+        return opened
     }
 
     // MARK: - Session Maintenance
@@ -486,6 +496,13 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
                     SanchrLogger.crypto.info(
                         "Archived session state for \(userId.prefix(8)) device \(deviceId)")
                 }
+                // The fresh session is started here rather than left to the
+                // next encrypt, so that it can be started without a one-time
+                // pre-key. This runs for every contact at once, on the
+                // strength of one message nobody could read — which anyone
+                // can send. Left to encrypt, each heal took a one-time key
+                // from every device of every contact.
+                try await establishSession(with: userId, deviceId: deviceId, spendingOneTimePreKey: false)
             } catch {
                 SanchrLogger.crypto.warning(
                     "resetSessions: archive failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
