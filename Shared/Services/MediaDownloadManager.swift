@@ -78,7 +78,7 @@ actor MediaDownloadManager {
 
     /// Returns the local file URL if already cached.
     func cachedURL(for messageId: String, ext: String) -> URL? {
-        let fileURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
+        let fileURL = cacheDir.appendingPathComponent(MediaCacheFile.fileName(messageId: messageId, ext: ext))
         return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
@@ -135,7 +135,10 @@ actor MediaDownloadManager {
         // an album's tiles as "<messageId>#<n>.<ext>". Matching only the first
         // meant deleting a view-once album removed the lead photo's plaintext
         // and left every other tile readable on disk.
-        for entry in entries where entry.hasPrefix(messageId + ".") || entry.hasPrefix(messageId + "#") {
+        // Matched on the name the file was actually written under; see
+        // `MediaCacheFile.safeId`.
+        let name = MediaCacheFile.safeId(messageId)
+        for entry in entries where entry.hasPrefix(name + ".") || entry.hasPrefix(name + "#") {
             try? fm.removeItem(at: cacheDir.appendingPathComponent(entry))
         }
     }
@@ -265,7 +268,7 @@ actor MediaDownloadManager {
         }
 
         // Cache to local disk
-        let outputURL = cacheDir.appendingPathComponent("\(messageId).\(ext)")
+        let outputURL = cacheDir.appendingPathComponent(MediaCacheFile.fileName(messageId: messageId, ext: ext))
         try plaintext.write(to: outputURL, options: .atomic)
 
         SanchrLogger.media.info("Media cached for message \(messageId.prefix(8)): \(plaintext.count) bytes plaintext")

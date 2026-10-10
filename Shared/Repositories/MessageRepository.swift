@@ -1953,7 +1953,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) -> String {
         let candidate = innerPayloadMessageId?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let candidate, !candidate.isEmpty {
+        // The payload is the sender's. Its id becomes a row key and a cache
+        // filename here, so one that is not the plain shape of an id is
+        // treated like a missing one rather than carried further.
+        if let candidate, MediaCacheFile.isWellFormedId(candidate) {
             return candidate
         }
         return sealedEnvelopeId
@@ -2267,11 +2270,45 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
         default:
             if let content = try? JSONDecoder().decode(Message.MessageContent.self, from: plaintext) {
-                return content
+                return Self.acceptedFromWire(content)
             }
             return .text(String(data: plaintext, encoding: .utf8) ?? "")
         }
     }
+
+    /// What a decoded payload is allowed to become.
+    ///
+    /// The fallback branch decodes a whole `MessageContent`, which is a wider
+    /// thing than anything a peer has a reason to send. Two of its cases are
+    /// this device talking to itself, and a message is not permitted to speak
+    /// in that voice:
+    ///
+    /// - `.system` is how the app tells the user that a safety number changed
+    ///   or that media was moved to the vault. Decoded off the wire, anyone in
+    ///   the chat could put those words in the app's mouth.
+    /// - An attachment whose URL is `file://` means "already on this device".
+    ///   The bubble, the gallery, QuickLook and the forwarder all take that at
+    ///   its word and open the path — which, on an incoming message, is a path
+    ///   the sender chose inside the recipient's container.
+    ///
+    /// Either is replaced by a plain notice rather than dropped, so the
+    /// conversation still shows that something arrived.
+    static func acceptedFromWire(_ content: Message.MessageContent) -> Message.MessageContent {
+        switch content {
+        case .system:
+            return .text(Self.unsupportedMessageNotice)
+        case .image(let media), .video(let media), .audio(let media), .document(let media):
+            let allowed: Set<String> = ["sanchr-media", "https", "http"]
+            let acceptable = !media.items.isEmpty && media.items.allSatisfy {
+                allowed.contains($0.url.scheme?.lowercased() ?? "")
+            }
+            return acceptable ? content : .text(Self.unsupportedMessageNotice)
+        case .text, .location, .contact:
+            return content
+        }
+    }
+
+    static let unsupportedMessageNotice = "Unsupported message"
 
     private static func presenceStatusString(_ status: Sanchr_Messaging_PresenceStatus) -> String {
         switch status {

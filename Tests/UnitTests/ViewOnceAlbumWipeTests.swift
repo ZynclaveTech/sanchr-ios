@@ -24,19 +24,28 @@ final class ViewOnceAlbumWipeTests: XCTestCase {
         let start = try XCTUnwrap(manager.range(of: "func removeCachedFile(messageId: String) {"))
         let body = String(manager[start.upperBound...].prefix(900))
 
+        // Matched on the name the files were written under, which is the id
+        // made safe for a path, not the id as it arrived.
+        XCTAssertTrue(body.contains("let name = MediaCacheFile.safeId(messageId)"))
         XCTAssertTrue(
-            body.contains("hasPrefix(messageId + \"#\")"),
+            body.contains("hasPrefix(name + \"#\")"),
             "cache removal must also match an album's \"<messageId>#<n>\" tiles")
     }
 
     func test_quickLookLinkRemovalMatchesAlbumTileDirectories() throws {
-        let resolver = try source("Shared/Services/ChatMediaResolver.swift")
-        let start = try XCTUnwrap(resolver.range(of: "static func remove(messageId: String, root: URL = root) {"))
-        let body = String(resolver[start.upperBound...].prefix(900))
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quicklook-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fm = FileManager.default
+        for name in ["m1", "m1#0", "m1#1", "m10", "m2#0"] {
+            try fm.createDirectory(at: root.appendingPathComponent(name, isDirectory: true), withIntermediateDirectories: true)
+        }
 
-        XCTAssertTrue(
-            body.contains("hasPrefix(messageId + \"#\")"),
-            "link removal must also match an album's tile directories")
+        QuickLookDisplayLinks.remove(messageId: "m1", root: root)
+
+        // The message's own directory and every tile's; nothing of a
+        // neighbour whose id merely starts the same way.
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: root.path).sorted(), ["m10", "m2#0"])
     }
 
     func test_galleryConsumesByMessageIdNotPageId() throws {

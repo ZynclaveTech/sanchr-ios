@@ -25,6 +25,10 @@ actor LinkPreviewService {
 
     /// Returns cached preview (memory → disk) or fetches from network.
     func preview(for url: URL) async -> LinkPreviewData? {
+        // Before the caches as well as the network: a link this device will
+        // not fetch has no business being answered from an old fetch either.
+        guard LinkPreviewHostPolicy.isFetchable(url) else { return nil }
+
         let key = url.absoluteString as NSString
 
         // 1. Memory cache (instant)

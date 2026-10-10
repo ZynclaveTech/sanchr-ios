@@ -61,9 +61,10 @@ enum QuickLookDisplayLinks {
     /// view-once album was consumed. No-op if there are none.
     static func remove(messageId: String, root: URL = root) {
         let fm = FileManager.default
-        try? fm.removeItem(at: root.appendingPathComponent(messageId, isDirectory: true))
+        let name = MediaCacheFile.safeId(messageId)
+        try? fm.removeItem(at: root.appendingPathComponent(name, isDirectory: true))
         guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { return }
-        for entry in entries where entry.hasPrefix(messageId + "#") {
+        for entry in entries where entry.hasPrefix(name + "#") {
             try? fm.removeItem(at: root.appendingPathComponent(entry, isDirectory: true))
         }
     }
@@ -117,11 +118,13 @@ final class ChatMediaResolverImpl: ChatMediaResolving, @unchecked Sendable {
                 attachment: attachment
             )
         }
-        guard let displayName = attachment.filename, !displayName.isEmpty else {
+        // Both parts of this path come out of the message, so neither is used
+        // as it arrived; see `MediaCacheFile`.
+        guard let displayName = MediaCacheFile.safeDisplayName(attachment.filename) else {
             return cached
         }
         let perMessageDir = displayLinkRoot.appendingPathComponent(
-            messageId,
+            MediaCacheFile.safeId(messageId),
             isDirectory: true
         )
         try? FileManager.default.createDirectory(
