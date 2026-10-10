@@ -68,7 +68,13 @@ final class ImageEditorState {
 
     /// Rotate 90° clockwise. Clears drawing and resets crop because the image
     /// dimensions may have swapped.
-    func rotateRight() {
+    func rotateRight(canvasSize: CGSize) {
+        // Markup is baked in before the transform, not thrown away.
+        // Both transforms used to reset `drawing` to empty: inking a photo and
+        // then rotating it silently destroyed the ink, with no warning and no
+        // way back — undo only pops strokes. Android bakes first, and so does
+        // this now.
+        bakeDrawing(canvasSize: canvasSize)
         let src = currentImage
         let size = src.size
         let newSize = CGSize(width: size.height, height: size.width)
@@ -83,11 +89,19 @@ final class ImageEditorState {
                     width: size.width, height: size.height))
         }
         drawing = PKDrawing()
-        cropRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        // Carried through the rotation rather than reset: a crop the user set
+        // and then rotated was silently discarded too. A rect normalised to
+        // the old frame maps to (1 - y - h, x, h, w) in the new one.
+        cropRect = CGRect(
+            x: 1 - cropRect.minY - cropRect.height,
+            y: cropRect.minX,
+            width: cropRect.height,
+            height: cropRect.width)
     }
 
-    /// Mirror horizontally. Clears drawing to avoid mirrored strokes.
-    func flipHorizontal() {
+    /// Mirror horizontally, keeping the markup by baking it in first.
+    func flipHorizontal(canvasSize: CGSize) {
+        bakeDrawing(canvasSize: canvasSize)
         let src = currentImage
         let size = src.size
         let format = UIGraphicsImageRendererFormat.default()
@@ -98,6 +112,42 @@ final class ImageEditorState {
             src.draw(in: CGRect(origin: .zero, size: size))
         }
         drawing = PKDrawing()
+        cropRect = CGRect(
+            x: 1 - cropRect.minX - cropRect.width,
+            y: cropRect.minY,
+            width: cropRect.width,
+            height: cropRect.height)
+    }
+
+    /// Draws the current strokes into `currentImage` and empties the canvas.
+    ///
+    /// The strokes live in canvas coordinates, so the scale between the canvas
+    /// and the image is needed to place them — which is why both transforms
+    /// take the canvas size.
+    private func bakeDrawing(canvasSize: CGSize) {
+        guard !drawing.bounds.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else {
+            drawing = PKDrawing()
+            return
+        }
+        currentImage = flattened(canvasSize: canvasSize)
+        drawing = PKDrawing()
+    }
+
+    /// `currentImage` with the strokes drawn in at full image resolution.
+    private func flattened(canvasSize: CGSize) -> UIImage {
+        let image = currentImage
+        let imageSize = image.size
+        let drawingScale = imageSize.width / max(canvasSize.width, 1)
+        let drawingImage = drawing.image(
+            from: CGRect(origin: .zero, size: canvasSize),
+            scale: drawingScale
+        )
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: imageSize, format: format).image { _ in
+            image.draw(at: .zero)
+            drawingImage.draw(in: CGRect(origin: .zero, size: imageSize))
+        }
     }
 
     // MARK: - Crop helpers
@@ -138,22 +188,8 @@ final class ImageEditorState {
     ///   (the PKCanvasView frame). Needed to scale drawing strokes to full
     ///   image resolution.
     func render(canvasSize: CGSize) -> UIImage {
-        let image = currentImage
-        let imageSize = image.size
-
         // 1. Flatten drawing at full image resolution.
-        let drawingScale = imageSize.width / max(canvasSize.width, 1)
-        let drawingImage = drawing.image(
-            from: CGRect(origin: .zero, size: canvasSize),
-            scale: drawingScale
-        )
-
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
-        let withDrawing = UIGraphicsImageRenderer(size: imageSize, format: format).image { _ in
-            image.draw(at: .zero)
-            drawingImage.draw(in: CGRect(origin: .zero, size: imageSize))
-        }
+        let withDrawing = flattened(canvasSize: canvasSize)
 
         // 2. Apply crop.
         let noCrop = CGRect(x: 0, y: 0, width: 1, height: 1)

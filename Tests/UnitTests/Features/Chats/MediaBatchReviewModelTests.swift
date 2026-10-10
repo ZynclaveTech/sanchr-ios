@@ -50,6 +50,30 @@ final class MediaBatchReviewModelTests: XCTestCase {
         XCTAssertEqual(m.currentIndex, 1)
     }
 
+    /// Removing the photo on screen must step back to the previous one.
+    ///
+    /// The guard was `idx < currentIndex`, so dropping the current photo left
+    /// the index where it was — which is the *next* photo — and the strip
+    /// jumped forward instead of back, against what the code's own comment
+    /// said it did.
+    func testRemovingTheSelectedMiddlePhotoStepsBack() {
+        let m = makeModel(["a", "b", "c"])
+        m.select(1)
+        m.remove(id: m.items[1].id)
+
+        XCTAssertEqual(name(of: m.current), "a")
+        XCTAssertEqual(m.currentIndex, 0)
+    }
+
+    func testRemovingTheSelectedFirstPhotoStaysAtTheStart() {
+        let m = makeModel(["a", "b", "c"])
+        m.select(0)
+        m.remove(id: m.items[0].id)
+
+        XCTAssertEqual(name(of: m.current), "b")
+        XCTAssertEqual(m.currentIndex, 0)
+    }
+
     func testRemovingALaterPhotoLeavesSelectionAlone() {
         let m = makeModel(["a", "b", "c"])
         m.select(0)

@@ -138,8 +138,11 @@ final class MediaBatchReviewModel {
         items.remove(at: idx)
         if items.isEmpty {
             currentIndex = 0
-        } else if idx < currentIndex {
-            currentIndex -= 1
+        } else if idx <= currentIndex {
+            // `<` rather than `<=` meant removing the photo on screen left the
+            // index where it was, which is now the *next* photo: the comment
+            // above says "step back when the current ... goes", and it did not.
+            currentIndex = max(0, currentIndex - 1)
         } else if currentIndex >= items.count {
             currentIndex = items.count - 1
         }

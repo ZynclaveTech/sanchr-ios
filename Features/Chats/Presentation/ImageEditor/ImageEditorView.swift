@@ -179,7 +179,7 @@ struct ImageEditorView: View {
                 action: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                        state.rotateRight()
+                        state.rotateRight(canvasSize: canvasSize)
                     }
                 }
             )
@@ -189,7 +189,7 @@ struct ImageEditorView: View {
                 action: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                        state.flipHorizontal()
+                        state.flipHorizontal(canvasSize: canvasSize)
                     }
                 }
             )
