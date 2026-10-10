@@ -170,6 +170,12 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
     // MARK: - Session Management
 
     public func establishSession(with userId: String, deviceId: Int32) async throws {
+        try await establishSession(with: userId, deviceId: deviceId, spendingOneTimePreKey: true)
+    }
+
+    /// Establishes a session, saying whether the bundle fetched for it may
+    /// take one of the recipient's one-time pre-keys.
+    func establishSession(with userId: String, deviceId: Int32, spendingOneTimePreKey: Bool) async throws {
         let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
 
         SanchrLogger.crypto.info(
@@ -179,7 +185,7 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         let preKeyBundle: PreKeyBundle
         do {
             preKeyBundle = try await keyManager.fetchPreKeyBundle(
-                userId: userId, deviceId: deviceId)
+                userId: userId, deviceId: deviceId, withoutOneTimePreKey: !spendingOneTimePreKey)
         } catch {
             SanchrLogger.crypto.error(
                 "fetchPreKeyBundle FAILED for \(userId.prefix(8))... device \(deviceId): \(Self.detailedError(error))")
@@ -336,6 +342,12 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             // SignalMessage the recipient cannot decrypt — that case is
             // self-healed by the next call's reset.
             try? resetSession(with: recipientId, deviceId: deviceId)
+            // Established here, explicitly, and without a one-time pre-key.
+            // Left to `encrypt`, the fresh session took one from the callee
+            // on every call to every one of their devices: nothing else
+            // spends them at that rate, and a run of calls could leave the
+            // callee with none for the conversations that need them.
+            try await establishSession(with: recipientId, deviceId: deviceId, spendingOneTimePreKey: false)
             let ct = try await encrypt(plaintext: plaintext, for: recipientId, deviceId: deviceId)
             var entry = Sanchr_Calling_DeviceCallOffer()
             entry.deviceID = deviceId
