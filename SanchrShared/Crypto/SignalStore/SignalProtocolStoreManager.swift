@@ -162,3 +162,23 @@ public final class SanchrSignalStore: IdentityKeyStore, PreKeyStore, SignedPreKe
             from: sender, distributionId: distributionId, context: context)
     }
 }
+
+// MARK: - TypedEnvelopeStores
+
+extension SanchrSignalStore: TypedEnvelopeStores {
+    public func sessionAddresses() -> [ProtocolAddress] {
+        sessionStore.allSessionAddresses()
+    }
+
+    public func removeSession(for address: ProtocolAddress) {
+        try? sessionStore.deleteSession(for: address)
+    }
+
+    public func removeIdentity(for address: ProtocolAddress) {
+        identityStore.removeIdentity(for: address)
+    }
+
+    public func establishedAddresses(holding identity: IdentityKey) -> [ProtocolAddress] {
+        identityStore.establishedAddresses(holding: identity)
+    }
+}
