@@ -33,7 +33,13 @@ struct VoiceWaveformView: View {
                 let stride = barWidth + barSpacing
                 let drawable = Int(usableWidth / stride)
                 let count = min(drawable, samples.count)
-                let strideStep = max(1, samples.count / max(1, count))
+                // Index by position across the whole clip rather than by a
+                // floored stride. `samples.count / count` dropped the tail:
+                // 64 samples into 23 bars gave a step of 2, so the last index
+                // reached was 44 and the final ~30% of every clip's amplitude
+                // was never drawn — while the progress head swept the full
+                // width, so the bars and the position disagreed.
+                let lastSample = max(0, samples.count - 1)
                 let progressX = usableWidth * CGFloat(progress)
                 // With nothing to draw, a flat run of bars rather than a void.
                 // A voice note whose waveform is still being decoded, or whose
@@ -46,7 +52,8 @@ struct VoiceWaveformView: View {
                     if placeholder {
                         raw = 0
                     } else {
-                        let sampleIndex = min(samples.count - 1, i * strideStep)
+                        let fraction = barCount <= 1 ? 0 : Double(i) / Double(barCount - 1)
+                        let sampleIndex = min(lastSample, Int((fraction * Double(lastSample)).rounded()))
                         raw = CGFloat(samples[sampleIndex])
                     }
                     let h = max(minBarHeight, raw * size.height)
