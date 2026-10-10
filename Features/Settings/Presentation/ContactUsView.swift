@@ -2,6 +2,7 @@ import SwiftUI
 import SanchrShared
 
 struct ContactUsView: View {
+    @State private var copiedAddress: String?
     @Environment(\.colorScheme) private var colorScheme
     @State private var name = ""
     @State private var email = ""
@@ -28,6 +29,17 @@ struct ContactUsView: View {
             .padding(.bottom, 28)
         }
         .sanchrSettingsSubscreenNavigation(title: "Contact Us")
+        .alert(
+            "Address copied",
+            isPresented: Binding(
+                get: { copiedAddress != nil },
+                set: { if !$0 { copiedAddress = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("No mail app is set up on this device, so \(copiedAddress ?? "") was copied instead.")
+        }
     }
 
     private var heroCard: some View {
@@ -51,26 +63,62 @@ struct ContactUsView: View {
     }
 
     private var quickLinks: some View {
+        // Tappable. These three rows were bare `HStack`s — no Button, no
+        // NavigationLink, no gesture — while looking exactly like the
+        // tappable rows elsewhere in Settings. Including the emergency
+        // address, which is the one a user in trouble would reach for.
         VStack(spacing: 12) {
-            ContactLinkRow(
-                icon: "questionmark.circle",
-                title: "Help Center",
-                subtitle: "Browse FAQs and setup guides"
-            )
+            NavigationLink {
+                HelpCenterView()
+            } label: {
+                ContactLinkRow(
+                    icon: "questionmark.circle",
+                    title: "Help Center",
+                    subtitle: "Browse FAQs and setup guides"
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
-            ContactLinkRow(
-                icon: "envelope.badge",
-                title: "support@sanchr.com",
-                subtitle: "General support inbox"
-            )
+            Button {
+                openMail(to: "support@sanchr.com", subject: "Sanchr support")
+            } label: {
+                ContactLinkRow(
+                    icon: "envelope.badge",
+                    title: "support@sanchr.com",
+                    subtitle: "General support inbox"
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
-            ContactLinkRow(
-                icon: "exclamationmark.shield",
-                title: "emergency@sanchr.com",
-                subtitle: "Urgent account or safety concerns",
-                role: .destructive
-            )
+            Button {
+                openMail(to: "emergency@sanchr.com", subject: "Urgent: account or safety concern")
+            } label: {
+                ContactLinkRow(
+                    icon: "exclamationmark.shield",
+                    title: "emergency@sanchr.com",
+                    subtitle: "Urgent account or safety concerns",
+                    role: .destructive
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
+    }
+
+    /// Opens the mail composer, and copies the address when no mail app can
+    /// take it — so the row always leaves the user with a way to write.
+    private func openMail(to address: String, subject: String) {
+        let encoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:\(address)?subject=\(encoded)"),
+           UIApplication.shared.canOpenURL(url)
+        {
+            UIApplication.shared.open(url)
+            return
+        }
+        UIPasteboard.general.string = address
+        copiedAddress = address
     }
 
     private var formCard: some View {
