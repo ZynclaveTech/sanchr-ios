@@ -418,6 +418,25 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         XCTAssertEqual(try text(next), "three")
     }
 
+    /// Once the session a first message started is gone there is nothing to
+    /// recognise its replay against except the record of its base key.
+    func testAReplayedFirstMessageIsRefusedEvenAfterItsSessionIsGone() async throws {
+        let alice = Peer("alice")
+        try startSession(alice, withOneTimePreKey: false)
+        let first = try send(alice, "one")
+        let opener = opener(publishing: alice)
+        _ = try await opener.open(first)
+        me.removeSession(for: alice.address)
+
+        do {
+            _ = try await opener.open(first)
+            XCTFail("a replayed first message opened as new")
+        } catch SignalError.invalidMessage {
+            // expected: the base key has been used before
+        }
+        XCTAssertNil(try session(alice))
+    }
+
     /// A contact starting a new session does not strand what they had already
     /// sent on the old one.
     func testAMessageStillInFlightOnTheOldSessionIsReadAfterANewOneStarts() async throws {

@@ -12,9 +12,16 @@ public final class SanchrKyberPreKeyStore: KyberPreKeyStore {
     private let queue = DispatchQueue(
         label: "io.sanchr.signal.kyber-prekey-store", attributes: .concurrent)
 
-    public init(userId: String, keychain: KeychainServiceProtocol) {
+    /// First messages already accepted against a Kyber pre-key; see `SeenBaseKeys`.
+    private let seenBaseKeys: SeenBaseKeys
+
+    public init(userId: String, keychain: KeychainServiceProtocol, baseDirectory: URL? = nil) {
         self.userId = userId
         self.keychain = keychain
+        let base = baseDirectory
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        self.seenBaseKeys = SeenBaseKeys(
+            fileURL: base.appendingPathComponent("SignalStore/\(userId)/kyber-base-keys-seen.json"))
     }
 
     public func loadKyberPreKey(id: UInt32, context: StoreContext) throws -> KyberPreKeyRecord {
@@ -45,7 +52,15 @@ public final class SanchrKyberPreKeyStore: KyberPreKeyStore {
         baseKey: PublicKey,
         context: StoreContext
     ) throws {
-        // Keep the latest signed Kyber pre-key available until rotation replaces it.
+        // The key itself stays until rotation replaces it; what is spent is
+        // this one base key. This did nothing at all, so a first message sent
+        // without a one-time pre-key could be replayed as new once the
+        // session it started was no longer held.
+        let fresh = try seenBaseKeys.insert(
+            kyberPreKeyId: id, signedPreKeyId: signedPreKeyId, baseKey: Data(baseKey.serialize()))
+        guard fresh else {
+            throw SignalError.invalidMessage("reused base key")
+        }
     }
 
     private func keychainKey(for id: UInt32) -> String {
