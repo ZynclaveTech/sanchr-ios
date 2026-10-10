@@ -57,9 +57,24 @@ public final class SanchrKyberPreKeyStore: KyberPreKeyStore {
         // without a one-time pre-key could be replayed as new once the
         // session it started was no longer held.
         let fresh = try seenBaseKeys.insert(
-            kyberPreKeyId: id, signedPreKeyId: signedPreKeyId, baseKey: Data(baseKey.serialize()))
+            kyberPreKeyId: id, signedPreKeyId: signedPreKeyId, baseKey: Data(baseKey.serialize()),
+            isHeld: { self.holdsKyberPreKey(id: $0) })
         guard fresh else {
             throw SignalError.invalidMessage("reused base key")
+        }
+    }
+
+    /// Whether a Kyber pre-key with this id is still stored. A keychain that
+    /// cannot be read just now counts as "yes": the entries that depend on
+    /// the answer are only safe to drop when the key is known to be gone.
+    private func holdsKyberPreKey(id: UInt32) -> Bool {
+        var cached = false
+        queue.sync { cached = cache[id] != nil }
+        if cached { return true }
+        do {
+            return try keychain.read(forKey: keychainKey(for: id)) != nil
+        } catch {
+            return true
         }
     }
 

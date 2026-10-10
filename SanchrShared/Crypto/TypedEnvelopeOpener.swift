@@ -67,10 +67,6 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
 
     /// The address the rehearsal runs under. It exists only in memory.
     private static let rehearsalName = "rehearsal"
-    /// The most questions put to the server in one window, whoever they are
-    /// about. Each is triggered by an envelope from someone not yet
-    /// identified, so without a ceiling the sender chooses how many are asked.
-    private static let lookupBudget = 60
     private static let vouchAttempts = 3
     private static let publishedTTL: TimeInterval = 300
     private static let publishedLimit = 128
@@ -81,8 +77,6 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
 
     private let lock = NSLock()
     private var published: [String: (identity: IdentityKey?, askedAt: Date)] = [:]
-    private var lookupWindowStart = Date()
-    private var lookupsInWindow = 0
 
     public init(stores: any TypedEnvelopeStores, localUserId: String, publishedIdentity: @escaping PublishedIdentity) {
         self.stores = stores
@@ -186,15 +180,17 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
     ///
     /// Asked more than once on a transport failure, because the message cannot
     /// be opened a second time: giving up on a dropped connection would lose
-    /// it for good. Remembered briefly, because each answer costs the named
-    /// user a one-time pre-key and the question is triggered by envelopes from
-    /// people not yet identified — unremembered, a flood of first messages all
-    /// claiming to be one person would have this device drain that person's
-    /// pre-keys on the sender's behalf.
+    /// it for good. Remembered briefly per user and device, so a flood of
+    /// first messages all claiming to be one person asks once — which matters
+    /// most against a server that predates `GetIdentityKey`, where each answer
+    /// costs that person a one-time pre-key.
+    ///
+    /// There is deliberately no ceiling shared across senders. One was tried:
+    /// it could be spent with forgeries, and the next genuine newcomer was
+    /// then turned away.
     private func isPublished(_ identity: IdentityKey, for userId: String, deviceId: Int32) async throws -> Bool {
         let key = "\(userId).\(deviceId)"
         if let remembered = remembered(key) { return remembered == identity }
-        guard spendLookup() else { return false }
 
         for attempt in 1...Self.vouchAttempts {
             do {
@@ -210,20 +206,6 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
             }
         }
         return false
-    }
-
-    /// Takes one from the window's budget; false when it is spent.
-    private func spendLookup() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        let now = Date()
-        if now.timeIntervalSince(lookupWindowStart) >= Self.publishedTTL {
-            lookupWindowStart = now
-            lookupsInWindow = 0
-        }
-        guard lookupsInWindow < Self.lookupBudget else { return false }
-        lookupsInWindow += 1
-        return true
     }
 
     private func remembered(_ key: String) -> IdentityKey?? {

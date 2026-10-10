@@ -437,6 +437,32 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         XCTAssertNil(try session(alice))
     }
 
+    /// A replay refused by its base key must be refused before it has changed
+    /// anything: the contact's current session and key stay exactly as they were.
+    func testAReplayRefusedByItsBaseKeyLeavesTheCurrentSessionUntouched() async throws {
+        let alice = Peer("alice")
+        try startSession(alice, withOneTimePreKey: false)
+        let first = try send(alice, "one")
+        let opener = opener(publishing: alice)
+        _ = try await opener.open(first)
+        // That session is lost, and she starts another, which is now current.
+        me.removeSession(for: alice.address)
+        try startSession(alice)
+        _ = try await opener.open(try send(alice, "a new start"))
+        let current = try session(alice)
+
+        do {
+            _ = try await opener.open(first)
+            XCTFail("a replayed first message opened as new")
+        } catch SignalError.invalidMessage {
+            // expected
+        }
+
+        XCTAssertEqual(try session(alice), current)
+        XCTAssertEqual(try me.identity(for: alice.address, context: context), alice.identity.identityKey)
+        XCTAssertFalse(me.hasPendingChange(for: alice.address))
+    }
+
     /// A contact starting a new session does not strand what they had already
     /// sent on the old one.
     func testAMessageStillInFlightOnTheOldSessionIsReadAfterANewOneStarts() async throws {
@@ -455,20 +481,22 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         XCTAssertEqual(late.senderUserId, "carol")
     }
 
-    func testTheServerIsNotAskedWithoutLimit() async throws {
-        let opener = opener()
-        var asked = 0
-        // Each names a different person, so no answer is remembered.
-        for index in 0..<70 {
-            let stranger = Peer("stranger-\(index)")
-            try startSession(stranger)
-            let envelope = try send(stranger, "hi")
-            lookups.reset()
+    /// A ceiling on questions to the server, shared by everyone, was a lever:
+    /// spend it with forgeries and the next real newcomer is turned away.
+    func testABurstOfForgedFirstMessagesDoesNotGetAGenuineStrangerRefused() async throws {
+        let newcomer = Peer("newcomer")
+        let opener = opener(publishing: newcomer)
+        for index in 0..<100 {
+            let forger = Peer("forger-\(index)")
+            try startSession(forger)
+            let envelope = try send(forger, "hi")
             await assertRefused(.senderNotVouchedFor) { try await opener.open(envelope) }
-            asked += lookups.value
         }
+        try startSession(newcomer)
 
-        XCTAssertEqual(asked, 60)
+        let opened = try await opener.open(try send(newcomer, "hello"))
+
+        XCTAssertEqual(opened.senderUserId, "newcomer")
     }
 }
 
