@@ -1,4 +1,5 @@
 import Foundation
+import GRPC
 import LibSignalClient
 
 /// Protocol for cryptographic key lifecycle management using libsignal.
@@ -240,6 +241,54 @@ public final class SignalKeyManager: KeyManagerProtocol, @unchecked Sendable {
         // 3. Upload new key bundle to server
         try await uploadInitialKeyBundle()
         SanchrLogger.crypto.info("Identity keys reset, \(allAddresses.count) sessions cleared, new bundle uploaded")
+    }
+
+    // MARK: - Published Identity
+
+    /// The identity key the server publishes for a user's device, or nil when
+    /// it publishes none.
+    ///
+    /// Asked with the call made for it, which costs that person nothing. The
+    /// only way to ask used to be for a whole pre-key bundle, which spends one
+    /// of their one-time pre-keys each time — on a question anyone can
+    /// trigger by sending a first message that names them.
+    public func fetchPublishedIdentityKey(userId: String, deviceId: Int32) async throws -> IdentityKey? {
+        try await Self.publishedIdentityKey(
+            lookup: {
+                var request = Sanchr_Keys_GetIdentityKeyRequest()
+                request.userID = userId
+                request.deviceID = deviceId
+                return try await self.keyService.getIdentityKey(request).identityPublicKey
+            },
+            bundle: { try await self.fetchPreKeyBundle(userId: userId, deviceId: deviceId).identityKey }
+        )
+    }
+
+    /// The rule for where the answer comes from, apart from the transport so
+    /// it can be tested.
+    ///
+    /// - "No such key" is an answer.
+    /// - A server that predates the call says `unimplemented`, and only then
+    ///   is a bundle asked for, as before.
+    /// - Anything else is a failure and is thrown. Falling back on any error
+    ///   would spend a pre-key every time the network blipped.
+    static func publishedIdentityKey(
+        lookup: () async throws -> Data,
+        bundle: () async throws -> IdentityKey
+    ) async throws -> IdentityKey? {
+        do {
+            let bytes = try await lookup()
+            return bytes.isEmpty ? nil : try IdentityKey(bytes: [UInt8](bytes))
+        } catch let status as GRPCStatus where status.code == .notFound {
+            return nil
+        } catch let status as GRPCStatus where status.code == .unimplemented {
+            do {
+                return try await bundle()
+            } catch let status as GRPCStatus where status.code == .notFound {
+                // The old way of saying the same thing.
+                return nil
+            }
+        }
     }
 
     // MARK: - Pre-Key Bundle Fetching

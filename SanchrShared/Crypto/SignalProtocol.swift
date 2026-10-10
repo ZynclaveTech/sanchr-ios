@@ -156,11 +156,12 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         self.typedEnvelopeOpener = TypedEnvelopeOpener(
             stores: store,
             localUserId: store.userId,
-            // There is no lighter question to put to the server than for a
-            // whole bundle; the opener asks only when it has to and remembers
-            // the answer.
+            // Costs the person asked about nothing on a current server; one
+            // that predates the call is asked for a whole bundle instead, so
+            // the opener still asks only when it has to and remembers the
+            // answer.
             publishedIdentity: { userId, deviceId in
-                try await keyManager.fetchPreKeyBundle(userId: userId, deviceId: deviceId).identityKey
+                try await keyManager.fetchPublishedIdentityKey(userId: userId, deviceId: deviceId)
             }
         )
         SanchrLogger.crypto.info("SignalSessionManager initialized")

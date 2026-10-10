@@ -8,6 +8,13 @@ service KeyService {
   rpc GetPreKeyCount(GetPreKeyCountRequest) returns (PreKeyCountResponse);
   rpc GetUserDevices(GetUserDevicesRequest) returns (GetUserDevicesResponse);
   rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+  // The identity key published for one device, and nothing else.
+  //
+  // A client that needs to check "is this the key the server has for that
+  // user?" had only GetPreKeyBundle to ask, which hands out — and so spends —
+  // one of the user's one-time pre-keys every time. That made a question
+  // anyone can trigger into a way of draining someone else's pre-keys.
+  rpc GetIdentityKey(GetIdentityKeyRequest) returns (GetIdentityKeyResponse);
 }
 
 message SignedPreKey {
@@ -52,6 +59,15 @@ message PreKeyBundleResponse {
   int32 device_id = 4;
   int32 registration_id = 5;
   KyberPreKey kyber_pre_key = 6;
+}
+
+message GetIdentityKeyRequest {
+  string user_id = 1;
+  int32 device_id = 2;
+}
+
+message GetIdentityKeyResponse {
+  bytes identity_public_key = 1;
 }
 
 message UploadOneTimePreKeysRequest {

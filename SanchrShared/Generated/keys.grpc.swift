@@ -45,6 +45,11 @@ public protocol Sanchr_Keys_KeyServiceClientProtocol: GRPCClient {
     _ request: Sanchr_Keys_RemoveDeviceRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>
+
+  func getIdentityKey(
+    _ request: Sanchr_Keys_GetIdentityKeyRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse>
 }
 
 extension Sanchr_Keys_KeyServiceClientProtocol {
@@ -159,6 +164,29 @@ extension Sanchr_Keys_KeyServiceClientProtocol {
       interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
     )
   }
+
+  /// The identity key published for one device, and nothing else.
+  ///
+  /// A client that needs to check "is this the key the server has for that
+  /// user?" had only GetPreKeyBundle to ask, which hands out — and so spends —
+  /// one of the user's one-time pre-keys every time. That made a question
+  /// anyone can trigger into a way of draining someone else's pre-keys.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetIdentityKey.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getIdentityKey(
+    _ request: Sanchr_Keys_GetIdentityKeyRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse> {
+    return self.makeUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getIdentityKey.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetIdentityKeyInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -252,6 +280,11 @@ public protocol Sanchr_Keys_KeyServiceAsyncClientProtocol: GRPCClient {
     _ request: Sanchr_Keys_RemoveDeviceRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>
+
+  func makeGetIdentityKeyCall(
+    _ request: Sanchr_Keys_GetIdentityKeyRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -335,6 +368,18 @@ extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
     )
   }
+
+  public func makeGetIdentityKeyCall(
+    _ request: Sanchr_Keys_GetIdentityKeyRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getIdentityKey.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetIdentityKeyInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -410,6 +455,18 @@ extension Sanchr_Keys_KeyServiceAsyncClientProtocol {
       interceptors: self.interceptors?.makeRemoveDeviceInterceptors() ?? []
     )
   }
+
+  public func getIdentityKey(
+    _ request: Sanchr_Keys_GetIdentityKeyRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Sanchr_Keys_GetIdentityKeyResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Sanchr_Keys_KeyServiceClientMetadata.Methods.getIdentityKey.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetIdentityKeyInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -448,6 +505,9 @@ public protocol Sanchr_Keys_KeyServiceClientInterceptorFactoryProtocol: Sendable
 
   /// - Returns: Interceptors to use when invoking 'removeDevice'.
   func makeRemoveDeviceInterceptors() -> [ClientInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getIdentityKey'.
+  func makeGetIdentityKeyInterceptors() -> [ClientInterceptor<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse>]
 }
 
 public enum Sanchr_Keys_KeyServiceClientMetadata {
@@ -461,6 +521,7 @@ public enum Sanchr_Keys_KeyServiceClientMetadata {
       Sanchr_Keys_KeyServiceClientMetadata.Methods.getPreKeyCount,
       Sanchr_Keys_KeyServiceClientMetadata.Methods.getUserDevices,
       Sanchr_Keys_KeyServiceClientMetadata.Methods.removeDevice,
+      Sanchr_Keys_KeyServiceClientMetadata.Methods.getIdentityKey,
     ]
   )
 
@@ -500,6 +561,12 @@ public enum Sanchr_Keys_KeyServiceClientMetadata {
       path: "/sanchr.keys.KeyService/RemoveDevice",
       type: GRPCCallType.unary
     )
+
+    public static let getIdentityKey = GRPCMethodDescriptor(
+      name: "GetIdentityKey",
+      path: "/sanchr.keys.KeyService/GetIdentityKey",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -518,6 +585,14 @@ public protocol Sanchr_Keys_KeyServiceProvider: CallHandlerProvider {
   func getUserDevices(request: Sanchr_Keys_GetUserDevicesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_GetUserDevicesResponse>
 
   func removeDevice(request: Sanchr_Keys_RemoveDeviceRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_RemoveDeviceResponse>
+
+  /// The identity key published for one device, and nothing else.
+  ///
+  /// A client that needs to check "is this the key the server has for that
+  /// user?" had only GetPreKeyBundle to ask, which hands out — and so spends —
+  /// one of the user's one-time pre-keys every time. That made a question
+  /// anyone can trigger into a way of draining someone else's pre-keys.
+  func getIdentityKey(request: Sanchr_Keys_GetIdentityKeyRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Sanchr_Keys_GetIdentityKeyResponse>
 }
 
 extension Sanchr_Keys_KeyServiceProvider {
@@ -586,6 +661,15 @@ extension Sanchr_Keys_KeyServiceProvider {
         userFunction: self.removeDevice(request:context:)
       )
 
+    case "GetIdentityKey":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetIdentityKeyRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_GetIdentityKeyResponse>(),
+        interceptors: self.interceptors?.makeGetIdentityKeyInterceptors() ?? [],
+        userFunction: self.getIdentityKey(request:context:)
+      )
+
     default:
       return nil
     }
@@ -627,6 +711,17 @@ public protocol Sanchr_Keys_KeyServiceAsyncProvider: CallHandlerProvider, Sendab
     request: Sanchr_Keys_RemoveDeviceRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Sanchr_Keys_RemoveDeviceResponse
+
+  /// The identity key published for one device, and nothing else.
+  ///
+  /// A client that needs to check "is this the key the server has for that
+  /// user?" had only GetPreKeyBundle to ask, which hands out — and so spends —
+  /// one of the user's one-time pre-keys every time. That made a question
+  /// anyone can trigger into a way of draining someone else's pre-keys.
+  func getIdentityKey(
+    request: Sanchr_Keys_GetIdentityKeyRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Sanchr_Keys_GetIdentityKeyResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -702,6 +797,15 @@ extension Sanchr_Keys_KeyServiceAsyncProvider {
         wrapping: { try await self.removeDevice(request: $0, context: $1) }
       )
 
+    case "GetIdentityKey":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Sanchr_Keys_GetIdentityKeyRequest>(),
+        responseSerializer: ProtobufSerializer<Sanchr_Keys_GetIdentityKeyResponse>(),
+        interceptors: self.interceptors?.makeGetIdentityKeyInterceptors() ?? [],
+        wrapping: { try await self.getIdentityKey(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -733,6 +837,10 @@ public protocol Sanchr_Keys_KeyServiceServerInterceptorFactoryProtocol: Sendable
   /// - Returns: Interceptors to use when handling 'removeDevice'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRemoveDeviceInterceptors() -> [ServerInterceptor<Sanchr_Keys_RemoveDeviceRequest, Sanchr_Keys_RemoveDeviceResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getIdentityKey'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetIdentityKeyInterceptors() -> [ServerInterceptor<Sanchr_Keys_GetIdentityKeyRequest, Sanchr_Keys_GetIdentityKeyResponse>]
 }
 
 public enum Sanchr_Keys_KeyServiceServerMetadata {
@@ -746,6 +854,7 @@ public enum Sanchr_Keys_KeyServiceServerMetadata {
       Sanchr_Keys_KeyServiceServerMetadata.Methods.getPreKeyCount,
       Sanchr_Keys_KeyServiceServerMetadata.Methods.getUserDevices,
       Sanchr_Keys_KeyServiceServerMetadata.Methods.removeDevice,
+      Sanchr_Keys_KeyServiceServerMetadata.Methods.getIdentityKey,
     ]
   )
 
@@ -783,6 +892,12 @@ public enum Sanchr_Keys_KeyServiceServerMetadata {
     public static let removeDevice = GRPCMethodDescriptor(
       name: "RemoveDevice",
       path: "/sanchr.keys.KeyService/RemoveDevice",
+      type: GRPCCallType.unary
+    )
+
+    public static let getIdentityKey = GRPCMethodDescriptor(
+      name: "GetIdentityKey",
+      path: "/sanchr.keys.KeyService/GetIdentityKey",
       type: GRPCCallType.unary
     )
   }
