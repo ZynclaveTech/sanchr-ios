@@ -109,18 +109,45 @@ private enum SealedDecodeOutcome {
     case dropped(reason: String)
 }
 
-/// Per-peer cooldown for session self-healing, so a burst of undeliverable
-/// envelopes triggers one heal per peer, not one per dropped message.
-private actor SessionHealLimiter {
+/// How often session self-healing may run.
+///
+/// A heal re-keys with every 1:1 contact, because a sealed message that could
+/// not be read does not say who sent it. One pass therefore already covers
+/// everyone, and is all a burst of unreadable messages needs — so a pass is
+/// allowed once in `passCooldown`, and a given peer once in `peerCooldown`.
+actor SessionHealLimiter {
+    private var lastPassAt: Date?
     private var lastHealAt: [String: Date] = [:]
-    private let cooldown: TimeInterval = 10 * 60
+    private let passCooldown: TimeInterval
+    private let peerCooldown: TimeInterval
+    private let now: @Sendable () -> Date
 
-    func begin(_ peerId: String) -> Bool {
-        let now = Date()
-        if let last = lastHealAt[peerId], now.timeIntervalSince(last) < cooldown {
+    init(
+        passCooldown: TimeInterval = 60 * 60,
+        peerCooldown: TimeInterval = 60 * 60,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.passCooldown = passCooldown
+        self.peerCooldown = peerCooldown
+        self.now = now
+    }
+
+    /// Claims the next pass over all peers, if one is due.
+    func beginPass() -> Bool {
+        let current = now()
+        if let last = lastPassAt, current.timeIntervalSince(last) < passCooldown {
             return false
         }
-        lastHealAt[peerId] = now
+        lastPassAt = current
+        return true
+    }
+
+    func begin(_ peerId: String) -> Bool {
+        let current = now()
+        if let last = lastHealAt[peerId], current.timeIntervalSince(last) < peerCooldown {
+            return false
+        }
+        lastHealAt[peerId] = current
         return true
     }
 }
@@ -1635,14 +1662,26 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 "Dropped \(droppedCount) undeliverable sealed message(s); latest=\(messageId.prefix(8))"
             )
         }
-        if acked {
-            // A dropped sealed message means some peer is encrypting to a
-            // session this device no longer has (typically after a reinstall
-            // rebuilt our Signal state). Sealed sender hides who, so heal by
-            // re-keying every 1:1 peer — cooldown-limited per peer.
+        if acked, Self.shouldHealAfterUndeliverable(error) {
+            // Some peer is encrypting to a session this device no longer has
+            // (typically after a reinstall rebuilt our Signal state). Sealed
+            // sender hides who, so heal by re-keying every 1:1 peer.
             Task { [weak self] in await self?.healStaleSessions() }
         }
         return acked
+    }
+
+    /// Whether a sealed message that could not be read is evidence of a
+    /// stale session, which is the only thing a heal repairs.
+    ///
+    /// A heal re-keys with every contact, so it must not be something a
+    /// stranger can set off. It used to follow *any* unreadable sealed
+    /// message — a forged first message, a bad certificate, plain garbage —
+    /// and any registered user can send one of those. The one case that does
+    /// point at a lost session is a message from inside an established
+    /// session that no session here authenticates.
+    static func shouldHealAfterUndeliverable(_ error: Error) -> Bool {
+        (error as? TypedEnvelopeOpener.OpenError) == .noSessionAuthenticates
     }
 
     /// Self-heal after undeliverable sealed messages: for each 1:1 conversation
@@ -1652,6 +1691,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     /// adopts a session with our current identity, and their subsequent sends
     /// decrypt again — without either user doing anything.
     private func healStaleSessions() async {
+        guard await sessionHealLimiter.beginPass() else { return }
         guard let conversations = try? await localDatabase.fetchConversations() else { return }
         let localUserId = currentUserIdProvider()
         var peers = Set<String>()

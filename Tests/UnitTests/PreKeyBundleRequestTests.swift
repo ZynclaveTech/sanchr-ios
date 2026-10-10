@@ -99,8 +99,9 @@ final class PreKeyBundleRequestTests: XCTestCase {
         XCTAssertThrowsError(try SignalKeyManager.bundle(from: response, deviceId: 1))
     }
 
-    /// The call path asks for no one-time pre-key; the message path still may.
-    func testOnlyCallSetupAsksForNone() throws {
+    /// Call setup and the automatic session heal ask for no one-time pre-key;
+    /// sending a message still may.
+    func testOnlyCallSetupAndTheHealAskForNone() throws {
         let source = try String(
             contentsOf: URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -110,6 +111,8 @@ final class PreKeyBundleRequestTests: XCTestCase {
         let callBody = String(source[callPath.upperBound...].prefix(2600))
 
         XCTAssertTrue(callBody.contains("spendingOneTimePreKey: false"))
-        XCTAssertEqual(source.components(separatedBy: "spendingOneTimePreKey: false").count - 1, 1)
+        XCTAssertEqual(source.components(separatedBy: "spendingOneTimePreKey: false").count - 1, 2)
+        // The ordinary path — a message to someone with no session — still does.
+        XCTAssertTrue(source.contains("try await establishSession(with: userId, deviceId: deviceId, spendingOneTimePreKey: true)"))
     }
 }

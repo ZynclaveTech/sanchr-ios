@@ -461,15 +461,13 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
             return opened
         }
 
-        do {
-            let opened = try await typedEnvelopeOpener.open(ciphertext)
-            SanchrLogger.crypto.info(
-                "Sealed envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
-            )
-            return opened
-        } catch let error as TypedEnvelopeOpener.OpenError {
-            throw AppError.decryptionFailed(reason: "Sealed envelope refused: \(error)")
-        }
+        // The opener's own errors are thrown as they are: what happens next
+        // depends on which one it was, and a reason string would lose that.
+        let opened = try await typedEnvelopeOpener.open(ciphertext)
+        SanchrLogger.crypto.info(
+            "Sealed envelope decrypted from \(opened.senderUserId.prefix(8))... device \(opened.senderDeviceId)"
+        )
+        return opened
     }
 
     // MARK: - Session Maintenance
@@ -498,6 +496,13 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
                     SanchrLogger.crypto.info(
                         "Archived session state for \(userId.prefix(8)) device \(deviceId)")
                 }
+                // The fresh session is started here rather than left to the
+                // next encrypt, so that it can be started without a one-time
+                // pre-key. This runs for every contact at once, on the
+                // strength of one message nobody could read — which anyone
+                // can send. Left to encrypt, each heal took a one-time key
+                // from every device of every contact.
+                try await establishSession(with: userId, deviceId: deviceId, spendingOneTimePreKey: false)
             } catch {
                 SanchrLogger.crypto.warning(
                     "resetSessions: archive failed for \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
