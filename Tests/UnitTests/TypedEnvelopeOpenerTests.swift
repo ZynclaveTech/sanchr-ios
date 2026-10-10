@@ -37,7 +37,7 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         }
     }
 
-    private func myBundle() throws -> PreKeyBundle {
+    private func myBundle(withOneTimePreKey: Bool = true) throws -> PreKeyBundle {
         let (oneTimeId, signedId, kyberId) = (nextKeyId, nextKeyId + 1, nextKeyId + 2)
         nextKeyId += 3
         let identity = try me.identityKeyPair(context: context)
@@ -53,6 +53,14 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         try me.storeKyberPreKey(
             KyberPreKeyRecord(id: kyberId, timestamp: 1, keyPair: kyber, signature: kyberSignature),
             id: kyberId, context: context)
+        guard withOneTimePreKey else {
+            // What the server hands out once the one-time keys have run out.
+            return try PreKeyBundle(
+                registrationId: 4242, deviceId: 1,
+                signedPrekeyId: signedId, signedPrekey: signed.publicKey, signedPrekeySignature: signedSignature,
+                identity: identity.identityKey,
+                kyberPrekeyId: kyberId, kyberPrekey: kyber.publicKey, kyberPrekeySignature: kyberSignature)
+        }
         return try PreKeyBundle(
             registrationId: 4242, deviceId: 1,
             prekeyId: oneTimeId, prekey: oneTime.publicKey,
@@ -61,9 +69,9 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
             kyberPrekeyId: kyberId, kyberPrekey: kyber.publicKey, kyberPrekeySignature: kyberSignature)
     }
 
-    private func startSession(_ peer: Peer) throws {
+    private func startSession(_ peer: Peer, withOneTimePreKey: Bool = true) throws {
         try processPreKeyBundle(
-            try myBundle(), for: myAddress, sessionStore: peer.store, identityStore: peer.store, context: context)
+            try myBundle(withOneTimePreKey: withOneTimePreKey), for: myAddress, sessionStore: peer.store, identityStore: peer.store, context: context)
     }
 
     /// A message framed as this app frames it. `claiming` is the sender the
@@ -112,9 +120,10 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         try me.loadSession(for: peer.address, context: context)?.serialize()
     }
 
+    /// The rehearsal a first message is given must leave nothing behind.
     private func assertNothingThrowawayIsLeft(file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertFalse(me.sessionAddresses().contains { $0.name.hasPrefix("sealedscratch-") }, file: file, line: line)
-        XCTAssertFalse(me.identityAddresses().contains { $0.name.hasPrefix("sealedscratch-") }, file: file, line: line)
+        XCTAssertFalse(me.sessionAddresses().contains { $0.name == "rehearsal" }, file: file, line: line)
+        XCTAssertFalse(me.identityAddresses().contains { $0.name == "rehearsal" }, file: file, line: line)
     }
 
     private func assertRefused(
@@ -359,18 +368,88 @@ final class TypedEnvelopeOpenerTests: XCTestCase {
         await assertRefused(.unknownType) { try await self.opener().open(Data([0x00, 0x33, 0x0a])) }
     }
 
-    func testAThrowawaySessionLeftByAKilledRunIsClearedOnTheNextStart() throws {
-        let leftover = try ProtocolAddress(name: "sealedscratch-\(UUID().uuidString)", deviceId: 1)
+    // MARK: - Replays, and what a new session does to an old one
+
+    func testAReplayedFirstMessageIsNotReadTwice() async throws {
         let alice = Peer("alice")
         try startSession(alice)
-        // Any record will do to stand in for one.
-        try me.storeSession(
-            try XCTUnwrap(try alice.store.loadSession(for: myAddress, context: context)), for: leftover, context: context)
-        _ = try me.saveIdentity(alice.identity.identityKey, for: leftover, context: context)
+        let envelope = try send(alice, "once")
+        _ = try await opener(publishing: alice).open(envelope)
+        let before = try session(alice)
 
-        _ = opener()
+        do {
+            _ = try await opener(publishing: alice).open(envelope)
+            XCTFail("a replayed first message opened")
+        } catch {
+            // The one-time pre-key it was sent to is spent.
+        }
+        XCTAssertEqual(try session(alice), before)
+    }
 
-        assertNothingThrowawayIsLeft()
+    /// With no one-time pre-key in play there is nothing spent to stop a
+    /// replay from starting the session over. Opened for real under the
+    /// sender's own address, it is recognised against the session it already
+    /// started. Moved into place from somewhere else, it rolled that session
+    /// back to its first message.
+    func testAReplayedFirstMessageCannotRollAnAdvancedSessionBack() async throws {
+        let alice = Peer("alice")
+        try startSession(alice, withOneTimePreKey: false)
+        let first = try send(alice, "one")
+        let opener = opener(publishing: alice)
+        _ = try await opener.open(first)
+        // The conversation moves on.
+        let reply = try signalEncrypt(
+            message: Data("reply".utf8), for: alice.address, sessionStore: me, identityStore: me, context: context)
+        _ = try signalDecrypt(
+            message: try SignalMessage(bytes: reply.serialize()), from: myAddress,
+            sessionStore: alice.store, identityStore: alice.store, context: context)
+        _ = try await opener.open(try send(alice, "two"))
+        let advanced = try session(alice)
+
+        do {
+            _ = try await opener.open(first)
+            XCTFail("a replayed first message opened")
+        } catch SignalError.duplicatedMessage {
+            // expected
+        }
+
+        XCTAssertEqual(try session(alice), advanced)
+        let next = try await opener.open(try send(alice, "three"))
+        XCTAssertEqual(try text(next), "three")
+    }
+
+    /// A contact starting a new session does not strand what they had already
+    /// sent on the old one.
+    func testAMessageStillInFlightOnTheOldSessionIsReadAfterANewOneStarts() async throws {
+        let carol = Peer("carol")
+        try await befriend(carol)
+        let inFlight = try send(carol, "sent before the restart")
+        XCTAssertEqual(inFlight.first, 0x02)
+        try startSession(carol)
+        let opener = opener(publishing: carol)
+
+        let fresh = try await opener.open(try send(carol, "after the restart"))
+        let late = try await opener.open(inFlight)
+
+        XCTAssertEqual(try text(fresh), "after the restart")
+        XCTAssertEqual(try text(late), "sent before the restart")
+        XCTAssertEqual(late.senderUserId, "carol")
+    }
+
+    func testTheServerIsNotAskedWithoutLimit() async throws {
+        let opener = opener()
+        var asked = 0
+        // Each names a different person, so no answer is remembered.
+        for index in 0..<70 {
+            let stranger = Peer("stranger-\(index)")
+            try startSession(stranger)
+            let envelope = try send(stranger, "hi")
+            lookups.reset()
+            await assertRefused(.senderNotVouchedFor) { try await opener.open(envelope) }
+            asked += lookups.value
+        }
+
+        XCTAssertEqual(asked, 60)
     }
 }
 
@@ -400,10 +479,6 @@ private final class TestStores: TypedEnvelopeStores {
     // TypedEnvelopeStores
     func sessionAddresses() -> [ProtocolAddress] { Array(sessions.keys) }
     func removeSession(for address: ProtocolAddress) { sessions.removeValue(forKey: address) }
-    func removeIdentity(for address: ProtocolAddress) {
-        identities.removeValue(forKey: address)
-        pending.remove(address)
-    }
     func establishedAddresses(holding identity: IdentityKey) -> [ProtocolAddress] {
         identities.filter { $0.value == identity && !pending.contains($0.key) }.map(\.key)
     }

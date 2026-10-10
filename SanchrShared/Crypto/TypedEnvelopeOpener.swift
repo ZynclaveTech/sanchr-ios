@@ -2,14 +2,12 @@ import Foundation
 import LibSignalClient
 
 /// What `TypedEnvelopeOpener` needs beyond libsignal's own store protocols:
-/// the few questions and removals those protocols have no place for.
+/// two questions those protocols have no place for.
 public protocol TypedEnvelopeStores: SessionStore, IdentityKeyStore, PreKeyStore, SignedPreKeyStore,
     KyberPreKeyStore
 {
     /// Every address a session is held for.
     func sessionAddresses() -> [ProtocolAddress]
-    func removeSession(for address: ProtocolAddress)
-    func removeIdentity(for address: ProtocolAddress)
     /// The addresses whose key on record is `identity` and is not awaiting the
     /// user's review. A key adopted on receive after a change sits in the same
     /// place as one that was vouched for; only the pending mark tells them
@@ -36,14 +34,23 @@ public protocol TypedEnvelopeStores: SessionStore, IdentityKeyStore, PreKeyStore
 /// and the stranger's message credited to them. With no sessions at all, it
 /// could not be opened.
 ///
-/// So a first message is never opened under a real address. It is opened under
-/// a throwaway one, and only once the payload has said who it is from, *and
-/// that claim has been checked*, is the session moved to where it belongs.
-/// The claim is good if the identity key inside the message is one already
-/// established for the user it names, or is the key the server publishes for
-/// them now. Without that check the payload's word would be the only thing
-/// tying a key to a person, and anyone could introduce themselves as anyone
-/// this device had not yet spoken to.
+/// So a first message is read twice. The first reading is a rehearsal: it
+/// runs against a copy of the stores that keeps what it writes in memory and
+/// consumes nothing, and its only purpose is to learn who the payload says
+/// the message is from. That claim is then checked — the identity key inside
+/// the message must be one already established for the user it names, or be
+/// the key the server publishes for them now. Without that check the
+/// payload's word would be the only thing tying a key to a person, and anyone
+/// could introduce themselves as anyone this device had not yet spoken to.
+///
+/// Only then is the message opened for real, under the sender's own address
+/// and with the real stores, exactly as an envelope that had named its sender
+/// would be. That second reading is libsignal's ordinary one, and it is what
+/// keeps two things true that copying a session into place would not: a
+/// replayed first message is recognised against the session it already
+/// started, instead of rolling that session back to its beginning; and a
+/// contact's earlier ratchets are archived beside the new one rather than
+/// thrown away, so messages still in flight on them can be read.
 public final class TypedEnvelopeOpener: @unchecked Sendable {
     public enum OpenError: Error, Equatable {
         /// No session on this device authenticates the message.
@@ -58,7 +65,12 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
 
     public typealias PublishedIdentity = @Sendable (_ userId: String, _ deviceId: Int32) async throws -> IdentityKey?
 
-    private static let scratchPrefix = "sealedscratch-"
+    /// The address the rehearsal runs under. It exists only in memory.
+    private static let rehearsalName = "rehearsal"
+    /// The most questions put to the server in one window, whoever they are
+    /// about. Each is triggered by an envelope from someone not yet
+    /// identified, so without a ceiling the sender chooses how many are asked.
+    private static let lookupBudget = 60
     private static let vouchAttempts = 3
     private static let publishedTTL: TimeInterval = 300
     private static let publishedLimit = 128
@@ -69,17 +81,13 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
 
     private let lock = NSLock()
     private var published: [String: (identity: IdentityKey?, askedAt: Date)] = [:]
+    private var lookupWindowStart = Date()
+    private var lookupsInWindow = 0
 
     public init(stores: any TypedEnvelopeStores, localUserId: String, publishedIdentity: @escaping PublishedIdentity) {
         self.stores = stores
         self.localUserId = localUserId
         self.publishedIdentity = publishedIdentity
-        // Anything a previous run left behind when it was killed between
-        // opening a message and placing it. It is key material.
-        for address in stores.sessionAddresses() where address.name.hasPrefix(Self.scratchPrefix) {
-            stores.removeSession(for: address)
-            stores.removeIdentity(for: address)
-        }
     }
 
     public func open(_ envelope: Data) async throws -> SealedDecryptResult {
@@ -98,9 +106,7 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
     private func openWithinASession(_ message: SignalMessage) throws -> SealedDecryptResult {
         // The local user's own sessions last: a copy from another of their
         // devices is rarer than a message from someone else.
-        let addresses = stores.sessionAddresses()
-            .filter { !$0.name.hasPrefix(Self.scratchPrefix) }
-            .sorted { first, _ in first.name != localUserId }
+        let addresses = stores.sessionAddresses().sorted { first, _ in first.name != localUserId }
         for address in addresses {
             do {
                 let plaintext = try signalDecrypt(
@@ -121,30 +127,31 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
     // MARK: - The first message of a session
 
     private func openFirstMessage(_ message: PreKeySignalMessage) async throws -> SealedDecryptResult {
-        let scratch = try ProtocolAddress(name: Self.scratchPrefix + UUID().uuidString, deviceId: 1)
-        defer {
-            stores.removeSession(for: scratch)
-            stores.removeIdentity(for: scratch)
-        }
         let identity = IdentityKey(publicKey: try message.identityKey)
+
+        // The rehearsal: nothing it does outlives this function.
+        let rehearsal = RehearsalStores(reading: stores)
+        let claimed = Data(
+            try signalDecryptPreKey(
+                message: message, from: try ProtocolAddress(name: Self.rehearsalName, deviceId: 1),
+                sessionStore: rehearsal, identityStore: rehearsal, preKeyStore: rehearsal,
+                signedPreKeyStore: rehearsal, kyberPreKeyStore: rehearsal, context: NullContext()))
+        let sender = try await vouchedSender(of: claimed, holding: identity)
+
+        // For real, under the sender's own address. A replay fails here as a
+        // duplicate, and a changed key is recorded for the user to review.
         let plaintext = Data(
             try signalDecryptPreKey(
-                message: message, from: scratch,
+                message: message, from: sender,
                 sessionStore: stores, identityStore: stores, preKeyStore: stores,
                 signedPreKeyStore: stores, kyberPreKeyStore: stores, context: NullContext()))
-
-        let sender = try await vouchedSender(of: plaintext, holding: identity)
-        try adopt(scratch, as: sender, holding: identity)
         return SealedDecryptResult(
             plaintext: plaintext, senderUserId: sender.name, senderDeviceId: Int32(sender.deviceId))
     }
 
     /// The address the message is really from, or a refusal.
     private func vouchedSender(of plaintext: Data, holding identity: IdentityKey) async throws -> ProtocolAddress {
-        // Not the throwaway address: opening the message has just put this
-        // very key on record there, and it must not count as a contact.
         let established = stores.establishedAddresses(holding: identity)
-            .filter { !$0.name.hasPrefix(Self.scratchPrefix) }
 
         guard let declared = Self.declaredSender(in: plaintext) else {
             // A payload from a build that predates the field. The key alone
@@ -152,7 +159,6 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
             guard established.count == 1 else { throw OpenError.senderNotDeclared }
             return established[0]
         }
-        guard !declared.userId.hasPrefix(Self.scratchPrefix) else { throw OpenError.senderNotDeclared }
         let address = try ProtocolAddress(name: declared.userId, deviceId: UInt32(max(1, declared.deviceId)))
 
         if established.contains(where: { $0.name == declared.userId }) { return address }
@@ -188,6 +194,7 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
     private func isPublished(_ identity: IdentityKey, for userId: String, deviceId: Int32) async throws -> Bool {
         let key = "\(userId).\(deviceId)"
         if let remembered = remembered(key) { return remembered == identity }
+        guard spendLookup() else { return false }
 
         for attempt in 1...Self.vouchAttempts {
             do {
@@ -203,6 +210,20 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
             }
         }
         return false
+    }
+
+    /// Takes one from the window's budget; false when it is spent.
+    private func spendLookup() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let now = Date()
+        if now.timeIntervalSince(lookupWindowStart) >= Self.publishedTTL {
+            lookupWindowStart = now
+            lookupsInWindow = 0
+        }
+        guard lookupsInWindow < Self.lookupBudget else { return false }
+        lookupsInWindow += 1
+        return true
     }
 
     private func remembered(_ key: String) -> IdentityKey?? {
@@ -223,19 +244,83 @@ public final class TypedEnvelopeOpener: @unchecked Sendable {
         }
         published[key] = (identity, Date())
     }
+}
 
-    /// Moves the session from the throwaway address to the sender's own, under
-    /// the usual trust rules.
-    private func adopt(_ scratch: ProtocolAddress, as sender: ProtocolAddress, holding identity: IdentityKey) throws {
-        guard let record = try stores.loadSession(for: scratch, context: NullContext()) else {
-            throw OpenError.noSessionAuthenticates
-        }
-        // Records a changed key for the user to review, exactly as an ordinary
-        // receive would.
-        guard try stores.isTrustedIdentity(identity, for: sender, direction: .receiving, context: NullContext()) else {
-            throw OpenError.senderNotVouchedFor
-        }
-        _ = try stores.saveIdentity(identity, for: sender, context: NullContext())
-        try stores.storeSession(record, for: sender, context: NullContext())
+/// The stores a first message is rehearsed against: the real keys to read,
+/// and nowhere real to write.
+///
+/// Sessions and identities it is asked to save are kept in memory and dropped
+/// with it. Pre-keys are read from the real stores and never removed or
+/// marked used, so the message can be opened again for real afterwards.
+private final class RehearsalStores: SessionStore, IdentityKeyStore, PreKeyStore, SignedPreKeyStore,
+    KyberPreKeyStore
+{
+    private let real: any TypedEnvelopeStores
+    private var sessions: [ProtocolAddress: SessionRecord] = [:]
+    private var identities: [ProtocolAddress: IdentityKey] = [:]
+
+    init(reading real: any TypedEnvelopeStores) {
+        self.real = real
     }
+
+    // Sessions: in memory only.
+    func loadSession(for address: ProtocolAddress, context: StoreContext) throws -> SessionRecord? {
+        sessions[address]
+    }
+
+    func loadExistingSessions(for addresses: [ProtocolAddress], context: StoreContext) throws -> [SessionRecord] {
+        addresses.compactMap { sessions[$0] }
+    }
+
+    func storeSession(_ record: SessionRecord, for address: ProtocolAddress, context: StoreContext) throws {
+        sessions[address] = record
+    }
+
+    // Identity: this device's own key is real; what it learns of others is not kept.
+    func identityKeyPair(context: StoreContext) throws -> IdentityKeyPair {
+        try real.identityKeyPair(context: context)
+    }
+
+    func localRegistrationId(context: StoreContext) throws -> UInt32 {
+        try real.localRegistrationId(context: context)
+    }
+
+    func saveIdentity(_ identity: IdentityKey, for address: ProtocolAddress, context: StoreContext) throws -> IdentityChange {
+        identities[address] = identity
+        return .newOrUnchanged
+    }
+
+    func isTrustedIdentity(
+        _ identity: IdentityKey, for address: ProtocolAddress, direction: Direction, context: StoreContext
+    ) throws -> Bool {
+        // Nothing is being trusted: this reading only finds out who to ask about.
+        true
+    }
+
+    func identity(for address: ProtocolAddress, context: StoreContext) throws -> IdentityKey? {
+        identities[address]
+    }
+
+    // Pre-keys: read, never consumed.
+    func loadPreKey(id: UInt32, context: StoreContext) throws -> PreKeyRecord {
+        try real.loadPreKey(id: id, context: context)
+    }
+
+    func storePreKey(_ record: PreKeyRecord, id: UInt32, context: StoreContext) throws {}
+
+    func removePreKey(id: UInt32, context: StoreContext) throws {}
+
+    func loadSignedPreKey(id: UInt32, context: StoreContext) throws -> SignedPreKeyRecord {
+        try real.loadSignedPreKey(id: id, context: context)
+    }
+
+    func storeSignedPreKey(_ record: SignedPreKeyRecord, id: UInt32, context: StoreContext) throws {}
+
+    func loadKyberPreKey(id: UInt32, context: StoreContext) throws -> KyberPreKeyRecord {
+        try real.loadKyberPreKey(id: id, context: context)
+    }
+
+    func storeKyberPreKey(_ record: KyberPreKeyRecord, id: UInt32, context: StoreContext) throws {}
+
+    func markKyberPreKeyUsed(id: UInt32, signedPreKeyId: UInt32, baseKey: PublicKey, context: StoreContext) throws {}
 }

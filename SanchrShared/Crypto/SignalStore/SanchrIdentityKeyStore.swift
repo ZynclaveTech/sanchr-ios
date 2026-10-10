@@ -258,16 +258,6 @@ public final class SanchrIdentityKeyStore: IdentityKeyStore, @unchecked Sendable
 
     // MARK: - For TypedEnvelopeOpener
 
-    /// Forgets the key on record for `address`. Used for the throwaway address
-    /// a first message is opened under, never for a contact.
-    public func removeIdentity(for address: ProtocolAddress) {
-        var removed = false
-        queue.sync(flags: .barrier) {
-            removed = self.trustedIdentities.removeValue(forKey: address) != nil
-        }
-        if removed { saveTrustedIdentitiesToDisk() }
-    }
-
     /// The addresses whose key on record is `identity` and is not awaiting
     /// review. See `TypedEnvelopeStores.establishedAddresses(holding:)`.
     public func establishedAddresses(holding identity: IdentityKey) -> [ProtocolAddress] {
