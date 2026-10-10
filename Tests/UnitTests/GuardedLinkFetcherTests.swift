@@ -140,6 +140,30 @@ final class GuardedLinkFetcherTests: XCTestCase {
         XCTAssertEqual(StubProtocol.requested, ["https://example.com/a"])
     }
 
+    func testARedirectMayNotDowngradeFromHTTPSToHTTP() async {
+        StubProtocol.answers["https://example.com/a"] = redirect(to: "http://example.com/a")
+        StubProtocol.answers["http://example.com/a"] = html("plain")
+
+        do {
+            _ = try await fetcher().fetch(
+                URL(string: "https://example.com/a")!, accept: "text/html", maxBytes: 1024, truncate: true)
+            XCTFail("followed a redirect down to http")
+        } catch {
+            XCTAssertEqual(error as? GuardedLinkFetcher.Refusal, .notFetchable)
+        }
+        XCTAssertEqual(StubProtocol.requested, ["https://example.com/a"])
+    }
+
+    func testOnlyAPublicHTTPSLinkIsFetchedAsAnAttachment() {
+        XCTAssertTrue(MediaDownloadManager.isFetchableSenderLink(URL(string: "https://cdn.example.com/a.jpg")!))
+        for link in [
+            "http://cdn.example.com/a.jpg", "https://192.168.1.1/a.jpg", "https://localhost/a.jpg",
+            "https://example.com@10.0.0.1/a.jpg", "file:///var/mobile/x", "ftp://example.com/a",
+        ] {
+            XCTAssertFalse(MediaDownloadManager.isFetchableSenderLink(URL(string: link)!), link)
+        }
+    }
+
     func testARedirectLoopEnds() async {
         StubProtocol.answers["https://example.com/a"] = redirect(to: "https://example.com/a")
 

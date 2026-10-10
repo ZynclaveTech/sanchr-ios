@@ -25,6 +25,10 @@ import SanchrShared
 final class GuardedLinkFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     static let shared = GuardedLinkFetcher()
 
+    /// For an attachment's own bytes rather than a preview card: the same
+    /// checks, with long enough to bring down a large file.
+    static let attachments = GuardedLinkFetcher(resourceTimeout: 600)
+
     struct Response: Sendable {
         let data: Data
         let mimeType: String?
@@ -47,6 +51,7 @@ final class GuardedLinkFetcher: NSObject, URLSessionDataDelegate, @unchecked Sen
     private let proxyConfigured: @Sendable () -> Bool
     private let peerIsPublic: @Sendable (URLSessionTaskMetrics) -> Bool
     private let protocolClasses: [AnyClass]?
+    private let resourceTimeout: TimeInterval
 
     private let lock = NSLock()
     private var states: [Int: TaskState] = [:]
@@ -68,8 +73,10 @@ final class GuardedLinkFetcher: NSObject, URLSessionDataDelegate, @unchecked Sen
         resolve: @escaping @Sendable (String) -> [String] = GuardedLinkFetcher.systemResolve,
         proxyConfigured: @escaping @Sendable () -> Bool = GuardedLinkFetcher.systemProxyConfigured,
         peerIsPublic: @escaping @Sendable (URLSessionTaskMetrics) -> Bool = GuardedLinkFetcher.everyPeerIsPublic,
-        protocolClasses: [AnyClass]? = nil
+        protocolClasses: [AnyClass]? = nil,
+        resourceTimeout: TimeInterval = 20
     ) {
+        self.resourceTimeout = resourceTimeout
         self.resolve = resolve
         self.proxyConfigured = proxyConfigured
         self.peerIsPublic = peerIsPublic
@@ -79,7 +86,7 @@ final class GuardedLinkFetcher: NSObject, URLSessionDataDelegate, @unchecked Sen
     private func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 10
-        configuration.timeoutIntervalForResource = 20
+        configuration.timeoutIntervalForResource = resourceTimeout
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCredentialStorage = nil
@@ -160,11 +167,15 @@ final class GuardedLinkFetcher: NSObject, URLSessionDataDelegate, @unchecked Sen
             $0.redirects += 1
             hops = $0.redirects
         }
+        // Never from an encrypted connection down to a plain one: a link that
+        // was `https` when it was judged must not end as a request anyone on
+        // the path can read or answer.
+        let downgrade = response.url?.scheme?.lowercased() == "https" && request.url?.scheme?.lowercased() != "https"
         let refusal: Refusal? =
             hops > Self.maxRedirects
             ? .tooManyRedirects
             : request.url.flatMap { Self.refusal(for: $0, resolve: resolve, proxyConfigured: proxyConfigured) }
-                ?? (request.url == nil ? .notFetchable : nil)
+                ?? (request.url == nil || downgrade ? .notFetchable : nil)
         if let refusal {
             completionHandler(nil)
             stop(task, because: refusal)
