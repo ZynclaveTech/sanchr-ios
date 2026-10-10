@@ -8,11 +8,10 @@ import Foundation
 /// network it sits on: `http://192.168.1.1/…`, `http://127.0.0.1:8080/…` and
 /// their many spellings are all things a link detector will happily find.
 ///
-/// This judges the text of the link only. It cannot know that a public name
-/// resolves to a private address, or that a public page redirects to one —
-/// the fetch is done by the system's link-metadata provider, which offers no
-/// hook at the connection. What it closes is the direct case, where a message
-/// simply names the address it wants requested.
+/// `isFetchable` judges the text of a link. It cannot know that a public name
+/// resolves to a private address, or that a public page redirects to one;
+/// `isPublicAddress` is for the fetcher to ask those questions of the
+/// addresses themselves, on every hop.
 public enum LinkPreviewHostPolicy {
 
     public static func isFetchable(_ url: URL) -> Bool {
@@ -25,6 +24,15 @@ public enum LinkPreviewHostPolicy {
         // comparison below.
         while host.hasSuffix(".") { host.removeLast() }
         return !isPrivateHost(host)
+    }
+
+    /// Whether `literal` — an address a name resolved to, or the peer a
+    /// connection actually reached — is a public one. Anything that is not a
+    /// plain IPv4 or IPv6 literal is not.
+    public static func isPublicAddress(_ literal: String) -> Bool {
+        let address = literal.lowercased()
+        guard address.contains(":") || dottedQuad(address) != nil else { return false }
+        return !isPrivateHost(address)
     }
 
     static func isPrivateHost(_ host: String) -> Bool {
