@@ -63,6 +63,13 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
     /// Resets (deletes) the session with a specific user/device for session recovery.
     func resetSession(with userId: String, deviceId: Int32) throws
 
+    /// The registration id of the device the session with `userId`'s device
+    /// is with, or zero when there is no session or it cannot be read.
+    ///
+    /// Sent with each sealed message so the server can say when that device
+    /// has been set up again and no longer holds the session.
+    func sessionRegistrationId(with userId: String, deviceId: Int32) -> UInt32
+
     /// Archives the current session state with every device of a user, so the
     /// next encrypt fetches fresh pre-key bundles and produces
     /// PreKeySignalMessages that force the peer to adopt a new session — while
@@ -128,6 +135,9 @@ public protocol SignalProtocolManagerProtocol: AnyObject, Sendable {
 }
 
 extension SignalProtocolManagerProtocol {
+    /// For conformers that keep no sessions. Zero states nothing.
+    public func sessionRegistrationId(with userId: String, deviceId: Int32) -> UInt32 { 0 }
+
     /// For conformers that have no use for the time of receipt.
     public func decryptSealedEnvelope(_ ciphertext: Data, receivedAt: Date) async throws -> SealedDecryptResult {
         try await decryptSealedEnvelope(ciphertext)
@@ -532,6 +542,21 @@ public final class SignalSessionManager: SignalProtocolManagerProtocol, @uncheck
         } catch {
             SanchrLogger.crypto.warning(
                 "relocateSession failed: \(error.localizedDescription)")
+        }
+    }
+
+    public func sessionRegistrationId(with userId: String, deviceId: Int32) -> UInt32 {
+        do {
+            let address = try ProtocolAddress(name: userId, deviceId: UInt32(deviceId))
+            guard let record = try store.loadSession(for: address, context: NullContext()),
+                record.hasCurrentState
+            else { return 0 }
+            return try record.remoteRegistrationId()
+        } catch {
+            SanchrLogger.crypto.warning(
+                "No registration id for the session with \(userId.prefix(8)) device \(deviceId): \(error.localizedDescription)"
+            )
+            return 0
         }
     }
 

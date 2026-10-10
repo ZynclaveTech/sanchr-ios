@@ -802,6 +802,25 @@ public struct Sanchr_Messaging_SealedDeviceMessage: Sendable {
   /// more loudly. Signal's envelope carries the same distinction as `urgent`.
   public var silent: Bool = false
 
+  /// The registration id of the device the sender's session is with, when the
+  /// sender wants it checked. Zero means it does not say, and nothing is
+  /// checked — which is what a client too old to set this sends.
+  ///
+  /// A device that is set up again (reinstalled, re-registered) gets a new
+  /// registration id and has lost every session it had. Someone who was already
+  /// talking to it has no way to know: their session still encrypts, the server
+  /// still accepts the result, and the recipient cannot read it. Nothing told
+  /// the sender, so every message went the same way until the recipient
+  /// happened to write first.
+  ///
+  /// With this set, the server compares it with the id the device now
+  /// publishes and, if they differ, delivers nothing and says so in
+  /// `stale_devices`.
+  ///
+  /// The server learns nothing by it. It already knows the recipient, the
+  /// device, and the id that device published.
+  public var recipientRegistrationID: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -813,6 +832,31 @@ public struct Sanchr_Messaging_SendSealedMessageResponse: Sendable {
   // methods supported on all messages.
 
   public var serverTimestamp: Int64 = 0
+
+  /// Devices the sender's sessions are out of date for. When this is not
+  /// empty NOTHING in the request was delivered, to any device: the sender
+  /// starts new sessions with the ones listed and sends the whole message
+  /// again. All or nothing, so that a retry cannot deliver a second copy to
+  /// the devices that were fine.
+  public var staleDevices: [Sanchr_Messaging_StaleDevice] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Sanchr_Messaging_StaleDevice: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var recipientID: String = String()
+
+  public var deviceID: Int32 = 0
+
+  /// False when the device no longer publishes keys at all: there is nothing
+  /// to start a new session with, and it should be dropped from the send.
+  public var registered: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2371,7 +2415,7 @@ extension Sanchr_Messaging_SendSealedMessageRequest: SwiftProtobuf.Message, Swif
 
 extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SealedDeviceMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0\u{3}conversation_id\0\u{1}silent\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{3}sealed_envelope\0\u{3}conversation_id\0\u{1}silent\0\u{3}recipient_registration_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2384,6 +2428,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
       case 3: try { try decoder.decodeSingularBytesField(value: &self.sealedEnvelope) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.conversationID) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.silent) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.recipientRegistrationID) }()
       default: break
       }
     }
@@ -2405,6 +2450,9 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if self.silent != false {
       try visitor.visitSingularBoolField(value: self.silent, fieldNumber: 5)
     }
+    if self.recipientRegistrationID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.recipientRegistrationID, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2414,6 +2462,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
     if lhs.sealedEnvelope != rhs.sealedEnvelope {return false}
     if lhs.conversationID != rhs.conversationID {return false}
     if lhs.silent != rhs.silent {return false}
+    if lhs.recipientRegistrationID != rhs.recipientRegistrationID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2421,7 +2470,7 @@ extension Sanchr_Messaging_SealedDeviceMessage: SwiftProtobuf.Message, SwiftProt
 
 extension Sanchr_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendSealedMessageResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_timestamp\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_timestamp\0\u{3}stale_devices\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2430,6 +2479,7 @@ extension Sanchr_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, Swi
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularInt64Field(value: &self.serverTimestamp) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.staleDevices) }()
       default: break
       }
     }
@@ -2439,11 +2489,55 @@ extension Sanchr_Messaging_SendSealedMessageResponse: SwiftProtobuf.Message, Swi
     if self.serverTimestamp != 0 {
       try visitor.visitSingularInt64Field(value: self.serverTimestamp, fieldNumber: 1)
     }
+    if !self.staleDevices.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.staleDevices, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Sanchr_Messaging_SendSealedMessageResponse, rhs: Sanchr_Messaging_SendSealedMessageResponse) -> Bool {
     if lhs.serverTimestamp != rhs.serverTimestamp {return false}
+    if lhs.staleDevices != rhs.staleDevices {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Sanchr_Messaging_StaleDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StaleDevice"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}recipient_id\0\u{3}device_id\0\u{1}registered\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.recipientID) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.deviceID) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.registered) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.recipientID.isEmpty {
+      try visitor.visitSingularStringField(value: self.recipientID, fieldNumber: 1)
+    }
+    if self.deviceID != 0 {
+      try visitor.visitSingularInt32Field(value: self.deviceID, fieldNumber: 2)
+    }
+    if self.registered != false {
+      try visitor.visitSingularBoolField(value: self.registered, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Sanchr_Messaging_StaleDevice, rhs: Sanchr_Messaging_StaleDevice) -> Bool {
+    if lhs.recipientID != rhs.recipientID {return false}
+    if lhs.deviceID != rhs.deviceID {return false}
+    if lhs.registered != rhs.registered {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
