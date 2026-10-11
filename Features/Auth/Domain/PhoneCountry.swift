@@ -50,6 +50,14 @@ struct PhoneCountry: Identifiable, Hashable, Sendable {
         callingCode + nationalNumber
     }
 
+    /// What was typed, as E.164, or nil if it is not a number this country
+    /// could have. Spaces, brackets, dashes and a leading trunk zero are all
+    /// things people type and none of them are part of the number.
+    func e164(fromInput input: String) -> String? {
+        let national = nationalNumber(from: input)
+        return isValid(nationalNumber: national) ? e164(nationalNumber: national) : nil
+    }
+
     /// Display formatting for the field, grouped the way people in that
     /// country write numbers so a typo is easier to spot.
     func format(nationalNumber digits: String) -> String {
