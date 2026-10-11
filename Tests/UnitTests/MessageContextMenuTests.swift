@@ -43,18 +43,40 @@ final class MessageContextMenuTests: XCTestCase {
         XCTAssertFalse(actions.contains(.share))
     }
 
-    /// Only your own messages can be deleted.
-    func testDeleteIsOnlyOfferedOnYourOwnMessages() {
-        XCTAssertTrue(
-            MessageContextAction.actions(
-                isOutgoing: true, isSaveableMedia: false, canRetry: false, isText: true
-            ).contains(.delete)
-        )
-        XCTAssertFalse(
-            MessageContextAction.actions(
-                isOutgoing: false, isSaveableMedia: false, canRetry: false, isText: true
-            ).contains(.delete)
-        )
+    /// A received message can be removed from this phone too. It used to
+    /// offer no Delete at all.
+    func testDeleteIsOfferedOnEveryMessage() {
+        for isOutgoing in [true, false] {
+            for isText in [true, false] {
+                let actions = MessageContextAction.actions(
+                    isOutgoing: isOutgoing, isSaveableMedia: !isText, canRetry: false, isText: isText)
+                XCTAssertEqual(actions.filter { $0 == .delete }.count, 1, "outgoing=\(isOutgoing) text=\(isText)")
+                XCTAssertEqual(actions.last, .delete)
+            }
+        }
+    }
+
+    /// Whichever kind of message it is, Delete is not the row under Reply.
+    func testDeleteIsNeverNextToReplyOnAReceivedMessageEither() {
+        let barest = MessageContextAction.actions(
+            isOutgoing: false, isSaveableMedia: false, canRetry: false, isText: false)
+
+        XCTAssertGreaterThan(barest.firstIndex(of: .delete)! - barest.firstIndex(of: .reply)!, 1)
+    }
+
+    /// Deleting for everyone is for your own messages only. The menu no
+    /// longer decides that; the confirmation does.
+    func testOnlyYourOwnMessageIsOfferedDeleteForEveryone() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("Features/Chats/Presentation/ChatDetailView.swift"),
+            encoding: .utf8)
+        let offer = try XCTUnwrap(source.range(of: "Button(\"Delete for everyone\", role: .destructive)"))
+        let guardBefore = source[..<offer.lowerBound].suffix(120)
+
+        XCTAssertTrue(guardBefore.contains("message.isOutgoing"), "Delete for everyone must stay behind isOutgoing")
+        XCTAssertTrue(source.contains("Button(\"Delete for me\", role: .destructive)"))
     }
 
     /// Destructive last, and never next to Reply — a Delete beside the action

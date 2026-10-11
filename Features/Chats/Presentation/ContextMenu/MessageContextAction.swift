@@ -78,11 +78,14 @@ enum MessageContextAction: String, Identifiable, CaseIterable {
             actions.append(.retry)
         }
 
-        // Only your own messages can be deleted for everyone, and deleting
-        // someone else's copy is not a thing this app can do.
-        if isOutgoing {
-            actions.append(.delete)
-        }
+        // Every message can be deleted from this phone. What differs is how
+        // far the deletion reaches, and the confirmation asks that: your own
+        // message can also be deleted for everyone, someone else's only for
+        // you. Delete used to be left off other people's messages altogether,
+        // so a message you had received could never be removed — while the
+        // confirmation went on carrying a "this device only" wording nothing
+        // could reach.
+        actions.append(.delete)
 
         return actions
     }
