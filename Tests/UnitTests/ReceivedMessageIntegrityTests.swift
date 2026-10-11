@@ -155,6 +155,66 @@ final class ReceivedMessageIntegrityTests: XCTestCase {
                 payloadClaimsSync: true, authenticatedSenderId: "", currentUserId: ""))
     }
 
+    // MARK: - Where it may be filed
+
+    private func mayPost(
+        _ sender: String,
+        type: Conversation.ConversationType = .oneToOne,
+        participants: [String] = ["me", "alice"],
+        me: String? = "me"
+    ) -> Bool {
+        MessageRepositoryImpl.mayPost(
+            senderId: sender, conversationType: type, participantIds: participants, currentUserId: me)
+    }
+
+    func testTheOtherPersonInAChatMayPostToIt() {
+        XCTAssertTrue(mayPost("alice"))
+        XCTAssertTrue(mayPost("alice", participants: ["alice"]))
+    }
+
+    /// The case this exists for: Mallory's message, filed in the chat with
+    /// Alice.
+    func testSomeoneWhoIsNotInTheChatMayNot() {
+        XCTAssertFalse(mayPost("mallory"))
+        XCTAssertFalse(mayPost("mallory", participants: ["alice"]))
+        XCTAssertFalse(mayPost(""))
+    }
+
+    func testThisUsersOwnMessageBelongs() {
+        XCTAssertTrue(mayPost("me"))
+    }
+
+    /// Saying no drops a message, so anything unsure says yes.
+    func testAChatWhoseOtherMemberIsNotKnownIsNotJudged() {
+        XCTAssertTrue(mayPost("mallory", participants: []))
+        XCTAssertTrue(mayPost("mallory", participants: ["me"]))
+        XCTAssertTrue(mayPost("mallory", participants: ["", "me"]))
+    }
+
+    func testAGroupIsNotJudgedHere() {
+        XCTAssertTrue(mayPost("mallory", type: .group))
+    }
+
+    func testWithNobodySignedInTheSenderStillHasToBeAMember() {
+        XCTAssertTrue(mayPost("alice", me: nil))
+        XCTAssertFalse(mayPost("mallory", me: nil))
+        XCTAssertFalse(mayPost("", me: ""))
+    }
+
+    func testTheSealedReceivePathChecksBeforeItSaves() throws {
+        let source = try repositorySource()
+        let check = try XCTUnwrap(source.range(of: "!Self.mayPost("))
+        let save = try XCTUnwrap(source.range(of: "localDatabase.saveReceivedMessage(message, queueAck: !isOutgoing)"))
+        XCTAssertLessThan(check.lowerBound, save.lowerBound)
+        XCTAssertTrue(source.contains("fetchConversation(id: innerPayload.conversationId)"))
+
+        // After the chat has been brought onto the phone, or a chat that had
+        // to be fetched first would go unchecked.
+        let hydrate = try XCTUnwrap(
+            source.range(of: "ensureConversationShellExists(\n                conversationId: innerPayload.conversationId"))
+        XCTAssertLessThan(hydrate.lowerBound, check.lowerBound)
+    }
+
     // MARK: - Wiring
 
     private func repositorySource() throws -> String {
