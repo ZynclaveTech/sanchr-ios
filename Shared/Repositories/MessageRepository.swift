@@ -1977,6 +1977,18 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             if !isOutgoing, privacyGate.acceptsMessage(from: effectiveSenderId) == .suppress {
                 return .dropped(reason: "sender is blocked")
             }
+            // The payload names its own conversation, and the sender wrote
+            // the payload. See `mayPost`.
+            if !isOutgoing,
+               let named = try? await localDatabase.fetchConversation(id: innerPayload.conversationId),
+               !Self.mayPost(
+                   senderId: effectiveSenderId,
+                   conversationType: named.type,
+                   participantIds: named.participants.map(\.id),
+                   currentUserId: currentUserIdProvider()
+               ) {
+                return .dropped(reason: "sender is not in the chat the message names")
+            }
             let messageId = Self.canonicalSealedMessageId(
                 sealedEnvelopeId: sealed.messageID,
                 innerPayloadMessageId: innerPayload.messageId
@@ -2052,6 +2064,30 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     ) -> Bool {
         guard payloadClaimsSync, let currentUserId, !currentUserId.isEmpty else { return false }
         return authenticatedSenderId == currentUserId
+    }
+
+    /// Whether a message may be filed in the conversation it names.
+    ///
+    /// A sealed message names its own conversation, inside a payload its
+    /// sender wrote. Filed on that word alone, a message from one person
+    /// could be put into this user's chat with another — where a one-to-one
+    /// chat shows every incoming bubble as that other person's.
+    ///
+    /// Deliberately narrow, because the answer "no" drops a message. It
+    /// refuses only what is certainly wrong: a one-to-one chat this phone
+    /// knows the other member of, and a sender who is neither of the two. A
+    /// group, or a chat whose other member it has not been told, is let
+    /// through, as before.
+    static func mayPost(
+        senderId: String,
+        conversationType: Conversation.ConversationType,
+        participantIds: [String],
+        currentUserId: String?
+    ) -> Bool {
+        guard conversationType == .oneToOne else { return true }
+        if let currentUserId, !currentUserId.isEmpty, senderId == currentUserId { return true }
+        let others = participantIds.filter { !$0.isEmpty && $0 != currentUserId }
+        return others.isEmpty || others.contains(senderId)
     }
 
     static func canonicalSealedMessageId(
