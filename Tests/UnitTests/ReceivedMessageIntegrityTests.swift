@@ -207,6 +207,12 @@ final class ReceivedMessageIntegrityTests: XCTestCase {
         let save = try XCTUnwrap(source.range(of: "localDatabase.saveReceivedMessage(message, queueAck: !isOutgoing)"))
         XCTAssertLessThan(check.lowerBound, save.lowerBound)
         XCTAssertTrue(source.contains("fetchConversation(id: innerPayload.conversationId)"))
+
+        // After the chat has been brought onto the phone, or a chat that had
+        // to be fetched first would go unchecked.
+        let hydrate = try XCTUnwrap(
+            source.range(of: "ensureConversationShellExists(\n                conversationId: innerPayload.conversationId"))
+        XCTAssertLessThan(hydrate.lowerBound, check.lowerBound)
     }
 
     // MARK: - Wiring

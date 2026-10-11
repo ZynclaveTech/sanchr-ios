@@ -1977,18 +1977,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             if !isOutgoing, privacyGate.acceptsMessage(from: effectiveSenderId) == .suppress {
                 return .dropped(reason: "sender is blocked")
             }
-            // The payload names its own conversation, and the sender wrote
-            // the payload. See `mayPost`.
-            if !isOutgoing,
-               let named = try? await localDatabase.fetchConversation(id: innerPayload.conversationId),
-               !Self.mayPost(
-                   senderId: effectiveSenderId,
-                   conversationType: named.type,
-                   participantIds: named.participants.map(\.id),
-                   currentUserId: currentUserIdProvider()
-               ) {
-                return .dropped(reason: "sender is not in the chat the message names")
-            }
             let messageId = Self.canonicalSealedMessageId(
                 sealedEnvelopeId: sealed.messageID,
                 innerPayloadMessageId: innerPayload.messageId
@@ -2023,6 +2011,22 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 senderId: effectiveSenderId,
                 serverTimestamp: serverTimestamp
             )
+
+            // The payload names its own conversation, and the sender wrote
+            // the payload. See `mayPost`. Asked only now, once the chat is
+            // on this phone: one that had to be fetched a moment ago — a
+            // real chat with someone else, not yet synced to a new install
+            // — is exactly the one a stranger's message must not land in.
+            if !isOutgoing,
+               let named = try? await localDatabase.fetchConversation(id: innerPayload.conversationId),
+               !Self.mayPost(
+                   senderId: effectiveSenderId,
+                   conversationType: named.type,
+                   participantIds: named.participants.map(\.id),
+                   currentUserId: currentUserIdProvider()
+               ) {
+                return .dropped(reason: "sender is not in the chat the message names")
+            }
 
             // 7. Save and (for incoming) queue a delivery ack. Never over a
             // message already held: see `saveReceivedMessage`.
