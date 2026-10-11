@@ -104,6 +104,12 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// Saves a message that came from someone else, unless a message with
+    /// its id is already held. See `LocalDatabase.saveReceivedMessage`.
+    ///
+    /// - Returns: whether it was saved.
+    func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool
+
     // MARK: - Blocked Users
 
     func fetchBlockedUserIds() async throws -> Set<String>
@@ -131,6 +137,14 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool {
+        if queueAck {
+            try await saveIncomingMessageAndQueueAck(message)
+        } else {
+            try await saveMessage(message)
+        }
+        return true
+    }
     public func fetchBlockedUserIds() async throws -> Set<String> { [] }
     public func replaceBlockedUserIds(_ userIds: Set<String>) async throws {}
     public func setUserBlocked(_ userId: String, blocked: Bool) async throws {}
@@ -248,6 +262,40 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             try persistMessage(message, in: db, queueAck: true)
         }
         SanchrLogger.persistence.debug("Saved incoming message \(message.id) and queued ack")
+    }
+
+    /// Saves a message that came from someone else, unless a message with
+    /// its id is already held.
+    ///
+    /// The id of a received message is chosen by its sender, and the other
+    /// saves here overwrite. The other person in a chat knows the id of every
+    /// message in it, theirs and this user's; by reusing one they replaced
+    /// that message — rewrote what either of them had said, brought back one
+    /// that had been deleted, refilled a view-once that had been opened.
+    ///
+    /// A genuine resend carries what is already stored, so leaving the row
+    /// alone is right for it too. The delivery is still acknowledged, or the
+    /// server would send it again for ever.
+    public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool {
+        let saved = try await dbPool.write { db -> Bool in
+            guard try MessageRecord.fetchOne(db, key: message.id) == nil else {
+                if queueAck {
+                    let ack = PendingMessageAck(
+                        conversationId: message.conversationId,
+                        messageId: message.id,
+                        createdAt: Date()
+                    )
+                    try PendingMessageAckRecord(from: ack).save(db, onConflict: Database.ConflictResolution.replace)
+                }
+                return false
+            }
+            try persistMessage(message, in: db, queueAck: queueAck)
+            return true
+        }
+        if !saved {
+            SanchrLogger.persistence.warning("Received a message under an id already held; kept the one here")
+        }
+        return saved
     }
 
     public func fetchMessages(conversationId: String, before: Date?, limit: Int) async throws -> [Message] {
@@ -1735,6 +1783,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool { throw error }
     public func fetchBlockedUserIds() async throws -> Set<String> { throw error }
     public func replaceBlockedUserIds(_ userIds: Set<String>) async throws { throw error }
     public func setUserBlocked(_ userId: String, blocked: Bool) async throws { throw error }

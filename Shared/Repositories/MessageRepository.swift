@@ -1787,7 +1787,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 senderId: envelope.senderID,
                 serverTimestamp: serverTimestamp
             )
-            try? await localDatabase.saveIncomingMessageAndQueueAck(message)
+            // Never over a message already held: see `saveReceivedMessage`.
+            if (try? await localDatabase.saveReceivedMessage(message, queueAck: true)) == false {
+                return nil
+            }
 
             // If per-chat policy says auto-vault, kick off a background
             // routing task. Routing runs OFF the decode hot path so we
@@ -1950,7 +1953,11 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let content = decodeContent(innerPayload.content, contentType: innerPayload.contentType)
 
             // 5. Determine direction: self-sync messages are outgoing.
-            let isOutgoing = innerPayload.isSync
+            let isOutgoing = Self.isOwnDeviceSync(
+                payloadClaimsSync: innerPayload.isSync,
+                authenticatedSenderId: result.senderUserId,
+                currentUserId: currentUserIdProvider()
+            )
             let senderId = result.senderUserId
 
             let effectiveSenderId: String = isOutgoing
@@ -2005,11 +2012,10 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 serverTimestamp: serverTimestamp
             )
 
-            // 7. Save and (for incoming) queue a delivery ack.
-            if isOutgoing {
-                try? await localDatabase.saveMessage(message)
-            } else {
-                try? await localDatabase.saveIncomingMessageAndQueueAck(message)
+            // 7. Save and (for incoming) queue a delivery ack. Never over a
+            // message already held: see `saveReceivedMessage`.
+            if (try? await localDatabase.saveReceivedMessage(message, queueAck: !isOutgoing)) == false {
+                return .event(.ignored)
             }
 
             // 8. Auto-vault routing (same as regular message path).
@@ -2029,6 +2035,23 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         } catch {
             return .undeliverable(error)
         }
+    }
+
+    /// Whether a sealed message is this user's own, copied over from another
+    /// of their devices.
+    ///
+    /// `is_sync` is a field of the payload, and the payload is written by
+    /// whoever sent it. Taken on its word, anyone this user talks to could
+    /// set it and have their message stored as one this user had sent. The
+    /// sender the Signal session authenticated is the only thing that can
+    /// say whose message it is.
+    static func isOwnDeviceSync(
+        payloadClaimsSync: Bool,
+        authenticatedSenderId: String,
+        currentUserId: String?
+    ) -> Bool {
+        guard payloadClaimsSync, let currentUserId, !currentUserId.isEmpty else { return false }
+        return authenticatedSenderId == currentUserId
     }
 
     static func canonicalSealedMessageId(
