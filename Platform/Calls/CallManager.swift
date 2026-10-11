@@ -1463,6 +1463,12 @@ final class CallManager: NSObject, CallEventRouting, @unchecked Sendable {
 
     // MARK: - Duration Timer
 
+    /// When a call that has just (re)connected is counted from: the moment
+    /// it first connected if it has one, otherwise now.
+    static func startTime(resuming existing: Date?, now: Date) -> Date {
+        existing ?? now
+    }
+
     private func startDurationTimer(from startTime: Date) {
         durationTask?.cancel()
         callDuration = max(0, Date().timeIntervalSince(startTime))
@@ -2296,7 +2302,12 @@ extension CallManager: WebRTCClientDelegate {
                     self.shouldIgnoreOutgoingCallKitEnd = false
                     // Already active, no state change needed
                 } else {
-                    let startTime = Date()
+                    // Coming back from a dropped connection is the same call,
+                    // not a new one. This took "now" as its start, so the
+                    // timer on screen — and the start CallKit was given —
+                    // went back to 00:00 every time the network blinked.
+                    let startTime = Self.startTime(resuming: self.callStartTime, now: Date())
+                    self.callStartTime = startTime
                     self.shouldIgnoreOutgoingCallKitEnd = false
                     self.callState = .active(callId: callId, startTime: startTime)
                     self.startDurationTimer(from: startTime)
