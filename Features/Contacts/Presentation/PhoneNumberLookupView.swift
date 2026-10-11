@@ -8,7 +8,12 @@ struct PhoneNumberLookupView: View {
     @Environment(AppRouter.self) private var router
 
     @State private var phoneNumber = ""
-    @State private var countryCode: String = Self.defaultCountryCode()
+    /// The same list, and the same picker, as signing in. This screen had ten
+    /// countries of its own, so a number anywhere else could not be looked up
+    /// at all — and it called the United Kingdom "UK", which no device
+    /// reports as its region, so British phones started on +1.
+    @State private var country: PhoneCountry = .detected
+    @State private var showCountryPicker = false
     @State private var state: LookupState = .idle
     @State private var isStartingChat = false
     @State private var lastSearchedNumber = ""
@@ -21,27 +26,13 @@ struct PhoneNumberLookupView: View {
         case error(String)
     }
 
-    private static let countryCodes: [(code: String, region: String)] = [
-        ("+1",   "US"),
-        ("+44",  "UK"),
-        ("+91",  "IN"),
-        ("+61",  "AU"),
-        ("+81",  "JP"),
-        ("+49",  "DE"),
-        ("+33",  "FR"),
-        ("+86",  "CN"),
-        ("+55",  "BR"),
-        ("+234", "NG"),
-    ]
-
-    /// Picks the dialling prefix that matches the device region, falling back to +1.
-    private static func defaultCountryCode() -> String {
-        let regionId = Locale.current.region?.identifier ?? ""
-        return countryCodes.first { $0.region == regionId }?.code ?? "+1"
+    /// A number this country could have, in the form the server looks up.
+    private var numberToLookUp: String? {
+        country.e164(fromInput: phoneNumber)
     }
 
     private var isPhoneValid: Bool {
-        phoneNumber.filter(\.isNumber).count >= 6
+        numberToLookUp != nil
     }
 
     private var isSearching: Bool {
@@ -79,26 +70,15 @@ struct PhoneNumberLookupView: View {
 
                         HStack(spacing: 0) {
                             // Country picker
-                            Menu {
-                                ForEach(Self.countryCodes, id: \.code) { item in
-                                    Button {
-                                        countryCode = item.code
-                                    } label: {
-                                        HStack {
-                                            Text("\(item.code) \(item.region)")
-                                            if countryCode == item.code {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
+                            Button {
+                                showCountryPicker = true
                             } label: {
                                 HStack(spacing: 10) {
                                     Image(systemName: "globe.europe.africa.fill")
                                         .font(.system(size: 18, weight: .semibold))
                                         .foregroundColor(SanchrColors.primary)
 
-                                    Text(countryCode)
+                                    Text(country.callingCode)
                                         .font(SanchrTypography.body)
                                         .foregroundColor(SanchrExportColors.textPrimary)
                                 }
@@ -111,6 +91,13 @@ struct PhoneNumberLookupView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Country, \(country.name), \(country.callingCode)")
+                            .sheet(isPresented: $showCountryPicker) {
+                                CountryPickerView(selection: $country)
+                            }
+                            .onChange(of: country) { _, _ in
+                                if case .idle = state { } else { state = .idle }
+                            }
 
                             // Number field (no country code — it's in the picker)
                             TextField("(555) 123-4567", text: $phoneNumber)
@@ -244,9 +231,11 @@ struct PhoneNumberLookupView: View {
     // MARK: - Actions
 
     private func performLookup() async {
-        let digits = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !digits.isEmpty else { return }
-        let fullNumber = "\(countryCode)\(digits)"
+        // Digits only, without the 0 people dial inside the country. This
+        // used to be the calling code glued to whatever was typed, spaces,
+        // brackets and leading zero included — none of which is a number
+        // anyone is registered under.
+        guard let fullNumber = numberToLookUp else { return }
         lastSearchedNumber = fullNumber
 
         withAnimation(.easeInOut(duration: 0.2)) { state = .searching }
