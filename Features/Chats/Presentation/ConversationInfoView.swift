@@ -530,13 +530,19 @@ struct ConversationInfoView: View {
             let stamp = DateFormatter()
             stamp.dateFormat = "yyyy-MM-dd HH:mm"
 
-            var lines = ["Sanchr conversation with \(peerName)",
+            var lines = ["Sanchr conversation with \(ChatTranscriptText.oneLine(peerName))",
                          "Exported \(stamp.string(from: Date()))",
                          "Text only — media is not included.",
                          ""]
             for message in messages {
                 let who = message.senderId == localUserId ? "You" : peerName
-                lines.append("[\(stamp.string(from: message.timestamp))] \(who): \(Self.transcriptLine(for: message))")
+                // Through ChatTranscriptText, so a message with a line break
+                // in it cannot add a line that reads as someone else's entry.
+                lines.append(
+                    ChatTranscriptText.entry(
+                        time: stamp.string(from: message.timestamp),
+                        who: who,
+                        text: Self.transcriptLine(for: message)))
             }
 
             // Written to the temporary directory so it is not left in a
