@@ -371,6 +371,76 @@ final class VaultViewModel {
         }
     }
 
+    // MARK: - Opening an item
+
+    /// An item decrypted for viewing, and where its plaintext is.
+    struct OpenedItem: Identifiable, Equatable, Sendable {
+        let item: VaultItem
+        let url: URL
+        var id: String { item.id }
+    }
+
+    /// The item on screen in the viewer, if any.
+    var openedItem: OpenedItem?
+
+    /// The item being fetched for the viewer, so its card can say so.
+    var openingItemId: String?
+
+    /// Where items opened for viewing are written. Under the directory the
+    /// chat viewer's own plaintext links live in, which is emptied at launch
+    /// and when the account is removed — so a preview the app was killed
+    /// under does not outlive it.
+    nonisolated static let openedItemsRoot = QuickLookDisplayLinks.root
+        .appendingPathComponent("vault", isDirectory: true)
+
+    /// Opens an item to be looked at.
+    ///
+    /// Tapping an item did nothing. It could be saved out of the vault or
+    /// shared from it, but the only way to *see* what was in it was to export
+    /// it first — which is exactly what a vault is for not having to do.
+    ///
+    /// The bytes are decrypted to a file of their own for as long as the
+    /// viewer is up, and `closeOpenedItem` removes it.
+    func open(
+        _ item: VaultItem,
+        download: @Sendable (String) async throws -> Data,
+        root: URL = VaultViewModel.openedItemsRoot
+    ) async {
+        guard openedItem == nil, openingItemId == nil, shareState == nil, !isSelectMode else { return }
+        openingItemId = item.id
+        defer { openingItemId = nil }
+
+        let directory = root.appendingPathComponent("open-\(UUID().uuidString)", isDirectory: true)
+        // The item's name came from whoever sent the file. Same check as the
+        // export path: it must still be inside the directory made for it.
+        guard let url = Self.exportURL(for: item, in: directory) else {
+            errorMessage = "Couldn't open that item."
+            return
+        }
+        do {
+            let data = try await download(item.id)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            errorMessage = UserFacingError.message(for: error)
+            SanchrLogger.vault.error("open: \(error.localizedDescription)")
+            return
+        }
+        openedItem = OpenedItem(item: item, url: url)
+    }
+
+    /// The viewer went away: the plaintext goes with it.
+    func closeOpenedItem() {
+        guard let opened = openedItem else { return }
+        openedItem = nil
+        let directory = opened.url.deletingLastPathComponent()
+        // Only ever a directory this flow made.
+        if directory.lastPathComponent.hasPrefix("open-") {
+            try? FileManager.default.removeItem(at: directory)
+        }
+    }
+
     /// Writes the downloaded bytes to a temp file and transitions to
     /// `.exportingToFiles`. The view presents
     /// `UIDocumentPickerViewController(forExporting:)` which takes

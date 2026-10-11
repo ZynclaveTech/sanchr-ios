@@ -103,6 +103,15 @@ struct VaultView: View {
         .sheet(isPresented: $showAddSheet) {
             addToVaultSheet
         }
+        .fullScreenCover(
+            item: Binding(
+                get: { viewModel.openedItem },
+                set: { if $0 == nil { viewModel.closeOpenedItem() } }
+            )
+        ) { opened in
+            DocumentPreviewView(fileURL: opened.url) { viewModel.closeOpenedItem() }
+                .ignoresSafeArea()
+        }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.pdf, .plainText, .spreadsheet, .presentation, .data, .archive, .item],
@@ -498,11 +507,23 @@ struct VaultView: View {
             .contentShape(Rectangle())
         }
         .contentShape(Rectangle())
+        .overlay {
+            if viewModel.openingItemId == item.id {
+                ProgressView()
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
         .onTapGesture {
             if viewModel.isSelectMode {
                 viewModel.toggleSelection(for: item.id)
+            } else {
+                let repository = container.vaultRepository
+                Task { await viewModel.open(item) { try await repository.downloadItem(id: $0) } }
             }
         }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(viewModel.isSelectMode ? "" : "Opens the item")
         .animation(.easeInOut(duration: 0.15), value: viewModel.isSelectMode)
     }
 
