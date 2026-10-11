@@ -294,6 +294,7 @@ final class DependencyContainer: @unchecked Sendable {
 
     @ObservationIgnored lazy var messageRepository: MessageRepositoryProtocol = {
         nonisolated(unsafe) weak var weakSelf = self
+        let blockList = self.blockList
         return MessageRepositoryImpl(
             grpcClient: grpcClient,
             localDatabase: localDatabase,
@@ -304,7 +305,8 @@ final class DependencyContainer: @unchecked Sendable {
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { weakSelf?.sessionService.currentUserId },
             privacySettings: privacySettings,
-            profileKeyStore: profileKeyStore
+            profileKeyStore: profileKeyStore,
+            loadBlockList: { await blockList.ensureLoaded() }
         )
     }()
 
@@ -374,6 +376,13 @@ final class DependencyContainer: @unchecked Sendable {
     // MARK: - Privacy
 
     let privacySettings = PrivacySettingsCache()
+
+    /// The block list, stored as well as held in memory. Rebuilt with the
+    /// message repository, so both read the same database.
+    @ObservationIgnored lazy var blockList: BlockList = BlockList(
+        localDatabase: localDatabase,
+        cache: privacySettings
+    )
 
     // MARK: - Security
 
@@ -777,6 +786,10 @@ final class DependencyContainer: @unchecked Sendable {
         self.signalStore = store
         self.signalKeyManager = SignalKeyManager(store: store, keyService: grpcClient.keyService)
         self.signalSessionManager = SignalSessionManager(store: store, keyManager: signalKeyManager)
+        // A new session: whatever list was held belongs to the last one,
+        // and the database may have been replaced since.
+        let blockList = BlockList(localDatabase: localDatabase, cache: privacySettings)
+        self.blockList = blockList
         self.messageRepository = MessageRepositoryImpl(
             grpcClient: grpcClient,
             localDatabase: localDatabase,
@@ -787,7 +800,8 @@ final class DependencyContainer: @unchecked Sendable {
             mediaDownloadManager: mediaDownloadManager,
             currentUserIdProvider: { [weak self] in self?.sessionService.currentUserId },
             privacySettings: privacySettings,
-            profileKeyStore: profileKeyStore
+            profileKeyStore: profileKeyStore,
+            loadBlockList: { await blockList.ensureLoaded() }
         )
         // Rebuild the cross-process send pipeline so it captures the freshly
         // installed `signalSessionManager`. The `MessageSender` actor itself

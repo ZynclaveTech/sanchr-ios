@@ -313,6 +313,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let sealedDropLogLimiter = SealedDropLogLimiter()
     private let sessionHealLimiter = SessionHealLimiter()
     private let privacyGate: MessagingPrivacyGate
+    /// Reads the stored block list into memory if this launch has not yet.
+    private let loadBlockList: @Sendable () async -> Void
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
     private let profileKeyStore: ProfileKeyStoreProtocol
 
@@ -331,6 +333,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         currentUserIdProvider: @escaping @Sendable () -> String? = { nil },
         privacySettings: PrivacySettingsCache,
         profileKeyStore: ProfileKeyStoreProtocol,
+        loadBlockList: @escaping @Sendable () async -> Void = {},
         receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
             UInt64(Double.random(in: 0...3) * 1_000_000_000)
         }
@@ -349,6 +352,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.mediaDownloadManager = mediaDownloadManager
         self.currentUserIdProvider = currentUserIdProvider
         self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
+        self.loadBlockList = loadBlockList
         self.receiptDelayNanoseconds = receiptDelayNanoseconds
         self.profileKeyStore = profileKeyStore
     }
@@ -1956,6 +1960,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             // The sender is only knowable here, after decryption. Dropped
             // before it is written, so a blocked contact leaves no trace in
             // the transcript, the conversation list, or an unread count.
+            //
+            // The list is read from storage first if this launch has not
+            // read it yet: the first messages of a launch are exactly the
+            // ones a blocked person sent while this phone was away.
+            if !isOutgoing {
+                await loadBlockList()
+            }
             if !isOutgoing, privacyGate.acceptsMessage(from: effectiveSenderId) == .suppress {
                 return .dropped(reason: "sender is blocked")
             }

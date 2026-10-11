@@ -697,17 +697,17 @@ struct RootView: View {
             )
         }
 
-        // The block list is part of that enforcement and was not being
-        // warmed, so the cache's blocked set was empty for the whole
-        // session and nothing was ever blocked. Fetched separately because
-        // it comes from the contact service, not the settings one.
+        // The block list is part of that enforcement. Messages are judged
+        // against the stored copy from the first one on; this brings that
+        // copy up to date with the server's. Fetched separately because it
+        // comes from the contact service, not the settings one.
         do {
             let contacts = ContactDataSource(
                 grpcClient: container.grpcClient,
                 localDatabase: container.localDatabase
             )
             let blocked = try await contacts.getBlockedList()
-            container.privacySettings.update(blockList: Set(blocked))
+            await container.blockList.replace(withServerList: Set(blocked))
         } catch {
             SanchrLogger.settings.warning(
                 "Block list warm-up failed on launch: \(error.localizedDescription)"

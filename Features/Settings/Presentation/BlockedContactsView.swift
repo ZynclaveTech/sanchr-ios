@@ -129,7 +129,7 @@ struct BlockedContactsView: View {
         )
         do {
             try await dataSource.unblockContact(userId: userId)
-            container.privacySettings.setBlocked(userId, false)
+            await container.blockList.setBlocked(userId, false)
             blockedIDs.removeAll { $0 == userId }
         } catch {
             errorMessage = UserFacingError.message(for: error)
