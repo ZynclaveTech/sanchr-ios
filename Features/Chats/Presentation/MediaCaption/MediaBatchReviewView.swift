@@ -212,8 +212,22 @@ struct MediaBatchReviewView: View {
             .padding(.vertical, 8)
             .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 20))
 
+            if model.canSendViewOnce {
+                Button {
+                    model.viewOnce.toggle()
+                } label: {
+                    Image(systemName: model.viewOnce ? "1.circle.fill" : "1.circle")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel("View once")
+                .accessibilityValue(model.viewOnce ? "On" : "Off")
+                .accessibilityHint("The recipient can open this once, then it is gone")
+            }
+
             Button {
-                onSend(model.items)
+                onSend(model.itemsToSend)
             } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "arrow.up.circle.fill")
