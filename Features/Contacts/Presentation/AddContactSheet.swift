@@ -95,11 +95,11 @@ struct AddContactSheet: View {
 
     // MARK: - QR URL handling
 
-    /// Parses `https://sanchr.com/u/{userId}`, opens or creates a direct conversation,
+    /// Reads the scanned profile link, opens or creates a direct conversation,
     /// then navigates to it and dismisses the sheet.
     private func handleScannedURL(_ urlString: String) async {
-        guard let userId = extractUserId(from: urlString) else {
-            SanchrLogger.contacts.warning("QR scan: unrecognised URL format – \(urlString, privacy: .public)")
+        guard let userId = ProfileLink.userId(from: urlString) else {
+            SanchrLogger.contacts.warning("QR scan: not a profile link")
             qrState = .error("Unrecognised QR code. Make sure you're scanning a Sanchr contact code.")
             return
         }
@@ -116,20 +116,6 @@ struct AddContactSheet: View {
             qrState = .error(error.localizedDescription)
             SanchrLogger.contacts.error("QR scan: failed to open conversation – \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    /// Extracts the user ID from `https://sanchr.com/u/<userId>`.
-    private func extractUserId(from urlString: String) -> String? {
-        guard let url = URL(string: urlString),
-              let host = url.host,
-              host.hasSuffix("sanchr.com")
-        else { return nil }
-
-        let components = url.pathComponents.filter { $0 != "/" }
-        // Expect ["u", "<userId>"]
-        guard components.count >= 2, components[0] == "u" else { return nil }
-        let userId = components[1]
-        return userId.isEmpty ? nil : userId
     }
 
     // MARK: - Action Card

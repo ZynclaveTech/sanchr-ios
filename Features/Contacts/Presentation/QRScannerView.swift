@@ -51,19 +51,13 @@ struct QRScannerView: View {
         .statusBarHidden()
     }
 
-    /// Whether [code] is a `https://sanchr.com/...` link — the shape
-    /// `ProfileView` encodes (`https://sanchr.com/u/{userId}`).
+    /// Whether [code] is a profile link — the shape `ProfileView` encodes.
     static func isSanchrContactCode(_ code: String) -> Bool {
-        guard let url = URL(string: code.trimmingCharacters(in: .whitespacesAndNewlines)),
-              let host = url.host?.lowercased()
-        else { return false }
-        return host == "sanchr.com" || host.hasSuffix(".sanchr.com")
+        ProfileLink.userId(from: code) != nil
     }
 
     private func handleCode(_ code: String) {
         guard !hasScanned else { return }
-        // Host, not substring: `contains("sanchr.com")` matched anywhere in the
-        // payload, so `https://evil.example/?x=sanchr.com` passed the check.
         guard Self.isSanchrContactCode(code) else {
             SanchrLogger.contacts.debug("Ignored non-Sanchr QR code")
             return

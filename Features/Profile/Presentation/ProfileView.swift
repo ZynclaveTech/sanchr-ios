@@ -424,7 +424,7 @@ struct ProfileView: View {
 
     /// Generates the QR code image with the Sanchr logo mark at center.
     private func generateQRCode() -> UIImage? {
-        let deepLink = "https://sanchr.com/u/\(viewModel.userId)"
+        let deepLink = ProfileLink.link(userId: viewModel.userId)
         return QRCodeGenerator.generate(
             from: deepLink,
             size: 190,
