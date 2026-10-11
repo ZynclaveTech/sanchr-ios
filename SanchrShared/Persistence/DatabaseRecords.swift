@@ -339,6 +339,18 @@ public struct PendingConversationDeleteRecord: Codable, FetchableRecord, Persist
     }
 }
 
+// MARK: - Blocked User Record
+
+public struct BlockedUserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "blockedUser"
+
+    public var userId: String
+
+    public init(userId: String) {
+        self.userId = userId
+    }
+}
+
 // MARK: - Vault Item Record
 
 public struct VaultItemRecord: Codable, FetchableRecord, PersistableRecord, Sendable {

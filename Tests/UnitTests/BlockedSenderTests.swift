@@ -92,10 +92,40 @@ final class BlockedSenderTests: XCTestCase {
         )
     }
 
-    func testTheBlockListIsWarmedOnLaunch() throws {
+    func testTheBlockListIsBroughtUpToDateOnLaunch() throws {
         XCTAssertTrue(
-            try code(source("App/SanchrApp.swift")).contains("privacySettings.update(blockList:"),
-            "an empty cache blocks nobody, however carefully it is consulted"
+            try code(source("App/SanchrApp.swift")).contains("blockList.replace(withServerList:"),
+            "the stored list is only as good as the last time the server's was taken"
         )
+    }
+
+    /// The first messages of a launch are the ones a blocked person sent
+    /// while this phone was away. The list has to be there before them.
+    func testTheStoredListIsReadBeforeAMessageIsJudged() throws {
+        let repo = code(try source("Shared/Repositories/MessageRepository.swift"))
+        let load = try XCTUnwrap(repo.range(of: "await loadBlockList()"))
+        let judge = try XCTUnwrap(repo.range(of: "privacyGate.acceptsMessage(from: effectiveSenderId)"))
+        XCTAssertLessThan(load.lowerBound, judge.lowerBound)
+
+        let container = code(try source("App/DependencyContainer.swift"))
+        XCTAssertEqual(
+            container.components(separatedBy: "loadBlockList: { await blockList.ensureLoaded() }").count - 1,
+            2,
+            "both places that build the repository must hand it the list"
+        )
+    }
+
+    /// A block or unblock made on a screen has to reach the stored list, or
+    /// it lasts only until the app is closed.
+    func testEveryScreenThatBlocksWritesThroughTheStoredList() throws {
+        for path in [
+            "Features/Settings/Presentation/BlockedContactsView.swift",
+            "Features/Contacts/Presentation/ContactsView.swift",
+            "Features/Chats/Presentation/ConversationInfoView.swift",
+        ] {
+            let text = code(try source(path))
+            XCTAssertTrue(text.contains("container.blockList.setBlocked("), path)
+            XCTAssertFalse(text.contains("privacySettings.setBlocked("), path)
+        }
     }
 }

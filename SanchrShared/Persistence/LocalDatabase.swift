@@ -104,6 +104,13 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    // MARK: - Blocked Users
+
+    func fetchBlockedUserIds() async throws -> Set<String>
+    /// Makes the stored list exactly [userIds].
+    func replaceBlockedUserIds(_ userIds: Set<String>) async throws
+    func setUserBlocked(_ userId: String, blocked: Bool) async throws
+
     // MARK: - User Presence
 
     func updateUserPresence(userId: String, status: User.Status, lastSeen: Date?) async throws
@@ -124,6 +131,9 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func fetchBlockedUserIds() async throws -> Set<String> { [] }
+    public func replaceBlockedUserIds(_ userIds: Set<String>) async throws {}
+    public func setUserBlocked(_ userId: String, blocked: Bool) async throws {}
 }
 
 public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
@@ -438,6 +448,31 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 sql: "UPDATE message SET status = ? WHERE id = ?",
                 arguments: [status.rawValue, id]
             )
+        }
+    }
+
+    public func fetchBlockedUserIds() async throws -> Set<String> {
+        try await dbPool.read { db in
+            Set(try BlockedUserRecord.fetchAll(db).map(\.userId))
+        }
+    }
+
+    public func replaceBlockedUserIds(_ userIds: Set<String>) async throws {
+        try await dbPool.write { db in
+            try BlockedUserRecord.deleteAll(db)
+            for userId in userIds {
+                try BlockedUserRecord(userId: userId).insert(db)
+            }
+        }
+    }
+
+    public func setUserBlocked(_ userId: String, blocked: Bool) async throws {
+        try await dbPool.write { db in
+            if blocked {
+                try BlockedUserRecord(userId: userId).insert(db, onConflict: Database.ConflictResolution.ignore)
+            } else {
+                try BlockedUserRecord.deleteOne(db, key: userId)
+            }
         }
     }
 
@@ -1700,6 +1735,9 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func fetchBlockedUserIds() async throws -> Set<String> { throw error }
+    public func replaceBlockedUserIds(_ userIds: Set<String>) async throws { throw error }
+    public func setUserBlocked(_ userId: String, blocked: Bool) async throws { throw error }
     public func updateUserPresence(
         userId: String,
         status: User.Status,

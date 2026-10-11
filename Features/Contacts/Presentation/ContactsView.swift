@@ -202,10 +202,15 @@ struct ContactsView: View {
                                         userId: contact.id,
                                         contactDataSource: contactDataSource
                                     )
-                                    // The gate reads this cache on every
+                                    // The gate reads this list on every
                                     // incoming sealed message; without it the
                                     // block only takes effect next launch.
-                                    container.privacySettings.setBlocked(contact.id, true)
+                                    // Only once the server has taken it: a
+                                    // refused block was recorded here anyway,
+                                    // and silently undone at the next launch.
+                                    if viewModel.blockedUserIDs.contains(contact.id) {
+                                        await container.blockList.setBlocked(contact.id, true)
+                                    }
                                 }
                             } label: {
                                 Label("Block", systemImage: "hand.raised.fill")

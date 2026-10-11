@@ -259,6 +259,14 @@ public enum DatabaseSchema {
             }
         }
 
+        // Who this user has blocked. The list was only ever held in memory,
+        // filled from the server some seconds into each launch.
+        migrator.registerMigration("v13_blocked_user") { db in
+            try db.create(table: "blockedUser", ifNotExists: true) { t in
+                t.column("userId", .text).primaryKey()
+            }
+        }
+
         return migrator
     }
 }
