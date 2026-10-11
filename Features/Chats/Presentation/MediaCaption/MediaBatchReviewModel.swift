@@ -37,6 +37,9 @@ struct BatchMediaItem: Identifiable, Equatable {
     var pixelWidth: Int?
     var pixelHeight: Int?
     var caption: String = ""
+    /// Sent to be seen once and then gone. Set by the review screen for a
+    /// single photo or video; see `MediaBatchReviewModel.viewOnce`.
+    var isViewOnce: Bool = false
 
     var mimeType: String { kind.isVideo ? "video/mp4" : "image/jpeg" }
 
@@ -64,6 +67,9 @@ struct BatchMediaItem: Identifiable, Equatable {
         if !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             attachment.caption = caption
         }
+        // Only ever set to true: nil is "not view-once", and it is what an
+        // ordinary attachment has always carried.
+        if isViewOnce { attachment.isViewOnce = true }
         return attachment
     }
 
@@ -112,6 +118,36 @@ final class MediaBatchReviewModel {
     }
 
     var isEmpty: Bool { items.isEmpty }
+
+    /// Whether this send can be view-once: one photo or one video.
+    ///
+    /// View-once was all or nothing per chat — a setting on the chat's Vault
+    /// page that made *every* photo sent there view-once until it was turned
+    /// off again. Sending one such photo meant going there, turning it on,
+    /// sending, and remembering to go back. Android has had it on the send.
+    ///
+    /// Not offered for several at once: an album is one message of several
+    /// pictures, and "seen once" has a clear meaning for one.
+    var canSendViewOnce: Bool { items.count == 1 }
+
+    private var wantsViewOnce = false
+
+    /// Whether the item on screen will be sent view-once. Stays off — and
+    /// cannot be turned on — while there is more than one item.
+    var viewOnce: Bool {
+        get { canSendViewOnce && wantsViewOnce }
+        set { wantsViewOnce = newValue && canSendViewOnce }
+    }
+
+    /// The items as they should be sent, with view-once applied.
+    var itemsToSend: [BatchMediaItem] {
+        guard viewOnce else { return items }
+        return items.map { item in
+            var marked = item
+            marked.isViewOnce = true
+            return marked
+        }
+    }
 
     func select(_ index: Int) {
         guard items.indices.contains(index) else { return }

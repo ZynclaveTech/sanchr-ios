@@ -1045,6 +1045,13 @@ public actor MessageSender {
         return conversation.type == .oneToOne
     }
 
+    /// Whether an attachment goes out view-once: the chat's policy makes
+    /// every send so, or this one was marked. Either is enough; neither can
+    /// switch the other off.
+    public static func sendsViewOnce(policy: ChatVaultPolicy, attachment: Message.MediaAttachment) -> Bool {
+        policy.viewOnceOutgoing || attachment.isViewOnce == true
+    }
+
     /// Attempt a sealed sender send with automatic fallback to the standard
     /// encrypted path on failure. The sealed send runs under the cross-process
     /// lock because it still mutates Signal ratchet state.
@@ -1306,7 +1313,8 @@ public actor MessageSender {
             throw AppError.mediaUploadFailed
         }
 
-        // `viewOnceOutgoing` stamps isViewOnce so the receiver's gallery
+        // View-once, when the chat's policy says every send is, or when this
+        // one was marked so on its way out. Stamped so the receiver's gallery
         // enforces single-view and delete-on-dismiss. The flag rides inside
         // the encrypted envelope; the server is blind to it.
         var uploaded = Message.MediaAttachment(
@@ -1325,7 +1333,7 @@ public actor MessageSender {
             isVoiceMessage: attachment.isVoiceMessage,
             audioDurationMs: attachment.audioDurationMs,
             audioWaveform: attachment.audioWaveform,
-            isViewOnce: vaultPolicy.viewOnceOutgoing ? true : nil
+            isViewOnce: Self.sendsViewOnce(policy: vaultPolicy, attachment: attachment) ? true : nil
         )
         if uploaded.caption == nil, let caption {
             uploaded.caption = caption
