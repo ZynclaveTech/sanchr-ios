@@ -104,6 +104,13 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// Deletes a message because the user asked for it to be gone, and
+    /// remembers its id so a redelivery cannot bring it back. `deleteMessage`
+    /// is for replacing a row, and remembers nothing.
+    func deleteMessageForGood(id: String) async throws
+    /// Whether the user deleted a message with this id on this phone.
+    func wasMessageDeleted(id: String) async throws -> Bool
+
     /// `purgeExpiredMessages`, also saying which conversations held an
     /// expired message someone else sent — the ones whose notifications may
     /// be showing it.
@@ -163,6 +170,8 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func deleteMessageForGood(id: String) async throws { try await deleteMessage(id: id) }
+    public func wasMessageDeleted(id: String) async throws -> Bool { false }
     public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge {
         ExpiredMessagePurge(messageIds: try await purgeExpiredMessages(), conversationIdsWithIncoming: [])
     }
@@ -312,7 +321,11 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     /// server would send it again for ever.
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool {
         let saved = try await dbPool.write { db -> Bool in
-            guard try MessageRecord.fetchOne(db, key: message.id) == nil else {
+            // Held already, or deleted here on purpose: either way it is not
+            // saved again.
+            let taken = try MessageRecord.fetchOne(db, key: message.id) != nil
+                || DeletedMessageRecord.fetchOne(db, key: message.id) != nil
+            guard !taken else {
                 if queueAck {
                     let ack = PendingMessageAck(
                         conversationId: message.conversationId,
@@ -327,7 +340,7 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             return true
         }
         if !saved {
-            SanchrLogger.persistence.warning("Received a message under an id already held; kept the one here")
+            SanchrLogger.persistence.warning("Received a message under an id already held or deleted here; not saved")
         }
         return saved
     }
@@ -368,6 +381,19 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
     public func deleteMessage(id: String) async throws {
         try await dbPool.write { db in
             _ = try MessageRecord.deleteOne(db, key: id)
+        }
+    }
+
+    public func wasMessageDeleted(id: String) async throws -> Bool {
+        try await dbPool.read { db in
+            try DeletedMessageRecord.fetchOne(db, key: id) != nil
+        }
+    }
+
+    public func deleteMessageForGood(id: String) async throws {
+        try await dbPool.write { db in
+            _ = try MessageRecord.deleteOne(db, key: id)
+            try DeletedMessageRecord.remember([id], in: db)
         }
     }
 
@@ -416,6 +442,8 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
             _ = try MessageRecord
                 .filter(Column("conversationId") == conversationId)
                 .deleteAll(db)
+            // Cleared on purpose: none of them may come back by redelivery.
+            try DeletedMessageRecord.remember(ids, in: db)
 
             // Clear the denormalised preview too, or the conversation list keeps
             // showing the last message of a chat the user just cleared.
@@ -1892,6 +1920,8 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func deleteMessageForGood(id: String) async throws { throw error }
+    public func wasMessageDeleted(id: String) async throws -> Bool { throw error }
     public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge { throw error }
     public func fetchMessageIds(conversationId: String) async throws -> [String] { throw error }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool { throw error }

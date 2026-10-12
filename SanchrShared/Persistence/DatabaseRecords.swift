@@ -339,6 +339,36 @@ public struct PendingConversationDeleteRecord: Codable, FetchableRecord, Persist
     }
 }
 
+// MARK: - Deleted Message Record
+
+/// The id of a message the user deleted, kept so that the message cannot be
+/// saved again if it is delivered again. Nothing of the message itself.
+public struct DeletedMessageRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
+    public static let databaseTableName = "deletedMessage"
+
+    /// How long an id is remembered. Longer than the server holds an
+    /// undelivered message, which is the only thing that can send it again.
+    public static let retention: TimeInterval = 60 * 24 * 60 * 60
+
+    public var id: String
+    public var deletedAt: Date
+
+    public init(id: String, deletedAt: Date = Date()) {
+        self.id = id
+        self.deletedAt = deletedAt
+    }
+
+    /// Records [ids] as deleted and forgets any remembered past `retention`.
+    static func remember(_ ids: [String], in db: Database, now: Date = Date()) throws {
+        for id in ids {
+            try DeletedMessageRecord(id: id, deletedAt: now).insert(db, onConflict: Database.ConflictResolution.replace)
+        }
+        _ = try DeletedMessageRecord
+            .filter(Column("deletedAt") < now.addingTimeInterval(-retention))
+            .deleteAll(db)
+    }
+}
+
 // MARK: - Blocked User Record
 
 public struct BlockedUserRecord: Codable, FetchableRecord, PersistableRecord, Sendable {

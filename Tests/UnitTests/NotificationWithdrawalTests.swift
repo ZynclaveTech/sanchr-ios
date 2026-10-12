@@ -167,7 +167,7 @@ final class NotificationWithdrawalTests: XCTestCase {
         XCTAssertTrue(delete.contains("clearNotifications(deleted.conversationId)"))
         // Read before the row goes, or there is nothing to read.
         let read = try XCTUnwrap(delete.range(of: "localDatabase.fetchMessageById(id)"))
-        let row = try XCTUnwrap(delete.range(of: "localDatabase.deleteMessage(id: id)"))
+        let row = try XCTUnwrap(delete.range(of: "localDatabase.deleteMessageForGood(id: id)"))
         XCTAssertLessThan(read.lowerBound, row.lowerBound)
     }
 
