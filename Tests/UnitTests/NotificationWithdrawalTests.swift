@@ -1,3 +1,4 @@
+import SanchrShared
 import XCTest
 
 @testable import Sanchr
@@ -69,5 +70,128 @@ final class NotificationWithdrawalTests: XCTestCase {
         let repository = try source("Shared/Repositories/MessageRepository.swift")
 
         XCTAssertTrue(repository.contains("SanchrNotificationService.clearNotifications(for: $0)"))
+    }
+
+    // MARK: - Expiry, Delete Message, blocking
+
+    private final class Cleared: @unchecked Sendable {
+        private let lock = NSLock()
+        private var ids: [String] = []
+        func add(_ id: String) { lock.lock(); ids.append(id); lock.unlock() }
+        var all: [String] { lock.lock(); defer { lock.unlock() }; return ids }
+    }
+
+    private func database() throws -> LocalDatabase {
+        try LocalDatabase(
+            path: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("notif-\(UUID().uuidString).sqlite"),
+            passphraseProvider: { "unit-test-passphrase" }
+        )
+    }
+
+    private func user(_ id: String) -> User {
+        User(
+            id: id, phoneNumber: "", displayName: id, avatarURL: nil, bio: nil,
+            isVerified: false, lastSeen: nil, identityKeyFingerprint: nil, status: .offline
+        )
+    }
+
+    private func conversation(
+        _ id: String,
+        with participants: [String] = [],
+        type: Conversation.ConversationType = .oneToOne
+    ) -> Conversation {
+        Conversation(
+            id: id,
+            participants: participants.map(user),
+            unreadCount: 0,
+            isPinned: false,
+            isMuted: false,
+            isArchived: false,
+            type: type,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+    }
+
+    private func message(_ id: String, in conversationId: String, outgoing: Bool, expiresAt: Date?) -> Message {
+        Message(
+            id: id,
+            conversationId: conversationId,
+            senderId: outgoing ? "me" : "peer",
+            timestamp: Date(timeIntervalSince1970: 1_700_000_100),
+            content: .text("hello"),
+            status: .delivered,
+            isOutgoing: outgoing,
+            expiresAt: expiresAt
+        )
+    }
+
+    /// One transaction, so a message cannot be purged without its chat being
+    /// reported.
+    func testAPurgeReportsTheChatsThatHeldAnExpiredMessageFromSomeoneElse() async throws {
+        let db = try database()
+        let past = Date(timeIntervalSinceNow: -60)
+        let future = Date(timeIntervalSinceNow: 600)
+        for id in ["theirs", "mine", "later", "plain"] {
+            try await db.saveConversation(conversation(id))
+        }
+        try await db.saveMessage(message("a", in: "theirs", outgoing: false, expiresAt: past))
+        try await db.saveMessage(message("a2", in: "theirs", outgoing: false, expiresAt: past))
+        try await db.saveMessage(message("b", in: "mine", outgoing: true, expiresAt: past))
+        try await db.saveMessage(message("c", in: "later", outgoing: false, expiresAt: future))
+        try await db.saveMessage(message("d", in: "plain", outgoing: false, expiresAt: nil))
+
+        let purge = try await db.purgeExpiredMessagesReportingConversations()
+
+        XCTAssertEqual(Set(purge.messageIds), ["a", "a2", "b"])
+        XCTAssertEqual(purge.conversationIdsWithIncoming, ["theirs"], "once, and not the chat with only our own")
+        let again = try await db.purgeExpiredMessagesReportingConversations()
+        XCTAssertEqual(again, ExpiredMessagePurge(messageIds: [], conversationIdsWithIncoming: []))
+    }
+
+    func testTheExpirySweepClearsWhatThePurgeReports() throws {
+        let sweeper = try source("Shared/Services/DisappearingMessageSweeper.swift")
+        let purge = try XCTUnwrap(sweeper.range(of: "purgeExpiredMessagesReportingConversations()"))
+        let clear = try XCTUnwrap(sweeper.range(of: "clearNotifications(conversationId)"))
+
+        XCTAssertLessThan(purge.lowerBound, clear.lowerBound)
+        XCTAssertFalse(sweeper.contains("localDatabase.purgeExpiredMessages()"))
+    }
+
+    func testDeletingAMessageSomeoneSentWithdrawsTheChatsNotifications() throws {
+        let repository = try source("Shared/Repositories/MessageRepository.swift")
+        let delete = try body(of: "func deleteMessage(id: String, forEveryone: Bool) async throws {", in: repository)
+
+        XCTAssertTrue(delete.contains("if let deleted, !deleted.isOutgoing {"))
+        XCTAssertTrue(delete.contains("clearNotifications(deleted.conversationId)"))
+        // Read before the row goes, or there is nothing to read.
+        let read = try XCTUnwrap(delete.range(of: "localDatabase.fetchMessageById(id)"))
+        let row = try XCTUnwrap(delete.range(of: "localDatabase.deleteMessage(id: id)"))
+        XCTAssertLessThan(read.lowerBound, row.lowerBound)
+    }
+
+    func testBlockingSomeoneWithdrawsTheNotificationsOfTheChatWithThem() async throws {
+        let db = try database()
+        try await db.saveConversation(conversation("with-peer", with: ["me", "peer"]))
+        try await db.saveConversation(conversation("with-other", with: ["me", "other"]))
+        try await db.saveConversation(conversation("group", with: ["me", "peer", "other"], type: .group))
+        let cleared = Cleared()
+        let list = BlockList(localDatabase: db, cache: PrivacySettingsCache(), clearNotifications: { cleared.add($0) })
+
+        await list.setBlocked("peer", true)
+
+        XCTAssertEqual(cleared.all, ["with-peer"], "their own chat, not a group they are in, not anyone else's")
+    }
+
+    func testUnblockingWithdrawsNothing() async throws {
+        let db = try database()
+        try await db.saveConversation(conversation("with-peer", with: ["me", "peer"]))
+        let cleared = Cleared()
+        let list = BlockList(localDatabase: db, cache: PrivacySettingsCache(), clearNotifications: { cleared.add($0) })
+
+        await list.setBlocked("peer", false)
+
+        XCTAssertEqual(cleared.all, [])
     }
 }
