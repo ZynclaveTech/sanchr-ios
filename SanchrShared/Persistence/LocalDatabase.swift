@@ -104,6 +104,12 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// Moves a message this user sent forward to delivered or read. See
+    /// `LocalDatabase.advanceOutgoingMessageStatus`.
+    ///
+    /// - Returns: whether the message's status changed.
+    func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool
+
     /// Saves a message that came from someone else, unless a message with
     /// its id is already held. See `LocalDatabase.saveReceivedMessage`.
     ///
@@ -137,6 +143,10 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool {
+        try await updateMessageStatus(id: id, status: status)
+        return true
+    }
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool {
         if queueAck {
             try await saveIncomingMessageAndQueueAck(message)
@@ -496,6 +506,57 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 sql: "UPDATE message SET status = ? WHERE id = ?",
                 arguments: [status.rawValue, id]
             )
+        }
+    }
+
+    /// Moves a message this user sent forward to delivered or read, and
+    /// keeps the chat list's copy of the status in step.
+    ///
+    /// For receipts. A receipt names a message and a status, and both used
+    /// to be written as given: any status, onto any message. That let one
+    /// mark a message someone else had sent, pull a read message back to
+    /// delivered, or mark a delivered one failed.
+    ///
+    /// A receipt says one thing — a message this user sent has been
+    /// delivered, or read — so that is all this will write. One statement,
+    /// so "is it mine, and is this a step forward" cannot be true when
+    /// checked and false when written.
+    public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool {
+        guard let from = Self.statusesAReceiptAdvancesFrom(status) else { return false }
+        return try await dbPool.write { db in
+            let placeholders = from.map { _ in "?" }.joined(separator: ", ")
+            var arguments: [DatabaseValueConvertible] = [status.rawValue, id]
+            arguments.append(contentsOf: from.map(\.rawValue))
+            try db.execute(
+                sql: "UPDATE message SET status = ? WHERE id = ? AND isOutgoing = 1 AND status IN (\(placeholders))",
+                arguments: StatementArguments(arguments)
+            )
+            guard db.changesCount > 0 else { return false }
+            // The conversation is the message's own, not one the receipt
+            // names.
+            try db.execute(
+                sql: """
+                UPDATE conversation
+                SET lastMessageStatus = ?
+                WHERE lastMessageId = ? AND id = (SELECT conversationId FROM message WHERE id = ?)
+                """,
+                arguments: [status.rawValue, id, id]
+            )
+            return true
+        }
+    }
+
+    /// The statuses a message may be in for a receipt of `status` to apply,
+    /// or nil if `status` is not something a receipt can report.
+    ///
+    /// `failed` is included: the send can have reached the other phone
+    /// while this one never heard so, and their receipt is then the first
+    /// news of it.
+    public static func statusesAReceiptAdvancesFrom(_ status: Message.DeliveryStatus) -> [Message.DeliveryStatus]? {
+        switch status {
+        case .delivered: return [.sending, .sent, .failed]
+        case .read: return [.sending, .sent, .failed, .delivered]
+        case .sending, .sent, .failed: return nil
         }
     }
 
@@ -1783,6 +1844,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool { throw error }
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool { throw error }
     public func fetchBlockedUserIds() async throws -> Set<String> { throw error }
     public func replaceBlockedUserIds(_ userIds: Set<String>) async throws { throw error }

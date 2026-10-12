@@ -155,6 +155,88 @@ final class ReceivedMessageIntegrityTests: XCTestCase {
                 payloadClaimsSync: true, authenticatedSenderId: "", currentUserId: ""))
     }
 
+    // MARK: - What a receipt may change
+
+    private func status() async throws -> Message.DeliveryStatus? {
+        try await db.fetchMessageById("m1")?.status
+    }
+
+    func testAReceiptMovesThisUsersOwnMessageForward() async throws {
+        try await db.saveMessage(message(from: "me", "hello", outgoing: true, status: .sent))
+
+        let delivered = try await db.advanceOutgoingMessageStatus(id: "m1", to: .delivered)
+        XCTAssertTrue(delivered)
+        let read = try await db.advanceOutgoingMessageStatus(id: "m1", to: .read)
+        XCTAssertTrue(read)
+
+        let stored = try await status()
+        XCTAssertEqual(stored, .read)
+    }
+
+    func testAReceiptKeepsTheChatListsTickInStep() async throws {
+        try await db.saveMessage(message(from: "me", "hello", outgoing: true, status: .sent))
+
+        _ = try await db.advanceOutgoingMessageStatus(id: "m1", to: .read)
+
+        let conversation = try await db.fetchConversation(id: conversationId)
+        XCTAssertEqual(conversation?.lastMessage?.status, .read)
+    }
+
+    func testAReceiptCannotTouchAMessageSomeoneElseSent() async throws {
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: false)
+
+        let changed = try await db.advanceOutgoingMessageStatus(id: "m1", to: .read)
+
+        XCTAssertFalse(changed)
+        let stored = try await status()
+        XCTAssertEqual(stored, .delivered)
+    }
+
+    func testAReceiptCannotPullAReadMessageBack() async throws {
+        try await db.saveMessage(message(from: "me", "hello", outgoing: true, status: .read))
+
+        let changed = try await db.advanceOutgoingMessageStatus(id: "m1", to: .delivered)
+
+        XCTAssertFalse(changed)
+        let stored = try await status()
+        XCTAssertEqual(stored, .read)
+    }
+
+    func testOnlyDeliveredAndReadAreReceipts() async throws {
+        try await db.saveMessage(message(from: "me", "hello", outgoing: true, status: .delivered))
+
+        for bogus in [Message.DeliveryStatus.failed, .sending, .sent] {
+            let changed = try await db.advanceOutgoingMessageStatus(id: "m1", to: bogus)
+            XCTAssertFalse(changed, "\(bogus)")
+        }
+
+        let stored = try await status()
+        XCTAssertEqual(stored, .delivered)
+        XCTAssertNil(LocalDatabase.statusesAReceiptAdvancesFrom(.failed))
+    }
+
+    /// Sent, but this phone never heard so: the receipt is the first news.
+    func testAReceiptRescuesAMessageThisPhoneThoughtHadFailed() async throws {
+        try await db.saveMessage(message(from: "me", "hello", outgoing: true, status: .failed))
+
+        let changed = try await db.advanceOutgoingMessageStatus(id: "m1", to: .delivered)
+
+        XCTAssertTrue(changed)
+    }
+
+    func testAReceiptForAMessageThatIsNotHereChangesNothing() async throws {
+        let changed = try await db.advanceOutgoingMessageStatus(id: "nope", to: .read)
+        XCTAssertFalse(changed)
+    }
+
+    func testNeitherReceiptPathWritesAStatusAsGiven() throws {
+        let source = try repositorySource()
+        XCTAssertFalse(source.contains("localDatabase.updateMessageStatus("))
+        XCTAssertFalse(source.contains("updateConversationLastMessageStatusIfMatches("))
+        XCTAssertTrue(source.contains("applyReceipt(receipt, from: nil)"))
+        XCTAssertTrue(source.contains("applyReceipt(receiptUpdate, from: result.senderUserId)"))
+    }
+
     // MARK: - Where it may be filed
 
     private func mayPost(
