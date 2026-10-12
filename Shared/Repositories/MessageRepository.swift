@@ -929,23 +929,13 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                         case .typing(let indicator):
                             continuation.yield(.typing(indicator))
                         case .receipt(let receipt):
-                            if let status = Message.DeliveryStatus(rawValue: receipt.status) {
-                                try? await self.localDatabase.updateMessageStatus(
-                                    id: receipt.messageID,
-                                    status: status
-                                )
-                                // Keep the chat-list double-tick in
-                                // sync: only patch the conversation's
-                                // denormalized status if the receipt
-                                // targets the CURRENT last message.
-                                try? await self.localDatabase
-                                    .updateConversationLastMessageStatusIfMatches(
-                                        conversationId: receipt.conversationID,
-                                        messageId: receipt.messageID,
-                                        status: status
-                                    )
+                            // Relayed by the server, so there is no
+                            // sender to check; what it may change is
+                            // still limited. One that changes nothing is
+                            // not passed on to be drawn.
+                            if await self.applyReceipt(receipt, from: nil) {
+                                continuation.yield(.receipt(receipt))
                             }
-                            continuation.yield(.receipt(receipt))
                         case .preKeyCountLow(let preKeyCountLow):
                             continuation.yield(.preKeyCountLow(preKeyCountLow))
                         case .callOffer(let offer):
@@ -1928,16 +1918,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 let receiptUpdate = try Sanchr_Messaging_ReceiptUpdate(
                     serializedBytes: innerPayload.content
                 )
-                if let status = Message.DeliveryStatus(rawValue: receiptUpdate.status) {
-                    try? await localDatabase.updateMessageStatus(
-                        id: receiptUpdate.messageID,
-                        status: status
-                    )
-                    try? await localDatabase.updateConversationLastMessageStatusIfMatches(
-                        conversationId: receiptUpdate.conversationID,
-                        messageId: receiptUpdate.messageID,
-                        status: status
-                    )
+                guard await applyReceipt(receiptUpdate, from: result.senderUserId) else {
+                    return .event(.ignored)
                 }
                 SanchrLogger.chat.debug(
                     "Sealed receipt from \(result.senderUserId.prefix(8)) msg=\(receiptUpdate.messageID.prefix(8))"
@@ -2051,6 +2033,34 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         } catch {
             return .undeliverable(error)
         }
+    }
+
+    /// Applies a receipt, if it is one this phone should believe.
+    ///
+    /// It may only move a message this user sent forward to delivered or
+    /// read (`advanceOutgoingMessageStatus`). One that arrived sealed must
+    /// also come from someone else who belongs to that message's
+    /// conversation — `senderId` is nil for one the server relayed.
+    ///
+    /// - Returns: whether the message's status changed. A receipt that
+    ///   changed nothing must not be passed on: the chat screen applies
+    ///   receipt events to the messages it is showing.
+    private func applyReceipt(_ receipt: Sanchr_Messaging_ReceiptUpdate, from senderId: String?) async -> Bool {
+        guard let status = Message.DeliveryStatus(rawValue: receipt.status) else { return false }
+        if let senderId {
+            let currentUserId = currentUserIdProvider()
+            guard senderId != currentUserId,
+                  let message = try? await localDatabase.fetchMessageById(receipt.messageID),
+                  let conversation = try? await localDatabase.fetchConversation(id: message.conversationId),
+                  Self.mayPost(
+                      senderId: senderId,
+                      conversationType: conversation.type,
+                      participantIds: conversation.participants.map(\.id),
+                      currentUserId: currentUserId
+                  )
+            else { return false }
+        }
+        return (try? await localDatabase.advanceOutgoingMessageStatus(id: receipt.messageID, to: status)) ?? false
     }
 
     /// Whether a sealed message is this user's own, copied over from another
