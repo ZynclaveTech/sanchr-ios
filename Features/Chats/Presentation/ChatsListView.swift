@@ -59,8 +59,7 @@ struct ChatsListView: View {
                     Task {
                         await viewModel.deleteConversation(
                             conversation,
-                            messageRepository: container.messageRepository,
-                            chatDataSource: container.chatDataSource
+                            messageRepository: container.messageRepository
                         )
                     }
                 }
@@ -69,6 +68,8 @@ struct ChatsListView: View {
             Button("Cancel", role: .cancel) {
                 conversationToDelete = nil
             }
+        } message: {
+            Text("Its messages and media will be removed from this phone. This can't be undone. To keep it but take it off this list, use Hide.")
         }
         .fullScreenCover(isPresented: $showHomeCameraCapture) {
             CameraCaptureView(
@@ -525,6 +526,17 @@ struct ChatsListView: View {
                 }
             } label: {
                 Label("Archive", systemImage: "archivebox")
+            }
+
+            Button {
+                Task {
+                    await viewModel.hideConversation(
+                        conversation,
+                        messageRepository: container.messageRepository
+                    )
+                }
+            } label: {
+                Label("Hide", systemImage: "eye.slash")
             }
 
             Divider()

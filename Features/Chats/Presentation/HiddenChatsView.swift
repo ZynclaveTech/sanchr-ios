@@ -18,6 +18,8 @@ struct HiddenChatsView: View {
     /// whole list with the load-failed screen.
     @State private var actionError: String?
     @State private var searchText = ""
+    /// The chat a swipe asked to delete, held until the dialog is answered.
+    @State private var summaryToDelete: ShareChatSummary?
 
     private var filteredSummaries: [ShareChatSummary] {
         guard !searchText.isEmpty else { return summaries }
@@ -66,6 +68,17 @@ struct HiddenChatsView: View {
                         )
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowBackground(SanchrExportColors.background)
+                        // Hiding keeps everything. Chats "deleted" by older
+                        // versions were only hidden, so this is also where
+                        // those can finally be deleted.
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                summaryToDelete = summary
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
+                            }
+                            .tint(.sanchrError)
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -78,7 +91,22 @@ struct HiddenChatsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(SanchrExportColors.background.ignoresSafeArea())
         .task { await loadSummaries() }
-        .alert("Couldn't restore that chat", isPresented: Binding(
+        .confirmationDialog(
+            "Delete Conversation",
+            isPresented: Binding(
+                get: { summaryToDelete != nil },
+                set: { if !$0 { summaryToDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let summary = summaryToDelete { delete(summary.id) }
+                summaryToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { summaryToDelete = nil }
+        } message: {
+            Text("Its messages and media will be removed from this phone. This can't be undone.")
+        }
+        .alert("Couldn't update that chat", isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
         )) {
@@ -98,6 +126,18 @@ struct HiddenChatsView: View {
         } catch {
             loadError = UserFacingError.message(for: error)
             isLoading = false
+        }
+    }
+
+    @MainActor
+    private func delete(_ conversationId: String) {
+        Task {
+            do {
+                try await messageRepository.deleteConversation(conversationId: conversationId)
+                await MainActor.run { summaries.removeAll { $0.id == conversationId } }
+            } catch {
+                await MainActor.run { actionError = UserFacingError.message(for: error) }
+            }
         }
     }
 
@@ -156,7 +196,7 @@ struct HiddenChatRow: View {
                         .foregroundColor(SanchrExportColors.textSecondary)
                         .lineLimit(1)
                 } else {
-                    Text("Removed from this device")
+                    Text("No messages")
                         .font(SanchrTypography.captionSmall)
                         .foregroundColor(SanchrExportColors.textSecondary)
                         .lineLimit(1)

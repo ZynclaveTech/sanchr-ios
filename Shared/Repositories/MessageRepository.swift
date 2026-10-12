@@ -42,6 +42,9 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     func setConversationMuted(conversationId: String, isMuted: Bool) async throws
     func setConversationArchived(conversationId: String, isArchived: Bool) async throws
     func hideConversationLocally(conversationId: String) async throws
+    /// Deletes a conversation: asks the server to, and removes it from this
+    /// phone with its messages and their media. Not undoable.
+    func deleteConversation(conversationId: String) async throws
     func restoreConversationLocally(conversationId: String) async throws
 
     /// Marks messages as read up to the given message ID.
@@ -83,9 +86,8 @@ protocol MessageRepositoryProtocol: AnyObject, Sendable {
     /// Flushes locally persisted message delivery acks to the server.
     func flushPendingAcks() async throws -> Int
 
-    /// Records a conversation delete the server has not confirmed, and
-    /// retries every queued one. Defaulted so test doubles are untouched.
-    func enqueueConversationDelete(conversationId: String) async throws
+    /// Retries every conversation delete the server has not confirmed.
+    /// Defaulted so test doubles are untouched.
     func flushPendingConversationDeletes() async throws -> Int
 
     /// Creates (or fetches existing) 1:1 conversation with `peerUserId`.
@@ -287,7 +289,6 @@ private actor SealedDropLogLimiter {
 // MARK: - Implementation
 
 extension MessageRepositoryProtocol {
-    func enqueueConversationDelete(conversationId: String) async throws {}
     func flushPendingConversationDeletes() async throws -> Int { 0 }
 }
 
@@ -548,7 +549,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             let cachedLookup = Dictionary(uniqueKeysWithValues: cachedConversations.map { ($0.id, $0) })
             let currentUserId = self.currentUserIdProvider()
 
-            let conversations = response.conversations.map { conv -> Conversation in
+            let pendingDeletes = (try? await localDatabase.fetchPendingConversationDeletes()) ?? []
+            let fetched = Self.withoutPendingDeletes(response.conversations, id: \.id, pending: pendingDeletes)
+            let conversations = fetched.map { conv -> Conversation in
                 let convType: Conversation.ConversationType = conv.type == "group" ? .group : .oneToOne
                 let cachedConversation = cachedLookup[conv.id]
 
@@ -616,6 +619,39 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         await MainActor.run {
             NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
         }
+    }
+
+    func deleteConversation(conversationId: String) async throws {
+        // The server first. If it cannot be reached the delete is queued and
+        // settled on the next sync — and until then `fetchConversations`
+        // leaves the conversation out, or the next refresh would put an
+        // empty copy of it straight back.
+        var request = Sanchr_Messaging_DeleteConversationRequest()
+        request.conversationID = conversationId
+        do {
+            _ = try await grpcClient.messagingService.deleteConversation(request)
+        } catch {
+            SanchrLogger.chat.error("Backend conversation delete failed, queuing: \(error.localizedDescription)")
+            try? await localDatabase.enqueuePendingConversationDelete(conversationId: conversationId)
+        }
+
+        let media = mediaDownloadManager
+        let removed = try await ConversationEraser(
+            localDatabase: localDatabase,
+            removeCachedFile: { await media.removeCachedFile(messageId: $0) }
+        ).erase(conversationId: conversationId)
+        SanchrLogger.chat.info("Deleted conversation \(conversationId.prefix(8)) and \(removed) message(s)")
+        await MainActor.run {
+            NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
+        }
+    }
+
+    /// The conversations a server refresh may write to this phone: all but
+    /// the ones deleted here whose delete the server has not yet taken.
+    static func withoutPendingDeletes<C>(_ fetched: [C], id: (C) -> String, pending: [String]) -> [C] {
+        guard !pending.isEmpty else { return fetched }
+        let pending = Set(pending)
+        return fetched.filter { !pending.contains(id($0)) }
     }
 
     func restoreConversationLocally(conversationId: String) async throws {
@@ -1406,10 +1442,6 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             latestTimestamp: latestTimestamp,
             appliedCountsByConversation: appliedCountsByConversation
         )
-    }
-
-    func enqueueConversationDelete(conversationId: String) async throws {
-        try await localDatabase.enqueuePendingConversationDelete(conversationId: conversationId)
     }
 
     /// Settles conversation deletes that failed against the server. Each

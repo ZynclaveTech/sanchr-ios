@@ -340,33 +340,35 @@ final class ChatsListViewModel {
 
     // MARK: - Conversation Actions
 
-    /// Deletes a conversation on the backend and locally.
-    /// Falls back to local-only deletion when the backend RPC fails so the user
-    /// is never blocked by a transient network issue.
+    /// Deletes a conversation: from the server, and from this phone with
+    /// its messages and their media. If the server cannot be reached the
+    /// repository queues that half and still deletes here, so the user is
+    /// never blocked by a transient network issue.
     func deleteConversation(
         _ conversation: Conversation,
-        messageRepository: MessageRepositoryProtocol,
-        chatDataSource: ChatDataSource
+        messageRepository: MessageRepositoryProtocol
     ) async {
-        // Persist to backend. On failure the row is still hidden below, but
-        // the delete is queued so the next sync settles it — otherwise the
-        // server kept the conversation and it came back on the next full
-        // fetch.
         do {
-            try await chatDataSource.deleteConversation(conversationId: conversation.id)
+            try await messageRepository.deleteConversation(conversationId: conversation.id)
+            conversations.removeAll { $0.id == conversation.id }
         } catch {
-            SanchrLogger.chat.error("Backend conversation delete failed, queuing: \(error.localizedDescription)")
-            try? await messageRepository.enqueueConversationDelete(conversationId: conversation.id)
+            errorMessage = UserFacingError.message(for: error)
+            SanchrLogger.chat.error("Failed to delete conversation: \(error.localizedDescription)")
         }
+    }
 
-        // Always hide locally regardless of RPC result
+    /// Takes a conversation off every chat list until it is restored from
+    /// Hidden Chats. Nothing is deleted.
+    func hideConversation(
+        _ conversation: Conversation,
+        messageRepository: MessageRepositoryProtocol
+    ) async {
         do {
             try await messageRepository.hideConversationLocally(conversationId: conversation.id)
             conversations.removeAll { $0.id == conversation.id }
-            SanchrLogger.chat.info("Deleted conversation \(conversation.id.prefix(8))")
         } catch {
             errorMessage = UserFacingError.message(for: error)
-            SanchrLogger.chat.error("Failed to hide conversation locally: \(error.localizedDescription)")
+            SanchrLogger.chat.error("Failed to hide conversation: \(error.localizedDescription)")
         }
     }
 
