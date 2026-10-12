@@ -799,7 +799,8 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private func sendSealedReceipt(
         conversationId: String,
         messageId: String,
-        peerUserId: String
+        peerUserId: String,
+        status: Message.DeliveryStatus = .read
     ) async {
         guard let myUserId = currentUserIdProvider(), !myUserId.isEmpty else {
             SanchrLogger.chat.warning("sendSealedReceipt: missing current user id")
@@ -811,7 +812,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             receiptUpdate.conversationID = conversationId
             receiptUpdate.messageID = messageId
             receiptUpdate.recipientID = myUserId
-            receiptUpdate.status = "read"
+            receiptUpdate.status = status.rawValue
             receiptUpdate.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
 
             let content = try receiptUpdate.serializedData()
@@ -2088,6 +2089,21 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 return .event(.ignored)
             }
 
+            // Tell the sender it has arrived. The server cannot: a sealed
+            // message hides its sender from it, so without this a one-to-one
+            // message never showed as delivered — it went from one tick
+            // straight to read, or stayed on one for good if the reader kept
+            // read receipts off. Only once it is saved, only for someone
+            // else's message, and off the receive path: a receipt is a send
+            // of its own and nothing here should wait on it.
+            if !isOutgoing {
+                sendDeliveredReceipt(
+                    conversationId: innerPayload.conversationId,
+                    messageId: messageId,
+                    to: effectiveSenderId
+                )
+            }
+
             // 8. Auto-vault routing (same as regular message path).
             let policy = chatVaultPolicyMirror.policy(for: innerPayload.conversationId)
                 ?? .defaults(for: innerPayload.conversationId)
@@ -2104,6 +2120,25 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             return .event(.message(message))
         } catch {
             return .undeliverable(error)
+        }
+    }
+
+    /// Sends a "delivered" receipt for a one-to-one message, after the same
+    /// short random wait a read receipt gets.
+    private func sendDeliveredReceipt(conversationId: String, messageId: String, to senderId: String) {
+        guard privacyGate.decide(.deliveryReceipt) == .allow else { return }
+        Task { [weak self] in
+            guard let self,
+                  let conversation = try? await self.localDatabase.fetchConversation(id: conversationId),
+                  conversation.type == .oneToOne
+            else { return }
+            try? await Task.sleep(nanoseconds: self.receiptDelayNanoseconds())
+            await self.sendSealedReceipt(
+                conversationId: conversationId,
+                messageId: messageId,
+                peerUserId: senderId,
+                status: .delivered
+            )
         }
     }
 

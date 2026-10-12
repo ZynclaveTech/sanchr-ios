@@ -209,7 +209,7 @@ struct ConversationRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .offset(x: 5)
             }
-            .foregroundColor(status == .read ? SanchrColors.accent : SanchrExportColors.textTertiary)
+            .foregroundColor(status == .read ? SanchrColors.success : SanchrExportColors.textTertiary)
             .frame(width: 18)
         case .failed:
             Image(systemName: "exclamationmark.circle.fill")
