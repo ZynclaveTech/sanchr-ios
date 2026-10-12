@@ -1287,37 +1287,14 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 )
             }
 
-            let conversations = try conversationRecords.map { record in
-                let participantIDs = try ConversationParticipantRecord
-                    .filter(Column("conversationId") == record.id)
-                    .fetchAll(db)
-                    .map(\.userId)
-                let lastContent = record.lastMessageContent.flatMap(BackupArchiveContentCodec.decodeStoredContent)
-
-                return BackupArchiveConversationFrame(
-                    id: record.id,
-                    conversationType: record.type,
-                    title: nil,
-                    avatarURL: nil,
-                    participantIDs: participantIDs,
-                    lastMessageID: record.lastMessageId,
-                    lastMessagePreview: lastContent?.preview,
-                    lastMessageTimestampMs: record.lastMessageTimestamp.map { Int64($0.timeIntervalSince1970 * 1000) },
-                    lastMessageSenderID: record.lastMessageSenderId,
-                    lastMessageStatus: record.lastMessageStatus,
-                    lastMessageContentType: lastContent?.type,
-                    lastMessageContentBody: lastContent?.body,
-                    unreadCount: record.unreadCount,
-                    isPinned: record.isPinned,
-                    isMuted: record.isMuted,
-                    isArchived: record.isArchived,
-                    disappearingDurationMs: record.disappearingMessagesDuration.map { Int64($0 * 1000) },
-                    createdAtMs: Int64(record.createdAt.timeIntervalSince1970 * 1000),
-                    updatedAtMs: Int64(record.updatedAt.timeIntervalSince1970 * 1000)
-                )
+            // See BackupMessageRules for what is left out, and why.
+            let keptRecords = messageRecords.filter { record in
+                let stored = record.contentJSON.data(using: .utf8)
+                    .flatMap { try? JSONDecoder().decode(Message.MessageContent.self, from: $0) }
+                return BackupMessageRules.belongsInBackup(content: stored, expiresAt: record.expiresAt)
             }
-
-            let messages = messageRecords.map { record in
+            let backedUpIds = Set(keptRecords.map(\.id))
+            let messages = keptRecords.map { record in
                 let content = BackupArchiveContentCodec.decodeStoredContent(record.contentJSON)
                     ?? ("text", "", "")
                 return BackupArchiveMessageFrame(
@@ -1333,6 +1310,43 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                     replyToMessageID: record.replyToMessageId,
                     expiresAtMs: record.expiresAt.map { Int64($0.timeIntervalSince1970 * 1000) },
                     isDeleted: false
+                )
+            }
+
+            let conversations = try conversationRecords.map { record in
+                let participantIDs = try ConversationParticipantRecord
+                    .filter(Column("conversationId") == record.id)
+                    .fetchAll(db)
+                    .map(\.userId)
+                // A chat's preview is a copy of its last message. Unless that
+                // message is in the backup, its preview is not either.
+                let previewKept = record.lastMessageId.map(backedUpIds.contains) ?? false
+                let lastContent = previewKept
+                    ? record.lastMessageContent.flatMap(BackupArchiveContentCodec.decodeStoredContent)
+                    : nil
+
+                return BackupArchiveConversationFrame(
+                    id: record.id,
+                    conversationType: record.type,
+                    title: nil,
+                    avatarURL: nil,
+                    participantIDs: participantIDs,
+                    lastMessageID: previewKept ? record.lastMessageId : nil,
+                    lastMessagePreview: lastContent?.preview,
+                    lastMessageTimestampMs: previewKept
+                        ? record.lastMessageTimestamp.map { Int64($0.timeIntervalSince1970 * 1000) }
+                        : nil,
+                    lastMessageSenderID: previewKept ? record.lastMessageSenderId : nil,
+                    lastMessageStatus: previewKept ? record.lastMessageStatus : nil,
+                    lastMessageContentType: lastContent?.type,
+                    lastMessageContentBody: lastContent?.body,
+                    unreadCount: record.unreadCount,
+                    isPinned: record.isPinned,
+                    isMuted: record.isMuted,
+                    isArchived: record.isArchived,
+                    disappearingDurationMs: record.disappearingMessagesDuration.map { Int64($0 * 1000) },
+                    createdAtMs: Int64(record.createdAt.timeIntervalSince1970 * 1000),
+                    updatedAtMs: Int64(record.updatedAt.timeIntervalSince1970 * 1000)
                 )
             }
 
@@ -1487,7 +1501,9 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                     }
                 }
 
-                for message in snapshot.messages {
+                // The same rule on the way in: an older backup, or one made by
+                // an app that does not apply it, may hold what should not be kept.
+                for message in snapshot.messages where BackupMessageRules.mayRestore(message) {
                     let record = MessageRecord(
                         id: message.id,
                         conversationId: message.conversationID,
