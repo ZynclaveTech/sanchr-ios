@@ -155,11 +155,23 @@ actor SessionHealLimiter {
 }
 
 actor MessageStreamController {
+    /// Well inside the sixty seconds of client silence after which the
+    /// ingress closes the stream, so one lost beat does not cost it.
+    static let defaultKeepAliveInterval: TimeInterval = 25
+
     private let bufferLimit = 64
+    private let keepAliveInterval: TimeInterval
     private var continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation?
     private var bufferedEvents: [Sanchr_Messaging_ClientEvent] = []
+    private var keepAliveTask: Task<Void, Never>?
+
+    init(keepAliveInterval: TimeInterval = MessageStreamController.defaultKeepAliveInterval) {
+        self.keepAliveInterval = keepAliveInterval
+    }
 
     func begin() -> AsyncStream<Sanchr_Messaging_ClientEvent> {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         continuation?.finish()
         continuation = nil
         return AsyncStream(bufferingPolicy: .bufferingNewest(64)) { continuation in
@@ -182,12 +194,45 @@ actor MessageStreamController {
     }
 
     func finish() {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         continuation?.finish()
         continuation = nil
     }
 
+    /// Sends an event that says nothing, so the stream is not silent.
+    ///
+    /// The ingress in front of the server closes a stream the client has
+    /// sent nothing on for sixty seconds. The presence heartbeat used to keep
+    /// it fed; when that was removed nothing did, so an idle app lost its
+    /// stream every minute and lived on reconnects, with whatever was sent in
+    /// each gap arriving late. A `ClientEvent` with no event set is read by
+    /// the server and ignored.
+    ///
+    /// Tied to the open stream: started when its continuation arrives and
+    /// cancelled with it, and never buffered for a later one.
+    private func startKeepAlive() {
+        keepAliveTask?.cancel()
+        let nanoseconds = UInt64(keepAliveInterval * 1_000_000_000)
+        keepAliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: nanoseconds)
+                } catch {
+                    return
+                }
+                await self?.sendKeepAlive()
+            }
+        }
+    }
+
+    private func sendKeepAlive() {
+        continuation?.yield(Sanchr_Messaging_ClientEvent())
+    }
+
     private func setContinuation(_ continuation: AsyncStream<Sanchr_Messaging_ClientEvent>.Continuation) {
         self.continuation = continuation
+        startKeepAlive()
         guard !bufferedEvents.isEmpty else { return }
 
         let events = bufferedEvents
