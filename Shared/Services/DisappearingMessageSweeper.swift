@@ -18,16 +18,23 @@ actor DisappearingMessageSweeper {
     private let localDatabase: LocalDatabaseProtocol
     private let mediaDownloadManager: MediaDownloadManager
     private let interval: TimeInterval
+    /// Takes down the delivered notifications for a conversation. A
+    /// notification can carry a preview of the message that has just expired.
+    private let clearNotifications: @Sendable (_ conversationId: String) -> Void
     private var tickTask: Task<Void, Never>?
 
     init(
         localDatabase: LocalDatabaseProtocol,
         mediaDownloadManager: MediaDownloadManager,
-        interval: TimeInterval = 30
+        interval: TimeInterval = 30,
+        clearNotifications: @escaping @Sendable (_ conversationId: String) -> Void = {
+            SanchrNotificationService.clearNotifications(for: $0)
+        }
     ) {
         self.localDatabase = localDatabase
         self.mediaDownloadManager = mediaDownloadManager
         self.interval = interval
+        self.clearNotifications = clearNotifications
     }
 
     deinit {
@@ -41,6 +48,9 @@ actor DisappearingMessageSweeper {
     /// disclosure the timer existed to prevent.
     @discardableResult
     func sweep() async -> Int {
+        // Asked first: once the rows are gone nothing says which chats
+        // they were in.
+        let notified = (try? await localDatabase.fetchConversationIdsWithExpiredIncomingMessages()) ?? []
         let expiredIds: [String]
         do {
             expiredIds = try await localDatabase.purgeExpiredMessages()
@@ -54,6 +64,9 @@ actor DisappearingMessageSweeper {
 
         for id in expiredIds {
             await mediaDownloadManager.removeCachedFile(messageId: id)
+        }
+        for conversationId in notified {
+            clearNotifications(conversationId)
         }
 
         SanchrLogger.chat.info("Disappearing sweep removed \(expiredIds.count) message(s)")

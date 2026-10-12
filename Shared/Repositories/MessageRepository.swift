@@ -854,8 +854,15 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         // for the picture again in between, and nothing asks once the row
         // is gone.
         await mediaDownloadManager.removeCachedFile(messageId: id)
+        // A notification may be showing what it said. There is no telling
+        // which message a chat's notifications hold, so deleting any message
+        // someone else sent withdraws them; one of our own was never in one.
+        let deleted = try? await localDatabase.fetchMessageById(id)
         try await localDatabase.deleteMessage(id: id)
         await mediaDownloadManager.removeCachedFile(messageId: id)
+        if let deleted, !deleted.isOutgoing {
+            clearNotifications(deleted.conversationId)
+        }
     }
 
     func deleteViewOnceMessage(messageId: String) async throws {

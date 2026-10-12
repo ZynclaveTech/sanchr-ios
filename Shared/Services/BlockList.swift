@@ -20,10 +20,19 @@ actor BlockList {
     /// Whether the in-memory list reflects something real: the stored copy,
     /// or the server's.
     private var loaded = false
+    /// Takes down the delivered notifications for a conversation.
+    private let clearNotifications: @Sendable (_ conversationId: String) -> Void
 
-    init(localDatabase: LocalDatabaseProtocol, cache: PrivacySettingsCache) {
+    init(
+        localDatabase: LocalDatabaseProtocol,
+        cache: PrivacySettingsCache,
+        clearNotifications: @escaping @Sendable (_ conversationId: String) -> Void = {
+            SanchrNotificationService.clearNotifications(for: $0)
+        }
+    ) {
         self.localDatabase = localDatabase
         self.cache = cache
+        self.clearNotifications = clearNotifications
     }
 
     /// Fills the in-memory list from the stored one, the first time it is
@@ -61,6 +70,20 @@ actor BlockList {
             try await localDatabase.setUserBlocked(userId, blocked: blocked)
         } catch {
             SanchrLogger.settings.error("Block change could not be stored: \(error.localizedDescription)")
+        }
+        if blocked {
+            await withdrawNotifications(from: userId)
+        }
+    }
+
+    /// What someone sent before they were blocked may still be on the lock
+    /// screen. Their one-to-one chat's notifications come down; a group they
+    /// are in is other people's conversation too, and is left alone.
+    private func withdrawNotifications(from userId: String) async {
+        let conversations = (try? await localDatabase.fetchAllConversationsIncludingHidden()) ?? []
+        for conversation in conversations
+        where conversation.type == .oneToOne && conversation.participants.contains(where: { $0.id == userId }) {
+            clearNotifications(conversation.id)
         }
     }
 }

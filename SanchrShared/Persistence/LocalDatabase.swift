@@ -104,6 +104,11 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// Conversations holding a message someone else sent whose disappearing
+    /// deadline has passed. Asked before a purge: once the rows are gone
+    /// nothing says which chats they were in.
+    func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String]
+
     /// The id of every message held for a conversation, expired or not.
     func fetchMessageIds(conversationId: String) async throws -> [String]
 
@@ -146,6 +151,7 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] { [] }
     public func fetchMessageIds(conversationId: String) async throws -> [String] { [] }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool {
         try await updateMessageStatus(id: id, status: status)
@@ -413,6 +419,19 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 arguments: [conversationId]
             )
             return ids
+        }
+    }
+
+    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] {
+        try await dbPool.read { db in
+            try String.fetchAll(
+                db,
+                sql: """
+                    SELECT DISTINCT conversationId FROM message
+                    WHERE expiresAt IS NOT NULL AND expiresAt <= ? AND isOutgoing = 0
+                    """,
+                arguments: [Date()]
+            )
         }
     }
 
@@ -1858,6 +1877,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] { throw error }
     public func fetchMessageIds(conversationId: String) async throws -> [String] { throw error }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool { throw error }
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool { throw error }
