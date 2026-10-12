@@ -121,6 +121,72 @@ final class ReceivedMessageIntegrityTests: XCTestCase {
         XCTAssertEqual(acks.map(\.messageId), ["m1"])
     }
 
+    // MARK: - A deleted message stays deleted
+
+    /// The row is removed outright, so its id used to be free again: the
+    /// same message, delivered a second time, came back.
+    func testADeletedMessageDoesNotComeBackWhenItIsDeliveredAgain() async throws {
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+        try await db.deleteMessageForGood(id: "m1")
+
+        let saved = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+
+        XCTAssertFalse(saved)
+        let stored = try await db.fetchMessageById("m1")
+        XCTAssertNil(stored)
+        let deleted = try await db.wasMessageDeleted(id: "m1")
+        XCTAssertTrue(deleted)
+    }
+
+    func testNorDoesAnythingFromAClearedChat() async throws {
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+        _ = try await db.deleteAllMessages(conversationId: conversationId)
+
+        let saved = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+
+        XCTAssertFalse(saved)
+    }
+
+    /// Turned away, but acknowledged, or the server sends it for ever.
+    func testATurnedAwayRedeliveryIsStillAcknowledged() async throws {
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+        try await db.deleteMessageForGood(id: "m1")
+        let earlier = try await db.fetchPendingMessageAcks(limit: 10)
+        try await db.deletePendingMessageAcks(earlier)
+
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+
+        let acks = try await db.fetchPendingMessageAcks(limit: 10)
+        XCTAssertEqual(acks.map(\.messageId), ["m1"])
+    }
+
+    /// Replacing a row — a view-once becoming "Viewed", a sent message
+    /// taking its server id — is not the user deleting anything.
+    func testReplacingARowRemembersNothing() async throws {
+        _ = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+
+        try await db.deleteMessage(id: "m1")
+
+        let deleted = try await db.wasMessageDeleted(id: "m1")
+        XCTAssertFalse(deleted)
+        let saved = try await db.saveReceivedMessage(message(from: "peer", "hello"), queueAck: true)
+        XCTAssertTrue(saved)
+    }
+
+    func testAMessageNeverSeenWasNotDeleted() async throws {
+        let deleted = try await db.wasMessageDeleted(id: "never")
+        XCTAssertFalse(deleted)
+    }
+
+    func testOnlyTheUsersOwnDeleteRemembersTheId() throws {
+        let source = try repositorySource()
+        XCTAssertEqual(source.components(separatedBy: "localDatabase.deleteMessageForGood(id: id)").count - 1, 1)
+        XCTAssertEqual(
+            source.components(separatedBy: "wasMessageDeleted(id:").count - 1, 2,
+            "neither receive path brings back the chat of a message it is about to turn away"
+        )
+    }
+
     // MARK: - Whose message it is
 
     func testOnlyThisUsersOwnDeviceCanSyncAMessageAsTheirs() {
@@ -293,7 +359,7 @@ final class ReceivedMessageIntegrityTests: XCTestCase {
         // After the chat has been brought onto the phone, or a chat that had
         // to be fetched first would go unchecked.
         let hydrate = try XCTUnwrap(
-            source.range(of: "ensureConversationShellExists(\n                conversationId: innerPayload.conversationId"))
+            source.range(of: "ensureConversationShellExists(\n                    conversationId: innerPayload.conversationId"))
         XCTAssertLessThan(hydrate.lowerBound, check.lowerBound)
     }
 

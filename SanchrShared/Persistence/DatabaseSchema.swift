@@ -267,6 +267,16 @@ public enum DatabaseSchema {
             }
         }
 
+        // The ids of messages the user deleted. A deleted row is removed
+        // outright, which left its id free: the same message, delivered
+        // again, was saved as if it were new.
+        migrator.registerMigration("v14_deleted_message") { db in
+            try db.create(table: "deletedMessage", ifNotExists: true) { t in
+                t.column("id", .text).primaryKey()
+                t.column("deletedAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

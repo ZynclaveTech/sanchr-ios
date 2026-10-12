@@ -37,7 +37,7 @@ final class DeleteMessageMediaTests: XCTestCase {
     func testDeletingAMessageRemovesItsCachedFileBeforeAndAfterItsRow() throws {
         let body = try body(of: "func deleteMessage(id: String, forEveryone: Bool) async throws {", in: repository())
         let removals = body.ranges(of: "mediaDownloadManager.removeCachedFile(messageId: id)")
-        let row = try XCTUnwrap(body.range(of: "localDatabase.deleteMessage(id: id)"))
+        let row = try XCTUnwrap(body.range(of: "localDatabase.deleteMessageForGood(id: id)"))
 
         XCTAssertEqual(removals.count, 2)
         // Before: the only pass that runs if the app dies in between.

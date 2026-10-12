@@ -858,7 +858,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         // which message a chat's notifications hold, so deleting any message
         // someone else sent withdraws them; one of our own was never in one.
         let deleted = try? await localDatabase.fetchMessageById(id)
-        try await localDatabase.deleteMessage(id: id)
+        // For good: the id is remembered, so the same message delivered
+        // again is not saved as if it were new.
+        try await localDatabase.deleteMessageForGood(id: id)
         await mediaDownloadManager.removeCachedFile(messageId: id)
         if let deleted, !deleted.isOutgoing {
             clearNotifications(deleted.conversationId)
@@ -1832,11 +1834,16 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 isOutgoing: false
             )
 
-            try? await ensureConversationShellExists(
-                conversationId: envelope.conversationID,
-                senderId: envelope.senderID,
-                serverTimestamp: serverTimestamp
-            )
+            // Not for a message deleted here and now delivered again: it is
+            // about to be turned away, and bringing its chat back to hold
+            // nothing would undo a delete of the chat itself.
+            if (try? await localDatabase.wasMessageDeleted(id: envelope.messageID)) != true {
+                try? await ensureConversationShellExists(
+                    conversationId: envelope.conversationID,
+                    senderId: envelope.senderID,
+                    serverTimestamp: serverTimestamp
+                )
+            }
             // Never over a message already held: see `saveReceivedMessage`.
             if (try? await localDatabase.saveReceivedMessage(message, queueAck: true)) == false {
                 return nil
@@ -2047,12 +2054,17 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
                 expiresAt: expiresAt
             )
 
-            // 6. Ensure the conversation exists locally before saving.
-            try? await ensureConversationShellExists(
-                conversationId: innerPayload.conversationId,
-                senderId: effectiveSenderId,
-                serverTimestamp: serverTimestamp
-            )
+            // 6. Ensure the conversation exists locally before saving. Not
+            // for a message deleted here and now delivered again: it is about
+            // to be turned away, and bringing its chat back to hold nothing
+            // would undo a delete of the chat itself.
+            if (try? await localDatabase.wasMessageDeleted(id: messageId)) != true {
+                try? await ensureConversationShellExists(
+                    conversationId: innerPayload.conversationId,
+                    senderId: effectiveSenderId,
+                    serverTimestamp: serverTimestamp
+                )
+            }
 
             // The payload names its own conversation, and the sender wrote
             // the payload. See `mayPost`. Asked only now, once the chat is
