@@ -797,8 +797,15 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             _ = try await grpcClient.messagingService.deleteMessage(request)
         }
 
-        // Always delete locally
+        // Always delete locally — and what the message had put on disk.
+        // A photo that has been opened sits decrypted in the cache under
+        // its message's id; deleting the row alone left it there. Once
+        // before the row goes, and once after: a chat that is open can ask
+        // for the picture again in between, and nothing asks once the row
+        // is gone.
+        await mediaDownloadManager.removeCachedFile(messageId: id)
         try await localDatabase.deleteMessage(id: id)
+        await mediaDownloadManager.removeCachedFile(messageId: id)
     }
 
     func deleteViewOnceMessage(messageId: String) async throws {
@@ -2183,6 +2190,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             )
             try? await localDatabase.deleteMessage(id: message.id)
             try? await localDatabase.saveIncomingMessageAndQueueAck(tombstone)
+            // It lives in the vault now. The copy the chat had decrypted
+            // into its cache is not the vault's, and would outlive the move.
+            await mediaDownloadManager.removeCachedFile(messageId: message.id)
 
             // Notify the chat list + detail so the bubble flips to
             // the tombstone state without requiring a nav-away/return.
