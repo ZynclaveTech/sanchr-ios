@@ -119,6 +119,19 @@ actor MediaDownloadManager {
         try? FileManager.default.moveItem(at: source, to: destination)
     }
 
+    /// Removes stored media whose message is gone; see `OrphanedMediaSweep`.
+    ///
+    /// - Returns: how many messages' files were removed.
+    @discardableResult
+    func sweepOrphans(existingIds: @Sendable ([String]) async throws -> Set<String>) async -> Int {
+        let removed = await OrphanedMediaSweep.sweep(directory: cacheDir, existingIds: existingIds)
+        // The QuickLook hard link is a second name for the same bytes.
+        for id in removed {
+            QuickLookDisplayLinks.remove(messageId: id)
+        }
+        return removed.count
+    }
+
     /// Wipes the cached decrypted file for a message. No-op if the
     /// file doesn't exist. Used by `deleteViewOnceMessage` to ensure
     /// the bytes are gone before the bubble flips to the tombstone.

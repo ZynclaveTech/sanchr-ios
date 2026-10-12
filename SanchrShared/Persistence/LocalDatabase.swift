@@ -104,6 +104,9 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// Which of `ids` are messages held on this phone.
+    func fetchExistingMessageIds(among ids: [String]) async throws -> Set<String>
+
     /// Deletes a message because the user asked for it to be gone, and
     /// remembers its id so a redelivery cannot bring it back. `deleteMessage`
     /// is for replacing a row, and remembers nothing.
@@ -170,6 +173,9 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    /// Everything exists, as far as a stand-in knows: the answer is used to
+    /// decide what to delete.
+    public func fetchExistingMessageIds(among ids: [String]) async throws -> Set<String> { Set(ids) }
     public func deleteMessageForGood(id: String) async throws { try await deleteMessage(id: id) }
     public func wasMessageDeleted(id: String) async throws -> Bool { false }
     public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge {
@@ -375,6 +381,23 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                 .order(Column("timestamp").asc)
                 .fetchAll(db)
             return records.map { $0.toDomain() }
+        }
+    }
+
+    public func fetchExistingMessageIds(among ids: [String]) async throws -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        return try await dbPool.read { db in
+            var found = Set<String>()
+            // In batches, under SQLite's limit on bound variables.
+            for start in stride(from: 0, to: ids.count, by: 500) {
+                let batch = Array(ids[start..<min(start + 500, ids.count)])
+                let rows = try MessageRecord
+                    .select(Column("id"), as: String.self)
+                    .filter(batch.contains(Column("id")))
+                    .fetchAll(db)
+                found.formUnion(rows)
+            }
+            return found
         }
     }
 
@@ -1920,6 +1943,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func fetchExistingMessageIds(among ids: [String]) async throws -> Set<String> { throw error }
     public func deleteMessageForGood(id: String) async throws { throw error }
     public func wasMessageDeleted(id: String) async throws -> Bool { throw error }
     public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge { throw error }

@@ -713,6 +713,13 @@ struct RootView: View {
                 "Block list warm-up failed on launch: \(error.localizedDescription)"
             )
         }
+
+        // Last, and after everything that might still be writing: photos
+        // older versions left behind when their message was deleted.
+        let database = container.localDatabase
+        await container.mediaDownloadManager.sweepOrphans { ids in
+            try await database.fetchExistingMessageIds(among: ids)
+        }
     }
 
 }
