@@ -127,9 +127,9 @@ final class NotificationWithdrawalTests: XCTestCase {
         )
     }
 
-    /// Asked before the purge, because afterwards nothing says which chats
-    /// the expired messages were in.
-    func testOnlyChatsWithAnExpiredMessageFromSomeoneElseHaveANotificationToWithdraw() async throws {
+    /// One transaction, so a message cannot be purged without its chat being
+    /// reported.
+    func testAPurgeReportsTheChatsThatHeldAnExpiredMessageFromSomeoneElse() async throws {
         let db = try database()
         let past = Date(timeIntervalSinceNow: -60)
         let future = Date(timeIntervalSinceNow: 600)
@@ -137,23 +137,26 @@ final class NotificationWithdrawalTests: XCTestCase {
             try await db.saveConversation(conversation(id))
         }
         try await db.saveMessage(message("a", in: "theirs", outgoing: false, expiresAt: past))
+        try await db.saveMessage(message("a2", in: "theirs", outgoing: false, expiresAt: past))
         try await db.saveMessage(message("b", in: "mine", outgoing: true, expiresAt: past))
         try await db.saveMessage(message("c", in: "later", outgoing: false, expiresAt: future))
         try await db.saveMessage(message("d", in: "plain", outgoing: false, expiresAt: nil))
 
-        let ids = try await db.fetchConversationIdsWithExpiredIncomingMessages()
+        let purge = try await db.purgeExpiredMessagesReportingConversations()
 
-        XCTAssertEqual(ids, ["theirs"])
+        XCTAssertEqual(Set(purge.messageIds), ["a", "a2", "b"])
+        XCTAssertEqual(purge.conversationIdsWithIncoming, ["theirs"], "once, and not the chat with only our own")
+        let again = try await db.purgeExpiredMessagesReportingConversations()
+        XCTAssertEqual(again, ExpiredMessagePurge(messageIds: [], conversationIdsWithIncoming: []))
     }
 
-    func testTheExpirySweepAsksBeforeItPurgesAndClearsAfter() throws {
+    func testTheExpirySweepClearsWhatThePurgeReports() throws {
         let sweeper = try source("Shared/Services/DisappearingMessageSweeper.swift")
-        let ask = try XCTUnwrap(sweeper.range(of: "fetchConversationIdsWithExpiredIncomingMessages()"))
-        let purge = try XCTUnwrap(sweeper.range(of: "localDatabase.purgeExpiredMessages()"))
+        let purge = try XCTUnwrap(sweeper.range(of: "purgeExpiredMessagesReportingConversations()"))
         let clear = try XCTUnwrap(sweeper.range(of: "clearNotifications(conversationId)"))
 
-        XCTAssertLessThan(ask.lowerBound, purge.lowerBound)
         XCTAssertLessThan(purge.lowerBound, clear.lowerBound)
+        XCTAssertFalse(sweeper.contains("localDatabase.purgeExpiredMessages()"))
     }
 
     func testDeletingAMessageSomeoneSentWithdrawsTheChatsNotifications() throws {

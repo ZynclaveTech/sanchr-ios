@@ -104,10 +104,10 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
-    /// Conversations holding a message someone else sent whose disappearing
-    /// deadline has passed. Asked before a purge: once the rows are gone
-    /// nothing says which chats they were in.
-    func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String]
+    /// `purgeExpiredMessages`, also saying which conversations held an
+    /// expired message someone else sent — the ones whose notifications may
+    /// be showing it.
+    func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge
 
     /// The id of every message held for a conversation, expired or not.
     func fetchMessageIds(conversationId: String) async throws -> [String]
@@ -144,6 +144,18 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     ) async throws
 }
 
+/// What a purge of expired messages removed.
+public struct ExpiredMessagePurge: Sendable, Equatable {
+    public let messageIds: [String]
+    /// Conversations that held an expired message someone else sent.
+    public let conversationIdsWithIncoming: [String]
+
+    public init(messageIds: [String], conversationIdsWithIncoming: [String]) {
+        self.messageIds = messageIds
+        self.conversationIdsWithIncoming = conversationIdsWithIncoming
+    }
+}
+
 /// GRDB-backed local database with encrypted SQLite storage.
 /// Thread-safe via GRDB's internal WAL-mode serialization.
 extension LocalDatabaseProtocol {
@@ -151,7 +163,9 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
-    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] { [] }
+    public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge {
+        ExpiredMessagePurge(messageIds: try await purgeExpiredMessages(), conversationIdsWithIncoming: [])
+    }
     public func fetchMessageIds(conversationId: String) async throws -> [String] { [] }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool {
         try await updateMessageStatus(id: id, status: status)
@@ -422,34 +436,35 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
         }
     }
 
-    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] {
-        try await dbPool.read { db in
-            try String.fetchAll(
-                db,
-                sql: """
-                    SELECT DISTINCT conversationId FROM message
-                    WHERE expiresAt IS NOT NULL AND expiresAt <= ? AND isOutgoing = 0
-                    """,
-                arguments: [Date()]
-            )
-        }
+    public func purgeExpiredMessages() async throws -> [String] {
+        try await purgeExpiredMessagesReportingConversations().messageIds
     }
 
-    public func purgeExpiredMessages() async throws -> [String] {
+    /// One transaction and one clock reading for both answers. Asked
+    /// separately, a message whose deadline fell between the two questions
+    /// was purged without its conversation being reported, and its
+    /// notification stayed up.
+    public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge {
         try await dbPool.write { db in
             let now = Date()
-            // Collect ids before deleting: the caller needs them to wipe cached
-            // media, and once the rows are gone the files are unreachable orphans.
+            // Collected before deleting: the caller needs the ids to wipe
+            // cached media, and once the rows are gone the files are
+            // unreachable orphans.
             let expired = try MessageRecord
                 .filter(Column("expiresAt") != nil && Column("expiresAt") <= now)
                 .fetchAll(db)
-            guard !expired.isEmpty else { return [] }
+            guard !expired.isEmpty else { return ExpiredMessagePurge(messageIds: [], conversationIdsWithIncoming: []) }
 
             let ids = expired.map(\.id)
             _ = try MessageRecord
                 .filter(ids.contains(Column("id")))
                 .deleteAll(db)
-            return ids
+            var seen = Set<String>()
+            let incoming = expired
+                .filter { !$0.isOutgoing }
+                .map(\.conversationId)
+                .filter { seen.insert($0).inserted }
+            return ExpiredMessagePurge(messageIds: ids, conversationIdsWithIncoming: incoming)
         }
     }
 
@@ -1877,7 +1892,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
-    public func fetchConversationIdsWithExpiredIncomingMessages() async throws -> [String] { throw error }
+    public func purgeExpiredMessagesReportingConversations() async throws -> ExpiredMessagePurge { throw error }
     public func fetchMessageIds(conversationId: String) async throws -> [String] { throw error }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool { throw error }
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool { throw error }

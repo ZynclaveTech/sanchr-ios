@@ -48,12 +48,14 @@ actor DisappearingMessageSweeper {
     /// disclosure the timer existed to prevent.
     @discardableResult
     func sweep() async -> Int {
-        // Asked first: once the rows are gone nothing says which chats
-        // they were in.
-        let notified = (try? await localDatabase.fetchConversationIdsWithExpiredIncomingMessages()) ?? []
         let expiredIds: [String]
+        // Which chats they were in comes back with the purge itself: asked
+        // separately, a message expiring in between would go unreported.
+        let notified: [String]
         do {
-            expiredIds = try await localDatabase.purgeExpiredMessages()
+            let purge = try await localDatabase.purgeExpiredMessagesReportingConversations()
+            expiredIds = purge.messageIds
+            notified = purge.conversationIdsWithIncoming
         } catch {
             SanchrLogger.chat.error(
                 "Disappearing sweep failed: \(error.localizedDescription)")
