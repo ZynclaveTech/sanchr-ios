@@ -316,6 +316,12 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
     private let privacyGate: MessagingPrivacyGate
     /// Reads the stored block list into memory if this launch has not yet.
     private let loadBlockList: @Sendable () async -> Void
+    /// Takes down the delivered notifications for a conversation.
+    ///
+    /// They were only ever removed when the chat was opened. A notification
+    /// can carry who wrote and a preview of what, so a chat that was
+    /// deleted, hidden or read from the list left that on the lock screen.
+    private let clearNotifications: @Sendable (_ conversationId: String) -> Void
     private let receiptDelayNanoseconds: @Sendable () -> UInt64
     private let profileKeyStore: ProfileKeyStoreProtocol
 
@@ -335,6 +341,9 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         privacySettings: PrivacySettingsCache,
         profileKeyStore: ProfileKeyStoreProtocol,
         loadBlockList: @escaping @Sendable () async -> Void = {},
+        clearNotifications: @escaping @Sendable (_ conversationId: String) -> Void = {
+            SanchrNotificationService.clearNotifications(for: $0)
+        },
         receiptDelayNanoseconds: @escaping @Sendable () -> UInt64 = {
             UInt64(Double.random(in: 0...3) * 1_000_000_000)
         }
@@ -354,6 +363,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
         self.currentUserIdProvider = currentUserIdProvider
         self.privacyGate = MessagingPrivacyGate(privacySettings: privacySettings)
         self.loadBlockList = loadBlockList
+        self.clearNotifications = clearNotifications
         self.receiptDelayNanoseconds = receiptDelayNanoseconds
         self.profileKeyStore = profileKeyStore
     }
@@ -616,6 +626,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
 
     func hideConversationLocally(conversationId: String) async throws {
         try await localDatabase.setConversationHidden(id: conversationId, isHidden: true)
+        clearNotifications(conversationId)
         await MainActor.run {
             NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
         }
@@ -640,6 +651,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             localDatabase: localDatabase,
             removeCachedFile: { await media.removeCachedFile(messageId: $0) }
         ).erase(conversationId: conversationId)
+        clearNotifications(conversationId)
         SanchrLogger.chat.info("Deleted conversation \(conversationId.prefix(8)) and \(removed) message(s)")
         await MainActor.run {
             NotificationCenter.default.postConversationStateDidChange(conversationId: conversationId)
@@ -683,6 +695,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             conversationId: conversationId,
             upToMessageId: upToMessageId
         )
+        clearNotifications(conversationId)
 
         guard let peerUserId = try? await oneToOneReceiptPeerId(
             conversationId: conversationId
@@ -709,6 +722,7 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             conversationId: conversationId,
             upToMessageId: upToMessageId
         )
+        clearNotifications(conversationId)
         SanchrLogger.chat.info("Marked conversation \(conversationId.prefix(8)) as read locally (no receipt sent)")
     }
 

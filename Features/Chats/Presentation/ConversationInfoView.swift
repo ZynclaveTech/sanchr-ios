@@ -503,6 +503,8 @@ struct ConversationInfoView: View {
             for id in ids {
                 await container.mediaDownloadManager.removeCachedFile(messageId: id)
             }
+            // A notification can carry a preview of one of them.
+            SanchrNotificationService.clearNotifications(for: conversation.id)
             await MainActor.run {
                 NotificationCenter.default.postConversationStateDidChange(
                     conversationId: conversation.id)
