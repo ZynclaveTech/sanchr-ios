@@ -17,15 +17,35 @@ final class OnboardingViewModel {
     private static let nameKey = "sanchr.onboarding.name"
     private let defaults: UserDefaults
 
+    /// False while `init` is putting back what was stored.
+    ///
+    /// The view that owns this model is rebuilt whenever the root view
+    /// redraws, and each rebuild constructs a model (SwiftUI keeps only the
+    /// first, but it constructs every one). Restoring the step and the name
+    /// went through the setters below, so every construction wrote to
+    /// UserDefaults. The root view reads UserDefaults through `@AppStorage`,
+    /// so every write made it redraw — and build another model. The app spun
+    /// there for good, and nobody could get past the first onboarding screen.
+    ///
+    /// Reading back what is already stored is not a change, and must not be
+    /// written as one.
+    @ObservationIgnored private var isRestored = false
+
     var currentStep: Int = 1 {
-        didSet { defaults.set(currentStep, forKey: Self.stepKey) }
+        didSet {
+            guard isRestored, currentStep != oldValue else { return }
+            defaults.set(currentStep, forKey: Self.stepKey)
+        }
     }
     var isForward: Bool = true
 
     // MARK: - Step 1: Name
 
     var displayName: String = "" {
-        didSet { defaults.set(displayName, forKey: Self.nameKey) }
+        didSet {
+            guard isRestored, displayName != oldValue else { return }
+            defaults.set(displayName, forKey: Self.nameKey)
+        }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -33,6 +53,7 @@ final class OnboardingViewModel {
         let stored = defaults.integer(forKey: Self.stepKey)
         currentStep = min(max(stored, 1), Self.totalSteps)
         displayName = defaults.string(forKey: Self.nameKey) ?? ""
+        isRestored = true
     }
 
     /// Onboarding is complete: forget the resume point.

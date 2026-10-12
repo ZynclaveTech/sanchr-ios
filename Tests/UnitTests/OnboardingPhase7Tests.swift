@@ -39,6 +39,66 @@ final class OnboardingPhase7Tests: XCTestCase {
         XCTAssertEqual(after.displayName, "")
     }
 
+    /// Counts writes to `defaults` while `work` runs.
+    private func writes(to defaults: UserDefaults, during work: () -> Void) -> Int {
+        var count = 0
+        let token = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: defaults, queue: nil
+        ) { _ in count += 1 }
+        defer { NotificationCenter.default.removeObserver(token) }
+        work()
+        return count
+    }
+
+    /// The view that owns this model is rebuilt on every redraw of the root
+    /// view, and each rebuild constructs one. A construction that wrote to
+    /// UserDefaults made the root view — which reads UserDefaults — redraw
+    /// again, for ever: the app hung on the first onboarding screen.
+    func testCreatingAModelWritesNothing() {
+        let defaults = freshDefaults()
+        defaults.set(3, forKey: "sanchr.onboarding.step")
+        defaults.set("Sooraj", forKey: "sanchr.onboarding.name")
+
+        let count = writes(to: defaults) {
+            for _ in 0..<5 {
+                let model = OnboardingViewModel(defaults: defaults)
+                XCTAssertEqual(model.currentStep, 3)
+                XCTAssertEqual(model.displayName, "Sooraj")
+            }
+        }
+
+        XCTAssertEqual(count, 0)
+    }
+
+    func testCreatingAModelForAFreshUserWritesNothingEither() {
+        let defaults = freshDefaults()
+
+        XCTAssertEqual(writes(to: defaults) { _ = OnboardingViewModel(defaults: defaults) }, 0)
+    }
+
+    func testProgressIsStillWrittenWhenItChanges() {
+        let defaults = freshDefaults()
+        let model = OnboardingViewModel(defaults: defaults)
+
+        let count = writes(to: defaults) {
+            model.displayName = "Sooraj"
+            model.goToNextStep()
+        }
+
+        XCTAssertEqual(count, 2)
+        XCTAssertEqual(defaults.integer(forKey: "sanchr.onboarding.step"), 2)
+        XCTAssertEqual(defaults.string(forKey: "sanchr.onboarding.name"), "Sooraj")
+    }
+
+    /// Setting what is already there is not a change.
+    func testSettingTheSameValueWritesNothing() {
+        let defaults = freshDefaults()
+        let model = OnboardingViewModel(defaults: defaults)
+        model.displayName = "Sooraj"
+
+        XCTAssertEqual(writes(to: defaults) { model.displayName = "Sooraj" }, 0)
+    }
+
     func testStoredStepIsClampedToTheFlow() {
         let defaults = freshDefaults()
         defaults.set(99, forKey: "sanchr.onboarding.step")
