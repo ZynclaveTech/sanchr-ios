@@ -103,7 +103,14 @@ public enum AndroidEnvelopeReader {
         let content = try UnidentifiedSenderMessageContent(message: envelope, identityStore: stores, context: context)
         let certificate = content.senderCertificate
         let millis = UInt64(max(0, receivedAt.timeIntervalSince1970 * 1000))
-        guard certificate.validate(trustRoot: trustRoot, time: millis) else {
+        // The signatures first, at a moment no certificate has expired by, so
+        // that expiry can be judged here. libsignal reads the expiry as
+        // milliseconds and this server writes it in seconds: judged by
+        // libsignal every certificate the server has ever issued lapsed in
+        // January 1970, and every message an Android phone sent was refused.
+        guard certificate.validate(trustRoot: trustRoot, time: 0),
+              millis <= expiryInMilliseconds(certificate.expiration)
+        else {
             throw ReadError.certificateNotValid
         }
 
@@ -126,6 +133,18 @@ public enum AndroidEnvelopeReader {
             senderDeviceId: Int32(certificate.deviceId)
         )
     }
+
+    /// A certificate's expiry in milliseconds, whichever unit it was written in.
+    ///
+    /// The server writes seconds; libsignal, and a server corrected to match
+    /// it, write milliseconds. The two cannot be confused: a time in seconds
+    /// stays below this bound until the year 2286, and one in milliseconds
+    /// passed it in 1970.
+    public static func expiryInMilliseconds(_ expiration: UInt64) -> UInt64 {
+        expiration < secondsMillisecondsBoundary ? expiration * 1000 : expiration
+    }
+
+    private static let secondsMillisecondsBoundary: UInt64 = 10_000_000_000
 
     /// Whether a failure to open a message from inside a session says the
     /// session is gone, rather than that something else went wrong.
