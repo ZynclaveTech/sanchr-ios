@@ -104,6 +104,9 @@ public protocol LocalDatabaseProtocol: AnyObject, Sendable {
     func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws
     func purgeAllData() async throws
 
+    /// The id of every message held for a conversation, expired or not.
+    func fetchMessageIds(conversationId: String) async throws -> [String]
+
     /// Moves a message this user sent forward to delivered or read. See
     /// `LocalDatabase.advanceOutgoingMessageStatus`.
     ///
@@ -143,6 +146,7 @@ extension LocalDatabaseProtocol {
     public func enqueuePendingConversationDelete(conversationId: String) async throws {}
     public func fetchPendingConversationDeletes() async throws -> [String] { [] }
     public func removePendingConversationDelete(conversationId: String) async throws {}
+    public func fetchMessageIds(conversationId: String) async throws -> [String] { [] }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool {
         try await updateMessageStatus(id: id, status: status)
         return true
@@ -367,6 +371,16 @@ public final class LocalDatabase: LocalDatabaseProtocol, @unchecked Sendable {
                     WHERE id = ?
                     """,
                 arguments: [seconds > 0 ? Double(seconds) : nil, Date(), conversationId]
+            )
+        }
+    }
+
+    public func fetchMessageIds(conversationId: String) async throws -> [String] {
+        try await dbPool.read { db in
+            try String.fetchAll(
+                db,
+                sql: "SELECT id FROM message WHERE conversationId = ?",
+                arguments: [conversationId]
             )
         }
     }
@@ -1844,6 +1858,7 @@ public final class UnavailableLocalDatabase: LocalDatabaseProtocol, @unchecked S
     public func exportBackupSnapshot(currentUserId: String?, fingerprint: String) async throws -> BackupArchiveSnapshot { throw error }
     public func restoreBackupSnapshot(_ snapshot: BackupArchiveSnapshot, currentUserId: String?, localFingerprint: String) async throws { throw error }
     public func purgeAllData() async throws { throw error }
+    public func fetchMessageIds(conversationId: String) async throws -> [String] { throw error }
     public func advanceOutgoingMessageStatus(id: String, to status: Message.DeliveryStatus) async throws -> Bool { throw error }
     public func saveReceivedMessage(_ message: Message, queueAck: Bool) async throws -> Bool { throw error }
     public func fetchBlockedUserIds() async throws -> Set<String> { throw error }

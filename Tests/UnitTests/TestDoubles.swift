@@ -313,6 +313,11 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
     }
 
     private(set) var hiddenConversationIds: [String] = []
+    var deletedConversationIds: [String] = []
+    func deleteConversation(conversationId: String) async throws {
+        deletedConversationIds.append(conversationId)
+    }
+
     func hideConversationLocally(conversationId: String) async throws {
         hiddenConversationIds.append(conversationId)
     }

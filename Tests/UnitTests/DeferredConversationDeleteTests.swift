@@ -4,8 +4,8 @@ import XCTest
 
 @testable import Sanchr
 
-/// A conversation deleted while offline is hidden at once and its server
-/// delete is queued; the queue is settled on the next sync. Before this the
+/// A conversation deleted while offline is removed from the phone at once and
+/// its server delete is queued; the queue is settled on the next sync. Before this the
 /// failure was logged and the conversation came back on the next full fetch.
 final class DeferredConversationDeleteTests: XCTestCase {
 
@@ -35,8 +35,10 @@ final class DeferredConversationDeleteTests: XCTestCase {
     }
 
     func testAFailedServerDeleteIsQueuedAndSettledOnSync() throws {
-        let viewModel = try source("Features/Chats/Presentation/ChatsListViewModel.swift")
-        XCTAssertTrue(viewModel.contains("messageRepository.enqueueConversationDelete(conversationId: conversation.id)"))
+        // Queued where the server call is made, so every screen that deletes
+        // a conversation gets it.
+        let repository = try source("Shared/Repositories/MessageRepository.swift")
+        XCTAssertTrue(repository.contains("localDatabase.enqueuePendingConversationDelete(conversationId: conversationId)"))
         let realtime = try source("Shared/Services/RealtimeService.swift")
         XCTAssertTrue(realtime.contains("messageRepository.flushPendingConversationDeletes()"))
     }
