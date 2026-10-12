@@ -1748,6 +1748,12 @@ final class MessageRepositoryImpl: MessageRepositoryProtocol, @unchecked Sendabl
             return false
         }
 
+        // Why, and not only that. "Dropped 1 undeliverable" said a message
+        // was lost and nothing about the cause, which is the one thing
+        // needed to tell a lost session from a bad certificate from a replay.
+        SanchrLogger.chat.warning(
+            "Sealed message \(messageId.prefix(8)) could not be read: \(String(describing: error))"
+        )
         let acked = await ackDeliveredEnvelope(messageId: messageId, conversationId: conversationId)
         if acked, let droppedCount = await sealedDropLogLimiter.recordDrop() {
             SanchrLogger.chat.warning(

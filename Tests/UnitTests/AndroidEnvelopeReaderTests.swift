@@ -78,12 +78,14 @@ final class AndroidEnvelopeReaderTests: XCTestCase {
     private func certificate(
         for peer: AndroidPeer,
         expires: Date? = nil,
+        expiryInSeconds: Bool = false,
         signedBy signer: (certificate: ServerCertificate, key: PrivateKey)? = nil
     ) throws -> SenderCertificate {
-        try SenderCertificate(
+        let expiry = (expires ?? now.addingTimeInterval(86_400)).timeIntervalSince1970
+        return try SenderCertificate(
             sender: try SealedSenderAddress(e164: nil, uuidString: peer.userId, deviceId: peer.deviceId),
             publicKey: peer.identity.publicKey,
-            expiration: UInt64((expires ?? now.addingTimeInterval(86_400)).timeIntervalSince1970 * 1000),
+            expiration: UInt64(expiryInSeconds ? expiry : expiry * 1000),
             signerCertificate: signer?.certificate ?? serverCertificate,
             signerKey: signer?.key ?? serverKey)
     }
@@ -222,6 +224,38 @@ final class AndroidEnvelopeReaderTests: XCTestCase {
         XCTAssertThrowsError(try open(late, at: expiry.addingTimeInterval(60))) { error in
             XCTAssertEqual(error as? AndroidEnvelopeReader.ReadError, .certificateNotValid)
         }
+    }
+
+    /// What the server actually issues. libsignal reads the expiry as
+    /// milliseconds, the server writes seconds, and every test here built its
+    /// certificates the way libsignal expects, so none of them noticed that
+    /// no real Android message could be read.
+    func testACertificateWhoseExpiryIsWrittenInSecondsIsRead() throws {
+        let alice = AndroidPeer("alice")
+        try startSession(alice)
+        let good = try certificate(for: alice, expires: now.addingTimeInterval(86_400), expiryInSeconds: true)
+
+        let opened = try open(try sealedEnvelope(from: alice, "from a real server", certificate: good), at: now)
+
+        XCTAssertEqual(String(decoding: opened.plaintext, as: UTF8.self), "from a real server")
+    }
+
+    func testACertificateInSecondsThatHasLapsedIsStillRefused() throws {
+        let alice = AndroidPeer("alice")
+        try startSession(alice)
+        let expiry = now.addingTimeInterval(3_600)
+        let lapsed = try certificate(for: alice, expires: expiry, expiryInSeconds: true)
+
+        XCTAssertThrowsError(
+            try open(try sealedEnvelope(from: alice, "late", certificate: lapsed), at: expiry.addingTimeInterval(60))
+        ) { error in
+            XCTAssertEqual(error as? AndroidEnvelopeReader.ReadError, .certificateNotValid)
+        }
+    }
+
+    func testAnExpiryIsReadInWhicheverUnitItWasWritten() {
+        XCTAssertEqual(AndroidEnvelopeReader.expiryInMilliseconds(1_791_000_000), 1_791_000_000_000)
+        XCTAssertEqual(AndroidEnvelopeReader.expiryInMilliseconds(1_791_000_000_000), 1_791_000_000_000)
     }
 
     func testATamperedEnvelopeIsRefused() throws {
