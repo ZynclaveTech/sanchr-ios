@@ -512,6 +512,8 @@ struct MessageBubble: View {
         }
     }
 
+    /// The time and, for one of ours, how far it has got: one tick sent, two
+    /// delivered, two green read. Green is used for nothing else here.
     private var timestampRow: some View {
         HStack(spacing: 4) {
             Text(message.timestamp.messageTime)
@@ -529,7 +531,7 @@ struct MessageBubble: View {
                     }
                     .foregroundColor(
                         message.status == .read
-                            ? SanchrColors.accent
+                            ? SanchrColors.success
                             : ground.timestampColor
                     )
                     .frame(width: 16)

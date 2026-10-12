@@ -15,6 +15,13 @@ struct MessagingPrivacyGate: Sendable {
 
     enum Signal: Sendable, Equatable {
         case readReceipt
+        /// "Your message has arrived on this phone."
+        ///
+        /// Not held back by the read-receipts switch: that is about whether
+        /// the user has looked, and this says only that the phone has the
+        /// message. Sanchr Mode holds it back, as it does everything that
+        /// shows the phone to be reachable.
+        case deliveryReceipt
         case typingIndicator
         case presence
     }
@@ -46,6 +53,8 @@ struct MessagingPrivacyGate: Sendable {
         switch signal {
         case .readReceipt:
             return privacySettings.canSendReadReceipts ? .allow : .suppress
+        case .deliveryReceipt:
+            return privacySettings.sanchrModeEnabled ? .suppress : .allow
         case .typingIndicator:
             return privacySettings.canSendTypingIndicators ? .allow : .suppress
         case .presence:
